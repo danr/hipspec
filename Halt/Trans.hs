@@ -10,9 +10,12 @@ import Var
 import DataCon
 import Id
 import Outputable
+import Literal
+import FastString
 
 import Halt.Names
 import Halt.Util
+import Halt.Lift
 import FOL.Syn
 
 import qualified Data.Map as M
@@ -53,9 +56,13 @@ type TransM = Reader ArityMap
 --         of a function. Possible fix: top level lift all other case expressions
 translate :: [CoreBind] -> [FDecl]
 translate program =
-  let -- Remove the unnecessary SCC information
+  let -- Let-lift the program
+      liftedProgram :: [CoreBind]
+      liftedProgram = liftProgram program
+
+      -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
-      binds = flattenBinds program
+      binds = flattenBinds liftedProgram
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
@@ -177,10 +184,13 @@ trBody f as e subs cons = case e of
                -- Translate the non-default alternatives, getting formulas and constraints.
                -- These constraints should be in negative position
                (alt_formulae,cons') <- runWriterT (concat <$> mapM (trAlt f as scrut_var subs' cons) alts)
-
                (:alt_formulae) <$> trFunctionDecl def_expr (allEqual cons ++ allUnequal cons')
   _ -> do (:[]) <$> trFunctionDecl e (allEqual cons)
   where
+    -- Translates a core expression with positioned constraints to a formula, i.e.
+    -- If the constraints are [ (Equal, x, e1), (Unequal, y, e2) ], and the arguments are [x,y,z], and
+    -- the expression is e and the function is f, we get:
+    -- forall x y z . x = e1 & y /= e2 => f(x,y,z) = e
     trFunctionDecl :: CoreExpr -> [(Position,Constraint)] -> TransM Formula
     trFunctionDecl expr cons_ = do
         lhs    <- trExpr subs expr
@@ -190,8 +200,9 @@ trBody f as e subs cons = case e of
                          (constr (mkFun f as' === lhs))
 
 -- | Translate an alternative from a case expression
+--   An alternative generates a constraint from that construction with the current substitution.
 trAlt :: Var -> [Var] -> Var -> Subs -> Constraints -> CoreAlt
-       -> WriterT Constraints TransM Formulae
+      -> WriterT Constraints TransM Formulae
 trAlt f as scrut_var subs cons (con, bs, e) =
   case con of
     DataAlt data_con ->
@@ -216,11 +227,13 @@ trExpr subs e = case e of
                     (f,es)     -> foldl (\x y -> Fun (FunName "ptrApp") [x,y])
                                      <$> trExpr subs f
                                      <*> mapM (trExpr subs) es
+    Lit (MachStr s) -> return (Fun (FunName "string") [Fun (FunName (unpackFS s)) []])
     Lit{}      -> trErr e "literals"
     Cast{}     -> trErr e "casts"
     Type{}     -> trErr e "types"
     Lam{}      -> trErr e "lambdas"
     Let{}      -> trErr e "let stmnts"
+    Note{}     -> trErr e "notes"
 --    Coercion{} -> trErr "coercions"
 --    Tick{}     -> trErr "ticks"
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n"

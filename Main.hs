@@ -10,6 +10,7 @@ import HscTypes
 import SimplCore
 
 import Halt.Trans
+import Halt.Lift
 import FOL.Pretty
 
 import System.Environment
@@ -21,14 +22,14 @@ desugar targetFile =
       dflags <- getSessionDynFlags
       let dflags' = foldl dopt_set (foldl xopt_set dflags
                           [Opt_Cpp, Opt_MagicHash])
-                          [Opt_FloatIn,Opt_CSE,Opt_DoEtaReduction
-                          ,Opt_CaseMerge,Opt_StaticArgumentTransformation
-                          ,Opt_FullLaziness]
+                          [Opt_CaseMerge,Opt_FloatIn,Opt_CSE,Opt_DoEtaReduction
+                          ,Opt_StaticArgumentTransformation
+                          ]
       setSessionDynFlags dflags'
       target <- guessTarget targetFile Nothing
       setTargets [target]
       load LoadAllTargets
-      modSum <- getModSummary $ mkModuleName "CoreTest"
+      modSum <- getModSummary (mkModuleName targetFile)
       p <- parseModule modSum
       t <- typecheckModule p
       d <- desugarModule t
@@ -40,5 +41,12 @@ main = do
   [file] <- getArgs
   modguts <- desugar file
   let coreBinds = mg_binds modguts
+  putStrLn "************************"
+  putStrLn "desugared:\n"
   mapM_ (printDump . ppr) coreBinds
+  putStrLn "************************"
+  putStrLn "let-lifted:\n"
+  mapM_ (printDump . ppr) (liftProgram coreBinds)
+  putStrLn "************************"
+  putStrLn "tptp:\n"
   outputTPTP (translate coreBinds)
