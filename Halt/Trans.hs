@@ -174,17 +174,18 @@ trBody f as e subs cons = case e of
                    subs' :: Subs
                    subs' = M.insert scrut_var scrutinee subs
 
-               -- Translate the non-default alternatives, getting formulas and constraints
+               -- Translate the non-default alternatives, getting formulas and constraints.
+               -- These constraints should be in negative position
                (alt_formulae,cons') <- runWriterT (concat <$> mapM (trAlt f as scrut_var subs' cons) alts)
 
-               (:alt_formulae) <$> trFunctionDecl unequal def_expr (cons ++ cons')
-  _ -> do (:[]) <$> trFunctionDecl equal e cons
+               (:alt_formulae) <$> trFunctionDecl def_expr (allEqual cons ++ allUnequal cons')
+  _ -> do (:[]) <$> trFunctionDecl e (allEqual cons)
   where
-    trFunctionDecl :: Bool -> CoreExpr -> Constraints -> TransM Formula
-    trFunctionDecl eq expr cons_ = do
+    trFunctionDecl :: CoreExpr -> [(Position,Constraint)] -> TransM Formula
+    trFunctionDecl expr cons_ = do
         lhs    <- trExpr subs expr
         as'    <- mapM (trExpr subs . Var) as
-        constr <- trConstraints eq cons_
+        constr <- trConstraints cons_
         return $ forall' (map (VarName . idToStr) as)
                          (constr (mkFun f as' === lhs))
 
@@ -231,18 +232,23 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg Type{} = True
     isTyArg _      = False
 
-unequal,equal :: Bool
-unequal = True
-equal   = False
+data Position = Equal | Unequal
+  deriving (Eq,Show)
 
-trConstraints :: Bool -> Constraints -> TransM (Formula -> Formula)
-trConstraints eq []   = return id
-trConstraints eq cons = (==>) . foldr1 (/\) <$> mapM trConstraint cons
+allEqual :: Constraints -> [(Position,Constraint)]
+allEqual = map ((,) Equal)
+
+allUnequal :: Constraints -> [(Position,Constraint)]
+allUnequal = map ((,) Unequal)
+
+trConstraints :: [(Position,Constraint)] -> TransM (Formula -> Formula)
+trConstraints []   = return id
+trConstraints cons = (==>) . foldr1 (/\) <$> mapM (uncurry trConstraint) cons
   where
-    trConstraint :: Constraint -> TransM Formula
-    trConstraint (Constraint subs lhs rhs) = equals <$> trExpr subs lhs <*> trExpr subs rhs
-
-    equals = if eq == unequal then (!=) else (===)
+    trConstraint :: Position -> Constraint -> TransM Formula
+    trConstraint eq (Constraint subs lhs rhs) = equals <$> trExpr subs lhs <*> trExpr subs rhs
+      where
+        equals = if eq == Unequal then (!=) else (===)
 
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . idName

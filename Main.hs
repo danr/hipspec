@@ -40,5 +40,5 @@ main = do
   [file] <- getArgs
   modguts <- desugar file
   let coreBinds = mg_binds modguts
---  mapM_ (printDump . ppr) coreBinds
+  mapM_ (printDump . ppr) coreBinds
   outputTPTP (translate coreBinds)
