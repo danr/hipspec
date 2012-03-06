@@ -9,6 +9,7 @@ import CoreUtils
 import Var
 import DataCon
 import Id
+import Name
 import Outputable
 import Literal
 import FastString
@@ -44,8 +45,9 @@ import Control.Monad.Writer
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Var Int
 
--- The translation monad
-type TransM = Reader ArityMap
+-- The translation monad, fst is the argument variables to a function,
+-- arity map is the map of arities
+type TransM = Reader ([Var],ArityMap)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   Right now unsound an incomplete as nothing is done for data types,
@@ -72,7 +74,7 @@ translate program =
       translated :: TransM Formulae
       translated = concat `fmap` sequence [ trDecl v e | (v,e) <- binds ]
 
-  in  [ FDecl Axiom ("decl" ++ show n) phi | phi <- translated `runReader` arities
+  in  [ FDecl Axiom ("decl" ++ show n) phi | phi <- translated `runReader` ([],arities)
                                            | n <- [(0 :: Int)..] ]
 
 {-
@@ -173,7 +175,7 @@ trDecl f e =
 
 -- | Translate a body, i.e, case statements eventually ending in expressions
 trBody :: Var -> [Var] -> CoreExpr -> Subs -> Constraints -> TransM Formulae
-trBody f as e subs cons = case e of
+trBody f as e subs cons = local (first (const as)) $ case e of
   Case{} -> do let -- Add the bottom case, afterwards there is a default case first
                    Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
 
@@ -196,7 +198,7 @@ trBody f as e subs cons = case e of
         lhs    <- trExpr subs expr
         as'    <- mapM (trExpr subs . Var) as
         constr <- trConstraints cons_
-        return $ forall' (map (VarName . idToStr) as)
+        return $ forall' (map mkVarName as)
                          (constr (mkFun f as' === lhs))
 
 -- | Translate an alternative from a case expression
@@ -218,9 +220,12 @@ trAlt f as scrut_var subs cons (con, bs, e) =
 
 -- | Translate an expression, i.e. not case statements. Substitutions are followed.
 trExpr :: Subs -> CoreExpr -> TransM Term
-trExpr subs e = case e of
+trExpr subs e = do
+  as <- asks fst
+  case e of
     Var x | Just e' <- M.lookup x subs -> trExpr subs e'
-          | otherwise                  -> return (mkVar x)
+          | x `elem` as                -> return (mkVar x)
+          | otherwise                  -> return (mkFun x [])
     App{} -> case second trimTyArgs (collectArgs e) of
                     -- TODO : Use the arities and add appropriate use of app
                     (Var x,es) -> mkFun x <$> mapM (trExpr subs) es
@@ -264,11 +269,14 @@ trConstraints cons = (==>) . foldr1 (/\) <$> mapM (uncurry trConstraint) cons
         equals = if eq == Unequal then (!=) else (===)
 
 idToStr :: Id -> String
-idToStr = showSDocOneLine . ppr . idName
+idToStr = showSDocOneLine . ppr . localiseName . idName
 --idToStr = occNameString . nameOccName . idName
 
 mkFun :: Var -> [Term] -> Term
 mkFun = Fun . FunName . idToStr
 
+mkVarName :: Var -> VarName
+mkVarName = VarName . (\(x:xs) -> toUpper x : xs) . idToStr
+
 mkVar :: Var -> Term
-mkVar = FVar . VarName . idToStr
+mkVar = FVar . mkVarName

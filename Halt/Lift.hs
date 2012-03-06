@@ -8,6 +8,7 @@ import CoreFVs
 import Outputable
 import Var
 import VarEnv
+import VarSet
 
 import Debug.Trace
 
@@ -40,22 +41,23 @@ liftLambda b e = let vs :: [CoreBndr]
 
 liftExpr :: CoreExpr -> LiftM CoreExpr
 liftExpr e = case e of
-    Let b lhs -> do vs <- ask
-                    let bs = bindersOf b
-                        subsList  = [(x,Note (CoreNote "substituted") (mkApps (Var x) (map Var vs)))
-                                    | x <- bs]
-                        subst     = extendIdSubstList (mkEmptySubst (mkInScopeSet (exprFreeVars lhs))) subsList
-                                     `extendInScopeList` (vs ++ bs)
-                        b' :: CoreBind
-                        e' :: CoreExpr
-                        Let b' e' = trace ("Substituting " ++
-                                             concat [ show b ++ " to " ++ showSDoc (pprCoreExpr (e :: CoreExpr))
-                                                    | (b,e) <- subsList ]
-                                             ++ " in scope : " ++ show vs)
-                                  $ substExpr (error "liftExpr : SDoc") subst e
-                    liftBndr b'
-                    trace ("SubstExpr is " ++ showSDoc (pprCoreExpr (e' :: CoreExpr))) $
-                       liftExpr e'
+    Let b lhs -> do
+       vs <- ask
+       let bs = bindersOf b
+           subsList  = [(x,Note (CoreNote "substituted") (mkApps (Var x) (map Var vs)))
+                       | x <- bs]
+           subst     = extendIdSubstList (mkEmptySubst (mkInScopeSet (bindFreeVars b `unionVarSet` exprFreeVars lhs))) subsList
+--                        `extendInScopeList` (vs ++ bs)
+           b' :: CoreBind
+           e' :: CoreExpr
+           Let b' e' = {- trace ("Substituting " ++
+                                concat [ show b ++ " to " ++ showSDoc (pprCoreExpr (e :: CoreExpr))
+                                       | (b,e) <- subsList ]
+                                ++ " in scope : " ++ show vs)
+                     $ -} substExpr (error "liftExpr : SDoc") subst e
+       liftBndr b'
+       -- trace ("SubstExpr is " ++ showSDoc (pprCoreExpr (e' :: CoreExpr))) $
+       liftExpr e'
     Lam{}     -> error ("liftExpr on lambda" ++ showSDoc (pprCoreExpr e))
     App e1 e2 -> App <$> liftExpr e1 <*> liftExpr e2
     Case s w t alts -> local (++ [w]) $ (\s' alts' -> Case s' w t alts')
