@@ -21,7 +21,7 @@ import FOL.Syn
 
 import qualified Data.Map as M
 import Data.Map (Map)
-import Data.Char (toUpper)
+import Data.Char (toUpper,toLower)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -269,11 +269,14 @@ trConstraints cons = (==>) . foldr1 (/\) <$> mapM (uncurry trConstraint) cons
         equals = if eq == Unequal then (!=) else (===)
 
 idToStr :: Id -> String
-idToStr = showSDocOneLine . ppr . localiseName . idName
+idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
+  where
+    maybeLocaliseName n | isSystemName n = n
+                        | otherwise      = localiseName n
 --idToStr = occNameString . nameOccName . idName
 
 mkFun :: Var -> [Term] -> Term
-mkFun = Fun . FunName . idToStr
+mkFun = Fun . FunName . map toLower . idToStr
 
 mkVarName :: Var -> VarName
 mkVarName = VarName . (\(x:xs) -> toUpper x : xs) . idToStr

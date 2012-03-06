@@ -5,11 +5,13 @@ import CoreSyn
 import DataCon
 import Id
 import Unique
+import SrcLoc
 
 -- | The bottom name, did not know what Name to pick so I tried System Name
 bottomName :: Name
-bottomName = mkSystemName (mkPreludeMiscIdUnique 0) -- error "bottomName: unique")
-                          (mkOccName dataName "_|_")
+bottomName = mkInternalName (mkPreludeMiscIdUnique 0) -- error "bottomName: unique")
+                            (mkOccName dataName "bottom")
+                            wiredInSrcSpan
 
 -- | The constructor for bottom
 bottomCon :: DataCon
@@ -55,8 +57,9 @@ ptrAppVar = Var ptrAppId
 projName :: Int -> Name
 projName =
   let vars :: [Name]
-      vars = [ mkSystemName (mkPreludeMiscIdUnique (i + 1)) -- (error ("projName" ++ show i ++ ": unique"))
-                            (mkOccName dataName ("p" ++ show i))
+      vars = [ mkInternalName (mkPreludeMiscIdUnique (i + 1)) -- (error ("projName" ++ show i ++ ": unique"))
+                              (mkOccName dataName ("p" ++ show i))
+                              wiredInSrcSpan
              | i <- [(0 :: Int)..] ]
 
   in \i -> vars !! i
