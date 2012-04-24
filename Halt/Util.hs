@@ -1,8 +1,16 @@
-module Halt.Util (module Control.Arrow, module Control.Applicative) where
+module Halt.Util
+  (module Control.Arrow
+  ,module Control.Applicative
+  ,concatMapM) where
 
 import Control.Arrow ((***),(&&&),first,second)
 import Control.Applicative ((<$>),(<*>))
 
+-- | concatMapM
+concatMapM :: (Functor m,Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f = fmap concat . mapM f
+
+{-
 -- | Apply the function if true, otherwise propagate
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
@@ -35,11 +43,6 @@ withPrevious xs = zip xs (inits xs)
 putEither :: Bool -> a -> Either a a
 putEither True  = Right
 putEither False = Left
-
--- | concatMapM
-concatMapM :: (Functor m,Monad m) => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = fmap concat . mapM f
-
 -- | If any is nothing (unreachable branch etc), return nothing,
 --   otherwise return just the catMaybes.
 concatMaybe :: [Maybe [a]] -> Maybe [a]
@@ -88,4 +91,4 @@ col2num c = case c of
   Pink      -> 5
   Turquoise -> 7
 
-
+-}
