@@ -44,14 +44,50 @@ import Control.Monad.Writer
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Var Int
 
--- The translation monad, fst is the argument variables to a function,
--- arity map is the map of arities
-type HaltM = Reader ([Var],ArityMap)
+-- The Environment
+data HaltEnv
+  = HaltEnv { arities  :: ArityMap
+            -- ^ Arities of top level definitions
+            , fun      :: Var
+            -- ^ Current function
+            , args     :: [Var]
+            -- ^ Arguments to current function
+            , quant    :: [Var]
+            -- ^ Quantified variables
+            , constr   :: [Constraint]
+            -- ^ Constraints
+            , subs     :: Subs
+            -- ^ Substitutions
+            }
+
+-- Substitiotions: maps variables to expressions
+type Subs = Map Var CoreExpr
+
+-- Constraints from case expressions to results, under a substitution
+data Constraint = Constraint { constrLhs , constrRhs :: CoreExpr
+                             , constrPos :: Position
+
+-- | The empty substitution
+noSubs :: Subs
+noSubs = M.empty
+
+-- | The empty constraints
+noConstraints :: Constraints
+noConstraints = []
+
+initEnv :: ArityMap -> HaltEnv
+initEnv am = HaltEnv { arities = am
+                     , fun     = error "initEnv: fun"
+                     , args    = error "initEnv: args"
+                     , quant   = []
+                     , constr  = noConstraints
+                     , subs    = noSubs
+                     }
+
+-- | The translation monad
+newtype HaltM a = HaltM { runHaltM :: Reader HaltEnv a }
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
---   Right now unsound an incomplete as nothing is done for data types,
---   this is just a sketch
---   TODO: Top level-lift Let
 --   TODO: Register used function pointers
 --   TODO: Assumes only nested case expression at top level of the body
 --         of a function. Possible fix: top level lift all other case expressions
@@ -59,7 +95,7 @@ translate :: [CoreBind] -> [FDecl]
 translate program =
   let -- Let-lift the program
       liftedProgram :: [CoreBind]
-      liftedProgram = {- liftProgram -} program
+      liftedProgram = program
 
       -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
@@ -70,11 +106,102 @@ translate program =
       arities = M.fromList [(v,length (fst (collectBinders e))) | (v,e) <- binds ]
 
       -- Translate each declaration
+      -- TODO : Make these return Decl?
       translated :: HaltM Formulae
-      translated = concat `fmap` sequence [ trDecl v e | (v,e) <- binds ]
+      translated = concatMapM (uncurry trDecl) binds
 
   in  [ FDecl Axiom ("decl" ++ show n) phi | phi <- translated `runReader` ([],arities)
                                            | n <- [(0 :: Int)..] ]
+
+-- Substitutions from variables bound in cases
+-- | Translate a CoreDecl
+trDecl :: Var -> CoreExpr -> HaltM [Formula]
+trDecl f e = do
+  let -- Collect the arguments and the body expression
+      as :: [Var]
+      body :: CoreExpr
+      (as,e') = collectBinders e
+
+  local (\e -> e { fun = f ; args = as ; quant = as })
+        (trCase e')
+
+trCase :: CoreExpr -> HaltM [Formula]
+trCase e = case e of
+  Case{} -> do
+    -- Add a bottom case
+    let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
+
+    env@Env{..} <- ask
+
+    -- Translate the scrutinee and add it to the substitutions
+    subs' = M.insert scrut_var scrutinee subs }
+
+    let trAlt (DataAlt data_con, bs, e') = do
+            res <- local (env { subs = subs'' ; trCase e'
+          where
+            con_name       = dataConName data_con
+            con_fol_repr   = [(b,projExpr con_name i (Var scrut_var)) | b <- bs | i <- [0..] ]
+            subs''         = M.union subs' (M.fromList con_fol_repr)
+            new_constraint = Constraint (Var scrut_var) (mkConApp data_con (map snd con_fol_repr))
+
+    local (env { subs = subs' }) $ do
+        (formulas,constrs) <- mapAndUnzipM trAlt
+        return ({- default to def_expr with neg constrs -} concat formulas)
+
+  _ -> do
+    HaltEnv{..} <- ask
+    lhs <- trExpr (mkFun fun args)
+    rhs <- trExpr e
+    -- do something about constraints
+    return [ forall' (map mkVarName quant) (lhs === rhs) ]
+
+trAlt :: Var -> [Var] -> Var -> Subs -> Constraints -> CoreAlt
+      -> WriterT Constraints HaltM Formulae
+trAlt f as scrut_var subs cons (con, bs, e) =
+  case con of
+    DataAlt data_con ->
+      let con_name       = dataConName data_con
+          con_fol_repr   = [(b,projExpr con_name i (Var scrut_var)) | b <- bs | i <- [0..] ]
+          subs'          = M.union subs (M.fromList con_fol_repr)
+          new_constraint = Constraint subs' (Var scrut_var) (mkConApp data_con (map snd con_fol_repr))
+      in  do tell [new_constraint]
+             lift $ trBody f as e subs' (new_constraint:cons)
+    DEFAULT -> error "trAlt on DEFAULT"
+    _       -> error "trAlt on LitAlt (literals no support yet!)"
+
+
+
+
+
+trBody :: Var -> [Var] -> CoreExpr -> Subs -> Constraints -> HaltM Formulae
+trBody f as e subs cons = local (first (const as)) $ case e of
+  Case{} -> do let -- Add the bottom case, afterwards there is a default case first
+                   Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
+
+                   -- Translate the scrutinee and add it to the substitutions
+                   subs' :: Subs
+                   subs' = M.insert scrut_var scrutinee subs
+
+               -- Translate the non-default alternatives, getting formulas and constraints.
+               -- These constraints should be in negative position
+               (alt_formulae,cons') <- runWriterT (concat <$> mapM (trAlt f as scrut_var subs' cons) alts)
+               (:alt_formulae) <$> trFunctionDecl def_expr (allEqual cons ++ allUnequal cons')
+  _ -> do (:[]) <$> trFunctionDecl e (allEqual cons)
+  where
+    -- Translates a core expression with positioned constraints to a formula, i.e.
+    -- If the constraints are [ (Equal, x, e1), (Unequal, y, e2) ], and the arguments are [x,y,z], and
+    -- the expression is e and the function is f, we get:
+    -- forall x y z . x = e1 & y /= e2 => f(x,y,z) = e
+    trFunctionDecl :: CoreExpr -> [(Position,Constraint)] -> HaltM Formula
+    trFunctionDecl expr cons_ = do
+        lhs    <- trExpr subs expr
+        as'    <- mapM (trExpr subs . Var) as
+        constr <- trConstraints cons_
+        return $ forall' (map mkVarName as)
+                         (constr (mkFun f as' === lhs))
+
+
+
 
 {-
 
@@ -145,34 +272,12 @@ addBottomCase _ = error "addBottomCase on non-case expression"
 
   -}
 
--- Substitutions from variables bound in cases
-type Subs        = Map Var      CoreExpr
 
--- Constraints from case expressions to results, under a substitution
-data Constraint  = Constraint { constrSub :: Subs
-                              , constrLhs , constrRhs :: CoreExpr
-                              }
-type Constraints = [Constraint]
+{-
 
--- | The empty substitution
-noSubs :: Subs
-noSubs = M.empty
 
--- | The empty constraints
-noConstraints :: Constraints
-noConstraints = []
-
--- | Translate a CoreDecl
-trDecl :: Var -> CoreExpr -> HaltM Formulae
-trDecl f e =
-  let -- Collect the arguments and the body expression
-      as :: [Var]
-      body :: CoreExpr
-      (as,body) = collectBinders e
-
-  in  trBody f as body noSubs noConstraints
-
--- | Translate a body, i.e, case statements eventually ending in expressions
+-- | Translate a body, i.e, case statements eventually ending in
+--   expressions
 trBody :: Var -> [Var] -> CoreExpr -> Subs -> Constraints -> HaltM Formulae
 trBody f as e subs cons = local (first (const as)) $ case e of
   Case{} -> do let -- Add the bottom case, afterwards there is a default case first
@@ -200,8 +305,9 @@ trBody f as e subs cons = local (first (const as)) $ case e of
         return $ forall' (map mkVarName as)
                          (constr (mkFun f as' === lhs))
 
--- | Translate an alternative from a case expression
---   An alternative generates a constraint from that construction with the current substitution.
+-- | Translate an alternative from a case expression An alternative
+--   generates a constraint from that construction with the current
+--   substitution.
 trAlt :: Var -> [Var] -> Var -> Subs -> Constraints -> CoreAlt
       -> WriterT Constraints HaltM Formulae
 trAlt f as scrut_var subs cons (con, bs, e) =
@@ -217,7 +323,8 @@ trAlt f as scrut_var subs cons (con, bs, e) =
     _       -> error "trAlt on LitAlt (literals no support yet!)"
 
 
--- | Translate an expression, i.e. not case statements. Substitutions are followed.
+-- | Translate an expression, i.e. not case statements. Substitutions
+-- are followed.
 trExpr :: Subs -> CoreExpr -> HaltM Term
 trExpr subs e = do
   as <- asks fst
@@ -249,9 +356,6 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg Type{} = True
     isTyArg _      = False
 
-data Position = Equal | Unequal
-  deriving (Eq,Show)
-
 allEqual :: Constraints -> [(Position,Constraint)]
 allEqual = map ((,) Equal)
 
@@ -282,3 +386,5 @@ mkVarName = VarName . (\(x:xs) -> toUpper x : xs) . idToStr
 
 mkVar :: Var -> Term
 mkVar = FVar . mkVarName
+
+-}

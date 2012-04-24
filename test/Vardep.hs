@@ -10,7 +10,15 @@ Zero   + y = y
 Succ x + y = Succ (x + y)
 
 g x y = case x + y of
+           Zero   -> A
+           Succ _ -> case y of
+                      Zero   -> B
+                      Succ{} -> C
+
+{-
+h x y = case x + y of
            Succ _ -> C
            Zero -> case y of
                        Zero   -> A
                        Succ _ -> B
+                       -}
