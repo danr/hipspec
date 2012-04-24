@@ -16,7 +16,6 @@ import FastString
 
 import Halt.Names
 import Halt.Util
-import Halt.Lift
 import FOL.Syn
 
 import qualified Data.Map as M
@@ -47,7 +46,7 @@ type ArityMap = Map Var Int
 
 -- The translation monad, fst is the argument variables to a function,
 -- arity map is the map of arities
-type TransM = Reader ([Var],ArityMap)
+type HaltM = Reader ([Var],ArityMap)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   Right now unsound an incomplete as nothing is done for data types,
@@ -60,7 +59,7 @@ translate :: [CoreBind] -> [FDecl]
 translate program =
   let -- Let-lift the program
       liftedProgram :: [CoreBind]
-      liftedProgram = liftProgram program
+      liftedProgram = {- liftProgram -} program
 
       -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
@@ -71,7 +70,7 @@ translate program =
       arities = M.fromList [(v,length (fst (collectBinders e))) | (v,e) <- binds ]
 
       -- Translate each declaration
-      translated :: TransM Formulae
+      translated :: HaltM Formulae
       translated = concat `fmap` sequence [ trDecl v e | (v,e) <- binds ]
 
   in  [ FDecl Axiom ("decl" ++ show n) phi | phi <- translated `runReader` ([],arities)
@@ -164,7 +163,7 @@ noConstraints :: Constraints
 noConstraints = []
 
 -- | Translate a CoreDecl
-trDecl :: Var -> CoreExpr -> TransM Formulae
+trDecl :: Var -> CoreExpr -> HaltM Formulae
 trDecl f e =
   let -- Collect the arguments and the body expression
       as :: [Var]
@@ -174,7 +173,7 @@ trDecl f e =
   in  trBody f as body noSubs noConstraints
 
 -- | Translate a body, i.e, case statements eventually ending in expressions
-trBody :: Var -> [Var] -> CoreExpr -> Subs -> Constraints -> TransM Formulae
+trBody :: Var -> [Var] -> CoreExpr -> Subs -> Constraints -> HaltM Formulae
 trBody f as e subs cons = local (first (const as)) $ case e of
   Case{} -> do let -- Add the bottom case, afterwards there is a default case first
                    Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
@@ -193,7 +192,7 @@ trBody f as e subs cons = local (first (const as)) $ case e of
     -- If the constraints are [ (Equal, x, e1), (Unequal, y, e2) ], and the arguments are [x,y,z], and
     -- the expression is e and the function is f, we get:
     -- forall x y z . x = e1 & y /= e2 => f(x,y,z) = e
-    trFunctionDecl :: CoreExpr -> [(Position,Constraint)] -> TransM Formula
+    trFunctionDecl :: CoreExpr -> [(Position,Constraint)] -> HaltM Formula
     trFunctionDecl expr cons_ = do
         lhs    <- trExpr subs expr
         as'    <- mapM (trExpr subs . Var) as
@@ -204,7 +203,7 @@ trBody f as e subs cons = local (first (const as)) $ case e of
 -- | Translate an alternative from a case expression
 --   An alternative generates a constraint from that construction with the current substitution.
 trAlt :: Var -> [Var] -> Var -> Subs -> Constraints -> CoreAlt
-      -> WriterT Constraints TransM Formulae
+      -> WriterT Constraints HaltM Formulae
 trAlt f as scrut_var subs cons (con, bs, e) =
   case con of
     DataAlt data_con ->
@@ -219,7 +218,7 @@ trAlt f as scrut_var subs cons (con, bs, e) =
 
 
 -- | Translate an expression, i.e. not case statements. Substitutions are followed.
-trExpr :: Subs -> CoreExpr -> TransM Term
+trExpr :: Subs -> CoreExpr -> HaltM Term
 trExpr subs e = do
   as <- asks fst
   case e of
@@ -238,7 +237,7 @@ trExpr subs e = do
     Type{}     -> trErr e "types"
     Lam{}      -> trErr e "lambdas"
     Let{}      -> trErr e "let stmnts"
-    Note{}     -> trErr e "notes"
+--    Note{}     -> trErr e "notes"
 --    Coercion{} -> trErr "coercions"
 --    Tick{}     -> trErr "ticks"
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n"
@@ -259,11 +258,11 @@ allEqual = map ((,) Equal)
 allUnequal :: Constraints -> [(Position,Constraint)]
 allUnequal = map ((,) Unequal)
 
-trConstraints :: [(Position,Constraint)] -> TransM (Formula -> Formula)
+trConstraints :: [(Position,Constraint)] -> HaltM (Formula -> Formula)
 trConstraints []   = return id
 trConstraints cons = (==>) . foldr1 (/\) <$> mapM (uncurry trConstraint) cons
   where
-    trConstraint :: Position -> Constraint -> TransM Formula
+    trConstraint :: Position -> Constraint -> HaltM Formula
     trConstraint eq (Constraint subs lhs rhs) = equals <$> trExpr subs lhs <*> trExpr subs rhs
       where
         equals = if eq == Unequal then (!=) else (===)
