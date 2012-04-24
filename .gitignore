@@ -4,4 +4,7 @@ dist
 papers
 halt
 \#*
+test/*
+!test/*hs
+test/*\#*
 
