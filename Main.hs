@@ -42,15 +42,16 @@ desugar targetFile =
         t <- typecheckModule p
         d <- desugarModule t
         let modguts = dm_core_module d
-        -- modguts' <- withSession (\m -> liftIO (core2core m modguts))
-        let coreBinds = mg_binds modguts --'
+        s <- getSession
+        modguts' <- liftIO (core2core s modguts)
+        let coreBinds = mg_binds modguts'
             float_switches = FloatOutSwitches { floatOutLambdas = Just 100
                                               , floatOutConstants = False
                                               , floatOutPartialApplications = False
                                               }
         us <- liftIO (mkSplitUniqSupply 'l') -- Make an UniqSupply out of thin air. Trying char 'l'
         floatedProg <- liftIO (floatOutwards float_switches dflags' us coreBinds)
-        return (modguts,floatedProg)
+        return (modguts',floatedProg)
 
 main = do
   [file] <- getArgs

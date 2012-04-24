@@ -1,0 +1,25 @@
+
+1)  Funny GHC.Prim.realWorld# tokens below:
+
+    > Mini.not :: Mini.Bool -> Mini.Bool
+    > [LclIdX]
+    > Mini.not =
+    >   \ (ds_dbv :: Mini.Bool) ->
+    >     case ds_dbv of _ {
+    >       __DEFAULT -> (\ _ -> Mini.True) GHC.Prim.realWorld#;
+    >       Mini.True -> Mini.False
+    >     }
+
+    Luckily, they are removed by the core2core transformation. Is this
+    a gurantee?
+
+2)  Can I set up hoogle to search the GHC API? What other tricks do
+    people use to browse the API?
+
+3)  Can I force eta expansion? For instance, if I define
+
+    > cons = (:)
+
+    I want, for efficiency, generate an axiom that talks about the definition
+
+    > cons x xs = x:xs

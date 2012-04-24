@@ -208,7 +208,7 @@ trAlt f as scrut_var subs cons (con, bs, e) =
   case con of
     DataAlt data_con ->
       let con_name       = dataConName data_con
-          con_fol_repr   = [(b,projExpr i (Var scrut_var)) | b <- bs | i <- [0..] ]
+          con_fol_repr   = [(b,projExpr con_name i (Var scrut_var)) | b <- bs | i <- [0..] ]
           subs'          = M.union subs (M.fromList con_fol_repr)
           new_constraint = Constraint subs' (Var scrut_var) (mkConApp data_con (map snd con_fol_repr))
       in  do tell [new_constraint]
@@ -233,7 +233,7 @@ trExpr subs e = do
                                      <*> mapM (trExpr subs) es
     Lit (MachStr s) -> return (Fun (FunName "string") [Fun (FunName (unpackFS s)) []])
     Lit{}      -> trErr e "literals"
-    Cast{}     -> trErr e "casts"
+    Cast e _   -> trExpr subs e -- trErr e "casts"
     Type{}     -> trErr e "types"
     Lam{}      -> trErr e "lambdas"
     Let{}      -> trErr e "let stmnts"

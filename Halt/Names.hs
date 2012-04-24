@@ -7,6 +7,9 @@ import Id
 import Unique
 import SrcLoc
 
+import Outputable
+
+
 -- | The bottom name, did not know what Name to pick so I tried System Name
 bottomName :: Name
 bottomName = mkInternalName (mkPreludeMiscIdUnique 0) -- error "bottomName: unique")
@@ -54,20 +57,21 @@ ptrAppVar = Var ptrAppId
 -}
 
 -- | The projection names. How to get uniques?
-projName :: Int -> Name
-projName =
+projName :: Name -> Int -> Name
+projName con_name =
   let vars :: [Name]
-      vars = [ mkInternalName (mkPreludeMiscIdUnique (i + 1)) -- (error ("projName" ++ show i ++ ": unique"))
-                              (mkOccName dataName ("p" ++ show i))
-                              wiredInSrcSpan
+      vars = [ mkInternalName
+                 (mkPreludeMiscIdUnique (i + 1))
+                 (mkOccName dataName (showSDoc (ppr con_name) ++ "p" ++ show i))
+                 wiredInSrcSpan
              | i <- [(0 :: Int)..] ]
 
   in \i -> vars !! i
 
 -- | The projection variables
-projVar :: Int -> CoreExpr
-projVar i = Var (mkVanillaGlobal (projName i) (error "projVar: type"))
+projVar :: Name -> Int -> CoreExpr
+projVar con_name i = Var (mkVanillaGlobal (projName con_name i) (error "projVar: type"))
 
 -- | Projects an expression
-projExpr :: Int -> CoreExpr -> CoreExpr
-projExpr i e = App (projVar i) e
+projExpr :: Name -> Int -> CoreExpr -> CoreExpr
+projExpr con_name i e = App (projVar con_name i) e
