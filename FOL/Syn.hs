@@ -44,6 +44,10 @@ data Formula = EqOp Term EqOp Term
 -- List of formulas
 type Formulae = [Formula]
 
+neg (EqOp t1 (:==) t2) = EqOp t1 (:!=) t2
+neg (EqOp t1 (:!=) t2) = EqOp t1 (:==) t2
+neg phi                = Neg phi
+
 -- Utility functions to make formulae
 mkBinOp :: BinOp -> Formula -> Formula -> Formula
 mkBinOp op f g = BinOp f op g

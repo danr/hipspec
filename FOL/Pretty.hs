@@ -60,7 +60,7 @@ instance PrettyTPTP Term where
 
 instance PrettyTPTP BinOp where
     prettyTPTP (:&)   = " & "
-    prettyTPTP (:|)   = " \n\t| "
+    prettyTPTP (:|)   = " | "
     prettyTPTP (:=>)  = " => "
     prettyTPTP (:<=>) = " <=> "
 
@@ -70,11 +70,11 @@ instance PrettyTPTP Formula where
     prettyTPTP (Rel r args)       = p r ++ argList args
     prettyTPTP (Neg f)            = "~ " ++ paren (p f)
     prettyTPTP (BinOp f1 op f2)   = paren (p f1) ++ p op ++ paren (p f2)
-    prettyTPTP (Forall vs f)      = "! " ++ bindList vs ++ ": " ++ paren (p f)
+    prettyTPTP (Forall vs f)      = p f -- "! " ++ bindList vs ++ ": " ++ paren (p f)
     prettyTPTP (Exists vs f)      = "? " ++ bindList vs ++ ": " ++ paren (p f)
 
 pdecl :: String -> String -> Formula -> String
-pdecl n t f = "fof" ++ paren (n ++ "," ++ t ++ "," ++ prettyTPTP f) ++ "."
+pdecl n t f = prettyTPTP f -- "fof" ++ paren (n ++ "," ++ t ++ "," ++ prettyTPTP f) ++ "."
 
 pDeclType :: DeclType -> String
 pDeclType Axiom{}      = "axiom"

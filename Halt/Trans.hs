@@ -29,7 +29,7 @@ import FOL.Syn hiding ((:==))
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Char (toUpper,toLower)
-import Data.List (delete)
+import Data.List (delete,intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -71,6 +71,16 @@ data HaltEnv
             -- ^ Substitutions
             }
 
+
+-- Pushes new quantified variables to the environment
+pushQuant :: [Var] -> HaltEnv -> HaltEnv
+pushQuant qs env = env { quant = qs ++ quant env }
+
+-- Deletes a variable from the quantified list
+delQuant :: Var -> HaltEnv -> HaltEnv
+delQuant v env = env { quant = delete v (quant env) }
+
+
 -- Pushes a new constraint to an environment
 pushConstraint :: Constraint -> HaltEnv -> HaltEnv
 pushConstraint c = pushConstraints [c]
@@ -91,9 +101,21 @@ extendArities am env = env { arities = am `M.union` arities env }
 type Subs = Map Var CoreExpr
 
 -- Constraints from case expressions to results, under a substitution
-data Constraint = Var      :-> CoreExpr
-                | CoreExpr :== CoreExpr
-                | CoreExpr :/= CoreExpr
+data Constraint = CoreExpr :== Pattern
+                | CoreExpr :/= Pattern
+
+-- A pattern
+data Pattern = Pattern DataCon [CoreExpr]
+
+trPattern :: Pattern -> CoreExpr
+trPattern (Pattern data_con as) = foldl App (Var (dataConWorkId data_con)) as
+
+instance Show Pattern where
+  show = showExpr . trPattern
+
+instance Show Constraint where
+  show (e :== p) = showExpr e ++ " :== " ++ show p
+  show (e :/= p) = showExpr e ++ " :/= " ++ show p
 
 -- | The empty substitution
 noSubs :: Subs
@@ -192,56 +214,73 @@ arity e = length as
 -- | Translate a case expression
 trCase :: CoreExpr -> HaltM [Formula]
 trCase e = case e of
-  Case{} -> do
-    -- Add a bottom case
-    let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
+    Case{} -> do
+        -- Add a bottom case
+        let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
 
-    write $ "Case on " ++ showExpr scrutinee
+        write $ "Case on " ++ showExpr scrutinee
 
-    -- Translate the scrutinee and add it to the substitutions
-    local (pushConstraint (scrut_var :-> scrutinee)) $ do
+        -- Translate the scrutinee and add it to the substitutions
+        local (extendSubs (M.singleton scrut_var scrutinee)) $ do
 
-        -- Translate the alternatives (mutually recursive with this
-        -- function)
-        alt_formulae <- concatMapM (trAlt scrutinee) alts
+            -- Translate the alternatives (mutually recursive with this
+            -- function)
+            alt_formulae <- concatMapM (trAlt scrutinee) alts
 
-        -- Collect the negative patterns
-        let neg_constrs = map (invertAlt scrutinee) alts
+            -- Collect the negative patterns
+            let neg_constrs = map (invertAlt scrutinee) alts
 
-        -- Translate the default formula which happens on the negative
-        -- constraints
-        def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
-                             (trCase def_expr)
+            -- Translate the default formula which happens on the negative
+            -- constraints
+            def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
+                                 (trCase def_expr)
 
-        return (def_formula ++ alt_formulae)
-  _ -> do
-    -- When translating expressions, only subs are considered, not
-    -- constraints.  The substitutions come from constraints of only a
-    -- variable, which in turn come from unifying the scrut var with
-    -- the scrutinee and casing on variables.
-    (subs',pos,neg) <- collectConstr <$> asks constr
-    local (extendSubs subs') $ do
-      HaltEnv{fun,args,quant} <- ask
-      write $ "At the end of a branch: " ++ showExpr e
-      (form,extra_formulae) <- runWriterT $ do
-        lhs <- mkFun fun <$> mapM (trExpr . Var) args
-        rhs <- trExpr e
-        tr_pos <- mapM (\(a,b) -> liftM2 (===) (trExpr a) (trExpr b)) pos
-        tr_neg <- mapM (\(a,b) -> liftM2 (!=)  (trExpr a) (trExpr b)) neg
-        return $ forall' (map mkVarName quant) ((tr_pos ++ tr_neg) =:=> (lhs === rhs))
-      return (form : extra_formulae)
+            return (def_formula ++ alt_formulae)
+    _ -> do
+        -- When translating expressions, only subs are considered, not
+        -- constraints.  The substitutions come from constraints of only a
+        -- variable, which in turn come from unifying the scrut var with
+        -- the scrutinee and casing on variables.
+        HaltEnv{fun,args,quant,constr} <- ask
+        write $ "At the end of " ++ idToStr fun ++ "'s branch: " ++ showExpr e
+        write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
+        if conflict constr
+            then write "  Conflict!" >> return []
+            else do
+                (form,extra_formulae) <- runWriterT $ do
+                    lhs <- mkFun fun <$> mapM (trExpr . Var) args
+                    rhs <- trExpr e
+                    tr_constr <- translateConstr constr
+                    return $ forall' (map mkVarName quant)
+                                     (tr_constr =:=> (lhs === rhs))
+                return (form : extra_formulae)
+
+type ExprHaltM a = WriterT [Formula] HaltM a
 
 (=:=>) :: [Formula] -> Formula -> Formula
 [] =:=> phi = phi
-xs =:=> phi = foldr1 (/\) xs ==> phi
+xs =:=> phi = phi \/ foldr1 (\/) (map neg xs)
 
-type Eqp = (CoreExpr,CoreExpr)
+conflict :: [Constraint] -> Bool
+conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
+                 | e1 :== Pattern con_x _ <- cs
+                 , e2 :/= Pattern con_y _ <- cs
+                 ]
 
-collectConstr :: [Constraint] -> (Map Var CoreExpr,[Eqp],[Eqp])
-collectConstr cs = (M.fromList [ (x,e)     | x :-> e <- cs ]
-                   ,           [ (lhs,rhs) | lhs :== rhs <- cs ]
-                   ,           [ (lhs,rhs) | lhs :/= rhs <- cs ])
+cheapExprEq (Var x) (Var y) = x == y
+cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 && cheapExprEq e1' e2'
+cheapExprEq _ _ = False
 
+translateConstr :: [Constraint] -> ExprHaltM [Formula]
+translateConstr cs = sequence $ [ trConstr (===) e p | e :== p <- cs ] ++
+                                [ trConstr (!=) e p  | e :/= p <- cs ]
+  where
+    trConstr :: (Term -> Term -> Formula)
+             -> CoreExpr -> Pattern -> ExprHaltM Formula
+    trConstr (~~) e (Pattern data_con as) = do
+        lhs <- trExpr e
+        rhs <- mkFun (dataConWorkId data_con) <$> mapM trExpr as
+        return $ lhs ~~ rhs
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
 invertAlt scrut_exp (con, bs, _) = case con of
@@ -249,11 +288,7 @@ invertAlt scrut_exp (con, bs, _) = case con of
     where
       con_name   = dataConName data_con
       proj_binds = [ projExpr con_name i scrut_exp | b <- bs | i <- [0..] ]
-      rhs        = foldl App (Var (dataConWorkId data_con)) proj_binds
-      constraint = scrut_exp :/= rhs
-      -- This is Dangerous. rhs is a CoreExpr but invalid; does not apply
-      -- type arguments properly. This can be seen if mkCoreConApps is used
-      -- instead: the impossible happens.
+      constraint = scrut_exp :/= Pattern data_con proj_binds
 
   DEFAULT -> error "invertAlt on DEFAULT"
   _       -> error "invertAlt on LitAlt (literals not supported yet!)"
@@ -264,14 +299,16 @@ trAlt scrut_exp (con, bound, e) = do
   env@HaltEnv{quant} <- ask
   case con of
 
-    DataAlt data_con -> local (const new_env) (trCase e)
+    DataAlt data_con -> local upd_env (trCase e)
       where
-        rhs = foldl App (Var (dataConWorkId data_con)) (map Var bound)
-        -- ^ See comment about Dangerous in invertAlt
-        (new_constraint,new_quant) = case scrut_exp of
-            Var x | x `elem` quant -> (x :-> rhs,bound ++ delete x quant)
-            _                      -> (scrut_exp :== rhs,bound ++ quant)
-        new_env = pushConstraint new_constraint env { quant = new_quant }
+        pat = Pattern data_con (map Var bound)
+        upd_env = case scrut_exp of
+            Var x
+              | x `elem` quant -> extendSubs (M.singleton x (trPattern pat))
+                                . pushQuant bound
+                                . delQuant x
+            _ -> pushConstraint (scrut_exp :== pat)
+               . pushQuant bound
 
     DEFAULT -> error "trAlt on DEFAULT"
     _       -> error "trAlt on LitAlt (literals not supported yet!)"
@@ -301,18 +338,18 @@ trAlt scrut_exp (con, bound, e) = do
 --   The input must be a case expression!
 addBottomCase :: CoreExpr -> CoreExpr
 addBottomCase (Case scrutinee binder ty alts) =
-  let -- _|_ -> _|_
-      -- Breaks the core structure by having a new data constructor
-      bottomAlt :: CoreAlt
-      bottomAlt = (DataAlt bottomCon, [], bottomVar)
+    let -- _|_ -> _|_
+        -- Breaks the core structure by having a new data constructor
+        bottomAlt :: CoreAlt
+        bottomAlt = (DataAlt bottomCon, [], bottomVar)
 
-      -- DEFAULT -> _|_
-      defaultBottomAlt :: CoreAlt
-      defaultBottomAlt = (DEFAULT, [], bottomVar)
-  -- Case expressions have an invariant that the default case is always first.
-  in Case scrutinee binder ty $ case findDefault alts of
-       (as,Just def) -> (DEFAULT, [], def):bottomAlt:as
-       (as,Nothing)  -> defaultBottomAlt:as
+        -- DEFAULT -> _|_
+        defaultBottomAlt :: CoreAlt
+        defaultBottomAlt = (DEFAULT, [], bottomVar)
+    -- Case expressions have an invariant that the default case is always first.
+    in Case scrutinee binder ty $ case findDefault alts of
+         (as,Just def) -> (DEFAULT, [], def):bottomAlt:as
+         (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
 
 
@@ -321,52 +358,53 @@ getLabel = do { x <- get ; modify succ ; return x }
 
 -- | Translate an expression, i.e. not case statements. Substitutions
 -- are followed.
-trExpr :: CoreExpr -> WriterT [Formula] HaltM Term
+trExpr :: CoreExpr -> ExprHaltM Term
 trExpr e = do
-  env@HaltEnv{..} <- ask
-  case e of
-    Var x | Just e' <- M.lookup x subs -> trExpr e'
-          | x `elem` quant             -> return (mkVar x)
-          | otherwise                  -> return (mkFun x [])
-    App{} -> case second trimTyArgs (collectArgs e) of
-                    -- We should first try to translate App, since they might
-                    -- contain substitutions.
-                    -- TODO : Use the arities and add appropriate use of app
-                    (Var x,es) -> mkFun x <$> mapM trExpr es
-                    (f,es)     -> foldl (\x y -> Fun (FunName "ptrApp") [x,y])
-                                     <$> trExpr f
-                                     <*> mapM trExpr es
-    Lit (MachStr s) -> do
-      lift $ write $ "String to constant: " ++ unpackFS s
-      return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
+    env@HaltEnv{..} <- ask
+    case e of
+        Var x | Just e' <- M.lookup x subs -> trExpr e'
+              | x `elem` quant             -> return (mkVar x)
+              | otherwise                  -> return (mkFun x [])
+        App{} -> case second trimTyArgs (collectArgs e) of
+                        -- We should first try to translate App, since they might
+                        -- contain substitutions.
+                        -- TODO : Use the arities and add appropriate use of app
+                        (Var x,es) -> mkFun x <$> mapM trExpr es
+                        (f,es)     -> foldl (\x y -> Fun (FunName "ptrApp") [x,y])
+                                         <$> trExpr f
+                                         <*> mapM trExpr es
+        Lit (MachStr s) -> do
+          lift $ write $ "String to constant: " ++ unpackFS s
+          return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
 
-    Case{}      -> trCaseExpr e
-    Let bind e' -> trLet bind e'
-    Cast e' _   -> do
-      lift $ write $ "Ignoring cast: " ++ showExpr e
-      trExpr e'
+        Case{}      -> trCaseExpr e
+        Let bind e' -> trLet bind e'
+        Cast e' _   -> do
+          lift $ write $ "Ignoring cast: " ++ showExpr e
+          trExpr e'
 
-    Lit{}      -> trErr e "literals"
-    Type{}     -> trErr e "types"
-    Lam{}      -> trErr e "lambdas"
-    Coercion{} -> trErr e "coercions"
-    Tick{}     -> trErr e "ticks"
+        Lit{}      -> trErr e "literals"
+        Type{}     -> trErr e "types"
+        Lam{}      -> trErr e "lambdas"
+        Coercion{} -> trErr e "coercions"
+        Tick{}     -> trErr e "ticks"
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
 
-trCaseExpr :: CoreExpr -> WriterT [Formula] HaltM Term
+-- | Translate a local case expression
+trCaseExpr :: CoreExpr -> ExprHaltM Term
 trCaseExpr e = do
-  lift $ write $ "Experimental case: " ++ showExpr e
-  new_fun <- modVar "case" =<< asks fun
-  quant_vars <- asks quant
-  tell =<< lift (local (\env -> env { fun = new_fun , args = quant_vars}) (trCase e))
-  mkFun new_fun <$> mapM (trExpr . Var) quant_vars
+    lift $ write $ "Experimental case: " ++ showExpr e
+    new_fun <- modVar "case" =<< asks fun
+    quant_vars <- asks quant
+    tell =<< lift (local (\env -> env { fun = new_fun , args = quant_vars}) (trCase e))
+    mkFun new_fun <$> mapM (trExpr . Var) quant_vars
 
 -- | Translate a let expression
 --   TODO: This copies some functionality found elsewhere
-trLet :: CoreBind -> CoreExpr -> WriterT [Formula] HaltM Term
+trLet :: CoreBind -> CoreExpr -> ExprHaltM Term
 trLet bind in_e = do
     lift $ write $ "Experimental let: " ++ showExpr (Let bind in_e)
-    binds' <- sequence [ do { v' <- modVar "let" v ; return (v,v',e) }
+    binds' <- sequence [ do { v' <- modVar "" v ; return (v,v',e) }
                        | (v,e) <- binds ]
     env@HaltEnv{..} <- ask
     let new_subs = M.fromList [ (v,foldl App (Var v') (map Var quant))
@@ -389,11 +427,11 @@ trLet bind in_e = do
 
 modVar :: MonadState Int m => String -> Var -> m Var
 modVar lbl v = do
-  i <- getLabel
-  let var_name = mkInternalName (mkPreludeMiscIdUnique i)
-                                (mkOccName dataName $ lbl ++ show i ++ idToStr v)
-                                wiredInSrcSpan
-  return $ mkVanillaGlobal var_name (error $ "modVar, " ++ lbl ++ ": type")
+    i <- getLabel
+    let var_name = mkInternalName (mkPreludeMiscIdUnique i)
+                                  (mkOccName dataName $ lbl ++ show i ++ idToStr v)
+                                  wiredInSrcSpan
+    return $ mkVanillaGlobal var_name (error $ "modVar, " ++ lbl ++ ": type")
 
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr

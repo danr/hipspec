@@ -28,8 +28,8 @@ desugar targetFile =
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
         dflags <- getSessionDynFlags
-        let dflags' = (foldl dopt_set (foldl xopt_set dflags
-                            [Opt_Cpp, Opt_MagicHash])
+        let dflags' = (foldl dopt_set dflags {- (foldl xopt_set dflags
+                            [Opt_Cpp, Opt_MagicHash]) -}
                             [Opt_CaseMerge,Opt_FloatIn,Opt_CSE,Opt_DoEtaReduction
                             ,Opt_StaticArgumentTransformation
                             ])
