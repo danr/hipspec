@@ -19,11 +19,12 @@ import FastString
 
 import Halt.Names
 import Halt.Util
-import FOL.Syn
+import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Char (toUpper,toLower)
+import Data.List (delete)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -76,9 +77,9 @@ setSubs s env = env { subs = s }
 type Subs = Map Var CoreExpr
 
 -- Constraints from case expressions to results, under a substitution
-data Constraint = Subst Var      CoreExpr [Var] -- substVar, substRhs, substBound
-                | Equal CoreExpr CoreExpr [Var] -- equalLhs, equalRhs, equalBound
-                | CoreExpr :=/= CoreExpr
+data Constraint = Var      :-> CoreExpr
+                | CoreExpr :== CoreExpr
+                | CoreExpr :/= CoreExpr
 
 -- | The empty substitution
 noSubs :: Subs
@@ -147,7 +148,7 @@ trCase e = case e of
     let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
 
     -- Translate the scrutinee and add it to the substitutions
-    local (pushConstraint (Subst scrut_var scrutinee [])) $ do
+    local (pushConstraint (scrut_var :-> scrutinee)) $ do
 
         -- Translate the alternatives (mutually recursive with this
         -- function)
@@ -183,33 +184,38 @@ xs =:=> phi = foldr1 (/\) xs ==> phi
 type Eqp = (CoreExpr,CoreExpr)
 
 collectConstr :: [Constraint] -> (Map Var CoreExpr,[Eqp],[Eqp])
-collectConstr cs = (M.fromList [ (x,e)     | Subst x e _bound <- cs ]
-                   ,           [ (lhs,rhs) | Equal lhs rhs _bound <- cs ]
-                   ,           [ (lhs,rhs) | lhs :=/= rhs <- cs ])
+collectConstr cs = (M.fromList [ (x,e)     | x :-> e <- cs ]
+                   ,           [ (lhs,rhs) | lhs :== rhs <- cs ]
+                   ,           [ (lhs,rhs) | lhs :/= rhs <- cs ])
 
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
-invertAlt scrutinee (con, bs, _) = case con of
+invertAlt scrut_exp (con, bs, _) = case con of
   DataAlt data_con -> constraint
     where
       con_name   = dataConName data_con
-      proj_binds = [ projExpr con_name i scrutinee | b <- bs | i <- [0..] ]
-      constraint = scrutinee :=/= mkCoreConApps data_con proj_binds
+      proj_binds = [ projExpr con_name i scrut_exp | b <- bs | i <- [0..] ]
+      constraint = scrut_exp :/= mkCoreConApps data_con proj_binds
+
   DEFAULT -> error "invertAlt on DEFAULT"
   _       -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
 trAlt :: CoreExpr -> CoreAlt -> HaltM Formulae
-trAlt scrutinee (con, bound, e) = case con of
-  DataAlt data_con -> local (pushConstraint new_constraint) (trCase e)
-    where
-      rhs = mkCoreConApps data_con (map Var bound)
-      new_constraint = case scrutinee of
-                         Var x -> Subst x         rhs bound
-                         _     -> Equal scrutinee rhs bound
+trAlt scrut_exp (con, bound, e) = do
+  env@HaltEnv{quant} <- ask
+  case con of
 
-  DEFAULT -> error "trAlt on DEFAULT"
-  _       -> error "trAlt on LitAlt (literals not supported yet!)"
+    DataAlt data_con -> local (const new_env) (trCase e)
+      where
+        rhs = mkCoreConApps data_con (map Var bound)
+        (new_constraint,new_quant) = case scrut_exp of
+            Var x | x `elem` quant -> (x :-> rhs,bound ++ delete x quant)
+            _                      -> (scrut_exp :== rhs,bound ++ quant)
+        new_env = pushConstraint new_constraint env { quant = new_quant }
+
+    DEFAULT -> error "trAlt on DEFAULT"
+    _       -> error "trAlt on LitAlt (literals not supported yet!)"
 
 
 {-
