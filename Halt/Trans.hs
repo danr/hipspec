@@ -36,22 +36,6 @@ import Control.Monad.Writer
 import Control.Monad.State
 import Control.Applicative
 
-
--- Nice functions from CoreSyn.lhs
-
--- flattenBinds :: [Bind b] -> [(b,Expr b)]
--- Probably want to flatten everything out, we don't really care that
--- we can get it nicely in SCCs. Futhermore a quick pass over this
--- let's us see how many arguments each function takes.
-
--- collectBinders :: Expr b -> ([b],Expr b)
--- takes a \x y z -> e and return ([x,y,z],e), but we might also need to
--- take type variables too. for now, let us assure no polymorphism so
--- there are no type variables
-
--- collectArgs :: Expr b -> (Expr b, [Arg b])
--- takes a nested app and returns the expression to be applied to it
-
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Var Int
 
@@ -177,17 +161,6 @@ translate program =
        | phi <- formulae
        | n <- [(0 :: Int)..] ]
       ,msgs)
-
--- trBind :: CoreBind -> Halt [Formula]
--- trBind bind =
---   let defns :: [(Var,[Var],CoreExpr)]
---       defns = [ (v,as,e')
---               | (v,e) <- flattenBinds [bind]
---               , let (_ty,as,e') = collectTyAndValBinders e
---               ]
---
---       arities :: ArityMap
---       arities = [ (v,length as) | (v,as,e') <- defns ]
 
 -- | Write a debug message
 write :: MonadWriter [String] m => String -> m ()
@@ -378,7 +351,7 @@ trExpr e = do
             (Var x,es)
                | Just e' <- M.lookup x subs -> error "application of something in subs"
                | Just i <- M.lookup x arities -> do
-                   lift $ write $ idToStr x ++ " found in arity map with arity " ++ show i
+                   lift $ write $ idToStr x ++ " has arity " ++ show i
                    if i > length es
                        then foldFunApps (mkPtr x) <$> mapM trExpr es
                        else do
@@ -412,7 +385,11 @@ trCaseExpr e = do
     lift $ write $ "Experimental case: " --  ++ showExpr e
     new_fun <- modVar "case" =<< asks fun
     quant_vars <- asks quant
-    tell =<< lift (local (\env -> env { fun = new_fun , args = quant_vars}) (trCase e))
+    tell =<< lift (local (\env -> env { fun = new_fun
+                                      , args = quant_vars
+                                      , constr = [] })
+                                      -- ^ Should constraints be removed here?
+                         (trCase e))
     mkFun new_fun <$> mapM (trExpr . Var) quant_vars
 
 -- | Translate a let expression
