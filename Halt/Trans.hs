@@ -356,23 +356,39 @@ addBottomCase _ = error "addBottomCase on non-case expression"
 getLabel :: (MonadState Int m) => m Int
 getLabel = do { x <- get ; modify succ ; return x }
 
+foldFunApps :: Term -> [Term] -> Term
+foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
+
 -- | Translate an expression, i.e. not case statements. Substitutions
 -- are followed.
 trExpr :: CoreExpr -> ExprHaltM Term
 trExpr e = do
     env@HaltEnv{..} <- ask
     case e of
-        Var x | Just e' <- M.lookup x subs -> trExpr e'
+        Var x | Just e' <- M.lookup x subs -> do lift $ write $ "Following subst " ++ showExpr e ++ " to " ++ showExpr e'
+                                                 trExpr e'
               | x `elem` quant             -> return (mkVar x)
               | otherwise                  -> return (mkFun x [])
-        App{} -> case second trimTyArgs (collectArgs e) of
-                        -- We should first try to translate App, since they might
-                        -- contain substitutions.
-                        -- TODO : Use the arities and add appropriate use of app
-                        (Var x,es) -> mkFun x <$> mapM trExpr es
-                        (f,es)     -> foldl (\x y -> Fun (FunName "ptrApp") [x,y])
-                                         <$> trExpr f
-                                         <*> mapM trExpr es
+        App{} -> do
+          lift $ write $ "App on " ++ showExpr e
+          case second trimTyArgs (collectArgs e) of
+            -- We should first try to translate App, since they might
+            -- contain substitutions.
+            -- TODO : Use the arities and add appropriate use of app
+            (Var x,es)
+               | Just e' <- M.lookup x subs -> error "application of something in subs"
+               | Just i <- M.lookup x arities -> do
+                   lift $ write $ idToStr x ++ " found in arity map with arity " ++ show i
+                   if i > length es
+                       then foldFunApps (mkPtr x) <$> mapM trExpr es
+                       else do
+                           let (es_inner,es_after) = splitAt i es
+                           inner <- mkFun x <$> mapM trExpr es_inner
+                           foldFunApps inner <$> mapM trExpr es_after
+               -- | x `M.notMember` subs -> mkFun x <$> mapM trExpr es
+            (f,es) -> do
+               lift $ write $ "Collected to " ++ showExpr f ++ " on " ++ intercalate "," (map showExpr es)
+               foldFunApps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
           lift $ write $ "String to constant: " ++ unpackFS s
           return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
@@ -393,7 +409,7 @@ trExpr e = do
 -- | Translate a local case expression
 trCaseExpr :: CoreExpr -> ExprHaltM Term
 trCaseExpr e = do
-    lift $ write $ "Experimental case: " ++ showExpr e
+    lift $ write $ "Experimental case: " --  ++ showExpr e
     new_fun <- modVar "case" =<< asks fun
     quant_vars <- asks quant
     tell =<< lift (local (\env -> env { fun = new_fun , args = quant_vars}) (trCase e))
@@ -403,27 +419,21 @@ trCaseExpr e = do
 --   TODO: This copies some functionality found elsewhere
 trLet :: CoreBind -> CoreExpr -> ExprHaltM Term
 trLet bind in_e = do
-    lift $ write $ "Experimental let: " ++ showExpr (Let bind in_e)
-    binds' <- sequence [ do { v' <- modVar "" v ; return (v,v',e) }
-                       | (v,e) <- binds ]
+    lift $ write $ "Experimental let: " -- ++ showExpr (Let bind in_e)
+    binds <- sequence [ do { v' <- modVar "" v ; return (v,v',e) }
+                       | (v,e) <- flattenBinds [bind] ]
     env@HaltEnv{..} <- ask
     let new_subs = M.fromList [ (v,foldl App (Var v') (map Var quant))
-                              | (v,v',_) <- binds' ]
+                              | (v,v',_) <- binds ]
         -- ^ These needs to be subs because constraints have already been
         --   finalized and turned into subs for in_e.
 
-    -- What about the arities?
+    let arities :: ArityMap
+        arities = M.fromList [(v',arity e + length quant) | (v,v',e) <- binds ]
 
-    local (extendSubs new_subs) $ do
-      mapM (\(_,v',e) -> tell =<< lift (trDecl v' e)) binds'
+    local (extendArities arities . extendSubs new_subs) $ do
+      mapM (\(_,v',e) -> tell =<< lift (trDecl v' e)) binds
       trExpr in_e
-
-  where
-    binds :: [(Var,CoreExpr)]
-    binds = flattenBinds [bind]
-
-    arities :: ArityMap
-    arities = M.fromList [(v,arity e) | (v,e) <- binds ]
 
 modVar :: MonadState Int m => String -> Var -> m Var
 modVar lbl v = do
@@ -448,6 +458,9 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
     maybeLocaliseName n | isSystemName n = n
                         | otherwise      = localiseName n
+
+mkPtr :: Var -> Term
+mkPtr = (`Fun` []) . FunName . (++ "ptr") . map toLower . idToStr
 
 mkFun :: Var -> [Term] -> Term
 mkFun = Fun . FunName . map toLower . idToStr
