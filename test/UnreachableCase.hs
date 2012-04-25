@@ -1,4 +1,4 @@
-module Conflict where
+module UnreachableCase where
 
 import Prelude(Bool(..))
 

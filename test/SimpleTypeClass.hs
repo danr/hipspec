@@ -1,4 +1,4 @@
-module TC where
+module SimpleTypeClass where
 
 import Prelude ()
 

@@ -1,15 +1,37 @@
 module Nat where
 
-import Prelude (Eq(..),Bool(..))
+import Prelude (Bool(..))
 
-data Nat = S Nat | Z deriving (Eq)
+data Nat = Z | S Nat
 
-succ x = S x
+pred :: Nat -> Nat
+pred Z = Z
+pred (S x) = x
 
-succ' = S
+pred_wild' :: Nat -> Nat
+pred_wild' (S x) = x
+pred_wild' _ = Z
 
-Z   + y = y
-S x + y = S (x + y)
+Z     == Z     = True
+Z     == _     = False
+(S _) == Z     = False
+(S x) == (S y) = x == y
 
-S x ++ y = S (x ++ y)
-_   ++ y = y
+Z     + y = y
+(S x) + y = S (x + y)
+
+Z     * _ = Z
+(S x) * y = y + (x * y)
+
+min Z     _     = Z
+min (S x) Z     = Z
+min (S x) (S y) = S (min x y)
+
+-- infix 0 =:=
+--
+-- data Prop a = a :=: a
+--
+-- (=:=) = (:=:)
+--
+-- prop_assoc_plus :: Nat -> Nat -> Nat -> Prop Nat
+-- prop_assoc_plus x y z = x + (y + z) =:= (x + y) + z
