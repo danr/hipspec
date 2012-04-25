@@ -1,5 +1,7 @@
 -- (c) Dan Rosén 2012
-{-# LANGUAGE ParallelListComp, PatternGuards, RecordWildCards, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ParallelListComp, PatternGuards,
+             RecordWildCards, NamedFieldPuns,
+             GeneralizedNewtypeDeriving #-}
 module Halt.Trans where
 
 import PprCore
@@ -62,6 +64,14 @@ data HaltEnv
             -- ^ Substitutions
             }
 
+-- Pushes a new constraint to an environment
+pushConstraint :: Constraint -> HaltEnv -> HaltEnv
+pushConstraint c env = env { constr = c : constr env }
+
+-- Sets the current substitutions
+setSubs :: Subs -> HaltEnv -> HaltEnv
+setSubs s env = env { subs = s }
+
 -- Substitiotions: maps variables to expressions
 type Subs = Map Var CoreExpr
 
@@ -78,14 +88,16 @@ noSubs = M.empty
 noConstraints :: [Constraint]
 noConstraints = []
 
+-- | The initial environment
 initEnv :: ArityMap -> HaltEnv
-initEnv am = HaltEnv { arities = am
-                     , fun     = error "initEnv: fun"
-                     , args    = error "initEnv: args"
-                     , quant   = []
-                     , constr  = noConstraints
-                     , subs    = noSubs
-                     }
+initEnv am
+  = HaltEnv { arities = am
+            , fun     = error "initEnv: fun"
+            , args    = error "initEnv: args"
+            , quant   = []
+            , constr  = noConstraints
+            , subs    = error "initEnv: trying to use subs without setting them"
+            }
 
 -- | The translation monad
 newtype HaltM a = HaltM { runHaltM :: Reader HaltEnv a }
@@ -135,24 +147,29 @@ trCase e = case e of
     let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
 
     -- Translate the scrutinee and add it to the substitutions
-    local (\env -> env { subs = M.insert scrut_var scrutinee (subs env) }) $ do
+    local (pushConstraint (Subst scrut_var scrutinee [])) $ do
 
-        -- Translate the alternatives (mutually recursive with this function)
-        formulae <- concatMapM (trAlt scrutinee) alts
+        -- Translate the alternatives (mutually recursive with this
+        -- function)
+        alt_formulae <- concatMapM (trAlt scrutinee) alts
 
         -- Collect the negative patterns
         let neg_constrs = map (invertAlt scrutinee) alts
 
-        -- Translate the default formula which happens on the negative constraints
+        -- Translate the default formula which happens on the negative
+        -- constraints
         def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
                              (trCase def_expr)
 
-        -- Return both
-        return (def_formula ++ formulae)
+        return (def_formula ++ alt_formulae)
   _ -> do
-    HaltEnv{..} <- ask
-    let (subs',pos,neg) = collectConstr constr
-    local (\env -> env { subs = subs `M.union` subs' }) $ do
+    -- When translating expressions, only subs are considered, not
+    -- constraints.  The substitutions come from constraints of only a
+    -- variable, which in turn come from unifying the scrut var with
+    -- the scrutinee and casing on variables.
+    (subs',pos,neg) <- collectConstr <$> asks constr
+    local (setSubs subs') $ do
+      HaltEnv{fun,args,quant} <- ask
       lhs <- trExpr (mkCoreApps (Var fun) (map Var args))
       rhs <- trExpr e
       tr_pos <- mapM (\(a,b) -> liftM2 (===) (trExpr a) (trExpr b)) pos
@@ -167,8 +184,8 @@ type Eqp = (CoreExpr,CoreExpr)
 
 collectConstr :: [Constraint] -> (Map Var CoreExpr,[Eqp],[Eqp])
 collectConstr cs = (M.fromList [ (x,e)     | Subst x e _bound <- cs ]
-                   ,[ (lhs,rhs) | Equal lhs rhs _bound <- cs ]
-                   ,[ (lhs,rhs) | lhs :=/= rhs <- cs ])
+                   ,           [ (lhs,rhs) | Equal lhs rhs _bound <- cs ]
+                   ,           [ (lhs,rhs) | lhs :=/= rhs <- cs ])
 
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
@@ -184,7 +201,7 @@ invertAlt scrutinee (con, bs, _) = case con of
 
 trAlt :: CoreExpr -> CoreAlt -> HaltM Formulae
 trAlt scrutinee (con, bound, e) = case con of
-  DataAlt data_con -> local (\env -> env { constr = new_constraint : constr env }) (trCase e)
+  DataAlt data_con -> local (pushConstraint new_constraint) (trCase e)
     where
       rhs = mkCoreConApps data_con (map Var bound)
       new_constraint = case scrutinee of
@@ -272,7 +289,6 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
     maybeLocaliseName n | isSystemName n = n
                         | otherwise      = localiseName n
---idToStr = occNameString . nameOccName . idName
 
 mkFun :: Var -> [Term] -> Term
 mkFun = Fun . FunName . map toLower . idToStr
