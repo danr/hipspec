@@ -17,9 +17,9 @@ import UniqSupply
 import CoreMonad
 
 import Halt.Trans
--- import Halt.Lift
 import FOL.Pretty
 
+import Control.Monad
 import System.Environment
 
 desugar :: FilePath -> IO (ModGuts,[CoreBind])
@@ -63,6 +63,8 @@ main = do
   putStrLn "************************"
   putStrLn "let-lifted:\n"
   mapM_ (printDump . ppr) floatedProg
+  let (tptp,msgs) = translate floatedProg
   putStrLn "************************"
+  unless (null msgs) $ putStrLn $ "msgs:\n" ++ unlines msgs ++ "\n"
   putStrLn "tptp:\n"
-  outputTPTP (translate floatedProg)
+  outputTPTP tptp

@@ -101,14 +101,14 @@ initEnv am
             }
 
 -- | The translation monad
-newtype HaltM a = HaltM { runHaltM :: Reader HaltEnv a }
-  deriving (Applicative,Monad,Functor,MonadReader HaltEnv)
+newtype HaltM a = HaltM { runHaltM :: ReaderT HaltEnv (Writer [String]) a }
+  deriving (Applicative,Monad,Functor,MonadReader HaltEnv,MonadWriter [String])
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
 --   TODO: Assumes only nested case expression at top level of the body
 --         of a function. Possible fix: top level lift all other case expressions
-translate :: [CoreBind] -> [FDecl]
+translate :: [CoreBind] -> ([FDecl],[String])
 translate program =
   let -- Let-lift the program
       liftedProgram :: [CoreBind]
@@ -125,27 +125,38 @@ translate program =
       -- Translate each declaration
       -- TODO : Make these return Decl?
       translated :: HaltM [Formula]
-      translated= concatMapM (uncurry trDecl) binds
+      translated = concatMapM (uncurry trDecl) binds
 
-  in  [ FDecl Axiom ("decl" ++ show n) phi
-      | phi <- runHaltM translated `runReader` (initEnv arities)
-      | n <- [(0 :: Int)..]
-      ]
+      formulae :: [Formula]
+      msgs :: [String]
+      (formulae,msgs) = runWriter (runHaltM translated `runReaderT` initEnv arities)
+
+  in  ([ FDecl Axiom ("decl" ++ show n) phi
+       | phi <- formulae
+       | n <- [(0 :: Int)..] ]
+      ,msgs)
+
+write :: String -> HaltM ()
+write = tell . return
 
 -- Substitutions from variables bound in cases
 -- | Translate a CoreDecl
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
-trDecl f e = local (\e -> e { fun = f , args = as , quant = as }) (trCase e')
+trDecl f e = do
+    write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
+    local (\e -> e { fun = f , args = as , quant = as }) (trCase e')
   where -- Collect the arguments and the body expression
     as :: [Var]
     e' :: CoreExpr
-    (as,e') = collectBinders e
+    (_ty,as,e') = collectTyAndValBinders e
 
 trCase :: CoreExpr -> HaltM [Formula]
 trCase e = case e of
   Case{} -> do
     -- Add a bottom case
     let Case scrutinee scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
+
+    write $ "Case on " ++ showExpr scrutinee
 
     -- Translate the scrutinee and add it to the substitutions
     local (pushConstraint (scrut_var :-> scrutinee)) $ do
@@ -171,7 +182,8 @@ trCase e = case e of
     (subs',pos,neg) <- collectConstr <$> asks constr
     local (setSubs subs') $ do
       HaltEnv{fun,args,quant} <- ask
-      lhs <- trExpr (mkCoreApps (Var fun) (map Var args))
+      write $ "At the end of a branch: " ++ showExpr e
+      lhs <- mkFun fun <$> mapM (trExpr . Var) args
       rhs <- trExpr e
       tr_pos <- mapM (\(a,b) -> liftM2 (===) (trExpr a) (trExpr b)) pos
       tr_neg <- mapM (\(a,b) -> liftM2 (!=) (trExpr a) (trExpr b)) neg
@@ -195,7 +207,11 @@ invertAlt scrut_exp (con, bs, _) = case con of
     where
       con_name   = dataConName data_con
       proj_binds = [ projExpr con_name i scrut_exp | b <- bs | i <- [0..] ]
-      constraint = scrut_exp :/= mkCoreConApps data_con proj_binds
+      rhs        = foldl App (Var (dataConWorkId data_con)) proj_binds
+      constraint = scrut_exp :/= rhs
+      -- This is Dangerous. rhs is a CoreExpr but invalid; does not apply
+      -- type arguments properly. This can be seen if mkCoreConApps is used
+      -- instead: the impossible happens.
 
   DEFAULT -> error "invertAlt on DEFAULT"
   _       -> error "invertAlt on LitAlt (literals not supported yet!)"
@@ -208,7 +224,8 @@ trAlt scrut_exp (con, bound, e) = do
 
     DataAlt data_con -> local (const new_env) (trCase e)
       where
-        rhs = mkCoreConApps data_con (map Var bound)
+        rhs = foldl App (Var (dataConWorkId data_con)) (map Var bound)
+        -- ^ See comment about Dangerous in invertAlt
         (new_constraint,new_quant) = case scrut_exp of
             Var x | x `elem` quant -> (x :-> rhs,bound ++ delete x quant)
             _                      -> (scrut_exp :== rhs,bound ++ quant)
@@ -280,8 +297,10 @@ trExpr e = do
 --    Note{}     -> trErr e "notes"
 --    Coercion{} -> trErr "coercions"
 --    Tick{}     -> trErr "ticks"
-  where trErr e s = error ("trExpr: no support for " ++ s ++ "\n"
-                                          ++ showSDoc (pprCoreExpr e))
+  where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
+
+showExpr :: CoreExpr -> String
+showExpr = showSDoc . pprCoreExpr
 
 trimTyArgs :: [CoreArg] -> [CoreArg]
 trimTyArgs = filter (not . isTyArg)
