@@ -1,8 +1,6 @@
 -- (c) Dan Rosén 2012
 module FOL.Syn where
 
-import Control.Applicative
-import Data.List
 
 -- Constants and functions
 newtype FunName = FunName { funName :: String } deriving (Eq,Ord)
@@ -44,6 +42,7 @@ data Formula = EqOp Term EqOp Term
 -- List of formulas
 type Formulae = [Formula]
 
+neg :: Formula -> Formula
 neg (EqOp t1 (:==) t2) = EqOp t1 (:!=) t2
 neg (EqOp t1 (:!=) t2) = EqOp t1 (:==) t2
 neg phi                = Neg phi

@@ -6,9 +6,6 @@
   #-}
 module Halt.Trans where
 
-import PprCore
-
-import MkCore
 import CoreSyn
 import CoreUtils
 import Var
@@ -24,109 +21,17 @@ import SrcLoc
 
 import Halt.Names
 import Halt.Util
+import Halt.Monad
 import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
-import Data.Map (Map)
+-- import Data.Map (Map)
 import Data.Char (toUpper,toLower)
-import Data.List (delete,intercalate)
+import Data.List (intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
-import Control.Applicative
-
--- Map associating each function/CAF with its arity
-type ArityMap = Map Var Int
-
--- The Environment
-data HaltEnv
-  = HaltEnv { arities  :: ArityMap
-            -- ^ Arities of top level definitions
-            , fun      :: Var
-            -- ^ Current function
-            , args     :: [Var]
-            -- ^ Arguments to current function
-            , quant    :: [Var]
-            -- ^ Quantified variables
-            , constr   :: [Constraint]
-            -- ^ Constraints
-            , subs     :: Subs
-            -- ^ Substitutions
-            }
-
-
--- Pushes new quantified variables to the environment
-pushQuant :: [Var] -> HaltEnv -> HaltEnv
-pushQuant qs env = env { quant = qs ++ quant env }
-
--- Deletes a variable from the quantified list
-delQuant :: Var -> HaltEnv -> HaltEnv
-delQuant v env = env { quant = delete v (quant env) }
-
-
--- Pushes a new constraint to an environment
-pushConstraint :: Constraint -> HaltEnv -> HaltEnv
-pushConstraint c = pushConstraints [c]
-
--- Pushes many new constraints to an environment
-pushConstraints :: [Constraint] -> HaltEnv -> HaltEnv
-pushConstraints cs env = env { constr = cs ++ constr env }
-
--- Sets the current substitutions
-extendSubs :: Subs -> HaltEnv -> HaltEnv
-extendSubs s env = env { subs = s `M.union` subs env }
-
--- Extends the arities
-extendArities :: ArityMap -> HaltEnv -> HaltEnv
-extendArities am env = env { arities = am `M.union` arities env }
-
--- Substitiotions: maps variables to expressions
-type Subs = Map Var CoreExpr
-
--- Constraints from case expressions to results, under a substitution
-data Constraint = CoreExpr :== Pattern
-                | CoreExpr :/= Pattern
-
--- A pattern
-data Pattern = Pattern DataCon [CoreExpr]
-
-trPattern :: Pattern -> CoreExpr
-trPattern (Pattern data_con as) = foldl App (Var (dataConWorkId data_con)) as
-
-instance Show Pattern where
-  show = showExpr . trPattern
-
-instance Show Constraint where
-  show (e :== p) = showExpr e ++ " :== " ++ show p
-  show (e :/= p) = showExpr e ++ " :/= " ++ show p
-
--- | The empty substitution
-noSubs :: Subs
-noSubs = M.empty
-
--- | The empty constraints
-noConstraints :: [Constraint]
-noConstraints = []
-
--- | The initial environment
-initEnv :: ArityMap -> HaltEnv
-initEnv am
-  = HaltEnv { arities = am
-            , fun     = error "initEnv: fun"
-            , args    = []
-            , quant   = []
-            , constr  = noConstraints
-            , subs    = M.empty
-            }
-
--- | The translation monad
-newtype HaltM a
-  = HaltM { runHaltM :: ReaderT HaltEnv (WriterT [String] (State Int)) a }
-  deriving (Applicative,Monad,Functor
-           ,MonadReader HaltEnv
-           ,MonadWriter [String]
-           ,MonadState Int)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
@@ -161,10 +66,6 @@ translate program =
        | phi <- formulae
        | n <- [(0 :: Int)..] ]
       ,msgs)
-
--- | Write a debug message
-write :: MonadWriter [String] m => String -> m ()
-write = tell . return
 
 -- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
@@ -228,8 +129,6 @@ trCase e = case e of
                                      (tr_constr =:=> (lhs === rhs))
                 return (form : extra_formulae)
 
-type ExprHaltM a = WriterT [Formula] HaltM a
-
 (=:=>) :: [Formula] -> Formula -> Formula
 [] =:=> phi = phi
 xs =:=> phi = phi \/ foldr1 (\/) (map neg xs)
@@ -239,10 +138,12 @@ conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
                  | e1 :== Pattern con_x _ <- cs
                  , e2 :/= Pattern con_y _ <- cs
                  ]
-
-cheapExprEq (Var x) (Var y) = x == y
-cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 && cheapExprEq e1' e2'
-cheapExprEq _ _ = False
+  where
+    cheapExprEq :: CoreExpr -> CoreExpr -> Bool
+    cheapExprEq (Var x) (Var y) = x == y
+    cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
+                                            cheapExprEq e1' e2'
+    cheapExprEq _ _ = False
 
 translateConstr :: [Constraint] -> ExprHaltM [Formula]
 translateConstr cs = sequence $ [ trConstr (===) e p | e :== p <- cs ] ++
@@ -260,7 +161,7 @@ invertAlt scrut_exp (con, bs, _) = case con of
   DataAlt data_con -> constraint
     where
       con_name   = dataConName data_con
-      proj_binds = [ projExpr con_name i scrut_exp | b <- bs | i <- [0..] ]
+      proj_binds = [ projExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
       constraint = scrut_exp :/= Pattern data_con proj_binds
 
   DEFAULT -> error "invertAlt on DEFAULT"
@@ -269,7 +170,7 @@ invertAlt scrut_exp (con, bs, _) = case con of
 
 trAlt :: CoreExpr -> CoreAlt -> HaltM Formulae
 trAlt scrut_exp (con, bound, e) = do
-  env@HaltEnv{quant} <- ask
+  HaltEnv{quant} <- ask
   case con of
 
     DataAlt data_con -> local upd_env (trCase e)
@@ -325,10 +226,6 @@ addBottomCase (Case scrutinee binder ty alts) =
          (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
 
-
-getLabel :: (MonadState Int m) => m Int
-getLabel = do { x <- get ; modify succ ; return x }
-
 foldFunApps :: Term -> [Term] -> Term
 foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
 
@@ -336,7 +233,7 @@ foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
 -- are followed.
 trExpr :: CoreExpr -> ExprHaltM Term
 trExpr e = do
-    env@HaltEnv{..} <- ask
+    HaltEnv{..} <- ask
     case e of
         Var x | Just e' <- M.lookup x subs -> do lift $ write $ "Following subst " ++ showExpr e ++ " to " ++ showExpr e'
                                                  trExpr e'
@@ -349,7 +246,7 @@ trExpr e = do
             -- contain substitutions.
             -- TODO : Use the arities and add appropriate use of app
             (Var x,es)
-               | Just e' <- M.lookup x subs -> error "application of something in subs"
+               | Just _ <- M.lookup x subs -> error "application of something in subs"
                | Just i <- M.lookup x arities -> do
                    lift $ write $ idToStr x ++ " has arity " ++ show i
                    if i > length es
@@ -372,12 +269,12 @@ trExpr e = do
           lift $ write $ "Ignoring cast: " ++ showExpr e
           trExpr e'
 
-        Lit{}      -> trErr e "literals"
-        Type{}     -> trErr e "types"
-        Lam{}      -> trErr e "lambdas"
-        Coercion{} -> trErr e "coercions"
-        Tick{}     -> trErr e "ticks"
-  where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
+        Lit{}      -> trErr "literals"
+        Type{}     -> trErr "types"
+        Lam{}      -> trErr "lambdas"
+        Coercion{} -> trErr "coercions"
+        Tick{}     -> trErr "ticks"
+  where trErr s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
 
 -- | Translate a local case expression
 trCaseExpr :: CoreExpr -> ExprHaltM Term
@@ -399,17 +296,18 @@ trLet bind in_e = do
     lift $ write $ "Experimental let: " -- ++ showExpr (Let bind in_e)
     binds <- sequence [ do { v' <- modVar "" v ; return (v,v',e) }
                        | (v,e) <- flattenBinds [bind] ]
-    env@HaltEnv{..} <- ask
+    HaltEnv{..} <- ask
     let new_subs = M.fromList [ (v,foldl App (Var v') (map Var quant))
                               | (v,v',_) <- binds ]
         -- ^ These needs to be subs because constraints have already been
         --   finalized and turned into subs for in_e.
 
-    let arities :: ArityMap
-        arities = M.fromList [(v',arity e + length quant) | (v,v',e) <- binds ]
+    let new_arities :: ArityMap
+        new_arities = M.fromList [(v',arity e + length quant)
+                                 | (_,v',e) <- binds ]
 
-    local (extendArities arities . extendSubs new_subs) $ do
-      mapM (\(_,v',e) -> tell =<< lift (trDecl v' e)) binds
+    local (extendArities new_arities . extendSubs new_subs) $ do
+      mapM_ (\(_,v',e) -> tell =<< lift (trDecl v' e)) binds
       trExpr in_e
 
 modVar :: MonadState Int m => String -> Var -> m Var
@@ -419,9 +317,6 @@ modVar lbl v = do
                                   (mkOccName dataName $ lbl ++ show i ++ idToStr v)
                                   wiredInSrcSpan
     return $ mkVanillaGlobal var_name (error $ "modVar, " ++ lbl ++ ": type")
-
-showExpr :: CoreExpr -> String
-showExpr = showSDoc . pprCoreExpr
 
 trimTyArgs :: [CoreArg] -> [CoreArg]
 trimTyArgs = filter (not . isTyArg)

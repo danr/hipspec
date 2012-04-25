@@ -28,15 +28,15 @@ desugar targetFile =
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
         dflags <- getSessionDynFlags
-        let dflags' = (foldl dopt_set dflags {- (foldl xopt_set dflags
-                            [Opt_Cpp, Opt_MagicHash]) -}
-                            [Opt_CaseMerge,Opt_FloatIn,Opt_CSE,Opt_DoEtaReduction
+        let dflags' = foldl dopt_set dflags
+                            [Opt_CaseMerge,Opt_FloatIn
+                            ,Opt_CSE,Opt_DoEtaReduction
                             ,Opt_StaticArgumentTransformation
-                            ])
-        setSessionDynFlags dflags'
+                            ]
+        void $ setSessionDynFlags dflags'
         target <- guessTarget targetFile Nothing
         setTargets [target]
-        load LoadAllTargets
+        void $ load LoadAllTargets
         modSum <- getModSummary (mkModuleName targetFile)
         p <- parseModule modSum
         t <- typecheckModule p
@@ -45,14 +45,17 @@ desugar targetFile =
         s <- getSession
         modguts' <- liftIO (core2core s modguts)
         let coreBinds = mg_binds modguts'
-            float_switches = FloatOutSwitches { floatOutLambdas = Just 100
-                                              , floatOutConstants = False
-                                              , floatOutPartialApplications = False
-                                              }
-        us <- liftIO (mkSplitUniqSupply 'l') -- Make an UniqSupply out of thin air. Trying char 'l'
+            float_switches = FloatOutSwitches
+                               { floatOutLambdas = Just 100
+                               , floatOutConstants = False
+                               , floatOutPartialApplications = False
+                               }
+        us <- liftIO (mkSplitUniqSupply 'l')
+           -- ^ Make a UniqSupply out of thin air. Trying char 'l'
         floatedProg <- liftIO (floatOutwards float_switches dflags' us coreBinds)
         return (modguts',floatedProg)
 
+main :: IO ()
 main = do
   [file] <- getArgs
   (modguts,floatedProg) <- desugar file

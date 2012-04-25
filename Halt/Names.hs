@@ -74,4 +74,4 @@ projVar con_name i = Var (mkVanillaGlobal (projName con_name i) (error "projVar:
 
 -- | Projects an expression
 projExpr :: Name -> Int -> CoreExpr -> CoreExpr
-projExpr con_name i e = App (projVar con_name i) e
+projExpr con_name i = App (projVar con_name i)
