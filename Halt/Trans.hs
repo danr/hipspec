@@ -17,6 +17,9 @@ import Outputable
 import Literal
 import FastString
 
+import Unique
+import SrcLoc
+
 import Halt.Names
 import Halt.Util
 import FOL.Syn hiding ((:==))
@@ -28,6 +31,7 @@ import Data.List (delete)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.State
 import Control.Applicative
 
 
@@ -70,8 +74,8 @@ pushConstraint :: Constraint -> HaltEnv -> HaltEnv
 pushConstraint c env = env { constr = c : constr env }
 
 -- Sets the current substitutions
-setSubs :: Subs -> HaltEnv -> HaltEnv
-setSubs s env = env { subs = s }
+extendSubs :: Subs -> HaltEnv -> HaltEnv
+extendSubs s env = env { subs = s `M.union` subs env }
 
 -- Substitiotions: maps variables to expressions
 type Subs = Map Var CoreExpr
@@ -97,12 +101,16 @@ initEnv am
             , args    = error "initEnv: args"
             , quant   = []
             , constr  = noConstraints
-            , subs    = error "initEnv: trying to use subs without setting them"
+            , subs    = M.empty
             }
 
 -- | The translation monad
-newtype HaltM a = HaltM { runHaltM :: ReaderT HaltEnv (Writer [String]) a }
-  deriving (Applicative,Monad,Functor,MonadReader HaltEnv,MonadWriter [String])
+newtype HaltM a
+  = HaltM { runHaltM :: ReaderT HaltEnv (WriterT [String] (State Int)) a }
+  deriving (Applicative,Monad,Functor
+           ,MonadReader HaltEnv
+           ,MonadWriter [String]
+           ,MonadState Int)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
@@ -129,7 +137,9 @@ translate program =
 
       formulae :: [Formula]
       msgs :: [String]
-      (formulae,msgs) = runWriter (runHaltM translated `runReaderT` initEnv arities)
+      (formulae,msgs) = runWriterT
+                            (runHaltM translated `runReaderT` initEnv arities)
+                            `evalState` 0
 
   in  ([ FDecl Axiom ("decl" ++ show n) phi
        | phi <- formulae
@@ -180,14 +190,16 @@ trCase e = case e of
     -- variable, which in turn come from unifying the scrut var with
     -- the scrutinee and casing on variables.
     (subs',pos,neg) <- collectConstr <$> asks constr
-    local (setSubs subs') $ do
+    local (extendSubs subs') $ do
       HaltEnv{fun,args,quant} <- ask
       write $ "At the end of a branch: " ++ showExpr e
-      lhs <- mkFun fun <$> mapM (trExpr . Var) args
-      rhs <- trExpr e
-      tr_pos <- mapM (\(a,b) -> liftM2 (===) (trExpr a) (trExpr b)) pos
-      tr_neg <- mapM (\(a,b) -> liftM2 (!=) (trExpr a) (trExpr b)) neg
-      return [forall' (map mkVarName quant) ((tr_pos ++ tr_neg) =:=> (lhs === rhs))]
+      (form,extra_formulae) <- runWriterT $ do
+        lhs <- mkFun fun <$> mapM (trExpr . Var) args
+        rhs <- trExpr e
+        tr_pos <- mapM (\(a,b) -> liftM2 (===) (trExpr a) (trExpr b)) pos
+        tr_neg <- mapM (\(a,b) -> liftM2 (!=)  (trExpr a) (trExpr b)) neg
+        return $ forall' (map mkVarName quant) ((tr_pos ++ tr_neg) =:=> (lhs === rhs))
+      return (form : extra_formulae)
 
 (=:=>) :: [Formula] -> Formula -> Formula
 [] =:=> phi = phi
@@ -275,9 +287,9 @@ addBottomCase _ = error "addBottomCase on non-case expression"
 
 -- | Translate an expression, i.e. not case statements. Substitutions
 -- are followed.
-trExpr :: CoreExpr -> HaltM Term
+trExpr :: CoreExpr -> WriterT [Formula] HaltM Term
 trExpr e = do
-  HaltEnv{..} <- ask
+  env@HaltEnv{..} <- ask
   case e of
     Var x | Just e' <- M.lookup x subs -> trExpr e'
           | x `elem` quant             -> return (mkVar x)
@@ -297,7 +309,15 @@ trExpr e = do
 --    Note{}     -> trErr e "notes"
     Coercion{} -> trErr e "coercions"
     Tick{}     -> trErr e "ticks"
-    Case{}     -> trErr e "case expressions inside expressions"
+    Case{}     -> do
+      i <- lift $ do { x <- get ; modify succ ; return x }
+      lift $ write $ "Experimental case:  " ++ showExpr e
+      let cfunName = mkInternalName (mkPreludeMiscIdUnique 0)
+                                    (mkOccName dataName $ "case" ++ show i)
+                                    wiredInSrcSpan
+          cfunVar = mkVanillaGlobal cfunName (error "cfunVar: type")
+      tell =<< lift (local (\env -> env { fun = cfunVar , args = quant }) (trCase e))
+      mkFun cfunVar <$> mapM (trExpr . Var) quant
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
 
 showExpr :: CoreExpr -> String
