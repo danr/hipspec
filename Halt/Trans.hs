@@ -295,8 +295,9 @@ trExpr e = do
     Lam{}      -> trErr e "lambdas"
     Let{}      -> trErr e "let stmnts"
 --    Note{}     -> trErr e "notes"
---    Coercion{} -> trErr "coercions"
---    Tick{}     -> trErr "ticks"
+    Coercion{} -> trErr e "coercions"
+    Tick{}     -> trErr e "ticks"
+    Case{}     -> trErr e "case expressions inside expressions"
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
 
 showExpr :: CoreExpr -> String
