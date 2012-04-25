@@ -1,11 +1,15 @@
 module Lists where
 
-import Prelude(undefined)
+import Prelude (Bool(..))
 
-map f xs = [ f x | x <- xs ]
+otherwise = True
 
--- Introduces a let, so it does not work:
--- concatMap f xss = [ f x | xs <- xss, x <- xs ]
+insert (<) x [] = [x]
+insert (<) x (y:ys) | x < y     = x:y:ys
+                    | otherwise = y:insert (<) x ys
 
-filter p xs = [ x | x <- xs, p x ]
+isort (<) [] = []
+isort (<) (x:xs) = insert (<) x (isort (<) xs)
 
+swap [x,y] = [y,x]
+rot [x,y,z] = [z,x,y]
