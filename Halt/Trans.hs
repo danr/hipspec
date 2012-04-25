@@ -1,7 +1,9 @@
 -- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, PatternGuards,
              RecordWildCards, NamedFieldPuns,
-             GeneralizedNewtypeDeriving #-}
+             GeneralizedNewtypeDeriving,
+             FlexibleContexts
+  #-}
 module Halt.Trans where
 
 import PprCore
@@ -71,11 +73,19 @@ data HaltEnv
 
 -- Pushes a new constraint to an environment
 pushConstraint :: Constraint -> HaltEnv -> HaltEnv
-pushConstraint c env = env { constr = c : constr env }
+pushConstraint c = pushConstraints [c]
+
+-- Pushes many new constraints to an environment
+pushConstraints :: [Constraint] -> HaltEnv -> HaltEnv
+pushConstraints cs env = env { constr = cs ++ constr env }
 
 -- Sets the current substitutions
 extendSubs :: Subs -> HaltEnv -> HaltEnv
 extendSubs s env = env { subs = s `M.union` subs env }
+
+-- Extends the arities
+extendArities :: ArityMap -> HaltEnv -> HaltEnv
+extendArities am env = env { arities = am `M.union` arities env }
 
 -- Substitiotions: maps variables to expressions
 type Subs = Map Var CoreExpr
@@ -98,7 +108,7 @@ initEnv :: ArityMap -> HaltEnv
 initEnv am
   = HaltEnv { arities = am
             , fun     = error "initEnv: fun"
-            , args    = error "initEnv: args"
+            , args    = []
             , quant   = []
             , constr  = noConstraints
             , subs    = M.empty
@@ -128,7 +138,7 @@ translate program =
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
-      arities = M.fromList [(v,length (fst (collectBinders e))) | (v,e) <- binds ]
+      arities = M.fromList [(v,arity e) | (v,e) <- binds ]
 
       -- Translate each declaration
       -- TODO : Make these return Decl?
@@ -146,20 +156,40 @@ translate program =
        | n <- [(0 :: Int)..] ]
       ,msgs)
 
-write :: String -> HaltM ()
+-- trBind :: CoreBind -> Halt [Formula]
+-- trBind bind =
+--   let defns :: [(Var,[Var],CoreExpr)]
+--       defns = [ (v,as,e')
+--               | (v,e) <- flattenBinds [bind]
+--               , let (_ty,as,e') = collectTyAndValBinders e
+--               ]
+--
+--       arities :: ArityMap
+--       arities = [ (v,length as) | (v,as,e') <- defns ]
+
+-- | Write a debug message
+write :: MonadWriter [String] m => String -> m ()
 write = tell . return
 
--- Substitutions from variables bound in cases
--- | Translate a CoreDecl
+-- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
 trDecl f e = do
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
-    local (\e -> e { fun = f , args = as , quant = as }) (trCase e')
+    local (\env -> env { fun = f
+                       , args = as ++ args env
+                       , quant = as ++ quant env}) (trCase e')
   where -- Collect the arguments and the body expression
     as :: [Var]
     e' :: CoreExpr
     (_ty,as,e') = collectTyAndValBinders e
+    -- Dangerous? Type variables are skipped for now.
 
+-- | The arity of an expression if it is a lambda
+arity :: CoreExpr -> Int
+arity e = length as
+  where (_,as,_) = collectTyAndValBinders e
+
+-- | Translate a case expression
 trCase :: CoreExpr -> HaltM [Formula]
 trCase e = case e of
   Case{} -> do
@@ -285,6 +315,10 @@ addBottomCase (Case scrutinee binder ty alts) =
        (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
 
+
+getLabel :: (MonadState Int m) => m Int
+getLabel = do { x <- get ; modify succ ; return x }
+
 -- | Translate an expression, i.e. not case statements. Substitutions
 -- are followed.
 trExpr :: CoreExpr -> WriterT [Formula] HaltM Term
@@ -295,30 +329,71 @@ trExpr e = do
           | x `elem` quant             -> return (mkVar x)
           | otherwise                  -> return (mkFun x [])
     App{} -> case second trimTyArgs (collectArgs e) of
+                    -- We should first try to translate App, since they might
+                    -- contain substitutions.
                     -- TODO : Use the arities and add appropriate use of app
                     (Var x,es) -> mkFun x <$> mapM trExpr es
                     (f,es)     -> foldl (\x y -> Fun (FunName "ptrApp") [x,y])
                                      <$> trExpr f
                                      <*> mapM trExpr es
-    Lit (MachStr s) -> return (Fun (FunName "string") [Fun (FunName (unpackFS s)) []])
+    Lit (MachStr s) -> do
+      lift $ write $ "String to constant: " ++ unpackFS s
+      return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
+
+    Case{}      -> trCaseExpr e
+    Let bind e' -> trLet bind e'
+    Cast e' _   -> do
+      lift $ write $ "Ignoring cast: " ++ showExpr e
+      trExpr e'
+
     Lit{}      -> trErr e "literals"
-    Cast e _   -> trExpr e -- trErr e "casts"
     Type{}     -> trErr e "types"
     Lam{}      -> trErr e "lambdas"
-    Let{}      -> trErr e "let stmnts"
---    Note{}     -> trErr e "notes"
     Coercion{} -> trErr e "coercions"
     Tick{}     -> trErr e "ticks"
-    Case{}     -> do
-      i <- lift $ do { x <- get ; modify succ ; return x }
-      lift $ write $ "Experimental case:  " ++ showExpr e
-      let cfunName = mkInternalName (mkPreludeMiscIdUnique 0)
-                                    (mkOccName dataName $ "case" ++ show i)
-                                    wiredInSrcSpan
-          cfunVar = mkVanillaGlobal cfunName (error "cfunVar: type")
-      tell =<< lift (local (\env -> env { fun = cfunVar , args = quant }) (trCase e))
-      mkFun cfunVar <$> mapM (trExpr . Var) quant
   where trErr e s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
+
+trCaseExpr :: CoreExpr -> WriterT [Formula] HaltM Term
+trCaseExpr e = do
+  lift $ write $ "Experimental case: " ++ showExpr e
+  new_fun <- modVar "case" =<< asks fun
+  quant_vars <- asks quant
+  tell =<< lift (local (\env -> env { fun = new_fun , args = quant_vars}) (trCase e))
+  mkFun new_fun <$> mapM (trExpr . Var) quant_vars
+
+-- | Translate a let expression
+--   TODO: This copies some functionality found elsewhere
+trLet :: CoreBind -> CoreExpr -> WriterT [Formula] HaltM Term
+trLet bind in_e = do
+    lift $ write $ "Experimental let: " ++ showExpr (Let bind in_e)
+    binds' <- sequence [ do { v' <- modVar "let" v ; return (v,v',e) }
+                       | (v,e) <- binds ]
+    env@HaltEnv{..} <- ask
+    let new_subs = M.fromList [ (v,foldl App (Var v') (map Var quant))
+                              | (v,v',_) <- binds' ]
+        -- ^ These needs to be subs because constraints have already been
+        --   finalized and turned into subs for in_e.
+
+    -- What about the arities?
+
+    local (extendSubs new_subs) $ do
+      mapM (\(_,v',e) -> tell =<< lift (trDecl v' e)) binds'
+      trExpr in_e
+
+  where
+    binds :: [(Var,CoreExpr)]
+    binds = flattenBinds [bind]
+
+    arities :: ArityMap
+    arities = M.fromList [(v,arity e) | (v,e) <- binds ]
+
+modVar :: MonadState Int m => String -> Var -> m Var
+modVar lbl v = do
+  i <- getLabel
+  let var_name = mkInternalName (mkPreludeMiscIdUnique i)
+                                (mkOccName dataName $ lbl ++ show i ++ idToStr v)
+                                wiredInSrcSpan
+  return $ mkVanillaGlobal var_name (error $ "modVar, " ++ lbl ++ ": type")
 
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
