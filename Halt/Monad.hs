@@ -10,6 +10,7 @@ import CoreSyn
 import Var
 import DataCon
 import Outputable
+import CoreSubst
 
 import FOL.Syn hiding ((:==))
 
@@ -31,13 +32,13 @@ data HaltEnv
             -- ^ Arities of top level definitions
             , fun      :: Var
             -- ^ Current function
-            , args     :: [Var]
+            , args     :: [CoreExpr]
             -- ^ Arguments to current function
             , quant    :: [Var]
             -- ^ Quantified variables
             , constr   :: [Constraint]
             -- ^ Constraints
-            , subs     :: Subs
+            -- , subs     :: Subs
             -- ^ Substitutions
             }
 
@@ -58,16 +59,13 @@ pushConstraint c = pushConstraints [c]
 pushConstraints :: [Constraint] -> HaltEnv -> HaltEnv
 pushConstraints cs env = env { constr = cs ++ constr env }
 
--- Sets the current substitutions
-extendSubs :: Subs -> HaltEnv -> HaltEnv
-extendSubs s env = env { subs = s `M.union` subs env }
+-- -- Sets the current substitutions
+-- extendSubs :: Subs -> HaltEnv -> HaltEnv
+-- extendSubs s env = env { subs = s `M.union` subs env }
 
 -- Extends the arities
 extendArities :: ArityMap -> HaltEnv -> HaltEnv
 extendArities am env = env { arities = am `M.union` arities env }
-
--- Substitiotions: maps variables to expressions
-type Subs = Map Var CoreExpr
 
 -- Constraints from case expressions to results, under a substitution
 data Constraint = CoreExpr :== Pattern
@@ -86,9 +84,13 @@ instance Show Constraint where
   show (e :== p) = showExpr e ++ " :== " ++ show p
   show (e :/= p) = showExpr e ++ " :/= " ++ show p
 
--- | The empty substitution
-noSubs :: Subs
-noSubs = M.empty
+substConstr :: Subst -> Constraint -> Constraint
+substConstr s (e :== p) = substExpr (text "substConstr") s e :== substPattern s p
+substConstr s (e :/= p) = substExpr (text "substConstr") s e :/= substPattern s p
+
+substPattern :: Subst -> Pattern -> Pattern
+substPattern s (Pattern data_con as)
+    = Pattern data_con (map (substExpr (text "substPattern") s) as)
 
 -- | The empty constraints
 noConstraints :: [Constraint]
@@ -97,21 +99,26 @@ noConstraints = []
 -- | The initial environment
 initEnv :: ArityMap -> HaltEnv
 initEnv am
-  = HaltEnv { arities = am
-            , fun     = error "initEnv: fun"
-            , args    = []
-            , quant   = []
-            , constr  = noConstraints
-            , subs    = M.empty
-            }
+    = HaltEnv { arities = am
+              , fun     = error "initEnv: fun"
+              , args    = []
+              , quant   = []
+              , constr  = noConstraints
+              }
 
 -- | The translation monad
 newtype HaltM a
-  = HaltM { runHaltM :: ReaderT HaltEnv (WriterT [String] (State Int)) a }
+    = HaltM { runHaltM :: ReaderT HaltEnv (WriterT [String] (State Int)) a }
   deriving (Applicative,Monad,Functor
            ,MonadReader HaltEnv
            ,MonadWriter [String]
            ,MonadState Int)
+
+substContext :: Subst -> HaltEnv -> HaltEnv
+substContext s env = env
+    { args = map (substExpr (text "substContext:args") s) (args env)
+    , constr = map (substConstr s) (constr env)
+    }
 
 -- | Write a debug message
 write :: MonadWriter [String] m => String -> m ()
