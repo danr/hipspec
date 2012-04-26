@@ -15,6 +15,7 @@ import Name
 import Outputable
 import Literal
 import FastString
+import TyCon
 
 import CoreSubst
 
@@ -29,7 +30,7 @@ import FOL.Syn hiding ((:==))
 import qualified Data.Map as M
 -- import Data.Map (Map)
 import Data.Char (toUpper,toLower)
--- import Data.List (nub,intercalate)
+import Data.List (intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -39,8 +40,8 @@ import Control.Monad.State
 --   TODO: Register used function pointers
 --   TODO: Assumes only nested case expression at top level of the body
 --         of a function. Possible fix: top level lift all other case expressions
-translate :: [CoreBind] -> ([FDecl],[String])
-translate program =
+translate :: [TyCon] -> [CoreBind] -> ([FDecl],[String])
+translate ty_cons program =
   let -- Let-lift the program
       liftedProgram :: [CoreBind]
       liftedProgram = program
@@ -51,7 +52,13 @@ translate program =
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
-      arities = M.fromList [(v,arity e) | (v,e) <- binds ]
+      arities = M.fromList $ [ (idName v,arity e) | (v,e) <- binds ] ++
+                             [ (dataConName con,length ty_args)
+                             | DataTyCon cons _ <- map algTyConRhs ty_cons
+                             , con <- cons
+                             , let (_,_,ty_args,_) = dataConSig con
+                             ]
+
 
       -- Translate each declaration
       -- TODO : Make these return Decl?
@@ -66,8 +73,8 @@ translate program =
 
   in  ([ FDecl Axiom ("decl" ++ show n) phi
        | phi <- formulae
-       | n <- [(0 :: Int)..] ]
-      ,msgs)
+       | n <- [(0 :: Int)..]]
+      ,msgs ++ [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v | (k,v) <- M.toList arities])
 
 -- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
@@ -177,10 +184,10 @@ trAlt scrut_exp (con, bound, e) = do
         let pat = Pattern data_con (map Var bound)
         case scrut_exp of
             Var x | x `elem` quant -> do
-                write $ "Substituting " ++ idToStr x ++ " to " ++ show pat ++ " in " ++ showExpr e
+                -- write $ "Substituting " ++ idToStr x ++ " to " ++ show pat ++ " in " ++ showExpr e
                 let s = extendIdSubst emptySubst x (trPattern pat)
                 let e' = substExpr (text "trAlt") s e
-                write $ "Result " ++ showExpr e'
+                -- write $ "Result " ++ showExpr e'
                 local (substContext s . pushQuant bound . delQuant x) (trCase e')
             _ -> local (pushConstraint (scrut_exp :== pat) . pushQuant bound)
                        (trCase e)
@@ -248,14 +255,14 @@ trExpr e = do
         Var x | x `elem` quant             -> return (mkVar x)
               | otherwise                  -> return (mkFun x [])
         App{} -> do
-          -- lift $ write $ "App on " ++ showExpr e
+          lift $ write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of
             -- We should first try to translate App, since they might
             -- contain substitutions.
             -- TODO : Use the arities and add appropriate use of app
             (Var x,es)
-               | Just i <- M.lookup x arities -> do
-                   -- lift $ write $ idToStr x ++ " has arity " ++ show i
+               | Just i <- M.lookup (idName x) arities -> do
+                   lift $ write $ idToStr x ++ " has arity " ++ show i
                    if i > length es
                        then foldFunApps (mkPtr x) <$> mapM trExpr es
                        else do
@@ -263,7 +270,9 @@ trExpr e = do
                            inner <- mkFun x <$> mapM trExpr es_inner
                            foldFunApps inner <$> mapM trExpr es_after
             (f,es) -> do
-               -- lift $ write $ "Collected to " ++ showExpr f ++ " on " ++ intercalate "," (map showExpr es)
+               lift $ write $ "Collected to " ++ showExpr f
+                           ++ concat [ "(" ++ show (getUnique x) ++ ") " | let Var x = f ]
+                           ++ " on " ++ intercalate "," (map showExpr es)
                foldFunApps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
           lift $ write $ "String to constant: " ++ unpackFS s
@@ -308,7 +317,7 @@ trLet bind in_e = do
         --   finalized and turned into subs for in_e.
 
     let new_arities :: ArityMap
-        new_arities = M.fromList [(v',arity e + length quant)
+        new_arities = M.fromList [ (idName v',arity e + length quant)
                                  | (_,v',e) <- binds ]
 
     tell =<< lift (local ((\env -> env { args = map Var quant

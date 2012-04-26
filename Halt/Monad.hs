@@ -11,6 +11,7 @@ import Var
 import DataCon
 import Outputable
 import CoreSubst
+import Name
 
 import FOL.Syn hiding ((:==))
 
@@ -24,7 +25,7 @@ import Control.Monad.State
 import Control.Applicative
 
 -- Map associating each function/CAF with its arity
-type ArityMap = Map Var Int
+type ArityMap = Map Name Int
 
 -- The Environment
 data HaltEnv
