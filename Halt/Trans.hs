@@ -123,6 +123,12 @@ trCase e = case e of
         -- Translate the scrutinee and add it to the substitutions
         -- We should do something about the scrutinee var here really
         -- local (extendSubs (M.singleton scrut_var (error "scrutinee"))) $ do
+        -- TODO: Test case that triggers this error
+
+        min_formula <- trConstrainedFormula $ do
+            lhs <- trLhs
+            tr_scrut <- trExpr scrutinee
+            return (Neg (minPred lhs) \/ minPred tr_scrut)
 
         -- Translate the alternatives (mutually recursive with this
         -- function)
@@ -136,23 +142,39 @@ trCase e = case e of
         def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
                              (trCase def_expr)
 
-        return (alt_formulae ++ def_formula)
+        return (min_formula ++ alt_formulae ++ def_formula)
     _ -> do
         -- When translating expressions, only subs are considered, not
         -- constraints.  The substitutions come from constraints of only a
         -- variable, which in turn come from unifying the scrut var with
         -- the scrutinee and casing on variables.
-        HaltEnv{fun,args,quant,constr} <- ask
+        HaltEnv{fun} <- ask
         write $ "At the end of " ++ idToStr fun ++ "'s branch: " ++ showExpr e
-        write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
-        if conflict constr
-            then write "  Conflict!" >> return []
-            else fmap (uncurry (:)) . runWriterT $ do
-               lhs <- mkFun fun <$> mapM trExpr args
-               rhs <- trExpr e
-               tr_constr <- translateConstr constr
-               return $ forall' (map mkVarName quant)
-                                (tr_constr =:=> (lhs === rhs))
+        trConstrainedFormula $ do
+            lhs <- trLhs
+            rhs <- trExpr e
+            return (Neg (minPred lhs) \/ lhs === rhs)
+
+trLhs :: ExprHaltM Term
+trLhs = do
+    HaltEnv{fun,args} <- ask
+    mkFun fun <$> mapM trExpr args
+
+minPred :: Term -> Formula
+minPred tm = Rel (RelName "min") [tm]
+
+trConstrainedFormula :: ExprHaltM Formula -> HaltM [Formula]
+trConstrainedFormula m_phi = do
+    HaltEnv{quant,constr} <- ask
+    write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
+    case conflict constr of
+        True  -> write "  Conflict!" >> return []
+        False -> do
+            (phi',extras) <- runWriterT $ do
+                tr_constr <- translateConstr constr
+                phi <- m_phi
+                return $ forall' (map mkVarName quant) (tr_constr =:=> phi)
+            return (phi':extras)
 
 (=:=>) :: [Formula] -> Formula -> Formula
 [] =:=> phi = phi
