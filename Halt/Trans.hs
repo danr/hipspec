@@ -52,12 +52,16 @@ translate ty_cons program =
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
-      arities = M.fromList $ [ (idName v,arity e) | (v,e) <- binds ] ++
-                             [ (dataConName con,length ty_args)
-                             | DataTyCon cons _ <- map algTyConRhs ty_cons
-                             , con <- cons
-                             , let (_,_,ty_args,_) = dataConSig con
-                             ]
+      arities = M.fromList $
+        [ (idName v,exprArity e) | (v,e) <- binds ] ++
+        concat [ (con_name,arity) :
+                 [ (projName con_name i,1) | i <- [0..arity-1] ]
+               | DataTyCon cons _ <- map algTyConRhs ty_cons
+               , con <- cons
+               , let con_name        = idName $ dataConWorkId con
+                     (_,_,ty_args,_) = dataConSig con
+                     arity           = length ty_args
+               ]
 
 
       -- Translate each declaration
@@ -90,8 +94,8 @@ trDecl f e = do
     -- Dangerous? Type variables are skipped for now.
 
 -- | The arity of an expression if it is a lambda
-arity :: CoreExpr -> Int
-arity e = length as
+exprArity :: CoreExpr -> Int
+exprArity e = length as
   where (_,as,_) = collectTyAndValBinders e
 
 -- | Translate a case expression
@@ -168,7 +172,7 @@ invertAlt :: CoreExpr -> CoreAlt -> Constraint
 invertAlt scrut_exp (con, bs, _) = case con of
   DataAlt data_con -> constraint
     where
-      con_name   = dataConName data_con
+      con_name   = idName $ dataConWorkId data_con
       proj_binds = [ projExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
       constraint = scrut_exp :/= Pattern data_con proj_binds
 
@@ -271,7 +275,7 @@ trExpr e = do
                            foldFunApps inner <$> mapM trExpr es_after
             (f,es) -> do
                lift $ write $ "Collected to " ++ showExpr f
-                           ++ concat [ "(" ++ show (getUnique x) ++ ") " | let Var x = f ]
+                           ++ concat [ "(" ++ show (getUnique (idName x)) ++ ") " | let Var x = f ]
                            ++ " on " ++ intercalate "," (map showExpr es)
                foldFunApps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
@@ -317,7 +321,7 @@ trLet bind in_e = do
         --   finalized and turned into subs for in_e.
 
     let new_arities :: ArityMap
-        new_arities = M.fromList [ (idName v',arity e + length quant)
+        new_arities = M.fromList [ (idName v',exprArity e + length quant)
                                  | (_,v',e) <- binds ]
 
     tell =<< lift (local ((\env -> env { args = map Var quant
