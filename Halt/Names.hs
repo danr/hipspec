@@ -62,7 +62,8 @@ projName con_name =
   let vars :: [Name]
       vars = [ mkInternalName
                  (mkPreludeMiscIdUnique (i + 1))
-                 (mkOccName dataName (showSDoc (ppr con_name) ++ "p" ++ show i))
+                 (mkOccName dataName
+                     (showSDoc (ppr $ localiseName con_name) ++ show i))
                  wiredInSrcSpan
              | i <- [(0 :: Int)..] ]
 

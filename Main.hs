@@ -5,7 +5,7 @@ module Main where
 -- ghc -package ghc Main.hs
 
 import GHC
-import Outputable
+-- import Outputable
 import GHC.Paths
 import DynFlags
 import HscTypes
@@ -58,17 +58,18 @@ desugar targetFile =
 main :: IO ()
 main = do
   [file] <- getArgs
+  putStrLn =<< readFile (file ++ ".hs")
   (modguts,floated_prog) <- desugar file
-  let core_binds = mg_binds modguts
+  let _core_binds = mg_binds modguts
       ty_cons    = mg_tcs modguts
-  putStrLn "************************"
-  putStrLn "desugared:\n"
-  mapM_ (printDump . ppr) core_binds
-  putStrLn "************************"
-  putStrLn "let-lifted:\n"
-  mapM_ (printDump . ppr) floated_prog
+--   putStrLn "************************"
+--   putStrLn "desugared:\n"
+--   mapM_ (printDump . ppr) core_binds
+--   putStrLn "************************"
+--   putStrLn "let-lifted:\n"
+--   mapM_ (printDump . ppr) floated_prog
+--   putStrLn "************************"
   let (tptp,msgs) = translate ty_cons floated_prog
-  putStrLn "************************"
   unless (null msgs) $ putStrLn $ "msgs:\n" ++ unlines msgs ++ "\n"
   putStrLn "tptp:\n"
   outputTPTP tptp

@@ -19,6 +19,9 @@ import TyCon
 
 import CoreSubst
 
+import CoreFVs
+import VarSet
+
 import Unique
 import SrcLoc
 
@@ -58,7 +61,7 @@ translate ty_cons program =
                  [ (projName con_name i,1) | i <- [0..arity-1] ]
                | DataTyCon cons _ <- map algTyConRhs ty_cons
                , con <- cons
-               , let con_name        = idName $ dataConWorkId con
+               , let con_name        = idName (dataConWorkId con)
                      (_,_,ty_args,_) = dataConSig con
                      arity           = length ty_args
                ]
@@ -172,7 +175,7 @@ invertAlt :: CoreExpr -> CoreAlt -> Constraint
 invertAlt scrut_exp (con, bs, _) = case con of
   DataAlt data_con -> constraint
     where
-      con_name   = idName $ dataConWorkId data_con
+      con_name   = idName (dataConWorkId data_con)
       proj_binds = [ projExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
       constraint = scrut_exp :/= Pattern data_con proj_binds
 
@@ -301,11 +304,24 @@ trCaseExpr e = do
     lift $ write $ "Experimental case: " --  ++ showExpr e
     new_fun <- modVar "case" =<< asks fun
     quant_vars <- asks quant
+
+    -- The arguments to this lifted function should be the intersection of
+    -- the currently quantified variables and the free variables in the
+    -- case expression.
+
+    let fv_set    = exprFreeVars e
+        case_args = filter (`elemVarSet` fv_set) quant_vars
+
+    lift $ write $ "  quant_vars : " ++ unwords (map (showSDoc . ppr) quant_vars) ++ "\n" ++
+                   "  fv_set     : " ++ unwords (map (showSDoc . ppr) (varSetElems fv_set)) ++ "\n" ++
+                   "  case_args  : " ++ unwords (map (showSDoc . ppr) case_args)
+
     tell =<< lift (local (\env -> env { fun = new_fun
-                                      , args = map Var quant_vars
+                                      , args = map Var case_args
+                                      , quant = case_args
                                       , constr = [] })
                          (trCase e))
-    mkFun new_fun <$> mapM (trExpr . Var) quant_vars
+    mkFun new_fun <$> mapM (trExpr . Var) case_args
 
 -- | Translate a let expression
 --   TODO: This copies some functionality found elsewhere
