@@ -324,28 +324,41 @@ trCaseExpr e = do
     mkFun new_fun <$> mapM (trExpr . Var) case_args
 
 -- | Translate a let expression
---   TODO: This copies some functionality found elsewhere
+--   TODO: This copies some functionality in trCaseExpr and trDecl
 trLet :: CoreBind -> CoreExpr -> ExprHaltM Term
 trLet bind in_e = do
     lift $ write $ "Experimental let: " -- ++ showExpr (Let bind in_e)
     binds <- sequence [ do { v' <- modVar "let" v ; return (v,v',e) }
                       | (v,e) <- flattenBinds [bind] ]
-    HaltEnv{..} <- ask
-    let s = extendIdSubstList emptySubst [ (v,foldl App (Var v') (map Var quant))
+    quant_vars <- asks quant
+
+    let fv_set   = bindFreeVars bind
+        let_args = filter (`elemVarSet` fv_set) quant_vars
+
+    lift $ write $ "  quant_vars : " ++ unwords (map (showSDoc . ppr) quant_vars) ++ "\n" ++
+                   "  fv_set     : " ++ unwords (map (showSDoc . ppr) (varSetElems fv_set)) ++ "\n" ++
+                   "  let_args   : " ++ unwords (map (showSDoc . ppr) let_args)
+
+    let s = extendIdSubstList emptySubst [ (v,foldl App (Var v') (map Var let_args))
                                          | (v,v',_) <- binds ]
         -- ^ These needs to be subs because constraints have already been
         --   finalized and turned into subs for in_e.
 
     let new_arities :: ArityMap
-        new_arities = M.fromList [ (idName v',exprArity e + length quant)
+        new_arities = M.fromList [ (idName v',exprArity e + length let_args)
                                  | (_,v',e) <- binds ]
 
-    tell =<< lift (local ((\env -> env { args = map Var quant
+    lift $ write $ "New arities: " ++ unlines
+          [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v
+          | (k,v) <- M.toList new_arities ]
+
+    tell =<< lift (local ((\env -> env { args   = map Var let_args
+                                       , quant  = let_args
                                        , constr = [] })
-                         . substContext s . extendArities new_arities)
+                         . extendArities new_arities)
                          (concatMapM (\(_,v',e) -> trDecl v' (substExpr (text "trLet") s e)) binds))
 
-    trExpr in_e
+    local (extendArities new_arities) $ trExpr (substExpr (text "trLet") s in_e)
 
 modVar :: MonadState Int m => String -> Var -> m Var
 modVar lbl v = do

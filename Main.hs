@@ -58,7 +58,6 @@ desugar targetFile =
 main :: IO ()
 main = do
   [file] <- getArgs
-  putStrLn =<< readFile (file ++ ".hs")
   (modguts,floated_prog) <- desugar file
   let _core_binds = mg_binds modguts
       ty_cons    = mg_tcs modguts
@@ -68,8 +67,10 @@ main = do
 --   putStrLn "************************"
 --   putStrLn "let-lifted:\n"
 --   mapM_ (printDump . ppr) floated_prog
---   putStrLn "************************"
+  putStrLn "************************"
   let (tptp,msgs) = translate ty_cons floated_prog
   unless (null msgs) $ putStrLn $ "msgs:\n" ++ unlines msgs ++ "\n"
+  putStrLn $ "original file, " ++ file ++ ":\n"
+  putStrLn =<< readFile (file ++ ".hs")
   putStrLn "tptp:\n"
   outputTPTP tptp
