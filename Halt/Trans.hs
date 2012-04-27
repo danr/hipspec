@@ -25,6 +25,9 @@ import VarSet
 import Unique
 import SrcLoc
 
+import TysWiredIn
+import BasicTypes
+
 import Halt.Names
 import Halt.Util
 import Halt.Monad
@@ -53,13 +56,20 @@ translate ty_cons program =
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds liftedProgram
 
+      -- TODO : use the same technique to make builtin bottom, UNR and BAD.
+      ty_cons_with_builtin :: [TyCon]
+      ty_cons_with_builtin = listTyCon : boolTyCon : unitTyCon
+                           : map (tupleTyCon BoxedTuple) [2..4]
+                             -- ^ arbitrary choice: only tuples up to size 4 supported
+                           ++ ty_cons
+
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
       arities = M.fromList $
         [ (idName v,exprArity e) | (v,e) <- binds ] ++
         concat [ (con_name,arity) :
                  [ (projName con_name i,1) | i <- [0..arity-1] ]
-               | DataTyCon cons _ <- map algTyConRhs ty_cons
+               | DataTyCon cons _ <- map algTyConRhs ty_cons_with_builtin
                , con <- cons
                , let con_name        = idName (dataConWorkId con)
                      (_,_,ty_args,_) = dataConSig con
