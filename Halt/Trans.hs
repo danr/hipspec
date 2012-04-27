@@ -35,7 +35,7 @@ import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
 -- import Data.Map (Map)
-import Data.Char (toUpper,toLower)
+import Data.Char (toUpper,toLower,isAlpha)
 import Data.List (intercalate)
 
 import Control.Monad.Reader
@@ -136,7 +136,7 @@ trCase e = case e of
         def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
                              (trCase def_expr)
 
-        return (def_formula ++ alt_formulae)
+        return (alt_formulae ++ def_formula)
     _ -> do
         -- When translating expressions, only subs are considered, not
         -- constraints.  The substitutions come from constraints of only a
@@ -268,9 +268,13 @@ foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
 trExpr :: CoreExpr -> ExprHaltM Term
 trExpr e = do
     HaltEnv{..} <- ask
+    let isFunction x = case M.lookup (idName x) arities of
+                          Just i  -> i > 0
+                          Nothing -> False
     case e of
-        Var x | x `elem` quant             -> return (mkVar x)
-              | otherwise                  -> return (mkFun x [])
+        Var x | x `elem` quant -> return (mkVar x)
+              | isFunction x   -> return (mkPtr x)
+              | otherwise      -> return (mkFun x [])
         App{} -> do
           lift $ write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of
@@ -398,7 +402,13 @@ mkFun :: Var -> [Term] -> Term
 mkFun = Fun . FunName . map toLower . idToStr
 
 mkVarName :: Var -> VarName
-mkVarName = VarName . (\(x:xs) -> toUpper x : xs) . idToStr
+mkVarName = VarName . capInit . idToStr
+  where
+    capInit (x:xs) | isAlpha x = toUpper x : xs
+                   | otherwise = 'Q':x:xs
+                        -- ^ needs escaping here
+                        --   example: (>) as an argument to a sortBy function
+    capInit "" = "Q"
 
 mkVar :: Var -> Term
 mkVar = FVar . mkVarName
