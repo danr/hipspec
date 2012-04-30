@@ -23,3 +23,101 @@
     I want, for efficiency, generate an axiom that talks about the definition
 
     > cons x xs = x:xs
+
+4)  Lots of seemingly unnecessary cases and lets, and also putting
+    values in tuples for no apparent reason. See risers
+
+    > risersBy :: (a -> a -> Bool) -> [a] -> [[a]]
+    > risersBy le [] = []
+    > risersBy le [x] = [[x]]
+    > risersBy le (x:y:etc) = if le x y
+    >                            then (x:s):ss
+    >                            else [x]:(s:ss)
+    >     where (s:ss) = risersBy le (y:etc)
+
+    Core says:
+
+    > Risers.risersBy [Occ=LoopBreaker]
+    >   :: forall a_aec.
+    >      (a_aec -> a_aec -> GHC.Types.Bool) -> [a_aec] -> [[a_aec]]
+    > [LclIdX,
+    >  Arity=2,
+    >  Unf=Unf{Src=<vanilla>, TopLvl=True, Arity=2, Value=True,
+    >          ConLike=True, Cheap=True, Expandable=True,
+    >          Guidance=IF_ARGS [60 30] 440 370}]
+    > Risers.risersBy =
+    >   \ (@ a_aen)
+    >     (le_aed :: a_aen -> a_aen -> GHC.Types.Bool)
+    >     (ds_deu :: [a_aen]) ->
+    >     case ds_deu of _ {
+    >       [] -> GHC.Types.[] @ [a_aen];
+    >       : x_aef ds_dev ->
+    >         case ds_dev of _ {
+    >           [] ->
+    >             GHC.Types.:
+    >               @ [a_aen]
+    >               (GHC.Types.: @ a_aen x_aef (GHC.Types.[] @ a_aen))
+    >               (GHC.Types.[] @ [a_aen]);
+    >           : y_aei etc_aej ->
+    >             let {
+    >               ds_deC :: ([a_aen], [[a_aen]])
+    >               [LclId,
+    >                Unf=Unf{Src=<vanilla>, TopLvl=False, Arity=0, Value=False,
+    >                        ConLike=False, Cheap=False, Expandable=False,
+    >                        Guidance=IF_ARGS [] 170 120}]
+    >               ds_deC =
+    >                 case Risers.risersBy
+    >                        @ a_aen le_aed (GHC.Types.: @ a_aen y_aei etc_aej)
+    >                 of _ {
+    >                   [] ->
+    >                     Control.Exception.Base.irrefutPatError
+    >                       @ ([a_aen], [[a_aen]]) "Risers.hs:9:11-38|(s : ss)";
+    >                   : s_aep ss_aeq -> (s_aep, ss_aeq)
+
+                       -- ^ Putting the results in a tuple
+
+    >                 } } in
+    >             let {
+    >               ss_aeq :: [[a_aen]]
+    >               [LclId,
+    >                Unf=Unf{Src=<vanilla>, TopLvl=False, Arity=0, Value=False,
+    >                        ConLike=False, Cheap=True, Expandable=True,
+    >                        Guidance=IF_ARGS [] 10 0}]
+    >               ss_aeq = case ds_deC of _ { (s_aep, ss_XeL) -> ss_XeL } } in
+
+                       -- ^ Just to case them apart immediately after
+
+    >             let {
+    >               s_aep :: [a_aen]
+    >               [LclId,
+    >                Unf=Unf{Src=<vanilla>, TopLvl=False, Arity=0, Value=False,
+    >                        ConLike=False, Cheap=True, Expandable=True,
+    >                        Guidance=IF_ARGS [] 10 0}]
+    >               s_aep = case ds_deC of _ { (s_XeL, ss_XeF) -> s_XeL } } in
+    >             let {
+    >               ds_deD :: ([a_aen], [[a_aen]])
+    >               [LclId,
+    >                Unf=Unf{Src=<vanilla>, TopLvl=False, Arity=0, Value=True,
+    >                        ConLike=True, Cheap=True, Expandable=True,
+    >                        Guidance=IF_ARGS [] 10 120}]
+    >               ds_deD = (s_aep, ss_aeq) } in
+    >             case le_aed x_aef y_aei of _ {
+    >               GHC.Types.False ->
+    >                 GHC.Types.:
+    >                   @ [a_aen]
+    >                   (GHC.Types.: @ a_aen x_aef (GHC.Types.[] @ a_aen))
+    >                   (GHC.Types.:
+    >                      @ [a_aen]
+    >                      (case ds_deD of _ { (s_XeP, ss_XeR) -> s_XeP })
+    >                      (case ds_deD of _ { (s_XeO, ss_XeQ) -> ss_XeQ }));
+    >               GHC.Types.True ->
+    >                 GHC.Types.:
+    >                   @ [a_aen]
+    >                   (GHC.Types.:
+    >                      @ a_aen x_aef (case ds_deD of _ { (s_XeP, ss_XeR) -> s_XeP }))
+    >                   (case ds_deD of _ { (s_XeO, ss_XeQ) -> ss_XeQ })
+    >             }
+    >         }
+    >     };
+
+    Which optimizations introduce / can get rid of these issues?
