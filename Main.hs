@@ -59,29 +59,39 @@ desugar targetFile =
 
 main :: IO ()
 main = do
-  [file] <- getArgs
-  (modguts,floated_prog) <- desugar file
-  let core_binds = mg_binds modguts
-      ty_cons    = mg_tcs modguts
-  putStrLn "************************"
-  putStrLn "desugared:\n"
-  mapM_ (printDump . ppr) core_binds
-  putStrLn "**********************************************"
-  putStrLn $ "original file, " ++ file ++ ":\n"
-  putStrLn =<< readFile (file ++ ".hs")
-  putStrLn "************************"
-  putStrLn $ file ++ " lambda-lifted:\n"
-  mapM_ (printDump . ppr) floated_prog
-  putStrLn "************************"
-  us <- mkSplitUniqSupply 'f'
-  let (lifted_prog,msgs_lift) = caseLetLift us floated_prog
-  putStrLn "************************"
-  putStrLn $ file ++ " caselet-lifted:\n"
-  unless (null msgs_lift) $ putStrLn $ "msgs:\n" ++ unlines msgs_lift ++ "\n"
-  mapM_ (printDump . ppr) lifted_prog
-  let (tptp,msgs_trans) = translate ty_cons lifted_prog
-  unless (null msgs_trans) $ putStrLn $ "msgs:\n" ++ unlines msgs_trans ++ "\n"
-  putStrLn $ "original file, " ++ file ++ ":\n"
-  putStrLn =<< readFile (file ++ ".hs")
-  putStrLn "tptp:\n"
-  outputTPTP tptp
+    file:opts <- getArgs
+    let flagged x = when (x `elem` opts)
+    (modguts,floated_prog) <- desugar file
+    us <- mkSplitUniqSupply 'f'
+    let core_binds = mg_binds modguts
+        ty_cons    = mg_tcs modguts
+        (lifted_prog,msgs_lift) = caseLetLift us floated_prog
+        (tptp,msgs_trans)       = translate ty_cons lifted_prog
+
+        printSrc = do
+            putStrLn $ "Original file, " ++ file ++ ":\n"
+            putStrLn =<< readFile (file ++ ".hs")
+
+        printMsgs msgs = unless (null msgs) $ putStrLn $ unlines msgs
+
+        endl = putStrLn "\n"
+
+        printCore msg core = do
+            putStrLn $ msg ++ ":\n"
+            mapM_ (printDump . ppr) core
+            endl
+
+    flagged ("-src-before") printSrc
+
+    flagged ("-origcore") (printCore "Original core" core_binds)
+
+
+    flagged ("-lamlift") (printCore "Lambda lifted core" floated_prog)
+
+    flagged ("-dbcaseletlift") (printMsgs msgs_lift)
+    flagged ("-caseletlift")   (printCore "Case/let lifted core" lifted_prog)
+
+    flagged ("-src") printSrc
+
+    flagged ("-dbtptp") (printMsgs msgs_trans)
+    unless ("-no-tptp" `elem` opts) (endl >> outputTPTP tptp >> endl)
