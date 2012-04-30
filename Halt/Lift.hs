@@ -94,7 +94,7 @@ liftCase e = case e of
 -- | Lift an alternative
 liftAlt :: CoreAlt -> LiftM CoreAlt
 liftAlt (con,bound,e) = do
-    e_lifted <- local (second (++ bound)) (liftExpr e)
+    e_lifted <- local (second (++ bound)) (liftCase e)
     return (con,bound,e_lifted)
 
 -- | Translate an expression, i.e. not case statements. Substitutions

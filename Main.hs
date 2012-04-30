@@ -66,7 +66,10 @@ main = do
     let core_binds = mg_binds modguts
         ty_cons    = mg_tcs modguts
         (lifted_prog,msgs_lift) = caseLetLift us floated_prog
-        (tptp,msgs_trans)       = translate ty_cons lifted_prog
+        (tptp,msgs_trans)       = translate ("-cnf" `elem` opts)
+                                            ("-no-min" `notElem` opts)
+                                            ("-common-min" `elem` opts)
+                                            ty_cons lifted_prog
 
         printSrc = do
             putStrLn $ "Original file, " ++ file ++ ":\n"

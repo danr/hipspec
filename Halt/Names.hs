@@ -13,7 +13,7 @@ idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
     maybeLocaliseName n | isSystemName n = n
-                        | otherwise      = localiseName n
+                        | otherwise      = n -- localiseName n
 
 
 -- | The bottom name, did not know what Name to pick so I tried System Name
@@ -76,9 +76,13 @@ projName con_name =
   in \i -> vars !! i
 
 -- | The projection variables
-projVar :: Name -> Int -> CoreExpr
-projVar con_name i = Var (mkVanillaGlobal (projName con_name i) (error "projVar: type"))
+projVar :: Name -> Int -> Var
+projVar con_name i = mkVanillaGlobal (projName con_name i) (error "projVar: type")
+
+-- | Projection as an expression
+projExpr :: Name -> Int -> CoreExpr
+projExpr con_name i = Var (projVar con_name i)
 
 -- | Projects an expression
-projExpr :: Name -> Int -> CoreExpr -> CoreExpr
-projExpr con_name i = App (projVar con_name i)
+projectExpr :: Name -> Int -> CoreExpr -> CoreExpr
+projectExpr con_name i = App (projExpr con_name i)

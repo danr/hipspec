@@ -36,6 +36,14 @@ data HaltEnv
             -- ^ Quantified variables
             , constr   :: [Constraint]
             -- ^ Constraints
+            , simp_cnf          :: Bool
+            -- ^ Output as cnf instead
+            , simp_inline_projs :: Bool
+            -- ^ Write plus(succ(x),y) instead of x=succ(pred(x)) => plus(succ(pred(x),y)
+            , simp_use_min      :: Bool
+            -- ^ Use min translation
+            , simp_common_min   :: Bool
+            -- ^ Write f(x) = k & min(k) => k = ... instead of min(f(x)) => f(x) = ...
             }
 
 
@@ -89,13 +97,17 @@ noConstraints :: [Constraint]
 noConstraints = []
 
 -- | The initial environment
-initEnv :: ArityMap -> HaltEnv
-initEnv am
+initEnv :: Bool -> Bool -> Bool -> ArityMap -> HaltEnv
+initEnv cnf use_min common_min am
     = HaltEnv { arities = am
               , fun     = error "initEnv: fun"
               , args    = []
               , quant   = []
               , constr  = noConstraints
+              , simp_cnf          = cnf
+              , simp_inline_projs = error "inline projs toggle not implemented"
+              , simp_use_min      = use_min
+              , simp_common_min   = common_min
               }
 
 -- | The translation monad

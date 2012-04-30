@@ -3,7 +3,8 @@ module Halt.Util
   (module Control.Arrow
   ,module Control.Applicative
   ,concatMapM
-  ,showExpr) where
+  ,showExpr
+  ,(?)) where
 
 import Control.Arrow ((***),(&&&),first,second)
 import Control.Applicative ((<$>),(<*>))
@@ -23,14 +24,14 @@ concatMapM f = liftM concat . mapM f
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
 
-
-
-{-
 -- | Apply the function if true, otherwise propagate
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
 False ? _ = id
 
+
+
+{-
 -- | Pair up a list with its previous and next elements
 --
 -- > selections "abc" = [("",'a',"bc"),("a",'b',"c"),("ab",'c',"")]

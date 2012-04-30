@@ -30,8 +30,8 @@ import Control.Monad.Writer
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: [TyCon] -> [CoreBind] -> ([FDecl],[String])
-translate ty_cons program =
+translate :: Bool -> Bool -> Bool -> [TyCon] -> [CoreBind] -> ([FDecl],[String])
+translate use_cnf use_min common_min ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
@@ -56,7 +56,6 @@ translate ty_cons program =
                      arity           = length ty_args
                ]
 
-
       -- Translate each declaration
       -- TODO : Make these return Decl?
       translated :: HaltM [Formula]
@@ -64,12 +63,39 @@ translate ty_cons program =
 
       formulae :: [Formula]
       msgs :: [String]
-      (formulae,msgs) = runWriter (runHaltM translated `runReaderT` initEnv arities)
+      (formulae,msgs) = runWriter (runHaltM translated `runReaderT`
+                                            withSettings initEnv arities)
 
-  in  ([ FDecl Axiom ("decl" ++ show n) phi
+      withSettings :: (Bool -> Bool -> Bool -> a) -> a
+      withSettings f = f use_cnf use_min (use_min && common_min)
+
+  in  (withSettings mkProjs ty_cons_with_builtin ++
+       [ FDecl (if use_cnf then CNF else Axiom) (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
       ,msgs ++ [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v | (k,v) <- M.toList arities])
+
+mkProjs :: Bool -> Bool -> Bool -> [TyCon] -> [FDecl]
+mkProjs use_cnf use_min _common_min ty_cons = do
+   DataTyCon cons _ <- map algTyConRhs ty_cons
+   con <- cons
+   let data_con        = dataConWorkId con
+       con_name        = idName data_con
+       (_,_,ty_args,_) = dataConSig con
+       arity           = length ty_args
+   i <- [0..arity-1]
+   let names  = map VarName (take arity varNames)
+       unproj = mkFun data_con (map FVar names)
+       lhs    = mkFun (projVar con_name i) [unproj]
+       rhs    = FVar (names !! i)
+       constr = [ minPred unproj | use_min ]
+       res    = implies use_cnf constr (lhs === rhs)
+       quantified | use_cnf   = res
+                  | otherwise = forall' names res
+   return (FDecl (if use_cnf then CNF else Axiom) "p" quantified)
+
+varNames :: [String]
+varNames = [1..] >>= flip replicateM "XYZWVU"
 
 -- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
@@ -103,10 +129,22 @@ trCase e = case e of
         -- local (extendSubs (M.singleton scrut_var (error "scrutinee"))) $ do
         -- TODO: Test case that triggers this error
 
-        min_formula <- trConstrainedFormula $ do
-            lhs <- trLhs
-            tr_scrut <- trExpr scrutinee
-            return (Neg (minPred lhs) \/ minPred tr_scrut)
+        use_min <- asks simp_use_min
+
+        min_formula <-
+            if not use_min then return [] else do
+                m_tr_constr <- trConstraints
+                case m_tr_constr of
+                    Nothing -> return []
+                    Just tr_constr -> do
+                        lhs <- trLhs
+                        tr_scrut <- trExpr scrutinee
+                        let constr = minPred lhs : tr_constr
+                        qvars <- asks quant
+                        cnf   <- asks simp_cnf
+                        let res = implies cnf constr (minPred tr_scrut)
+                            quantified = (not cnf ? forall' (map mkVarName qvars)) res
+                        return [quantified]
 
         -- Translate the alternatives (mutually recursive with this
         -- function)
@@ -120,18 +158,42 @@ trCase e = case e of
         def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
                              (trCase def_expr)
 
-        return (min_formula ++ alt_formulae ++ def_formula)
+        return ((use_min ? (min_formula ++)) (alt_formulae ++ def_formula))
     _ -> do
-        -- When translating expressions, only subs are considered, not
-        -- constraints.  The substitutions come from constraints of only a
-        -- variable, which in turn come from unifying the scrut var with
-        -- the scrutinee and casing on variables.
-        HaltEnv{fun} <- ask
+        HaltEnv{fun,quant} <- ask
         write $ "At the end of " ++ idToStr fun ++ "'s branch: " ++ showExpr e
-        trConstrainedFormula $ do
-            lhs <- trLhs
-            rhs <- trExpr e
-            return (Neg (minPred lhs) \/ lhs === rhs)
+        m_tr_constr <- trConstraints
+        case m_tr_constr of
+            Nothing -> return []
+            Just tr_constr -> do
+                use_min    <- asks simp_use_min
+                common_min <- asks simp_common_min
+                cnf        <- asks simp_cnf
+                lhs <- trLhs
+                rhs <- trExpr e
+                let common_var = VarName "C"
+                    common | common_min = FVar common_var
+                           | otherwise  = lhs
+                    constr = [ common === lhs | common_min ] ++
+                             [ minPred common | use_min ] ++
+                             tr_constr
+                    phi | common_min = common === rhs
+                        | otherwise  = lhs === rhs
+                let res = implies cnf constr phi
+                    quant' | common_min = common_var : map mkVarName quant
+                           | otherwise  = map mkVarName quant
+                    quantified | cnf       = res
+                               | otherwise = forall' quant' res
+                return [quantified]
+
+implies :: Bool -> [Formula] -> Formula -> Formula
+implies cnf fs f | cnf       = fs ~\/ f
+                 | otherwise = fs =:=> f
+ where
+   [] =:=> phi = phi
+   xs =:=> phi = foldl1 (/\) xs ==> phi
+
+   xs ~\/ phi = foldl (\/) phi (map neg xs)
 
 trLhs :: HaltM Term
 trLhs = do
@@ -141,20 +203,13 @@ trLhs = do
 minPred :: Term -> Formula
 minPred tm = Rel (RelName "min") [tm]
 
-trConstrainedFormula :: HaltM Formula -> HaltM [Formula]
-trConstrainedFormula m_phi = do
-    HaltEnv{quant,constr} <- ask
+trConstraints :: HaltM (Maybe [Formula])
+trConstraints = do
+    HaltEnv{constr} <- ask
     write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
     if conflict constr
-        then write "  Conflict!" >> return []
-        else do
-            tr_constr <- translateConstr constr
-            phi <- m_phi
-            return [ forall' (map mkVarName quant) (tr_constr =:=> phi) ]
-
-(=:=>) :: [Formula] -> Formula -> Formula
-[] =:=> phi = phi
-xs =:=> phi = phi \/ foldr1 (\/) (map neg xs)
+        then write "  Conflict!" >> return Nothing
+        else Just <$> mapM trConstr constr
 
 conflict :: [Constraint] -> Bool
 conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
@@ -168,13 +223,12 @@ conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
                                             cheapExprEq e1' e2'
     cheapExprEq _ _ = False
 
-translateConstr :: [Constraint] -> HaltM [Formula]
-translateConstr cs = sequence $ [ trConstr (===) e p | e :== p <- cs ] ++
-                                [ trConstr (!=) e p  | e :/= p <- cs ]
+trConstr :: Constraint -> HaltM Formula
+trConstr c = case c of e :== p -> go (===) e p
+                       e :/= p -> go (!=) e p
   where
-    trConstr :: (Term -> Term -> Formula)
-             -> CoreExpr -> Pattern -> HaltM Formula
-    trConstr (~~) e (Pattern data_con as) = do
+    go :: (Term -> Term -> Formula) -> CoreExpr -> Pattern -> HaltM Formula
+    go (~~) e (Pattern data_con as) = do
         lhs <- trExpr e
         rhs <- mkFun (dataConWorkId data_con) <$> mapM trExpr as
         return $ lhs ~~ rhs
@@ -184,7 +238,7 @@ invertAlt scrut_exp (con, bs, _) = case con of
   DataAlt data_con -> constraint
     where
       con_name   = idName (dataConWorkId data_con)
-      proj_binds = [ projExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
+      proj_binds = [ projectExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
       constraint = scrut_exp :/= Pattern data_con proj_binds
 
   DEFAULT -> error "invertAlt on DEFAULT"
@@ -206,15 +260,6 @@ trAlt scrut_exp (con, bound, e) = do
                 local (substContext s . pushQuant bound . delQuant x) (trCase e')
             _ -> local (pushConstraint (scrut_exp :== pat) . pushQuant bound)
                        (trCase e)
-
-{-
-    local upd_env (trCase e)
-        upd_env = case scrut_exp of
-            Var x
-              | x `elem` quant -> extendSubs (M.singleton x (error $ "trPattern" ++ show pat)) -- (trPattern pat))
-                                . pushQuant bound
-                                . delQuant x
-                                -}
 
     DEFAULT -> error "trAlt on DEFAULT"
     _       -> error "trAlt on LitAlt (literals not supported yet!)"
