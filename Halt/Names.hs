@@ -47,27 +47,12 @@ bottomId = mkVanillaGlobal bottomName (error "bottomVar: type")
 bottomVar :: CoreExpr
 bottomVar = Var bottomId
 
-{-
--- | The ptrApp name, did not know what Name to pick so I tried System Name
-ptrAppName :: Name
-ptrAppName = mkSystemName (mkPreludeMiscIdUnique 0)
-                          (mkOccName dataName "ptrApp")
-
--- | The ptrApp identifier
-ptrAppId :: Id
-ptrAppId = mkVanillaGlobal ptrAppName (error "ptrAppVar: type")
-
--- | The ptrApp expression
-ptrAppVar :: CoreExpr
-ptrAppVar = Var ptrAppId
--}
-
 -- | The projection names. How to get uniques?
 projName :: Name -> Int -> Name
 projName con_name =
   let vars :: [Name]
       vars = [ mkInternalName
-                 (mkPreludeMiscIdUnique (i + 1))
+                 (mkPreludeMiscIdUnique (i + 2))
                  (mkOccName dataName
                      (showSDoc (ppr $ localiseName con_name) ++ show i))
                  wiredInSrcSpan

@@ -4,7 +4,10 @@ module Halt.Util
   ,module Control.Applicative
   ,concatMapM
   ,showExpr
-  ,(?)) where
+  ,(?)
+  ,selections
+  ,inspect
+  ,withPrevious) where
 
 import Control.Arrow ((***),(&&&),first,second)
 import Control.Applicative ((<$>),(<*>))
@@ -16,6 +19,8 @@ import Outputable
 
 import Control.Monad
 
+import Data.List (inits)
+
 -- | concatMapM
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = liftM concat . mapM f
@@ -24,14 +29,11 @@ concatMapM f = liftM concat . mapM f
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
 
--- | Apply the function if true, otherwise propagate
+-- | Appl the function if true, otherwise propagate
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
 False ? _ = id
 
-
-
-{-
 -- | Pair up a list with its previous and next elements
 --
 -- > selections "abc" = [("",'a',"bc"),("a",'b',"c"),("ab",'c',"")]
@@ -46,14 +48,17 @@ selections xs = map (fromSplit . (`splitAt` xs)) [0..length xs-1]
 inspect :: [a] -> [(a,[a])]
 inspect = map (\(i,x,r) -> (x,i++r)) . selections
 
-uniqueCartesian :: [a] -> [(a,a)]
-uniqueCartesian as = concat [ zip (repeat x) xs | (x,xs) <- inspect as ]
-
 -- | Pair up a list with its previous elements
 --
 -- > withPrevious "abc" = [('a',""),('b',"a"),('c',"ab")]
 withPrevious :: [a] -> [(a,[a])]
 withPrevious xs = zip xs (inits xs)
+
+{-
+
+uniqueCartesian :: [a] -> [(a,a)]
+uniqueCartesian as = concat [ zip (repeat x) xs | (x,xs) <- inspect as ]
+
 
 -- | If true, put in right, if false, put in left
 putEither :: Bool -> a -> Either a a

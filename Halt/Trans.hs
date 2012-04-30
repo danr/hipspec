@@ -21,7 +21,6 @@ import Halt.Monad
 import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
--- import Data.Map (Map)
 import Data.Char (toUpper,toLower,isAlpha)
 import Data.List (intercalate)
 
@@ -70,11 +69,16 @@ translate use_cnf use_min common_min ty_cons program =
       withSettings f = f use_cnf use_min (use_min && common_min)
 
   in  (withSettings mkProjs ty_cons_with_builtin ++
+       withSettings mkDiscrim ty_cons_with_builtin ++
        [ FDecl (if use_cnf then CNF else Axiom) (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
       ,msgs ++ [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v | (k,v) <- M.toList arities])
 
+-- | Makes projection/injectivity axioms
+--   TODO : Fix this code copy with mkDiscrim and translate.arities
+--          and with trCase. Also figure out how to handle settings
+--          better than sending around three booleans :)
 mkProjs :: Bool -> Bool -> Bool -> [TyCon] -> [FDecl]
 mkProjs use_cnf use_min _common_min ty_cons = do
    DataTyCon cons _ <- map algTyConRhs ty_cons
@@ -93,6 +97,38 @@ mkProjs use_cnf use_min _common_min ty_cons = do
        quantified | use_cnf   = res
                   | otherwise = forall' names res
    return (FDecl (if use_cnf then CNF else Axiom) "p" quantified)
+
+-- | Make discrimination axioms
+--   TODO : Remove code duplication
+mkDiscrim :: Bool -> Bool -> Bool -> [TyCon] -> [FDecl]
+mkDiscrim use_cnf use_min _common_min ty_cons = do
+   DataTyCon cons _ <- map algTyConRhs ty_cons
+   let cons' = bottomCon : cons
+   (con,unequals) <- withPrevious cons'
+   uneq_con <- unequals
+   let data_con        = dataConWorkId con
+       (_,_,ty_args,_) = dataConSig con
+       arity           = length ty_args
+
+       uneq_data_con        = dataConWorkId uneq_con
+       (_,_,uneq_ty_args,_) = dataConSig uneq_con
+       uneq_arity           = length uneq_ty_args
+
+       names      = map VarName (take arity varNames)
+       uneq_names = map VarName (take uneq_arity (drop arity varNames))
+
+
+       lhs    = mkFun data_con (map FVar names)
+       rhs    = mkFun uneq_data_con (map FVar uneq_names)
+
+       minvar = FVar (VarName "C")
+
+   return $ case (use_cnf,use_min) of
+      (True,True)   -> FDecl CNF "d" (Neg (minPred minvar) \/ minvar != lhs \/ minvar != rhs)
+      (True,False)  -> FDecl CNF "d" (lhs != rhs)
+      (False,True)  -> FDecl Axiom "d" (forall' (names ++ uneq_names)
+                                          (minPred lhs \/ minPred rhs ==> lhs != rhs))
+      (False,False) -> FDecl Axiom "d" (forall' (names ++ uneq_names) (lhs != rhs))
 
 varNames :: [String]
 varNames = [1..] >>= flip replicateM "XYZWVU"
