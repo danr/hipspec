@@ -4,16 +4,14 @@
   #-}
 module Halt.Monad where
 
-import PprCore
-
-import CoreSyn
-import Var
-import DataCon
-import Outputable
 import CoreSubst
+import CoreSyn
+import DataCon
 import Name
+import Outputable
+import Var
 
-import FOL.Syn hiding ((:==))
+import Halt.Util (showExpr)
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -21,7 +19,6 @@ import Data.List (delete,union)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Monad.State
 import Control.Applicative
 
 -- Map associating each function/CAF with its arity
@@ -39,8 +36,6 @@ data HaltEnv
             -- ^ Quantified variables
             , constr   :: [Constraint]
             -- ^ Constraints
-            -- , subs     :: Subs
-            -- ^ Substitutions
             }
 
 
@@ -59,10 +54,6 @@ pushConstraint c = pushConstraints [c]
 -- Pushes many new constraints to an environment
 pushConstraints :: [Constraint] -> HaltEnv -> HaltEnv
 pushConstraints cs env = env { constr = cs ++ constr env }
-
--- -- Sets the current substitutions
--- extendSubs :: Subs -> HaltEnv -> HaltEnv
--- extendSubs s env = env { subs = s `M.union` subs env }
 
 -- Extends the arities
 extendArities :: ArityMap -> HaltEnv -> HaltEnv
@@ -109,11 +100,10 @@ initEnv am
 
 -- | The translation monad
 newtype HaltM a
-    = HaltM { runHaltM :: ReaderT HaltEnv (WriterT [String] (State Int)) a }
+    = HaltM { runHaltM :: ReaderT HaltEnv (Writer [String]) a }
   deriving (Applicative,Monad,Functor
            ,MonadReader HaltEnv
-           ,MonadWriter [String]
-           ,MonadState Int)
+           ,MonadWriter [String])
 
 substContext :: Subst -> HaltEnv -> HaltEnv
 substContext s env = env
@@ -124,14 +114,4 @@ substContext s env = env
 -- | Write a debug message
 write :: MonadWriter [String] m => String -> m ()
 write = tell . return
-
--- | Monad used when translating expressions : now new formulae can
---   appear because of local case and let
-type ExprHaltM a = WriterT [Formula] HaltM a
-
-showExpr :: CoreExpr -> String
-showExpr = showSDoc . pprCoreExpr
-
-getLabel :: (MonadState Int m) => m Int
-getLabel = do { x <- get ; modify succ ; return x }
 

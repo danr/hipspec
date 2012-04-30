@@ -1,13 +1,19 @@
 module Halt.Names where
 
-import Name
 import CoreSyn
 import DataCon
 import Id
-import Unique
-import SrcLoc
-
+import Name
 import Outputable
+import SrcLoc
+import Unique
+
+-- | Short representation of an Id/Var to String
+idToStr :: Id -> String
+idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
+  where
+    maybeLocaliseName n | isSystemName n = n
+                        | otherwise      = localiseName n
 
 
 -- | The bottom name, did not know what Name to pick so I tried System Name

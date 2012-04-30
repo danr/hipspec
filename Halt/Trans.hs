@@ -1,32 +1,19 @@
 -- (c) Dan Rosén 2012
-{-# LANGUAGE ParallelListComp, PatternGuards,
-             RecordWildCards, NamedFieldPuns,
-             GeneralizedNewtypeDeriving,
-             FlexibleContexts
-  #-}
+{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
 module Halt.Trans where
 
+import BasicTypes
+import CoreSubst
 import CoreSyn
 import CoreUtils
-import Var
 import DataCon
-import Id
-import Name
-import Outputable
-import Literal
 import FastString
+import Id
+import Literal
+import Outputable
 import TyCon
-
-import CoreSubst
-
-import CoreFVs
-import VarSet
-
-import Unique
-import SrcLoc
-
 import TysWiredIn
-import BasicTypes
+import Unique
 
 import Halt.Names
 import Halt.Util
@@ -40,21 +27,14 @@ import Data.List (intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Monad.State
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
---   TODO: Assumes only nested case expression at top level of the body
---         of a function. Possible fix: top level lift all other case expressions
 translate :: [TyCon] -> [CoreBind] -> ([FDecl],[String])
 translate ty_cons program =
-  let -- Let-lift the program
-      liftedProgram :: [CoreBind]
-      liftedProgram = program
-
-      -- Remove the unnecessary SCC information
+  let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
-      binds = flattenBinds liftedProgram
+      binds = flattenBinds program
 
       -- TODO : use the same technique to make builtin bottom, UNR and BAD.
       ty_cons_with_builtin :: [TyCon]
@@ -84,9 +64,7 @@ translate ty_cons program =
 
       formulae :: [Formula]
       msgs :: [String]
-      (formulae,msgs) = runWriterT
-                            (runHaltM translated `runReaderT` initEnv arities)
-                            `evalState` 0
+      (formulae,msgs) = runWriter (runHaltM translated `runReaderT` initEnv arities)
 
   in  ([ FDecl Axiom ("decl" ++ show n) phi
        | phi <- formulae
@@ -155,7 +133,7 @@ trCase e = case e of
             rhs <- trExpr e
             return (Neg (minPred lhs) \/ lhs === rhs)
 
-trLhs :: ExprHaltM Term
+trLhs :: HaltM Term
 trLhs = do
     HaltEnv{fun,args} <- ask
     mkFun fun <$> mapM trExpr args
@@ -163,18 +141,16 @@ trLhs = do
 minPred :: Term -> Formula
 minPred tm = Rel (RelName "min") [tm]
 
-trConstrainedFormula :: ExprHaltM Formula -> HaltM [Formula]
+trConstrainedFormula :: HaltM Formula -> HaltM [Formula]
 trConstrainedFormula m_phi = do
     HaltEnv{quant,constr} <- ask
     write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
-    case conflict constr of
-        True  -> write "  Conflict!" >> return []
-        False -> do
-            (phi',extras) <- runWriterT $ do
-                tr_constr <- translateConstr constr
-                phi <- m_phi
-                return $ forall' (map mkVarName quant) (tr_constr =:=> phi)
-            return (phi':extras)
+    if conflict constr
+        then write "  Conflict!" >> return []
+        else do
+            tr_constr <- translateConstr constr
+            phi <- m_phi
+            return [ forall' (map mkVarName quant) (tr_constr =:=> phi) ]
 
 (=:=>) :: [Formula] -> Formula -> Formula
 [] =:=> phi = phi
@@ -192,12 +168,12 @@ conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
                                             cheapExprEq e1' e2'
     cheapExprEq _ _ = False
 
-translateConstr :: [Constraint] -> ExprHaltM [Formula]
+translateConstr :: [Constraint] -> HaltM [Formula]
 translateConstr cs = sequence $ [ trConstr (===) e p | e :== p <- cs ] ++
                                 [ trConstr (!=) e p  | e :/= p <- cs ]
   where
     trConstr :: (Term -> Term -> Formula)
-             -> CoreExpr -> Pattern -> ExprHaltM Formula
+             -> CoreExpr -> Pattern -> HaltM Formula
     trConstr (~~) e (Pattern data_con as) = do
         lhs <- trExpr e
         rhs <- mkFun (dataConWorkId data_con) <$> mapM trExpr as
@@ -282,12 +258,8 @@ addBottomCase (Case scrutinee binder ty alts) =
          (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
 
-foldFunApps :: Term -> [Term] -> Term
-foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
-
--- | Translate an expression, i.e. not case statements. Substitutions
--- are followed.
-trExpr :: CoreExpr -> ExprHaltM Term
+-- | Translate expressions, i.e. not case (nor let/lambda)
+trExpr :: CoreExpr -> HaltM Term
 trExpr e = do
     HaltEnv{..} <- ask
     let isFunction x = case M.lookup (idName x) arities of
@@ -298,14 +270,11 @@ trExpr e = do
               | isFunction x   -> return (mkPtr x)
               | otherwise      -> return (mkFun x [])
         App{} -> do
-          lift $ write $ "App on " ++ showExpr e
+          write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of
-            -- We should first try to translate App, since they might
-            -- contain substitutions.
-            -- TODO : Use the arities and add appropriate use of app
             (Var x,es)
                | Just i <- M.lookup (idName x) arities -> do
-                   lift $ write $ idToStr x ++ " has arity " ++ show i
+                   write $ idToStr x ++ " has arity " ++ show i
                    if i > length es
                        then foldFunApps (mkPtr x) <$> mapM trExpr es
                        else do
@@ -313,18 +282,18 @@ trExpr e = do
                            inner <- mkFun x <$> mapM trExpr es_inner
                            foldFunApps inner <$> mapM trExpr es_after
             (f,es) -> do
-               lift $ write $ "Collected to " ++ showExpr f
+               write $ "Collected to " ++ showExpr f
                            ++ concat [ "(" ++ show (getUnique (idName x)) ++ ") " | let Var x = f ]
                            ++ " on " ++ intercalate "," (map showExpr es)
                foldFunApps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
-          lift $ write $ "String to constant: " ++ unpackFS s
+          write $ "String to constant: " ++ unpackFS s
           return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
 
-        Case{}      -> trCaseExpr e
-        Let bind e' -> trLet bind e'
+        Case{}      -> trErr "case" -- trCaseExpr e
+        Let{}       -> trErr "let"  -- trLet bind e'
         Cast e' _   -> do
-          lift $ write $ "Ignoring cast: " ++ showExpr e
+          write $ "Ignoring cast: " ++ showExpr e
           trExpr e'
 
         Lit{}      -> trErr "literals"
@@ -334,88 +303,15 @@ trExpr e = do
         Tick{}     -> trErr "ticks"
   where trErr s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
 
--- | Translate a local case expression
-trCaseExpr :: CoreExpr -> ExprHaltM Term
-trCaseExpr e = do
-    lift $ write $ "Experimental case: " --  ++ showExpr e
-    new_fun <- modVar "case" =<< asks fun
-    quant_vars <- asks quant
-
-    -- The arguments to this lifted function should be the intersection of
-    -- the currently quantified variables and the free variables in the
-    -- case expression.
-
-    let fv_set    = exprFreeVars e
-        case_args = filter (`elemVarSet` fv_set) quant_vars
-
-    lift $ write $ "  quant_vars : " ++ unwords (map (showSDoc . ppr) quant_vars) ++ "\n" ++
-                   "  fv_set     : " ++ unwords (map (showSDoc . ppr) (varSetElems fv_set)) ++ "\n" ++
-                   "  case_args  : " ++ unwords (map (showSDoc . ppr) case_args)
-
-    tell =<< lift (local (\env -> env { fun = new_fun
-                                      , args = map Var case_args
-                                      , quant = case_args
-                                      , constr = [] })
-                         (trCase e))
-    mkFun new_fun <$> mapM (trExpr . Var) case_args
-
--- | Translate a let expression
---   TODO: This copies some functionality in trCaseExpr and trDecl
-trLet :: CoreBind -> CoreExpr -> ExprHaltM Term
-trLet bind in_e = do
-    lift $ write $ "Experimental let: " -- ++ showExpr (Let bind in_e)
-    binds <- sequence [ do { v' <- modVar "let" v ; return (v,v',e) }
-                      | (v,e) <- flattenBinds [bind] ]
-    quant_vars <- asks quant
-
-    let fv_set   = bindFreeVars bind
-        let_args = filter (`elemVarSet` fv_set) quant_vars
-
-    lift $ write $ "  quant_vars : " ++ unwords (map (showSDoc . ppr) quant_vars) ++ "\n" ++
-                   "  fv_set     : " ++ unwords (map (showSDoc . ppr) (varSetElems fv_set)) ++ "\n" ++
-                   "  let_args   : " ++ unwords (map (showSDoc . ppr) let_args)
-
-    let s = extendIdSubstList emptySubst [ (v,foldl App (Var v') (map Var let_args))
-                                         | (v,v',_) <- binds ]
-        -- ^ These needs to be subs because constraints have already been
-        --   finalized and turned into subs for in_e.
-
-    let new_arities :: ArityMap
-        new_arities = M.fromList [ (idName v',exprArity e + length let_args)
-                                 | (_,v',e) <- binds ]
-
-    lift $ write $ "New arities: " ++ unlines
-          [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v
-          | (k,v) <- M.toList new_arities ]
-
-    tell =<< lift (local ((\env -> env { args   = map Var let_args
-                                       , quant  = let_args
-                                       , constr = [] })
-                         . extendArities new_arities)
-                         (concatMapM (\(_,v',e) -> trDecl v' (substExpr (text "trLet") s e)) binds))
-
-    local (extendArities new_arities) $ trExpr (substExpr (text "trLet") s in_e)
-
-modVar :: MonadState Int m => String -> Var -> m Var
-modVar lbl v = do
-    i <- getLabel
-    let var_name = mkInternalName (mkPreludeMiscIdUnique i)
-                                  (mkOccName dataName $ lbl ++ show i ++ idToStr v)
-                                  wiredInSrcSpan
-    return $ mkVanillaGlobal var_name (error $ "modVar, " ++ lbl ++ ": type")
-
 trimTyArgs :: [CoreArg] -> [CoreArg]
 trimTyArgs = filter (not . isTyArg)
   where
     isTyArg Type{} = True
     isTyArg _      = False
 
+foldFunApps :: Term -> [Term] -> Term
+foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
 
-idToStr :: Id -> String
-idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
-  where
-    maybeLocaliseName n | isSystemName n = n
-                        | otherwise      = localiseName n
 
 mkPtr :: Var -> Term
 mkPtr = (`Fun` []) . FunName . (++ "ptr") . map toLower . idToStr

@@ -1,14 +1,29 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Halt.Util
   (module Control.Arrow
   ,module Control.Applicative
-  ,concatMapM) where
+  ,concatMapM
+  ,showExpr) where
 
 import Control.Arrow ((***),(&&&),first,second)
 import Control.Applicative ((<$>),(<*>))
 
+import PprCore
+
+import CoreSyn
+import Outputable
+
+import Control.Monad
+
 -- | concatMapM
-concatMapM :: (Functor m,Monad m) => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = fmap concat . mapM f
+concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
+concatMapM f = liftM concat . mapM f
+
+-- | Shows a Core Expression
+showExpr :: CoreExpr -> String
+showExpr = showSDoc . pprCoreExpr
+
+
 
 {-
 -- | Apply the function if true, otherwise propagate
