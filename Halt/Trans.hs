@@ -1,6 +1,6 @@
 -- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
-module Halt.Trans where
+module Halt.Trans(translate) where
 
 import BasicTypes
 import CoreSubst

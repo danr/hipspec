@@ -1,4 +1,4 @@
-module Halt.Lift where
+module Halt.Lift(caseLetLift) where
 
 import CoreFVs
 import CoreSubst
