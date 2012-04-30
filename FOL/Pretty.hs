@@ -21,8 +21,8 @@ escape' = map escapeChar'
 
 prettyName :: String -> String
 prettyName name = case escape' name of
-  n:ns | lowercase n && all lowerNumeric ns -> n:ns
-  ns                                        -> "'" ++ ns ++ "'"
+  ns | all lowerNumeric ns -> ns
+     | otherwise           -> "'" ++ ns ++ "'"
 
 instance PrettyTPTP FunName where
     prettyTPTP = prettyName . funName
@@ -64,27 +64,44 @@ instance PrettyTPTP BinOp where
     prettyTPTP (:=>)  = " => "
     prettyTPTP (:<=>) = " <=> "
 
+collectBinOp :: BinOp -> Formula -> [Formula]
+collectBinOp b f@(BinOp f1 b' f2)
+    | b == b'   = collectBinOp b f1 ++ collectBinOp b f2
+    | otherwise = [f]
+collectBinOp _ f = [f]
+
 instance PrettyTPTP Formula where
-    prettyTPTP (EqOp t1 (:==) t2) = p t1 ++ " = "  ++ p t2
-    prettyTPTP (EqOp t1 (:!=) t2) = p t1 ++ " != " ++ p t2
-    prettyTPTP (Rel r args)       = p r ++ argList args
-    prettyTPTP (Neg f)            = "~ " ++ paren (p f)
-    prettyTPTP (BinOp f1 op f2)   = paren (p f1) ++ p op ++ paren (p f2)
-    prettyTPTP (Forall vs f)      = "! " ++ bindList vs ++ ": " ++ paren (p f)
-    prettyTPTP (Exists vs f)      = "? " ++ bindList vs ++ ": " ++ paren (p f)
+    prettyTPTP = prettyFormula 0
+
+prettyFormula :: Int -> Formula -> String
+prettyFormula _ (EqOp t1 (:==) t2) = p t1 ++ " = "  ++ p t2
+prettyFormula _ (EqOp t1 (:!=) t2) = p t1 ++ " != " ++ p t2
+prettyFormula _ (Rel r args)       = p r ++ argList args
+prettyFormula i (Neg f)            = enclose (i > 2) ("~ " ++ prettyFormula 2 f)
+prettyFormula i f@(BinOp _ b _)    = enclose (i > 1) (foldr1 (\x y -> x ++ prettyTPTP b ++ y)
+                                                             (map (prettyFormula 1) (collectBinOp b f)))
+prettyFormula i (Forall vs f)      = enclose (i > 1) ("! " ++ bindList vs ++ ": " ++ prettyFormula 1 f)
+prettyFormula i (Exists vs f)      = enclose (i > 1) ("? " ++ bindList vs ++ ": " ++ prettyFormula 1 f)
+
+enclose :: Bool -> String -> String
+enclose True  = paren
+enclose False = id
 
 pdecl :: String -> String -> Formula -> String
 pdecl n t f = "fof" ++ paren (n ++ "," ++ t ++ "," ++ prettyTPTP f) ++ "."
 
 pDeclType :: DeclType -> String
+pDeclType CNF{}        = "cnf"
 pDeclType Axiom{}      = "axiom"
 pDeclType Conjecture{} = "conjecture"
 pDeclType Question{}   = "question"
 pDeclType NegConj{}    = "negated_conjecture"
 pDeclType Lemma{}      = "lemma"
 pDeclType Hypothesis{} = "hypothesis"
+pDeclType Definition{} = "definition"
 
 instance PrettyTPTP FDecl where
+    prettyTPTP (FDecl CNF n f) = "cnf" ++ paren (prettyName n ++ ",axiom," ++ prettyTPTP f) ++ "."
     prettyTPTP d = pdecl (prettyName (declName d)) (pDeclType (declType d)) (declFormula d)
 
 instance PrettyTPTP [FDecl] where

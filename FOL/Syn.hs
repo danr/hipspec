@@ -73,7 +73,9 @@ infix  1 <=>
 (===) = \f g -> EqOp f (:==) g
 (!=)  = \f g -> EqOp f (:!=) g
 
-data DeclType = Axiom | Conjecture | Question | NegConj | Lemma | Hypothesis
+data DeclType = CNF
+              | Axiom | Conjecture | NegConj | Question
+              | Lemma | Hypothesis | Definition
   deriving (Eq,Ord,Show)
 
 data FDecl = FDecl { declType :: DeclType
@@ -90,19 +92,3 @@ exists' :: [VarName] -> Formula -> Formula
 exists' [] phi = phi
 exists' xs phi = Exists xs phi
 
-{-
-forallUnbound :: Formula -> Formula
-forallUnbound = flip forall' <*> unbound
-
-unbound :: Formula -> [VarName]
-unbound (EqOp t1 _ t2) = unbTerm t1 ++ unbTerm t2
-unbound (Rel _ ts) = concatMap unbTerm ts
-unbound (Neg f) = unbound f
-unbound (BinOp f1 _ f2) = unbound f1 ++ unbound f2
-unbound (Forall bs f) = unbound f \\ bs   -- possibly incorrect, capture problem
-unbound (Exists bs f) = unbound f \\ bs   -- possibly incorrect, capture problem
-
-unbTerm :: Term -> [VarName]
-unbTerm (FVar x) = [x]
-unbTerm (Fun _ ts) = concatMap unbTerm ts
--}
