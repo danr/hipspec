@@ -71,17 +71,19 @@ collectBinOp b f@(BinOp f1 b' f2)
 collectBinOp _ f = [f]
 
 instance PrettyTPTP Formula where
-    prettyTPTP = prettyFormula 0
+    prettyTPTP = pForm 0
 
-prettyFormula :: Int -> Formula -> String
-prettyFormula _ (EqOp t1 (:==) t2) = p t1 ++ " = "  ++ p t2
-prettyFormula _ (EqOp t1 (:!=) t2) = p t1 ++ " != " ++ p t2
-prettyFormula _ (Rel r args)       = p r ++ argList args
-prettyFormula i (Neg f)            = enclose (i > 2) ("~ " ++ prettyFormula 2 f)
-prettyFormula i f@(BinOp _ b _)    = enclose (i > 1) (foldr1 (\x y -> x ++ prettyTPTP b ++ y)
-                                                             (map (prettyFormula 1) (collectBinOp b f)))
-prettyFormula i (Forall vs f)      = enclose (i > 1) ("! " ++ bindList vs ++ ": " ++ prettyFormula 1 f)
-prettyFormula i (Exists vs f)      = enclose (i > 1) ("? " ++ bindList vs ++ ": " ++ prettyFormula 1 f)
+pForm :: Int -> Formula -> String
+pForm i f = case f of
+    EqOp t1 (:==) t2 -> p t1 ++ " = "  ++ p t2
+    EqOp t1 (:!=) t2 -> p t1 ++ " != " ++ p t2
+    Rel r args       -> p r ++ argList args
+    Neg f'           -> enclose (i > 2) $ "~ " ++ pForm 2 f'
+    BinOp _ b _      -> enclose (i > 1) $
+                             foldr1 (\x y -> x ++ prettyTPTP b ++ y)
+                                    (map (pForm 2) (collectBinOp b f))
+    Forall vs f'     -> enclose (i > 1) $ "! " ++ bindList vs ++ ": " ++ pForm 3 f'
+    Exists vs f'     -> enclose (i > 1) $ "? " ++ bindList vs ++ ": " ++ pForm 3 f'
 
 enclose :: Bool -> String -> String
 enclose True  = paren
