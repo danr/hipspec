@@ -1,0 +1,154 @@
+\documentclass[serif,professionalfont]{beamer}
+\usepackage{palatino,inconsolata,amsmath,array}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+\usepackage{stmaryrd} % for oxford brackets
+\usepackage{amsmath}
+\usepackage{graphicx}
+%\usepackage[margin=1.5in]{geometry}
+\usepackage{verbatim}
+\usepackage{subfig}
+\usepackage{float}
+\usepackage{pgfplots}
+\usepackage{bold-extra}
+\usepackage{tikz}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{inconsolata}
+\usepackage{natbib}
+\usepackage{longtable}
+\usepackage{tikz}
+\usepackage{array}
+\usepackage{tabularx}
+%\usepackage{graphicx}
+%\usepackage[table]{xcolor}
+\usepackage{colortbl}
+%\usepackage{url}
+% \usepackage[pdfborder=0 0 0]{hyperref}
+% \hypersetup{
+%     colorlinks,
+%     linkcolor=black,
+%     citecolor=black,
+%     filecolor=black,
+%     urlcolor=black
+% }
+\usepackage{xparse}
+\usepackage{enumitem}  % sensible enumerations
+\setlist{nolistsep}
+
+
+\usepackage{listings}
+
+\lstnewenvironment{code}[1][]%
+  {
+   \noindent
+   \minipage{\linewidth}
+   \vspace{0.2\baselineskip}
+%   \vspace{-0.4\baselineskip}
+   \lstset{basicstyle=\ttfamily\footnotesize,
+           frame=single,
+           language=Haskell,
+           keywordstyle=\color{black},
+           #1}}
+  {%\vspace{-0.8\baselineskip}
+   \endminipage}
+
+\makeatletter
+\newcommand*{\rom}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@.}}
+\newcommand*{\romnodot}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@}}
+\makeatother
+
+\newcommand\PA{\mathcal{P\!A}}
+\newcommand\hs[1]{\texttt{#1}}
+\newcommand\ts[1]{\texttt{#1}}
+\newcommand\fn[1]{\mathrm{#1}}
+% \newcommand\ptr[1]{\fn{\operatorname{#1-ptr}}}
+%\newcommand\ptr[1]{\fn{#1.ptr}}
+\newcommand\appfn{@}
+\newcommand\app[2]{#1 \, \appfn \, #2}
+\newcommand\ex[1]{\exists \, #1 \, . \,}
+\newcommand\nexxx[3]{\nexists \, #1 , #2 , #3 . \,}
+\newcommand\fa[1]{\forall \, #1 . \,}
+\newcommand\faa[2]{\forall \, #1 , #2 . \,}
+\newcommand\faaa[3]{\forall \, #1 , #2 , #3 . \,}
+\newcommand\faaaaaa[6]{\forall \, #1 , #2 , #3 , #4 , #5 , #6 . \,}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}%\usetikzlibrary {\trees,positioning,arrows}
+
+\newcommand\tofix[1]{\fixb{#1}}
+\newcommand\unfix[1]{\fixw{#1}}
+
+\newcommand\fixb[1]{#1^{\bullet}}
+\newcommand\fixw[1]{#1^{\circ}}
+
+\newcommand\fixhsb[1]{\hs{#1}^{\bullet}}
+\newcommand\fixhsw[1]{\hs{#1}^{\circ}}
+
+%\newcommand\append[0]{\texttt{\small{++}}}
+
+\newcommand{\xsys}[2]{#1 \, xs \, #2 & = #1 \, ys #2}
+\newcommand{\desca}[1]{  & \hspace{48.5mm}                            \{ \text{#1} \}}
+\newcommand{\descra}[1]{ & \hspace{39mm} \Rightarrow     \hspace{4mm} \{ \text{#1} \}}
+\newcommand{\descla}[1]{ & \hspace{39mm} \Leftarrow      \hspace{4mm} \{ \text{#1} \}}
+\newcommand{\desclra}[1]{& \hspace{39mm} \Leftrightarrow \hspace{4mm} \{ \text{#1} \}}
+
+\newcommand\lub[1]{\sqcup_{#1}}
+\newcommand\defof[1]{definition of #1}
+
+\newcommand\w[0]{\,\,}
+\newcommand\eq[0]{ = }
+
+\newcommand{\defBNF}[4] {\text{#1}\quad&#2&::=&\;#3&\text{#4}}
+\newcommand{\defaltBNF}[2] {&&|&\;#1&\text{#2}}
+
+\newcommand{\hstup}[2]{\hs{(} #1 \hs{,} #2 \hs{)}}
+
+\newcommand{\nsqsubseteq}{\,\,\, /\!\!\!\!\!\!\sqsubseteq}
+
+\begin{document}
+
+\begin{frame}[fragile]
+\frametitle{GHC Core $\rightarrow$ First Order Logic}
+
+\newcommand{\ctr}[3]{\llbracket #1 \rrbracket^{#2}_{#3}}
+\newcommand{\etr}[1]{\llbracket #1 \rrbracket}
+\newcommand{\ptr}[1]{\llbracket #1 \rrbracket}
+\newcommand{\gtr}[1]{\llbracket #1 \rrbracket}
+\newcommand{\subs}[3]{#1 \left[ #2 / #3 \right] }
+\newcommand{\case}[2]{\hs{case} \w #1 \w \hs{of} \w \hs{\{} #2 \hs{\}}}
+\renewcommand{\min}[1]{\fn{Min}(#1)}
+
+Case on an expression $e$, not a variable
+\begin{align*}
+& \ctr{\case{e}{ \hs{DEFAULT} \rightarrow e_d \hs{;}
+                 \cdots \hs{;}
+                 p_i \rightarrow e_i \hs{;}
+                 \cdots
+              }}{\Gamma}{f \w \overline{x}} \\
+& = \big( \min{ f(\etr{\overline{x}}) } \land \gtr{\Gamma} \rightarrow \min{\etr{e}} \big) \\
+& \land \ctr{ e_d }{\Gamma , \cdots , p_i \neq e , \cdots }{f \w \overline{x}} \\
+& \land \cdots \land \ctr{ e_i }{\Gamma , p_i \eq e }{f \w \overline{x}} \land \cdots
+\end{align*}
+
+Case on a variable $x$
+\begin{align*}
+& \ctr{\case{x}{ \hs{DEFAULT} \rightarrow e_d \hs{;}
+                 \cdots \hs{;}
+                 p_i \rightarrow e_i \hs{;}
+                 \cdots
+              }}{\Gamma}{f \w \overline{x}} \\
+& = \big( \min{ f(\etr{\overline{x}}) } \land \gtr{\Gamma} \rightarrow \min{\etr{x}} \big) \\
+& \land \ctr{ e_d }{\Gamma , \cdots , p_i \neq x , \cdots }{f \w \overline{x}} \\
+& \land \cdots \land \ctr{ \subs{e_i}{\ptr{p_i}}{x} }{\subs{\Gamma}{p_i}{x}}{f \w \subs{\overline{x}}{p_i}{x}} \land \cdots
+\end{align*}
+
+Any non-case expression $e$
+\begin{align*}
+& \ctr{e}{\Gamma}{f \w \overline{x}}
+ = \min{ f(\etr{\overline{x}}) } \land \gtr{\Gamma} \rightarrow f(\etr{\overline{x}}) = \etr{e}
+\end{align*}
+
+\end{frame}
+
+\end{document}
+
