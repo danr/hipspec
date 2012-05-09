@@ -1,0 +1,110 @@
+
+ 1) Is it possible to quasi-quote top level definitions?
+
+    > [c| plus ::: CF -> CF -> CF ]
+
+    to become
+
+    > contr_c :: Statement
+    > contr_c = CF :-> \_ -> CF :-> \_ :-> CF
+
+ 2) Is this approximately how the data type syntax for contracts
+    should be?
+
+    > data Contract :: * -> * where
+    >   (:->) :: Contract a -> (a -> Contract b) -> Contract (a -> b)
+    >   Pred  :: (a -> Bool) -> Contract a
+    >   CFAnd :: (a -> Bool) -> Contract a
+    >   CF    :: Contract a
+    >
+    > data Statement = forall a . Contract a `For` a
+
+ 3) Some initial tries shows that a lot of new functions are introduced:
+
+    > contr_idNat :: Statement
+    > contr_idNat = (CF :-> \x -> CFAnd (\y -> eq x y)) `For` idNat
+
+    This is split up in contr_idNat, contr_idNat1, contr_idNat2.  Of
+    course the definitions could just be followed, but is there some
+    way to inline these definitions?
+
+    When dealing with contracts, I want to see as many lambdas as
+    possible, but when translating I never want to see any lambdas
+    unless for top level definitions  :)
+
+    > Contract.contr_idNat2
+    >   :: Contract.Nat -> Contracts.Contract Contract.Nat
+    > [GblId,
+    >  Arity=1,
+    >
+    >  Unf=Unf{Src=<vanilla>, TopLvl=True, Arity=1, Value=True,
+    >          ConLike=True, Cheap=True, Expandable=True,
+    >          Guidance=IF_ARGS [0] 50 110}]
+    > Contract.contr_idNat2 =
+    >   \ (x_acY :: Contract.Nat) ->
+    >     Contracts.CFAnd
+    >       @ Contract.Nat
+    >       (\ (y_acZ :: Contract.Nat) -> Contract.eq x_acY y_acZ)
+    >
+    > Contract.contr_idNat1
+    >   :: Contracts.Contract (Contract.Nat -> Contract.Nat)
+    > [GblId,
+    >
+    >  Unf=Unf{Src=<vanilla>, TopLvl=True, Arity=0, Value=True,
+    >          ConLike=True, Cheap=True, Expandable=True,
+    >          Guidance=IF_ARGS [] 10 120}]
+    > Contract.contr_idNat1 =
+    >   Contracts.:->
+    >     @ (Contract.Nat -> Contract.Nat)
+    >     @ Contract.Nat
+    >     @ Contract.Nat
+    >     @~ <Contract.Nat -> Contract.Nat>
+    >     (Contracts.CF @ Contract.Nat)
+    >     Contract.contr_idNat2
+    >
+    > Contract.contr_idNat :: Contracts.Statement
+    > [GblId,
+    >
+    >  Unf=Unf{Src=<vanilla>, TopLvl=True, Arity=0, Value=True,
+    >          ConLike=True, Cheap=True, Expandable=True,
+    >          Guidance=IF_ARGS [] 10 120}]
+    > Contract.contr_idNat =
+    >   Contracts.For
+    >     @ (Contract.Nat -> Contract.Nat)
+    >     Contract.contr_idNat1
+    >     Contract.idNat
+
+ 4) Translation of contracts. In the version I have compiled of the
+    draft of the paper, there are two different translations. Which
+    one should we go for?
+
+ 5) CF as a function. Me and Koen talked briefly today to encode
+    crash-freeness as a function rather than a predicate:
+
+    For each constructor K:
+
+         cf(K(x1, .., xn)) = K(cf(x1), .., cf(xn))
+
+    Constants:
+
+         cf(UNR) = UNR
+
+         cf(BAD) /= BAD      (or forall x . cf(x) /= BAD)
+
+    Function pointers:
+
+         cf(f)@cf(x) = cf(f@x)
+
+    In contracts:
+
+         CF(x) is encoded as cf(x) = x  (is this correct?)
+
+         Another (equivalent?) option would be is that if we have
+         CF(x) somewhere, then we never speak about x, but always
+         about cf(x).
+
+
+
+
+
+
