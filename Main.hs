@@ -17,6 +17,7 @@ import UniqSupply
 
 import Halt.Trans
 import Halt.Lift
+import Halt.Conf
 
 import FOL.Pretty
 
@@ -43,6 +44,7 @@ desugar targetFile =
         p <- parseModule modSum
         t <- typecheckModule p
         d <- desugarModule t
+        -- ^ take that
         let modguts = dm_core_module d
         s <- getSession
         modguts' <- liftIO (core2core s modguts)
@@ -65,11 +67,14 @@ main = do
     us <- mkSplitUniqSupply 'f'
     let core_binds = mg_binds modguts
         ty_cons    = mg_tcs modguts
-        (lifted_prog,msgs_lift) = caseLetLift us floated_prog
-        (tptp,msgs_trans)       = translate ("-cnf" `elem` opts)
-                                            ("-no-min" `notElem` opts)
-                                            ("-common-min" `elem` opts)
-                                            ty_cons lifted_prog
+        halt_conf  = sanitizeConf $ HaltConf
+                        { use_cnf      = "-cnf" `elem` opts
+                        , inline_projs = True
+                        , use_min      = "-no-min" `notElem` opts
+                        , common_min   = "-common-min" `elem` opts
+                        }
+        ((lifted_prog,msgs_lift),us') = caseLetLift floated_prog us
+        (tptp,msgs_trans)             = translate us' halt_conf ty_cons lifted_prog
 
         printSrc = do
             putStrLn $ "Original file, " ++ file ++ ":\n"

@@ -45,20 +45,18 @@ dbgMsg = lift . tell . return
 liftUnique :: LiftM Unique
 liftUnique = lift . lift . lift $ getUniqueM
 
+run :: LiftM a -> UniqSupply -> (((a,[CoreBind]),[String]),UniqSupply)
+run m us = initUs us (runWriterT (runWriterT m `runReaderT` initEnv))
+
 -- | caseLetLift a core program
-caseLetLift :: UniqSupply -> [CoreBind] -> ([CoreBind],[String])
-caseLetLift us binds =
-
-    let run :: LiftM a -> ((a,[CoreBind]),[String])
-        run m = initUs_ us (runWriterT (runWriterT m `runReaderT` initEnv))
-
-        juxtapose ((b,bs),msgs) = (reverse bs ++ [b],msgs)
-
-        lifted_binds :: [[CoreBind]]
-        msgss        :: [[String]]
-        (lifted_binds,msgss) = unzip (map (juxtapose . run . liftCoreBind) binds)
-
-     in (concat lifted_binds,concat msgss)
+caseLetLift :: [CoreBind] -> UniqSupply -> (([CoreBind],[String]),UniqSupply)
+caseLetLift []     us = (([],[]),us)
+caseLetLift (b:bs) us = ((reverse lifted_binds ++ b':more_binds
+                         ,msgs++more_msgs)
+                        ,fin_us)
+   where
+     (((b',lifted_binds),msgs),us') = run (liftCoreBind b) us
+     ((more_binds,more_msgs),fin_us) = caseLetLift bs us'
 
 -- | Lift a binding group
 liftCoreBind :: CoreBind -> LiftM CoreBind

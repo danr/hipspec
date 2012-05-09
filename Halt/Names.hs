@@ -1,73 +1,103 @@
-module Halt.Names where
+module Halt.Names
+       (idToStr
+       ,Names
+       ,NamedConstant(..)
+       ,mkNames
+       ,noNames
+       ,namedName
+       ,namedCon
+       ,namedId
+       ,projFun
+       ,minPred
+       ,mkFun
+       ,implies
+       ) where
 
-import CoreSyn
 import DataCon
 import Id
 import Name
 import Outputable
 import SrcLoc
-import Unique
+import UniqSupply
+
+import FOL.Syn
+
+import Data.Char
+
+import qualified Data.Map as M
+import Data.Map (Map)
 
 -- | Short representation of an Id/Var to String
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
     maybeLocaliseName n | isSystemName n = n
-                        | otherwise      = n -- localiseName n
+                        | otherwise      = localiseName n
 
+data NamedConstant = BAD | UNR | Bottom
+  deriving (Eq,Ord,Show)
 
--- | The bottom name, did not know what Name to pick so I tried System Name
-bottomName :: Name
-bottomName = mkInternalName (mkPreludeMiscIdUnique 0) -- error "bottomName: unique")
-                            (mkOccName dataName "bottom")
-                            wiredInSrcSpan
+newtype Names = Names (Map NamedConstant Id)
 
--- | The constructor for bottom
-bottomCon :: DataCon
-bottomCon = mkDataCon bottomName
-                      False -- infix
-                      []    -- strictness
-                      []    -- records
-                      []    -- univ.q. ty vars
-                      []    -- ext.q. ty vars
-                      []    -- gadt equalities
-                      []    -- theta types
-                      []    -- argument types
-                      (error "bottomCon: result type (Type)")
-                      (error "bottomCon: repr type constructor (TyCon)")
-                      []    -- stupid theta types
-                      (DCIds Nothing
-                             bottomId)
+noNames :: Names
+noNames = Names M.empty
 
--- | The bottom identifier
-bottomId :: Id
-bottomId = mkVanillaGlobal bottomName (error "bottomVar: type")
+mkNames :: UniqSupply -> (Names,UniqSupply)
+mkNames us = initUs us $ do
+    constants <- mapM (uncurry mkConstantId)
+                      [(BAD,"bad"),(UNR,"unr"),(Bottom,"bottom")]
+    return (Names (M.fromList constants))
 
--- | The bottom expression
-bottomVar :: CoreExpr
-bottomVar = Var bottomId
+mkConstantId :: NamedConstant -> String -> UniqSM (NamedConstant,Id)
+mkConstantId n s = do
+    u <- getUniqueM
+    let name = mkInternalName u (mkOccName dataName s) wiredInSrcSpan
+        i    = mkVanillaGlobal name (error $ "mkConstantId " ++ s ++ " type")
+    return (n,i)
 
--- | The projection names. How to get uniques?
-projName :: Name -> Int -> Name
-projName con_name =
-  let vars :: [Name]
-      vars = [ mkInternalName
-                 (mkPreludeMiscIdUnique (i + 2))
-                 (mkOccName dataName
-                     (showSDoc (ppr $ localiseName con_name) ++ show i))
-                 wiredInSrcSpan
-             | i <- [(0 :: Int)..] ]
+namedName :: NamedConstant -> Names -> Name
+namedName nc ns = idName (namedId nc ns)
 
-  in \i -> vars !! i
+namedId :: NamedConstant -> Names -> Id
+namedId nc (Names m) = case M.lookup nc m of
+    Just i  -> i
+    Nothing -> error $ "namedId, could not find id for builtin " ++ show nc
 
--- | The projection variables
-projVar :: Name -> Int -> Var
-projVar con_name i = mkVanillaGlobal (projName con_name i) (error "projVar: type")
+namedCon :: NamedConstant -> Names -> DataCon
+namedCon nc ns = mkDataCon
+    (namedName nc ns)
+    False -- infix
+    []    -- strictness
+    []    -- records
+    []    -- univ.q. ty vars
+    []    -- ext.q. ty vars
+    []    -- gadt equalities
+    []    -- theta types
+    []    -- argument types
+    (error $ "namedCon: result type (Type) on " ++ show nc)
+    (error $ "namedCon: repr type constructor (TyCon) on" ++ show nc)
+    []    -- stupid theta types
+    (DCIds Nothing (namedId nc ns))
 
--- | Projection as an expression
-projExpr :: Name -> Int -> CoreExpr
-projExpr con_name i = Var (projVar con_name i)
+-- | Project a term
+projFun :: Name -> Int -> Term -> Term
+projFun con_name i t = Fun fun_name [t]
+  where
+    fun_name = FunName (map toLower (showSDoc (ppr (localiseName con_name))) ++ show i)
 
--- | Projects an expression
-projectExpr :: Name -> Int -> CoreExpr -> CoreExpr
-projectExpr con_name i = App (projExpr con_name i)
+-- These utility functions should be somewhere else...
+
+minPred :: Term -> Formula
+minPred tm = Rel (RelName "min") [tm]
+
+mkFun :: Var -> [Term] -> Term
+mkFun = Fun . FunName . map toLower . idToStr
+
+implies :: Bool -> [Formula] -> Formula -> Formula
+implies cnf fs f | cnf       = fs ~\/ f
+                 | otherwise = fs =:=> f
+ where
+   [] =:=> phi = phi
+   xs =:=> phi = foldl1 (/\) xs ==> phi
+
+   xs ~\/ phi = foldl (\/) phi (map neg xs)

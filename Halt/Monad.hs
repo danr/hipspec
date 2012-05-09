@@ -12,6 +12,8 @@ import Outputable
 import Var
 
 import Halt.Util (showExpr)
+import Halt.Conf
+import Halt.Names
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -26,26 +28,21 @@ type ArityMap = Map Name Int
 
 -- The Environment
 data HaltEnv
-  = HaltEnv { arities  :: ArityMap
-            -- ^ Arities of top level definitions
-            , fun      :: Var
-            -- ^ Current function
-            , args     :: [CoreExpr]
-            -- ^ Arguments to current function
-            , quant    :: [Var]
-            -- ^ Quantified variables
-            , constr   :: [Constraint]
-            -- ^ Constraints
-            , simp_cnf          :: Bool
-            -- ^ Output as cnf instead
-            , simp_inline_projs :: Bool
-            -- ^ Write plus(succ(x),y) instead of x=succ(pred(x)) => plus(succ(pred(x),y)
-            , simp_use_min      :: Bool
-            -- ^ Use min translation
-            , simp_common_min   :: Bool
-            -- ^ Write f(x) = k & min(k) => k = ... instead of min(f(x)) => f(x) = ...
-            }
-
+    = HaltEnv { arities  :: ArityMap
+              -- ^ Arities of top level definitions
+              , fun      :: Var
+              -- ^ Current function
+              , args     :: [CoreExpr]
+              -- ^ Arguments to current function
+              , quant    :: [Var]
+              -- ^ Quantified variables
+              , constr   :: [Constraint]
+              -- ^ Constraints
+              , conf     :: HaltConf
+              -- ^ Configuration
+              , names    :: Names
+              -- ^ Names of constants UNR/BAD/Bottom
+              }
 
 -- Pushes new quantified variables to the environment
 pushQuant :: [Var] -> HaltEnv -> HaltEnv
@@ -68,46 +65,32 @@ extendArities :: ArityMap -> HaltEnv -> HaltEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
 -- Constraints from case expressions to results, under a substitution
-data Constraint = CoreExpr :== Pattern
-                | CoreExpr :/= Pattern
-
--- A pattern
-data Pattern = Pattern DataCon [CoreExpr]
-
-trPattern :: Pattern -> CoreExpr
-trPattern (Pattern data_con as) = foldl App (Var (dataConWorkId data_con)) as
-
-instance Show Pattern where
-  show = showExpr . trPattern
+data Constraint = Equality   CoreExpr DataCon [CoreExpr]
+                | Inequality CoreExpr DataCon
 
 instance Show Constraint where
-  show (e :== p) = showExpr e ++ " :== " ++ show p
-  show (e :/= p) = showExpr e ++ " :/= " ++ show p
+  show (Equality   e _dc _bs) = showExpr e ++ " == fix constraint show instance" -- ++ show p
+  show (Inequality e _dc)     = showExpr e ++ " /= fix constraint show instance" -- ++ show p
 
 substConstr :: Subst -> Constraint -> Constraint
-substConstr s (e :== p) = substExpr (text "substConstr") s e :== substPattern s p
-substConstr s (e :/= p) = substExpr (text "substConstr") s e :/= substPattern s p
-
-substPattern :: Subst -> Pattern -> Pattern
-substPattern s (Pattern data_con as)
-    = Pattern data_con (map (substExpr (text "substPattern") s) as)
+substConstr s (Equality e dc bs) = Equality (substExpr (text "substConstr") s e) dc
+                                            (map (substExpr (text "substConstr") s) bs)
+substConstr s (Inequality e dc)  = Inequality (substExpr (text "substConstr") s e) dc
 
 -- | The empty constraints
 noConstraints :: [Constraint]
 noConstraints = []
 
 -- | The initial environment
-initEnv :: Bool -> Bool -> Bool -> ArityMap -> HaltEnv
-initEnv cnf use_min common_min am
+initEnv :: Names -> HaltConf -> ArityMap -> HaltEnv
+initEnv names conf am
     = HaltEnv { arities = am
               , fun     = error "initEnv: fun"
               , args    = []
               , quant   = []
               , constr  = noConstraints
-              , simp_cnf          = cnf
-              , simp_inline_projs = error "inline projs toggle not implemented"
-              , simp_use_min      = use_min
-              , simp_common_min   = common_min
+              , conf    = conf
+              , names   = names
               }
 
 -- | The translation monad
@@ -127,3 +110,11 @@ substContext s env = env
 write :: MonadWriter [String] m => String -> m ()
 write = tell . return
 
+getNameOf :: NamedConstant -> HaltM Name
+getNameOf nt = namedName nt <$> asks names
+
+getIdOf :: NamedConstant -> HaltM Id
+getIdOf nt = namedId nt <$> asks names
+
+getConOf :: NamedConstant -> HaltM DataCon
+getConOf nt = namedCon nt <$> asks names

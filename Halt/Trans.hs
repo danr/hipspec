@@ -14,10 +14,14 @@ import Outputable
 import TyCon
 import TysWiredIn
 import Unique
+import UniqSupply
 
 import Halt.Names
 import Halt.Util
 import Halt.Monad
+import Halt.Conf
+import Halt.Data
+
 import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
@@ -29,31 +33,25 @@ import Control.Monad.Writer
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: Bool -> Bool -> Bool -> [TyCon] -> [CoreBind] -> ([FDecl],[String])
-translate use_cnf use_min common_min ty_cons program =
+translate :: UniqSupply -> HaltConf -> [TyCon] -> [CoreBind] -> ([FDecl],[String])
+translate us conf@(HaltConf{..}) ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
 
-      -- TODO : use the same technique to make builtin bottom, UNR and BAD.
+      names :: Names
+      names = fst (mkNames us)
+
       ty_cons_with_builtin :: [TyCon]
       ty_cons_with_builtin = listTyCon : boolTyCon : unitTyCon
                            : map (tupleTyCon BoxedTuple) [2..4]
-                             -- ^ arbitrary choice: only tuples up to size 4 supported
+                             -- ^ choice: only tuples up to 4 supported
                            ++ ty_cons
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
-      arities = M.fromList $
-        [ (idName v,exprArity e) | (v,e) <- binds ] ++
-        concat [ (con_name,arity) :
-                 [ (projName con_name i,1) | i <- [0..arity-1] ]
-               | DataTyCon cons _ <- map algTyConRhs ty_cons_with_builtin
-               , con <- cons
-               , let con_name        = idName (dataConWorkId con)
-                     (_,_,ty_args,_) = dataConSig con
-                     arity           = length ty_args
-               ]
+      arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
+                          ++ dataArities ty_cons_with_builtin
 
       -- Translate each declaration
       -- TODO : Make these return Decl?
@@ -63,75 +61,14 @@ translate use_cnf use_min common_min ty_cons program =
       formulae :: [Formula]
       msgs :: [String]
       (formulae,msgs) = runWriter (runHaltM translated `runReaderT`
-                                            withSettings initEnv arities)
+                                            initEnv names conf arities)
 
-      withSettings :: (Bool -> Bool -> Bool -> a) -> a
-      withSettings f = f use_cnf use_min (use_min && common_min)
-
-  in  (withSettings mkProjs ty_cons_with_builtin ++
-       withSettings mkDiscrim ty_cons_with_builtin ++
+  in  (mkProjs conf ty_cons_with_builtin ++
+       mkDiscrim conf ty_cons_with_builtin ++
        [ FDecl (if use_cnf then CNF else Axiom) (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
       ,msgs ++ [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v | (k,v) <- M.toList arities])
-
--- | Makes projection/injectivity axioms
---   TODO : Fix this code copy with mkDiscrim and translate.arities
---          and with trCase. Also figure out how to handle settings
---          better than sending around three booleans :)
-mkProjs :: Bool -> Bool -> Bool -> [TyCon] -> [FDecl]
-mkProjs use_cnf use_min _common_min ty_cons = do
-   DataTyCon cons _ <- map algTyConRhs ty_cons
-   con <- cons
-   let data_con        = dataConWorkId con
-       con_name        = idName data_con
-       (_,_,ty_args,_) = dataConSig con
-       arity           = length ty_args
-   i <- [0..arity-1]
-   let names  = map VarName (take arity varNames)
-       unproj = mkFun data_con (map FVar names)
-       lhs    = mkFun (projVar con_name i) [unproj]
-       rhs    = FVar (names !! i)
-       constr = [ minPred unproj | use_min ]
-       res    = implies use_cnf constr (lhs === rhs)
-       quantified | use_cnf   = res
-                  | otherwise = forall' names res
-   return (FDecl (if use_cnf then CNF else Axiom) "p" quantified)
-
--- | Make discrimination axioms
---   TODO : Remove code duplication
-mkDiscrim :: Bool -> Bool -> Bool -> [TyCon] -> [FDecl]
-mkDiscrim use_cnf use_min _common_min ty_cons = do
-   DataTyCon cons _ <- map algTyConRhs ty_cons
-   let cons' = bottomCon : cons
-   (con,unequals) <- withPrevious cons'
-   uneq_con <- unequals
-   let data_con        = dataConWorkId con
-       (_,_,ty_args,_) = dataConSig con
-       arity           = length ty_args
-
-       uneq_data_con        = dataConWorkId uneq_con
-       (_,_,uneq_ty_args,_) = dataConSig uneq_con
-       uneq_arity           = length uneq_ty_args
-
-       names      = map VarName (take arity varNames)
-       uneq_names = map VarName (take uneq_arity (drop arity varNames))
-
-
-       lhs    = mkFun data_con (map FVar names)
-       rhs    = mkFun uneq_data_con (map FVar uneq_names)
-
-       minvar = FVar (VarName "C")
-
-   return $ case (use_cnf,use_min) of
-      (True,True)   -> FDecl CNF "d" (Neg (minPred minvar) \/ minvar != lhs \/ minvar != rhs)
-      (True,False)  -> FDecl CNF "d" (lhs != rhs)
-      (False,True)  -> FDecl Axiom "d" (forall' (names ++ uneq_names)
-                                          (minPred lhs \/ minPred rhs ==> lhs != rhs))
-      (False,False) -> FDecl Axiom "d" (forall' (names ++ uneq_names) (lhs != rhs))
-
-varNames :: [String]
-varNames = [1..] >>= flip replicateM "XYZWVU"
 
 -- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
@@ -156,7 +93,7 @@ trCase :: CoreExpr -> HaltM [Formula]
 trCase e = case e of
     Case{} -> do
         -- Add a bottom case
-        let Case scrutinee _scrut_var _ty ((DEFAULT,[],def_expr):alts) = addBottomCase e
+        Case scrutinee _scrut_var _ty ((DEFAULT,[],def_expr):alts) <- addBottomCase e
 
         write $ "Case on " ++ showExpr scrutinee
 
@@ -165,7 +102,7 @@ trCase e = case e of
         -- local (extendSubs (M.singleton scrut_var (error "scrutinee"))) $ do
         -- TODO: Test case that triggers this error
 
-        use_min <- asks simp_use_min
+        HaltConf{..} <- asks conf
 
         min_formula <-
             if not use_min then return [] else do
@@ -177,9 +114,8 @@ trCase e = case e of
                         tr_scrut <- trExpr scrutinee
                         let constr = minPred lhs : tr_constr
                         qvars <- asks quant
-                        cnf   <- asks simp_cnf
-                        let res = implies cnf constr (minPred tr_scrut)
-                            quantified = (not cnf ? forall' (map mkVarName qvars)) res
+                        let res = implies use_cnf constr (minPred tr_scrut)
+                            quantified = (not use_cnf ? forall' (map mkVarName qvars)) res
                         return [quantified]
 
         -- Translate the alternatives (mutually recursive with this
@@ -197,14 +133,12 @@ trCase e = case e of
         return ((use_min ? (min_formula ++)) (alt_formulae ++ def_formula))
     _ -> do
         HaltEnv{fun,quant} <- ask
+        HaltConf{..} <- asks conf
         write $ "At the end of " ++ idToStr fun ++ "'s branch: " ++ showExpr e
         m_tr_constr <- trConstraints
         case m_tr_constr of
             Nothing -> return []
             Just tr_constr -> do
-                use_min    <- asks simp_use_min
-                common_min <- asks simp_common_min
-                cnf        <- asks simp_cnf
                 lhs <- trLhs
                 rhs <- trExpr e
                 let common_var = VarName "C"
@@ -215,29 +149,18 @@ trCase e = case e of
                              tr_constr
                     phi | common_min = common === rhs
                         | otherwise  = lhs === rhs
-                let res = implies cnf constr phi
+                let res = implies use_cnf constr phi
                     quant' | common_min = common_var : map mkVarName quant
                            | otherwise  = map mkVarName quant
-                    quantified | cnf       = res
+                    quantified | use_cnf       = res
                                | otherwise = forall' quant' res
                 return [quantified]
 
-implies :: Bool -> [Formula] -> Formula -> Formula
-implies cnf fs f | cnf       = fs ~\/ f
-                 | otherwise = fs =:=> f
- where
-   [] =:=> phi = phi
-   xs =:=> phi = foldl1 (/\) xs ==> phi
-
-   xs ~\/ phi = foldl (\/) phi (map neg xs)
 
 trLhs :: HaltM Term
 trLhs = do
     HaltEnv{fun,args} <- ask
     mkFun fun <$> mapM trExpr args
-
-minPred :: Term -> Formula
-minPred tm = Rel (RelName "min") [tm]
 
 trConstraints :: HaltM (Maybe [Formula])
 trConstraints = do
@@ -249,8 +172,8 @@ trConstraints = do
 
 conflict :: [Constraint] -> Bool
 conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
-                 | e1 :== Pattern con_x _ <- cs
-                 , e2 :/= Pattern con_y _ <- cs
+                 | Equality   e1 con_x _ <- cs
+                 , Inequality e2 con_y <- cs
                  ]
   where
     cheapExprEq :: CoreExpr -> CoreExpr -> Bool
@@ -260,25 +183,22 @@ conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
     cheapExprEq _ _ = False
 
 trConstr :: Constraint -> HaltM Formula
-trConstr c = case c of e :== p -> go (===) e p
-                       e :/= p -> go (!=) e p
-  where
-    go :: (Term -> Term -> Formula) -> CoreExpr -> Pattern -> HaltM Formula
-    go (~~) e (Pattern data_con as) = do
-        lhs <- trExpr e
-        rhs <- mkFun (dataConWorkId data_con) <$> mapM trExpr as
-        return $ lhs ~~ rhs
+trConstr (Equality e data_con bs) = do
+    lhs <- trExpr e
+    rhs <- mkFun (dataConWorkId data_con) <$> mapM trExpr bs
+    return $ lhs === rhs
+trConstr (Inequality e data_con) = do
+    lhs <- trExpr e
+    let rhs = mkFun (dataConWorkId data_con)
+                    [ projFun (idName $ dataConWorkId data_con) i lhs
+                    | i <- [0..dataConSourceArity data_con-1] ]
+    return $ lhs != rhs
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
-invertAlt scrut_exp (con, bs, _) = case con of
-  DataAlt data_con -> constraint
-    where
-      con_name   = idName (dataConWorkId data_con)
-      proj_binds = [ projectExpr con_name i scrut_exp | _ <- bs | i <- [0..] ]
-      constraint = scrut_exp :/= Pattern data_con proj_binds
-
-  DEFAULT -> error "invertAlt on DEFAULT"
-  _       -> error "invertAlt on LitAlt (literals not supported yet!)"
+invertAlt scrut_exp (con, _bs, _) = case con of
+  DataAlt data_con -> Inequality scrut_exp data_con
+  DEFAULT          -> error "invertAlt on DEFAULT"
+  _                -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
 trAlt :: CoreExpr -> CoreAlt -> HaltM Formulae
@@ -286,15 +206,14 @@ trAlt scrut_exp (con, bound, e) = do
   HaltEnv{quant} <- ask
   case con of
     DataAlt data_con -> do
-        let pat = Pattern data_con (map Var bound)
         case scrut_exp of
             Var x | x `elem` quant -> do
-                -- write $ "Substituting " ++ idToStr x ++ " to " ++ show pat ++ " in " ++ showExpr e
-                let s = extendIdSubst emptySubst x (trPattern pat)
-                let e' = substExpr (text "trAlt") s e
-                -- write $ "Result " ++ showExpr e'
+                let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
+                    s = extendIdSubst emptySubst x (tr_pat)
+                    e' = substExpr (text "trAlt") s e
                 local (substContext s . pushQuant bound . delQuant x) (trCase e')
-            _ -> local (pushConstraint (scrut_exp :== pat) . pushQuant bound)
+            _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
+                       . pushQuant bound)
                        (trCase e)
 
     DEFAULT -> error "trAlt on DEFAULT"
@@ -323,8 +242,10 @@ trAlt scrut_exp (con, bound, e) = do
 -}
 -- | Adds a bottom case as described above.
 --   The input must be a case expression!
-addBottomCase :: CoreExpr -> CoreExpr
-addBottomCase (Case scrutinee binder ty alts) =
+addBottomCase :: CoreExpr -> HaltM CoreExpr
+addBottomCase (Case scrutinee binder ty alts) = do
+    bottomCon <- getConOf Bottom
+    bottomVar <- Var <$> getIdOf Bottom
     let -- _|_ -> _|_
         -- Breaks the core structure by having a new data constructor
         bottomAlt :: CoreAlt
@@ -334,7 +255,7 @@ addBottomCase (Case scrutinee binder ty alts) =
         defaultBottomAlt :: CoreAlt
         defaultBottomAlt = (DEFAULT, [], bottomVar)
     -- Case expressions have an invariant that the default case is always first.
-    in Case scrutinee binder ty $ case findDefault alts of
+    return $ Case scrutinee binder ty $ case findDefault alts of
          (as,Just def) -> (DEFAULT, [], def):bottomAlt:as
          (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
@@ -396,9 +317,6 @@ foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
 
 mkPtr :: Var -> Term
 mkPtr = (`Fun` []) . FunName . (++ "ptr") . map toLower . idToStr
-
-mkFun :: Var -> [Term] -> Term
-mkFun = Fun . FunName . map toLower . idToStr
 
 mkVarName :: Var -> VarName
 mkVarName = VarName . capInit . idToStr
