@@ -21,6 +21,12 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
 
+-- | The arity of an expression if it is a lambda
+exprArity :: CoreExpr -> Int
+exprArity e = length as
+  where (_,as,_) = collectTyAndValBinders e
+
+
 -- | Removes the type arguments
 trimTyArgs :: [CoreArg] -> [CoreArg]
 trimTyArgs = filter (not . isTyArg)

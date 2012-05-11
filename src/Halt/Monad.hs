@@ -1,20 +1,26 @@
 {-# LANGUAGE NamedFieldPuns,
              GeneralizedNewtypeDeriving,
-             FlexibleContexts
+             FlexibleContexts,
+             RecordWildCards
   #-}
 module Halt.Monad where
 
 import CoreSubst
 import CoreSyn
 import DataCon
+import Id
 import Name
 import Outputable
-import Var
+import TyCon
+import UniqSupply
+import Unique
 
 import Halt.Common
-import Halt.Utils (showExpr)
 import Halt.Conf
+import Halt.Constraints
+import Halt.Data
 import Halt.Names
+import Halt.Utils
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -25,6 +31,11 @@ import Control.Monad.Writer
 
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Name Int
+
+showArityMap :: ArityMap -> [String]
+showArityMap m =
+    [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v
+    | (k,v) <- M.toList m ]
 
 -- The Environment
 data HaltEnv
@@ -64,27 +75,23 @@ pushConstraints cs env = env { constr = cs ++ constr env }
 extendArities :: ArityMap -> HaltEnv -> HaltEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
--- Constraints from case expressions to results, under a substitution
-data Constraint = Equality   CoreExpr DataCon [CoreExpr]
-                | Inequality CoreExpr DataCon
+-- | Make the initial environment
+mkInitEnv :: UniqSupply -> HaltConf -> [TyCon] -> [CoreBind] -> (HaltEnv,UniqSupply)
+mkInitEnv us conf@(HaltConf{..}) ty_cons program =
+  let -- Remove the unnecessary SCC information
+      binds :: [(Var,CoreExpr)]
+      binds = flattenBinds program
 
-instance Show Constraint where
-  show (Equality   e _dc _bs) = showExpr e ++ " == fix constraint show instance" -- ++ show p
-  show (Inequality e _dc)     = showExpr e ++ " /= fix constraint show instance" -- ++ show p
+      names :: Names
+      us' :: UniqSupply
+      (names,us') = mkNames us
 
-substConstr :: Subst -> Constraint -> Constraint
-substConstr s (Equality e dc bs) = Equality (substExpr (text "substConstr") s e) dc
-                                            (map (substExpr (text "substConstr") s) bs)
-substConstr s (Inequality e dc)  = Inequality (substExpr (text "substConstr") s e) dc
+      -- Arity of each function (Arities from other modules are also needed)
+      arities :: ArityMap
+      arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
+                             ++ dataArities ty_cons
 
--- | The empty constraints
-noConstraints :: [Constraint]
-noConstraints = []
-
--- | The initial environment
-initEnv :: Names -> HaltConf -> ArityMap -> HaltEnv
-initEnv names conf am
-    = HaltEnv { arities = am
+  in (HaltEnv { arities = arities
               , fun     = error "initEnv: fun"
               , args    = []
               , quant   = []
@@ -92,10 +99,13 @@ initEnv names conf am
               , conf    = conf
               , names   = names
               }
+     ,us')
+
+runHaltM :: HaltEnv -> HaltM a -> (a,[String])
+runHaltM env (HaltM m) = runWriter (m `runReaderT` env)
 
 -- | The translation monad
-newtype HaltM a
-    = HaltM { runHaltM :: ReaderT HaltEnv (Writer [String]) a }
+newtype HaltM a = HaltM (ReaderT HaltEnv (Writer [String]) a)
   deriving (Applicative,Monad,Functor
            ,MonadReader HaltEnv
            ,MonadWriter [String])

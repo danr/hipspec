@@ -2,7 +2,6 @@
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
 module Halt.Trans(translate) where
 
-import BasicTypes
 import CoreSubst
 import CoreSyn
 import CoreUtils
@@ -10,9 +9,6 @@ import DataCon
 import Id
 import Outputable
 import TyCon
-import TysWiredIn
-import Unique
-import UniqSupply
 
 import Halt.Names
 import Halt.Common
@@ -21,35 +17,19 @@ import Halt.Monad
 import Halt.Conf
 import Halt.Data
 import Halt.ExprTrans
+import Halt.Constraints
 
 import FOL.Syn hiding ((:==))
 
-import qualified Data.Map as M
-
 import Control.Monad.Reader
-import Control.Monad.Writer
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: UniqSupply -> HaltConf -> [TyCon] -> [CoreBind] -> ([FDecl],[String])
-translate us conf@(HaltConf{..}) ty_cons program =
+translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([FDecl],[String])
+translate env ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
-
-      names :: Names
-      names = fst (mkNames us)
-
-      ty_cons_with_builtin :: [TyCon]
-      ty_cons_with_builtin = listTyCon : boolTyCon : unitTyCon
-                           : map (tupleTyCon BoxedTuple) [2..4]
-                             -- ^ choice: only tuples up to 4 supported
-                           ++ ty_cons
-
-      -- Arity of each function (Arities from other modules are also needed)
-      arities :: ArityMap
-      arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
-                          ++ dataArities ty_cons_with_builtin
 
       -- Translate each declaration
       -- TODO : Make these return Decl?
@@ -58,15 +38,14 @@ translate us conf@(HaltConf{..}) ty_cons program =
 
       formulae :: [Formula]
       msgs :: [String]
-      (formulae,msgs) = runWriter (runHaltM translated `runReaderT`
-                                            initEnv names conf arities)
+      (formulae,msgs) = runHaltM env translated
 
-  in  (mkProjs conf ty_cons_with_builtin ++
-       mkDiscrim conf ty_cons_with_builtin ++
-       [ FDecl (if use_cnf then CNF else Axiom) (show n) phi
+  in  (mkProjs (conf env) ty_cons ++
+       mkDiscrim (conf env) ty_cons ++
+       [ FDecl (if (use_cnf (conf env)) then CNF else Axiom) (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
-      ,msgs ++ [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v | (k,v) <- M.toList arities])
+      ,msgs ++ showArityMap (arities env))
 
 -- | Translate a CoreDecl or a Let
 trDecl :: Var -> CoreExpr -> HaltM [Formula]
@@ -80,11 +59,6 @@ trDecl f e = do
     e' :: CoreExpr
     (_ty,as,e') = collectTyAndValBinders e
     -- Dangerous? Type variables are skipped for now.
-
--- | The arity of an expression if it is a lambda
-exprArity :: CoreExpr -> Int
-exprArity e = length as
-  where (_,as,_) = collectTyAndValBinders e
 
 -- | Translate a case expression
 trCase :: CoreExpr -> HaltM [Formula]
