@@ -14,8 +14,8 @@ import Unique
 import Var
 import VarSet
 
-import Halt.Names
-import Halt.Util
+import Halt.Common
+import Halt.Utils
 
 import Control.Monad.Reader
 import Control.Monad.Writer

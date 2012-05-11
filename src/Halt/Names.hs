@@ -1,6 +1,5 @@
 module Halt.Names
-       (idToStr
-       ,Names
+       (Names
        ,NamedConstant(..)
        ,mkNames
        ,noNames
@@ -8,9 +7,6 @@ module Halt.Names
        ,namedCon
        ,namedId
        ,projFun
-       ,minPred
-       ,mkFun
-       ,implies
        ) where
 
 import DataCon
@@ -27,12 +23,6 @@ import Data.Char
 import qualified Data.Map as M
 import Data.Map (Map)
 
--- | Short representation of an Id/Var to String
-idToStr :: Id -> String
-idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
-  where
-    maybeLocaliseName n | isSystemName n = n
-                        | otherwise      = localiseName n
 
 data NamedConstant = BAD | UNR | Bottom
   deriving (Eq,Ord,Show)
@@ -85,19 +75,3 @@ projFun con_name i t = Fun fun_name [t]
   where
     fun_name = FunName (map toLower (showSDoc (ppr (localiseName con_name))) ++ show i)
 
--- These utility functions should be somewhere else...
-
-minPred :: Term -> Formula
-minPred tm = Rel (RelName "min") [tm]
-
-mkFun :: Var -> [Term] -> Term
-mkFun = Fun . FunName . map toLower . idToStr
-
-implies :: Bool -> [Formula] -> Formula -> Formula
-implies cnf fs f | cnf       = fs ~\/ f
-                 | otherwise = fs =:=> f
- where
-   [] =:=> phi = phi
-   xs =:=> phi = foldl1 (/\) xs ==> phi
-
-   xs ~\/ phi = foldl (\/) phi (map neg xs)

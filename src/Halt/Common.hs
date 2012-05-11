@@ -1,21 +1,15 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Halt.Util
+module Halt.Common
   (module Control.Arrow
   ,module Control.Applicative
   ,concatMapM
-  ,showExpr
   ,(?)
   ,selections
   ,inspect
   ,withPrevious) where
 
 import Control.Arrow ((***),(&&&),first,second)
-import Control.Applicative ((<$>),(<*>))
-
-import PprCore
-
-import CoreSyn
-import Outputable
+import Control.Applicative ((<$>),(<*>),Applicative)
 
 import Control.Monad
 
@@ -24,10 +18,6 @@ import Data.List (inits)
 -- | concatMapM
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = liftM concat . mapM f
-
--- | Shows a Core Expression
-showExpr :: CoreExpr -> String
-showExpr = showSDoc . pprCoreExpr
 
 -- | Appl the function if true, otherwise propagate
 (?) :: Bool -> (a -> a) -> a -> a

@@ -7,9 +7,7 @@ import CoreSubst
 import CoreSyn
 import CoreUtils
 import DataCon
-import FastString
 import Id
-import Literal
 import Outputable
 import TyCon
 import TysWiredIn
@@ -17,16 +15,16 @@ import Unique
 import UniqSupply
 
 import Halt.Names
-import Halt.Util
+import Halt.Common
+import Halt.Utils
 import Halt.Monad
 import Halt.Conf
 import Halt.Data
+import Halt.ExprTrans
 
 import FOL.Syn hiding ((:==))
 
 import qualified Data.Map as M
-import Data.Char (toUpper,toLower,isAlpha)
-import Data.List (intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -260,73 +258,4 @@ addBottomCase (Case scrutinee binder ty alts) = do
          (as,Nothing)  -> defaultBottomAlt:as
 addBottomCase _ = error "addBottomCase on non-case expression"
 
--- | Translate expressions, i.e. not case (nor let/lambda)
-trExpr :: CoreExpr -> HaltM Term
-trExpr e = do
-    HaltEnv{..} <- ask
-    let isFunction x = case M.lookup (idName x) arities of
-                          Just i  -> i > 0
-                          Nothing -> False
-    case e of
-        Var x | x `elem` quant -> return (mkVar x)
-              | isFunction x   -> return (mkPtr x)
-              | otherwise      -> return (mkFun x [])
-        App{} -> do
-          write $ "App on " ++ showExpr e
-          case second trimTyArgs (collectArgs e) of
-            (Var x,es)
-               | Just i <- M.lookup (idName x) arities -> do
-                   write $ idToStr x ++ " has arity " ++ show i
-                   if i > length es
-                       then foldFunApps (mkPtr x) <$> mapM trExpr es
-                       else do
-                           let (es_inner,es_after) = splitAt i es
-                           inner <- mkFun x <$> mapM trExpr es_inner
-                           foldFunApps inner <$> mapM trExpr es_after
-            (f,es) -> do
-               write $ "Collected to " ++ showExpr f
-                           ++ concat [ "(" ++ show (getUnique (idName x)) ++ ") " | let Var x = f ]
-                           ++ " on " ++ intercalate "," (map showExpr es)
-               foldFunApps <$> trExpr f <*> mapM trExpr es
-        Lit (MachStr s) -> do
-          write $ "String to constant: " ++ unpackFS s
-          return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
-
-        Case{}      -> trErr "case" -- trCaseExpr e
-        Let{}       -> trErr "let"  -- trLet bind e'
-        Cast e' _   -> do
-          write $ "Ignoring cast: " ++ showExpr e
-          trExpr e'
-
-        Lit{}      -> trErr "literals"
-        Type{}     -> trErr "types"
-        Lam{}      -> trErr "lambdas"
-        Coercion{} -> trErr "coercions"
-        Tick{}     -> trErr "ticks"
-  where trErr s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
-
-trimTyArgs :: [CoreArg] -> [CoreArg]
-trimTyArgs = filter (not . isTyArg)
-  where
-    isTyArg Type{} = True
-    isTyArg _      = False
-
-foldFunApps :: Term -> [Term] -> Term
-foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
-
-
-mkPtr :: Var -> Term
-mkPtr = (`Fun` []) . FunName . (++ "ptr") . map toLower . idToStr
-
-mkVarName :: Var -> VarName
-mkVarName = VarName . capInit . idToStr
-  where
-    capInit (x:xs) | isAlpha x = toUpper x : xs
-                   | otherwise = 'Q':x:xs
-                        -- ^ needs escaping here
-                        --   example: (>) as an argument to a sortBy function
-    capInit "" = "Q"
-
-mkVar :: Var -> Term
-mkVar = FVar . mkVarName
 

@@ -5,13 +5,15 @@ module Halt.Data where
 
 import DataCon
 import Id
-import TyCon
 import Name
+import TyCon
 
-import Halt.Names
-import Halt.Util
-import Halt.Conf
 import FOL.Syn hiding ((:==))
+
+import Halt.Common
+import Halt.Conf
+import Halt.Names
+import Halt.Utils
 
 import Control.Monad.Reader
 

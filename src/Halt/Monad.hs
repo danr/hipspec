@@ -11,7 +11,8 @@ import Name
 import Outputable
 import Var
 
-import Halt.Util (showExpr)
+import Halt.Common
+import Halt.Utils (showExpr)
 import Halt.Conf
 import Halt.Names
 
@@ -21,7 +22,6 @@ import Data.List (delete,union)
 
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Applicative
 
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Name Int
