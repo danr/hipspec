@@ -216,9 +216,9 @@ trAlt scrut_exp (con, bound, e) = do
 --   The input must be a case expression!
 addBottomCase :: CoreExpr -> HaltM CoreExpr
 addBottomCase (Case scrutinee binder ty alts) = do
-    bottomCon <- getConOf Bottom
-    bottomVar <- Var <$> getIdOf Bottom
-    let -- _|_ -> _|_
+    let bottomCon = constantCon Bottom
+        bottomVar = Var (constantId Bottom)
+         -- _|_ -> _|_
         -- Breaks the core structure by having a new data constructor
         bottomAlt :: CoreAlt
         bottomAlt = (DataAlt bottomCon, [], bottomVar)

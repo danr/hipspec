@@ -7,19 +7,16 @@ module Halt.Monad where
 
 import CoreSubst
 import CoreSyn
-import DataCon
 import Id
 import Name
 import Outputable
 import TyCon
-import UniqSupply
 import Unique
 
 import Halt.Common
 import Halt.Conf
 import Halt.Constraints
 import Halt.Data
-import Halt.Names
 import Halt.Utils
 
 import qualified Data.Map as M
@@ -51,8 +48,6 @@ data HaltEnv
               -- ^ Constraints
               , conf     :: HaltConf
               -- ^ Configuration
-              , names    :: Names
-              -- ^ Names of constants UNR/BAD/Bottom
               }
 
 -- Pushes new quantified variables to the environment
@@ -75,31 +70,25 @@ pushConstraints cs env = env { constr = cs ++ constr env }
 extendArities :: ArityMap -> HaltEnv -> HaltEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
--- | Make the initial environment
-mkInitEnv :: UniqSupply -> HaltConf -> [TyCon] -> [CoreBind] -> (HaltEnv,UniqSupply)
-mkInitEnv us conf@(HaltConf{..}) ty_cons program =
+-- | Make the environment
+mkEnv :: HaltConf -> [TyCon] -> [CoreBind] -> HaltEnv
+mkEnv conf@(HaltConf{..}) ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
-
-      names :: Names
-      us' :: UniqSupply
-      (names,us') = mkNames us
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
       arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
                              ++ dataArities ty_cons
 
-  in (HaltEnv { arities = arities
-              , fun     = error "initEnv: fun"
-              , args    = []
-              , quant   = []
-              , constr  = noConstraints
-              , conf    = conf
-              , names   = names
-              }
-     ,us')
+  in HaltEnv { arities = arities
+             , fun     = error "initEnv: fun"
+             , args    = []
+             , quant   = []
+             , constr  = noConstraints
+             , conf    = conf
+             }
 
 runHaltM :: HaltEnv -> HaltM a -> (a,[String])
 runHaltM env (HaltM m) = runWriter (m `runReaderT` env)
@@ -119,12 +108,3 @@ substContext s env = env
 -- | Write a debug message
 write :: MonadWriter [String] m => String -> m ()
 write = tell . return
-
-getNameOf :: NamedConstant -> HaltM Name
-getNameOf nt = namedName nt <$> asks names
-
-getIdOf :: NamedConstant -> HaltM Id
-getIdOf nt = namedId nt <$> asks names
-
-getConOf :: NamedConstant -> HaltM DataCon
-getConOf nt = namedCon nt <$> asks names
