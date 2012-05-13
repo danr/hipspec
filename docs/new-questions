@@ -1,4 +1,30 @@
 
+ -1) Desugaring of sections, in DsExpr.lhs:
+
+        Operator sections.  At first it looks as if we can convert
+        \begin{verbatim}
+                (expr op)
+        \end{verbatim}
+        to
+        \begin{verbatim}
+                \x -> op expr x
+        \end{verbatim}
+
+        But no!  expr might be a redex, and we can lose laziness badly this
+        way.  Consider
+        \begin{verbatim}
+                map (expr op) xs
+        \end{verbatim}
+        for example.  So we convert instead to
+        \begin{verbatim}
+                let y = expr in \x -> op y x
+        \end{verbatim}
+        If \tr{expr} is actually just a variable, say, then the simplifier
+        will sort it out.
+
+     The simpleOptExpr does not do these simplifications.
+
+
 
  0) Tuple sizes... Is it implemented somewhere the different tuple
     sizes used in a program?

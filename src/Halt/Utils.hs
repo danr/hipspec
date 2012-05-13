@@ -47,7 +47,7 @@ implies cnf fs f | cnf       = fs ~\/ f
    [] =:=> phi = phi
    xs =:=> phi = foldl1 (/\) xs ==> phi
 
-   xs ~\/ phi = foldl (\/) phi (map neg xs)
+   xs ~\/ phi = foldr (\/) phi (map neg xs)
 
 foldFunApps :: Term -> [Term] -> Term
 foldFunApps = foldl (\x y -> Fun (FunName "app") [x,y])
