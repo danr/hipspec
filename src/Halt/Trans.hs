@@ -19,7 +19,7 @@ import Halt.Data
 import Halt.ExprTrans
 import Halt.Constraints
 
-import FOL.Syn hiding ((:==))
+import FOL.Syn
 
 import Control.Monad.Reader
 

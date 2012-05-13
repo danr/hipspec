@@ -37,8 +37,14 @@ trimTyArgs = filter (not . isTyArg)
 minPred :: Term -> Formula
 minPred tm = Rel (RelName "min") [tm]
 
+mkCF :: Term -> Formula
+mkCF tm = Rel (RelName "cf") [tm]
+
 mkFun :: Var -> [Term] -> Term
 mkFun = Fun . FunName . map toLower . idToStr
+
+mkConst :: String -> Term
+mkConst = (`Fun` []) . FunName
 
 implies :: Bool -> [Formula] -> Formula -> Formula
 implies cnf fs f | cnf       = fs ~\/ f
@@ -66,6 +72,7 @@ mkVarName = VarName . capInit . idToStr
 
 mkVar :: Var -> Term
 mkVar = FVar . mkVarName
+
 
 
 
