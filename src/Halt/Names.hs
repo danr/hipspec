@@ -1,13 +1,12 @@
 module Halt.Names where
 
+import CoreSyn
 import DataCon
 import Id
 import Name
 import Outputable
 import SrcLoc
 import Unique
-
-import FOL.Syn
 
 import Data.Char
 
@@ -28,6 +27,9 @@ constantId :: NamedConstant -> Id
 constantId c = mkVanillaGlobal (constantName c) ty_err
   where ty_err = error $ "constantId: type on " ++ show c
 
+constantExpr :: NamedConstant -> CoreExpr
+constantExpr = Var . constantId
+
 constantCon :: NamedConstant -> DataCon
 constantCon c = mkDataCon (constantName c)
                           False -- infix
@@ -42,10 +44,4 @@ constantCon c = mkDataCon (constantName c)
                           (error $ "constantCon: repr type constructor (TyCon) on" ++ show c)
                           []    -- stupid theta types
                           (DCIds Nothing (constantId c))
-
--- | Project a term
-projFun :: Name -> Int -> Term -> Term
-projFun con_name i t = Fun fun_name [t]
-  where
-    fun_name = FunName (map toLower (showSDoc (ppr (localiseName con_name))) ++ show i)
 

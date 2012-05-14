@@ -6,8 +6,6 @@ import Outputable
 import PprCore
 import CoreSyn
 
-import FOL.Syn
-
 import Data.Char
 
 -- | Short representation of an Id/Var to String (unsafely for now)
@@ -34,6 +32,7 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg Type{} = True
     isTyArg _      = False
 
+{-
 minPred :: Term -> Formula
 minPred tm = Rel (RelName "min") [tm]
 
@@ -72,7 +71,7 @@ mkVarName = VarName . capInit . idToStr
 
 mkVar :: Var -> Term
 mkVar = FVar . mkVarName
-
+-}
 
 
 

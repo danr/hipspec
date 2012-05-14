@@ -11,6 +11,8 @@ data HaltConf = HaltConf
     -- ^ Use min translation
     , common_min   :: Bool
     -- ^ Write f(x) = k & min(k) => k = ... instead of min(f(x)) => f(x) = ...
+    , unr_and_bad  :: Bool
+    -- ^ Use UNR and BAD instead of bottom when translating
     }
   deriving (Eq,Ord,Show)
 

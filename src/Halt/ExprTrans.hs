@@ -7,11 +7,12 @@ import Id
 import Literal
 import Unique
 
-import FOL.Syn hiding ((:==))
+import FOL.Abstract hiding (App)
 
 import Halt.Common
 import Halt.Monad
 import Halt.Utils
+import Halt.Names
 
 import qualified Data.Map as M
 import Data.List (intercalate)
@@ -19,43 +20,41 @@ import Data.List (intercalate)
 import Control.Monad.Reader
 
 -- | Translate expressions, i.e. not case (nor let/lambda)
-trExpr :: CoreExpr -> HaltM Term
+trExpr :: CoreExpr -> HaltM (Term Var)
 trExpr e = do
     HaltEnv{..} <- ask
     let isFunction x = case M.lookup (idName x) arities of
                           Just i  -> i > 0
                           Nothing -> False
     case e of
-        Var x | x `elem` quant -> return (mkVar x)
-              | isFunction x   -> return (mkPtr x)
-              | otherwise      -> return (mkFun x [])
+        Var x | x `elem` quant -> return (qvar x)
+              | isFunction x   -> return (ptr x)
+              | otherwise      -> return (con x)
         App{} -> do
           write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of
-            (Var x,es)
-               | Just i <- M.lookup (idName x) arities -> do
-                   write $ idToStr x ++ " has arity " ++ show i
+            (Var f,es)
+               | Just i <- M.lookup (idName f) arities -> do
+                   write $ idToStr f ++ " has arity " ++ show i
                    if i > length es
-                       then foldFunApps (mkPtr x) <$> mapM trExpr es
+                       then apps (ptr f) <$> mapM trExpr es
                        else do
                            let (es_inner,es_after) = splitAt i es
-                           inner <- mkFun x <$> mapM trExpr es_inner
-                           foldFunApps inner <$> mapM trExpr es_after
+                           inner <- Fun f <$> mapM trExpr es_inner
+                           apps inner <$> mapM trExpr es_after
             (f,es) -> do
                write $ "Collected to " ++ showExpr f
                            ++ concat [ "(" ++ show (getUnique (idName x)) ++ ") " | let Var x = f ]
                            ++ " on " ++ intercalate "," (map showExpr es)
-               foldFunApps <$> trExpr f <*> mapM trExpr es
+               apps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
-          write $ "String to constant: " ++ unpackFS s
-          return $ Fun (FunName "string") [Fun (FunName (unpackFS s)) []]
-
-        Case{}      -> trErr "case" -- trCaseExpr e
-        Let{}       -> trErr "let"  -- trLet bind e'
-        Cast e' _   -> do
+          write $ "String, " ++ unpackFS s ++ " coerced to bad"
+          return $ con (constantId BAD)
+        Cast e' _ -> do
           write $ "Ignoring cast: " ++ showExpr e
           trExpr e'
-
+        Case{}     -> trErr "case" -- trCaseExpr e
+        Let{}      -> trErr "let"  -- trLet bind e'
         Lit{}      -> trErr "literals"
         Type{}     -> trErr "types"
         Lam{}      -> trErr "lambdas"

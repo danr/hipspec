@@ -36,17 +36,17 @@ showArityMap m =
 
 -- The Environment
 data HaltEnv
-    = HaltEnv { arities  :: ArityMap
+    = HaltEnv { arities     :: ArityMap
               -- ^ Arities of top level definitions
-              , fun      :: Var
+              , current_fun :: Var
               -- ^ Current function
-              , args     :: [CoreExpr]
+              , args        :: [CoreExpr]
               -- ^ Arguments to current function
-              , quant    :: [Var]
+              , quant       :: [Var]
               -- ^ Quantified variables
-              , constr   :: [Constraint]
+              , constr      :: [Constraint]
               -- ^ Constraints
-              , conf     :: HaltConf
+              , conf        :: HaltConf
               -- ^ Configuration
               }
 
@@ -82,12 +82,12 @@ mkEnv conf@(HaltConf{..}) ty_cons program =
       arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
                              ++ dataArities ty_cons
 
-  in HaltEnv { arities = arities
-             , fun     = error "initEnv: fun"
-             , args    = []
-             , quant   = []
-             , constr  = noConstraints
-             , conf    = conf
+  in HaltEnv { arities     = arities
+             , current_fun = error "initEnv: current_fun"
+             , args        = []
+             , quant       = []
+             , constr      = noConstraints
+             , conf        = conf
              }
 
 runHaltM :: HaltEnv -> HaltM a -> (a,[String])
