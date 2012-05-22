@@ -4,7 +4,7 @@ import CoreSyn
 import CoreUtils
 
 import Halt.Monad
-import Halt.Names
+import Halt.PrimCon
 import Halt.Common
 import Halt.Conf
 
@@ -35,16 +35,15 @@ import Control.Monad.Reader
 
 -}
 -- | Adds a bottom case as described above.
---   The input must be a case expression!
-addBottomCase :: CoreExpr -> HaltM CoreExpr
-addBottomCase (Case scrutinee binder ty alts) = do
+addBottomCase :: [CoreAlt] -> HaltM [CoreAlt]
+addBottomCase alts = do
     unr_bad <- unr_and_bad <$> asks conf
 
     let bottom | unr_bad   = UNR
                | otherwise = Bottom
 
-        bottomCon = constantCon bottom
-        bottomVar = constantExpr bottom
+        bottomCon = primCon bottom
+        bottomVar = primExpr bottom
 
          -- _|_ -> _|_
         -- Breaks the core structure by having a new data constructor
@@ -56,12 +55,11 @@ addBottomCase (Case scrutinee binder ty alts) = do
         defaultBottomAlt = (DEFAULT, [], bottomVar)
 
         extraAlt :: [CoreAlt]
-        extraAlt | unr_bad = [(DataAlt (constantCon BAD), [], constantExpr BAD)]
+        extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
                  | otherwise = []
     -- Case expressions have an invariant that the default case is always first.
-    return $ Case scrutinee binder ty $ case findDefault alts of
+    return $ case findDefault alts of
          (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
          (as,Nothing)  -> defaultBottomAlt:extraAlt++as
-addBottomCase _ = error "addBottomCase on non-case expression"
 
 

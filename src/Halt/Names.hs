@@ -1,4 +1,4 @@
-module Halt.Names where
+module Halt.PrimCon where
 
 import CoreSyn
 import DataCon
@@ -10,28 +10,28 @@ import Unique
 
 import Data.Char
 
-data NamedConstant = BAD | UNR | Bottom
+data PrimCon = BAD | UNR | Bottom
   deriving (Eq,Ord,Enum)
 
-instance Show NamedConstant where
+instance Show PrimCon where
   show BAD = "bad"
   show UNR = "unr"
   show Bottom = "bottom"
 
-constantName :: NamedConstant -> Name
-constantName c = mkInternalName (mkUnique 'j' (fromEnum c))
+primName :: PrimCon -> Name
+primName c = mkInternalName (mkUnique 'j' (fromEnum c))
                                 (mkOccName dataName (show c))
                                 wiredInSrcSpan
 
-constantId :: NamedConstant -> Id
-constantId c = mkVanillaGlobal (constantName c) ty_err
-  where ty_err = error $ "constantId: type on " ++ show c
+primId :: PrimCon -> Id
+primId c = mkVanillaGlobal (primName c) ty_err
+  where ty_err = error $ "primId: type on " ++ show c
 
-constantExpr :: NamedConstant -> CoreExpr
-constantExpr = Var . constantId
+primExpr :: PrimCon -> CoreExpr
+primExpr = Var . primId
 
-constantCon :: NamedConstant -> DataCon
-constantCon c = mkDataCon (constantName c)
+primCon :: PrimCon -> DataCon
+primCon c = mkDataCon (primName c)
                           False -- infix
                           []    -- strictness
                           []    -- records
@@ -40,8 +40,8 @@ constantCon c = mkDataCon (constantName c)
                           []    -- gadt equalities
                           []    -- theta types
                           []    -- argument types
-                          (error $ "constantCon: result type (Type) on " ++ show c)
-                          (error $ "constantCon: repr type constructor (TyCon) on" ++ show c)
+                          (error $ "primCon: result type (Type) on " ++ show c)
+                          (error $ "primCon: repr type constructor (TyCon) on" ++ show c)
                           []    -- stupid theta types
-                          (DCIds Nothing (constantId c))
+                          (DCIds Nothing (primId c))
 

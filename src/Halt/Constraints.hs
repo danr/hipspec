@@ -6,6 +6,7 @@ import DataCon
 import Outputable
 
 import Halt.Utils
+import Halt.Common
 
 -- Constraints from case expressions to results, under a substitution
 data Constraint = Equality   CoreExpr DataCon [CoreExpr]
@@ -25,3 +26,17 @@ substConstr s c = case c of
 -- | The empty constraints
 noConstraints :: [Constraint]
 noConstraints = []
+
+
+conflict :: [Constraint] -> Bool
+conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
+                 | Equality   e1 con_x _ <- cs
+                 , Inequality e2 con_y <- cs
+                 ]
+  where
+    cheapExprEq :: CoreExpr -> CoreExpr -> Bool
+    cheapExprEq (Var x) (Var y) = x == y
+    cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
+                                            cheapExprEq e1' e2'
+    cheapExprEq _ _ = False
+

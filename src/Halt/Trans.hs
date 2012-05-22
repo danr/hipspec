@@ -18,13 +18,14 @@ import Halt.ExprTrans
 import Halt.Constraints
 import Halt.Case
 
-import FOL.Abstract hiding (App)
+
+import Halt.AbstractFOL hiding (App)
 
 import Control.Monad.Reader
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([Clause Var],[String])
+translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([AxClause],[VarClause],[String])
 translate env ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
@@ -32,22 +33,21 @@ translate env ty_cons program =
 
       -- Translate each declaration
       -- TODO : Make these return Decl?
-      translated :: HaltM [Formula Var]
+      translated :: HaltM [VarFormula]
       translated = concatMapM (uncurry trDecl) binds
 
-      formulae :: [Formula Var]
+      formulae :: [VarFormula]
       msgs :: [String]
       (formulae,msgs) = runHaltM env translated
 
-  in  (concatMap ($ ty_cons) [mkProjs,mkDiscrim,mkCF] ++
-       axiomsBadUNR ++
-       [ Clause Definition (show n) phi
+  in  (concatMap ($ ty_cons) [mkProjs,mkDiscrim,mkCF] ++ axiomsBadUNR
+      ,[ Clause Definition (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
       ,msgs ++ showArityMap (arities env))
 
 -- | Translate a CoreDecl or a Let
-trDecl :: Var -> CoreExpr -> HaltM [Formula Var]
+trDecl :: Var -> CoreExpr -> HaltM [VarFormula]
 trDecl f e = do
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
     local (\env -> env { current_fun = f
@@ -60,11 +60,11 @@ trDecl f e = do
     (_ty,as,e') = collectTyAndValBinders e
 
 -- | Translate a case expression
-trCase :: CoreExpr -> HaltM [Formula Var]
+trCase :: CoreExpr -> HaltM [VarFormula]
 trCase e = case e of
-    Case{} -> do
+    Case scrutinee _scrut_var _ty alts_wo_bottom -> do
         -- Add a bottom case
-        Case scrutinee _scrut_var _ty ((DEFAULT,[],def_expr):alts) <- addBottomCase e
+        (DEFAULT,[],def_expr):alts <- addBottomCase alts_wo_bottom
 
         write $ "Case on " ++ showExpr scrutinee
 
@@ -82,9 +82,9 @@ trCase e = case e of
                 Just tr_constr -> do
                     lhs <- trLhs
                     tr_scrut <- trExpr scrutinee
-                    let constr = minPred lhs : tr_constr
+                    let constr = min' lhs : tr_constr
                     qvars <- asks quant
-                    return [ forall' qvars $ constr ===> minPred tr_scrut
+                    return [ forall' qvars $ constr ===> min' tr_scrut
                            | use_min ]
 
         -- Translate the alternatives (mutually recursive with this
@@ -110,45 +110,14 @@ trCase e = case e of
             Just tr_constr -> do
                 lhs <- trLhs
                 rhs <- trExpr e
-                return [forall' quant $ minPred lhs : tr_constr ===> lhs === rhs]
+                return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
 
 
-trLhs :: HaltM (Term Var)
+trLhs :: HaltM VarTerm
 trLhs = do
     HaltEnv{current_fun,args} <- ask
     fun current_fun <$> mapM trExpr args
 
-trConstraints :: HaltM (Maybe [Formula Var])
-trConstraints = do
-    HaltEnv{constr} <- ask
-    write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
-    if conflict constr
-        then write "  Conflict!" >> return Nothing
-        else Just <$> mapM trConstr constr
-
-conflict :: [Constraint] -> Bool
-conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
-                 | Equality   e1 con_x _ <- cs
-                 , Inequality e2 con_y <- cs
-                 ]
-  where
-    cheapExprEq :: CoreExpr -> CoreExpr -> Bool
-    cheapExprEq (Var x) (Var y) = x == y
-    cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
-                                            cheapExprEq e1' e2'
-    cheapExprEq _ _ = False
-
-trConstr :: Constraint -> HaltM (Formula Var)
-trConstr (Equality e data_con bs) = do
-    lhs <- trExpr e
-    rhs <- fun (dataConWorkId data_con) <$> mapM trExpr bs
-    return $ lhs === rhs
-trConstr (Inequality e data_con) = do
-    lhs <- trExpr e
-    let rhs = fun (dataConWorkId data_con)
-                    [ proj i (dataConWorkId data_con) lhs
-                    | i <- [0..dataConSourceArity data_con-1] ]
-    return $ lhs =/= rhs
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
 invertAlt scrut_exp (cons, _bs, _) = case cons of
@@ -157,9 +126,10 @@ invertAlt scrut_exp (cons, _bs, _) = case cons of
   _                -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
-trAlt :: CoreExpr -> CoreAlt -> HaltM [Formula Var]
+trAlt :: CoreExpr -> CoreAlt -> HaltM [VarFormula]
 trAlt scrut_exp (cons, bound, e) = do
   HaltEnv{quant} <- ask
+
   case cons of
     DataAlt data_con -> do
         case scrut_exp of
@@ -175,4 +145,23 @@ trAlt scrut_exp (cons, bound, e) = do
     DEFAULT -> error "trAlt on DEFAULT"
     _       -> error "trAlt on LitAlt (literals not supported yet!)"
 
+trConstraints :: HaltM (Maybe [VarFormula])
+trConstraints = do
+    HaltEnv{constr} <- ask
+    write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
+    if conflict constr
+        then write "  Conflict!" >> return Nothing
+        else Just <$> mapM trConstr constr
+
+trConstr :: Constraint -> HaltM VarFormula
+trConstr (Equality e data_con bs) = do
+    lhs <- trExpr e
+    rhs <- fun (dataConWorkId data_con) <$> mapM trExpr bs
+    return $ lhs === rhs
+trConstr (Inequality e data_con) = do
+    lhs <- trExpr e
+    let rhs = fun (dataConWorkId data_con)
+                    [ proj i (dataConWorkId data_con) lhs
+                    | i <- [0..dataConSourceArity data_con-1] ]
+    return $ lhs =/= rhs
 

@@ -6,13 +6,12 @@ module Halt.Data where
 import DataCon
 import Id
 import Name
-import SrcLoc
 import TyCon
-import Unique
 
-import FOL.Abstract
+import Halt.AbstractFOL
 
-import Halt.Names
+import Halt.PrimCon
+
 
 import Data.List
 import Control.Monad.Reader
@@ -21,105 +20,92 @@ dataArities :: [TyCon] -> [(Name,Int)]
 dataArities ty_cons =
     [ (con_name,arity)
     | DataTyCon cons _ <- map algTyConRhs ty_cons
-    , con <- cons
-    , let con_name        = idName (dataConWorkId con)
-          (_,_,ty_args,_) = dataConSig con
+    , c <- cons
+    , let con_name        = idName (dataConWorkId c)
+          (_,_,ty_args,_) = dataConSig c
           arity           = length ty_args
     ]
 
 -- | Makes projection/injectivity axioms
 --   TODO : Fix this code copy with mkDiscrim and translate.arities
 --          and with trCase.
-mkProjs :: [TyCon] -> [Clause Var]
+mkProjs :: [TyCon] -> [AxClause]
 mkProjs ty_cons = do
    DataTyCon cons _ <- map algTyConRhs ty_cons
-   con <- cons
-   let data_con        = dataConWorkId con
-       (_,_,ty_args,_) = dataConSig con
+   c <- cons
+   let data_con        = dataConWorkId c
+       (_,_,ty_args,_) = dataConSig c
        arity           = length ty_args
    i <- [0..arity-1]
 
    let names  = take arity varNames
        unproj = fun data_con (map qvar names)
 
-   return $ Clause Axiom "p" $
+   return $ Clause Axiom "proj" $
               forall' names $
-                minPred unproj ==> proj i data_con unproj === qvar (names !! i)
+                min' unproj ==> proj i data_con unproj === qvar (names !! i)
 
 -- | Make discrimination axioms
-mkDiscrim :: [TyCon] -> [Clause Var]
+mkDiscrim :: [TyCon] -> [AxClause]
 mkDiscrim ty_cons = do
    DataTyCon cons _ <- map algTyConRhs ty_cons
-   let allcons = cons ++ [constantCon BAD,constantCon UNR]
-   (con,unequals) <- zip cons (drop 1 $ tails allcons)
-   uneq_con <- unequals
-   let data_con        = dataConWorkId con
-       (_,_,ty_args,_) = dataConSig con
+   let allcons = map ((,) True) cons ++ map ((,) False) [primCon BAD,primCon UNR]
+   (c,unequals) <- zip cons (drop 1 $ tails allcons)
+   (need_min,uneq_c) <- unequals
+   let data_c          = dataConWorkId c
+       (_,_,ty_args,_) = dataConSig c
        arity           = length ty_args
 
-       uneq_data_con        = dataConWorkId uneq_con
-       (_,_,uneq_ty_args,_) = dataConSig uneq_con
+       uneq_data_c          = dataConWorkId uneq_c
+       (_,_,uneq_ty_args,_) = dataConSig uneq_c
        uneq_arity           = length uneq_ty_args
 
        names      = take arity varNames
        uneq_names = take uneq_arity (drop arity varNames)
 
-       lhs    = fun data_con (map qvar names)
-       rhs    = fun uneq_data_con (map qvar uneq_names)
+       lhs    = fun data_c (map qvar names)
+       rhs    = fun uneq_data_c (map qvar uneq_names)
 
-   return $ Clause Axiom "d" $
+   return $ Clause Axiom "discrim" $
               forall' (names ++ uneq_names) $
-                 minPred lhs \/ minPred rhs ==> lhs =/= rhs
+                 ([min' lhs] ++ [ min' rhs | need_min ]) ===> lhs =/= rhs
 
--- | Make discrimination axioms
-mkCF :: [TyCon] -> [Clause Var]
+-- | Make axioms about CF
+mkCF :: [TyCon] -> [AxClause]
 mkCF ty_cons = concat $ do
     DataTyCon cons _ <- map algTyConRhs ty_cons
-    con <- cons
-    let data_con        = dataConWorkId con
-        (_,_,ty_args,_) = dataConSig con
+    c <- cons
+    let data_c          = dataConWorkId c
+        (_,_,ty_args,_) = dataConSig c
         arity           = length ty_args
         vars            = take arity varNames
         xbar            = map qvar vars
-        kxbar           = fun data_con xbar
+        kxbar           = fun data_c xbar
 
     return $
-      [ Clause Axiom "assemblecf" $ forall' vars $
-          minPred kxbar : map cfPred xbar ===> cfPred kxbar
-
-      , Clause Axiom "assemblencf" $ forall' vars $
-          minPred kxbar : map (neg . cfPred) xbar ===> neg (cfPred kxbar)
-      ]
-
-      ++
-
+      (Clause Axiom "assemblecf" $ forall' vars $
+          min' kxbar : map cf xbar ===> cf kxbar)
+      :
       (guard (arity > 0) >>
          [ Clause Axiom "disassemblecf" $ forall' vars $
-             cfPred kxbar ==> ands (map cfPred xbar)
+             cf kxbar ==> ands (map cf xbar)
 
 
          , Clause Axiom "disassemblencf" $ forall' vars $
-              [ minPred kxbar , neg (cfPred kxbar) ] ===>
-                   ors [ minPred x /\ neg (cfPred x) | x <- xbar ]
+              [ min' kxbar , neg (cf kxbar) ] ===>
+                   ors [ min' x /\ neg (cf x) | x <- xbar ]
          ])
 
-axiomsBadUNR :: [Clause Var]
+axiomsBadUNR :: [AxClause]
 axiomsBadUNR =
-    [ Clause Axiom "cfunr"  $ cfPred (con (constantId UNR))
-    , Clause Axiom "ncfbad" $ neg (cfPred (con (constantId BAD)))
-    , Clause Axiom "minbad" $ minPred (con (constantId BAD))
-    , Clause Axiom "cfmin"  $ forall' [x] (cfPred (qvar x) ==> minPred (qvar x))
+    [ Clause Axiom "cfunr"  $ cf (fun0 (primId UNR))
+    , Clause Axiom "ncfbad" $ neg (cf (fun0 (primId BAD)))
+    , Clause Axiom "minbad" $ min' (fun0 (primId BAD))
+    , Clause Axiom "cfmin"  $ forall' [x] (cf (qvar x) ==> min' (qvar x))
     ]
   where
     x = head varNames
 
 -- | A bunch of variable names to quantify over
-varNames :: [Var]
-varNames =
-   [ mkVanillaGlobal
-       (mkInternalName (mkUnique 'z' i) (mkOccName varName n) wiredInSrcSpan)
-       (error "varNames: type")
-   | i <- [0..]
-   | n <- [1..] >>= flip replicateM "xyzwvu"
-   ]
-
+varNames :: [Int]
+varNames = [0..]

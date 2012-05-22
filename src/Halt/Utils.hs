@@ -6,8 +6,6 @@ import Outputable
 import PprCore
 import CoreSyn
 
-import Data.Char
-
 -- | Short representation of an Id/Var to String (unsafely for now)
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
@@ -33,8 +31,8 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg _      = False
 
 {-
-minPred :: Term -> Formula
-minPred tm = Rel (RelName "min") [tm]
+min' :: Term -> Formula
+min' tm = Rel (RelName "min") [tm]
 
 mkCF :: Term -> Formula
 mkCF tm = Rel (RelName "cf") [tm]
