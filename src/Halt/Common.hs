@@ -6,14 +6,15 @@ module Halt.Common
   ,(?)
   ,selections
   ,inspect
-  ,withPrevious) where
+  ,withPrevious
+  ,nubOrd) where
 
 import Control.Arrow ((***),(&&&),first,second)
 import Control.Applicative ((<$>),(<*>),Applicative)
 
 import Control.Monad
 
-import Data.List (inits)
+import Data.List
 
 -- | concatMapM
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
@@ -43,6 +44,9 @@ inspect = map (\(i,x,r) -> (x,i++r)) . selections
 -- > withPrevious "abc" = [('a',""),('b',"a"),('c',"ab")]
 withPrevious :: [a] -> [(a,[a])]
 withPrevious xs = zip xs (inits xs)
+
+nubOrd :: Ord a => [a] -> [a]
+nubOrd = map head . group . sort
 
 {-
 

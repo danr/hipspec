@@ -27,12 +27,10 @@ trExpr e = do
                           Just i  -> i > 0
                           Nothing -> False
     case e of
-        Var x
-            | x `elem` primId BAD:errorIds -> return (constant BAD)
-            | x == primId UNR              -> return (constant UNR)
-            | x `elem` quant               -> return (qvar x)
-            | isFunction x                 -> return (ptr x)
-            | otherwise                    -> return (fun0 x)
+        Var x | x `elem` errorIds -> return (constant BAD)
+              | x `elem` quant    -> return (qvar x)
+              | isFunction x      -> return (ptr x)
+              | otherwise         -> return (con x)
         App{} -> do
           write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of
@@ -45,7 +43,7 @@ trExpr e = do
                        then apps (ptr f) <$> mapM trExpr es
                        else do
                            let (es_inner,es_after) = splitAt i es
-                           inner <- fun f <$> mapM trExpr es_inner
+                           inner <- apply f <$> mapM trExpr es_inner
                            apps inner <$> mapM trExpr es_after
             (f,es) -> do
                  write $ "Collected to " ++ showExpr f

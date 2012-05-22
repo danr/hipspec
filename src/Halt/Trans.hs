@@ -115,7 +115,7 @@ trCase e = case e of
 trLhs :: HaltM VarTerm
 trLhs = do
     HaltEnv{current_fun,args} <- ask
-    fun current_fun <$> mapM trExpr args
+    apply current_fun <$> mapM trExpr args
 
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
@@ -155,11 +155,11 @@ trConstraints = do
 trConstr :: Constraint -> HaltM VarFormula
 trConstr (Equality e data_con bs) = do
     lhs <- trExpr e
-    rhs <- fun (dataConWorkId data_con) <$> mapM trExpr bs
+    rhs <- apply (dataConWorkId data_con) <$> mapM trExpr bs
     return $ lhs === rhs
 trConstr (Inequality e data_con) = do
     lhs <- trExpr e
-    let rhs = fun (dataConWorkId data_con)
+    let rhs = apply (dataConWorkId data_con)
                     [ proj i (dataConWorkId data_con) lhs
                     | i <- [0..dataConSourceArity data_con-1] ]
     return $ lhs =/= rhs

@@ -10,7 +10,7 @@ import Unique
 import Data.Data
 
 data PrimCon = BAD | UNR | Bottom
-  deriving (Eq,Ord,Enum,Data,Typeable)
+  deriving (Eq,Ord,Enum,Bounded,Data,Typeable)
 
 instance Show PrimCon where
   show BAD = "bad"

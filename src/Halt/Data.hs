@@ -39,7 +39,7 @@ mkProjs ty_cons = do
    i <- [0..arity-1]
 
    let names  = take arity varNames
-       unproj = fun data_con (map qvar names)
+       unproj = apply data_con (map qvar names)
 
    return $ Clause Axiom "proj" $
               forall' names $
@@ -63,8 +63,8 @@ mkDiscrim ty_cons = do
        names      = take arity varNames
        uneq_names = take uneq_arity (drop arity varNames)
 
-       lhs    = fun data_c (map qvar names)
-       rhs    = fun uneq_data_c (map qvar uneq_names)
+       lhs    = apply data_c (map qvar names)
+       rhs    = apply uneq_data_c (map qvar uneq_names)
 
    return $ Clause Axiom "discrim" $
               forall' (names ++ uneq_names) $
@@ -98,9 +98,9 @@ mkCF ty_cons = concat $ do
 
 axiomsBadUNR :: [AxClause]
 axiomsBadUNR =
-    [ Clause Axiom "cfunr"  $ cf (fun0 (primId UNR))
-    , Clause Axiom "ncfbad" $ neg (cf (fun0 (primId BAD)))
-    , Clause Axiom "minbad" $ min' (fun0 (primId BAD))
+    [ Clause Axiom "cfunr"  $ cf (constant UNR)
+    , Clause Axiom "ncfbad" $ neg (cf (constant BAD))
+    , Clause Axiom "minbad" $ min' (constant BAD)
     , Clause Axiom "cfmin"  $ forall' [x] (cf (qvar x) ==> min' (qvar x))
     ]
   where

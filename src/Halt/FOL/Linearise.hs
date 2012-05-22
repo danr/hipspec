@@ -9,8 +9,10 @@ import Halt.PrimCon
 import Halt.FOL.Internals.Internals
 import Halt.FOL.Abstract
 
-data Style q v = Style { linVar   :: v -> SDoc
-                       -- ^ Pretty printing variables
+data Style q v = Style { linFun   :: v -> SDoc
+                       -- ^ Pretty printing functions and variables
+                       , linCtor   :: v -> SDoc
+                       -- ^ Pretty printing constructors
                        , linQVar  :: q -> SDoc
                        -- ^ Quantified variables
                        , linApp   :: SDoc
@@ -35,10 +37,10 @@ data Style q v = Style { linVar   :: v -> SDoc
 --   The way to carry out most of the work is determined in the Style.
 linTm :: Style q v -> Term q v -> SDoc
 linTm st tm = case tm of
-    Fun a []    -> linVar st a
-    Fun a tms   -> linVar st a <> parens (csv (map (linTm st) tms))
-    Con a []    -> linVar st a
-    Con a tms   -> linVar st a <> parens (csv (map (linTm st) tms))
+    Fun a []    -> linFun st a
+    Fun a tms   -> linFun st a <> parens (csv (map (linTm st) tms))
+    Ctor a []   -> linCtor st a
+    Ctor a tms  -> linCtor st a <> parens (csv (map (linTm st) tms))
     App t1 t2   -> linApp st <> parens (csv (map (linTm st) [t1,t2]))
     Proj i c t  -> linProj st i c <> parens (linTm st t)
     Ptr a       -> linPtr st a
