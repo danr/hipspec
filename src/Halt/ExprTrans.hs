@@ -7,7 +7,7 @@ import Id
 import Literal
 import MkCore
 
-import Halt.AbstractFOL hiding (App)
+import Halt.FOL.Abstract
 import Halt.Common
 import Halt.Monad
 import Halt.PrimCon
@@ -45,7 +45,7 @@ trExpr e = do
                        then apps (ptr f) <$> mapM trExpr es
                        else do
                            let (es_inner,es_after) = splitAt i es
-                           inner <- Fun f <$> mapM trExpr es_inner
+                           inner <- fun f <$> mapM trExpr es_inner
                            apps inner <$> mapM trExpr es_after
             (f,es) -> do
                  write $ "Collected to " ++ showExpr f

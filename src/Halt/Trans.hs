@@ -18,8 +18,7 @@ import Halt.ExprTrans
 import Halt.Constraints
 import Halt.Case
 
-
-import Halt.AbstractFOL hiding (App)
+import Halt.FOL.Abstract
 
 import Control.Monad.Reader
 

@@ -4,6 +4,7 @@ dist
 papers
 halt
 \#*
+.\#*
 test/*
 !test/*hs
 test/*\#*
@@ -14,5 +15,7 @@ test/*\#*
 *.snm
 *.toc
 *.vrb
+*.tptp
 *.pdf
+
 

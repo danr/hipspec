@@ -8,7 +8,7 @@ import Id
 import Name
 import TyCon
 
-import Halt.AbstractFOL
+import Halt.FOL.Abstract
 
 import Halt.PrimCon
 
