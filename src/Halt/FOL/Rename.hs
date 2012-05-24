@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, ParallelListComp,
+{-# LANGUAGE ScopedTypeVariables, ParallelListComp, PatternGuards,
              ExistentialQuantification, FlexibleContexts #-}
 module Halt.FOL.Rename where
 

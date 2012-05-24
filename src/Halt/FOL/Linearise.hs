@@ -1,5 +1,5 @@
 -- Linearises into TPTP
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
 module Halt.FOL.Linearise where
 
 import Outputable

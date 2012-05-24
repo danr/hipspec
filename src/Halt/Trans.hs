@@ -120,29 +120,29 @@ trLhs = do
 
 invertAlt :: CoreExpr -> CoreAlt -> Constraint
 invertAlt scrut_exp (cons, _bs, _) = case cons of
-  DataAlt data_con -> Inequality scrut_exp data_con
-  DEFAULT          -> error "invertAlt on DEFAULT"
-  _                -> error "invertAlt on LitAlt (literals not supported yet!)"
+    DataAlt data_con -> Inequality scrut_exp data_con
+    DEFAULT          -> error "invertAlt on DEFAULT"
+    _                -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
 trAlt :: CoreExpr -> CoreAlt -> HaltM [VarFormula]
 trAlt scrut_exp (cons, bound, e) = do
-  HaltEnv{quant} <- ask
+    HaltEnv{quant} <- ask
 
-  case cons of
-    DataAlt data_con -> do
-        case scrut_exp of
-            Var x | x `elem` quant -> do
-                let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
-                    s = extendIdSubst emptySubst x (tr_pat)
-                    e' = substExpr (text "trAlt") s e
-                local (substContext s . pushQuant bound . delQuant x) (trCase e')
-            _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
-                       . pushQuant bound)
-                       (trCase e)
+    case cons of
+        DataAlt data_con -> do
+            case scrut_exp of
+                Var x | x `elem` quant -> do
+                    let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
+                        s = extendIdSubst emptySubst x (tr_pat)
+                        e' = substExpr (text "trAlt") s e
+                    local (substContext s . pushQuant bound . delQuant x) (trCase e')
+                _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
+                           . pushQuant bound)
+                           (trCase e)
 
-    DEFAULT -> error "trAlt on DEFAULT"
-    _       -> error "trAlt on LitAlt (literals not supported yet!)"
+        DEFAULT -> error "trAlt on DEFAULT"
+        _       -> error "trAlt on LitAlt (literals not supported yet!)"
 
 trConstraints :: HaltM (Maybe [VarFormula])
 trConstraints = do

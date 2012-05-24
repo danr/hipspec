@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards #-}
 module Halt.ExprTrans where
 
 import CoreSyn
