@@ -28,10 +28,19 @@ noConstraints = []
 
 
 conflict :: [Constraint] -> Bool
-conflict cs = or [ cheapExprEq e1 e2 && con_x == con_y
-                 | Equality   e1 con_x _ <- cs
-                 , Inequality e2 con_y <- cs
-                 ]
+conflict cs =
+    -- Remove if C1(...) /= C1(...)
+       or [ cheapExprEq e1 e2 && con_x == con_y
+          | Equality   e1 con_x _ <- cs
+          , Inequality e2 con_y <- cs
+          ]
+    -- Remove if C1(...) = C2(...)
+    || or [ cheapExprEq e1 e2 && con_x /= con_y
+          | Equality e1 con_x _ <- cs
+          , Equality e2 con_y _ <- cs
+          ]
+    -- What we would want is if we have
+    -- Equality (C1(..)) C2, and C1/=C2
   where
     cheapExprEq :: CoreExpr -> CoreExpr -> Bool
     cheapExprEq (Var x) (Var y) = x == y

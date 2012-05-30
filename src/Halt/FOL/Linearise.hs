@@ -76,7 +76,7 @@ linClause st (Comment s)
     | linComments st = text s
     | otherwise      = empty
 linClause st (Clause cl_type cl_name cl_formula)
-    | linCNF st, Just lits <- simpleCNF cl_formula
+    | linCNF st, Just lits <- simpleCNF cl_formula, cl_type /= Conjecture
        = linClEntry (text "cnf") cl_name cl_type (linBinOp st pipe lits)
     | otherwise
        = linClEntry (text "fof") cl_name cl_type (linForm st id cl_formula)

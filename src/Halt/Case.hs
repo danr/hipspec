@@ -39,27 +39,33 @@ addBottomCase :: [CoreAlt] -> HaltM [CoreAlt]
 addBottomCase alts = do
     unr_bad <- unr_and_bad <$> asks conf
 
-    let bottom | unr_bad   = UNR
-               | otherwise = Bottom
+    -- unr_bad should really be trinary,
+    -- ie, unr&bad, bottom, or nothing
+    -- but right now not unr_bad means nothing
+    -- and the code below is how you would do it for only bottom
 
-        bottomCon = primCon bottom
-        bottomVar = primExpr bottom
+    if unr_bad
+        then do let bottom | unr_bad   = UNR
+                           | otherwise = Bottom
 
-         -- _|_ -> _|_
-        -- Breaks the core structure by having a new data constructor
-        bottomAlt :: CoreAlt
-        bottomAlt = (DataAlt bottomCon, [], bottomVar)
+                    bottomCon = primCon bottom
+                    bottomVar = primExpr bottom
 
-        -- DEFAULT -> _|_
-        defaultBottomAlt :: CoreAlt
-        defaultBottomAlt = (DEFAULT, [], bottomVar)
+                     -- _|_ -> _|_
+                    -- Breaks the core structure by having a new data constructor
+                    bottomAlt :: CoreAlt
+                    bottomAlt = (DataAlt bottomCon, [], bottomVar)
 
-        extraAlt :: [CoreAlt]
-        extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
-                 | otherwise = []
-    -- Case expressions have an invariant that the default case is always first.
-    return $ case findDefault alts of
-         (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
-         (as,Nothing)  -> defaultBottomAlt:extraAlt++as
+                    -- DEFAULT -> _|_
+                    defaultBottomAlt :: CoreAlt
+                    defaultBottomAlt = (DEFAULT, [], bottomVar)
 
+                    extraAlt :: [CoreAlt]
+                    extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
+                             | otherwise = []
+                -- Case expressions have an invariant that the default case is always first.
+                return $ case findDefault alts of
+                     (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
+                     (as,Nothing)  -> defaultBottomAlt:extraAlt++as
 
+        else return alts

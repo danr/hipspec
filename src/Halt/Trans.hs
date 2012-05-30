@@ -39,7 +39,10 @@ translate env ty_cons program =
       msgs :: [String]
       (formulae,msgs) = runHaltM env translated
 
-  in  (concatMap ($ ty_cons) [mkProjs,mkDiscrim,mkCF] ++ axiomsBadUNR
+  in  (concat [mkProjs (conf env) ty_cons
+              ,mkDiscrim (conf env) ty_cons
+              ,mkCF (conf env) ty_cons
+              ,axiomsBadUNR (conf env)]
       ,[ Clause Definition (show n) phi
        | phi <- formulae
        | n <- [(0 :: Int)..]]
@@ -61,16 +64,15 @@ trDecl f e = do
 -- | Translate a case expression
 trCase :: CoreExpr -> HaltM [VarFormula]
 trCase e = case e of
-    Case scrutinee _scrut_var _ty alts_wo_bottom -> do
-        -- Add a bottom case
-        (DEFAULT,[],def_expr):alts <- addBottomCase alts_wo_bottom
+    Case scrutinee scrut_var _ty alts_unsubst -> do
 
         write $ "Case on " ++ showExpr scrutinee
 
-        -- Translate the scrutinee and add it to the substitutions
-        -- We should do something about the scrutinee var here really
-        -- local (extendSubs (M.singleton scrut_var (error "scrutinee"))) $ do
-        -- TODO: Test case that triggers this error
+        -- Substitute the scrutinee var to the scrutinee expression
+        let subst_alt (c,bs,e) = (c,bs,substExpr (text "trCase") s e)
+              where  s = extendIdSubst emptySubst scrut_var scrutinee
+
+            alts_wo_bottom = map subst_alt alts_unsubst
 
         HaltConf{..} <- asks conf
 
@@ -83,22 +85,33 @@ trCase e = case e of
                     tr_scrut <- trExpr scrutinee
                     let constr = min' lhs : tr_constr
                     qvars <- asks quant
-                    return [ forall' qvars $ constr ===> min' tr_scrut
-                           | use_min ]
+                    return [ forall' qvars $ constr ===> min' tr_scrut | use_min ]
 
-        -- Translate the alternatives (mutually recursive with this
-        -- function)
+        -- Add a bottom case
+        alts' <- addBottomCase alts_wo_bottom
+
+        -- If there is a default case, translate it separately
+        (alts,def_formula) <- case alts' of
+
+             (DEFAULT,[],def_expr):alts -> do
+
+                 -- Collect the negative patterns
+                 let neg_constrs = map (invertAlt scrutinee) alts
+
+                 -- Translate the default formula which happens on the negative
+                 -- constraints
+                 def_formula' <- local (\env -> env { constr = neg_constrs ++ constr env })
+                                       (trCase def_expr)
+
+                 return (alts,def_formula')
+
+             alts -> return (alts,[])
+
+        -- Translate the alternatives that are not deafult
+        -- (mutually recursive with this function)
         alt_formulae <- concatMapM (trAlt scrutinee) alts
 
-        -- Collect the negative patterns
-        let neg_constrs = map (invertAlt scrutinee) alts
-
-        -- Translate the default formula which happens on the negative
-        -- constraints
-        def_formula <- local (\env -> env { constr = neg_constrs ++ constr env })
-                             (trCase def_expr)
-
-        return ((use_min ? (min_formula ++)) (alt_formulae ++ def_formula))
+        return (min_formula ++ alt_formulae ++ def_formula)
     _ -> do
         HaltEnv{current_fun,quant} <- ask
         HaltConf{..} <- asks conf
@@ -109,7 +122,8 @@ trCase e = case e of
             Just tr_constr -> do
                 lhs <- trLhs
                 rhs <- trExpr e
-                return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
+                return [forall' quant $
+                          [ min' lhs | use_min ] ++ tr_constr ===> lhs === rhs]
 
 
 trLhs :: HaltM VarTerm

@@ -11,7 +11,7 @@ import TyCon
 import Halt.FOL.Abstract
 
 import Halt.PrimCon
-
+import Halt.Conf
 
 import Data.List
 import Control.Monad.Reader
@@ -29,8 +29,8 @@ dataArities ty_cons =
 -- | Makes projection/injectivity axioms
 --   TODO : Fix this code copy with mkDiscrim and translate.arities
 --          and with trCase.
-mkProjs :: [TyCon] -> [AxClause]
-mkProjs ty_cons = do
+mkProjs :: HaltConf -> [TyCon] -> [AxClause]
+mkProjs HaltConf{..} ty_cons = do
    DataTyCon cons _ <- map algTyConRhs ty_cons
    c <- cons
    let data_con        = dataConWorkId c
@@ -43,13 +43,14 @@ mkProjs ty_cons = do
 
    return $ Clause Axiom "proj" $
               forall' names $
-                min' unproj ==> proj i data_con unproj === qvar (names !! i)
+                [ min' unproj | use_min ] ===> proj i data_con unproj === qvar (names !! i)
 
 -- | Make discrimination axioms
-mkDiscrim :: [TyCon] -> [AxClause]
-mkDiscrim ty_cons = do
+mkDiscrim :: HaltConf -> [TyCon] -> [AxClause]
+mkDiscrim HaltConf{..} ty_cons = do
    DataTyCon cons _ <- map algTyConRhs ty_cons
-   let allcons = map ((,) True) cons ++ map ((,) False) [primCon BAD,primCon UNR]
+   let allcons = map ((,) True) cons
+              ++ concat [ map ((,) False) [primCon BAD,primCon UNR] | unr_and_bad ]
    (c,unequals) <- zip cons (drop 1 $ tails allcons)
    (need_min,uneq_c) <- unequals
    let data_c          = dataConWorkId c
@@ -68,11 +69,11 @@ mkDiscrim ty_cons = do
 
    return $ Clause Axiom "discrim" $
               forall' (names ++ uneq_names) $
-                 ([min' lhs] ++ [ min' rhs | need_min ]) ===> lhs =/= rhs
+                 ([min' lhs | use_min ] ++ [ min' rhs | need_min && use_min ]) ===> lhs =/= rhs
 
 -- | Make axioms about CF
-mkCF :: [TyCon] -> [AxClause]
-mkCF ty_cons = concat $ do
+mkCF :: HaltConf -> [TyCon] -> [AxClause]
+mkCF HaltConf{..} ty_cons | use_cf = concat $ do
     DataTyCon cons _ <- map algTyConRhs ty_cons
     c <- cons
     let data_c          = dataConWorkId c
@@ -84,7 +85,7 @@ mkCF ty_cons = concat $ do
 
     return $
       (Clause Axiom "assemblecf" $ forall' vars $
-          min' kxbar : map cf xbar ===> cf kxbar)
+          [ min' kxbar | use_min ] ++ map cf xbar ===> cf kxbar)
       :
       (guard (arity > 0) >>
          [ Clause Axiom "disassemblecf" $ forall' vars $
@@ -92,19 +93,20 @@ mkCF ty_cons = concat $ do
 
 
          , Clause Axiom "disassemblencf" $ forall' vars $
-              [ min' kxbar , neg (cf kxbar) ] ===>
+              [ min' kxbar | use_min ] ++ [ neg (cf kxbar) ] ===>
                    ors [ min' x /\ neg (cf x) | x <- xbar ]
          ])
+mkCF _ _ = []
 
-axiomsBadUNR :: [AxClause]
-axiomsBadUNR =
-    [ Clause Axiom "cfunr"  $ cf (constant UNR)
-    , Clause Axiom "ncfbad" $ neg (cf (constant BAD))
-    , Clause Axiom "minbad" $ min' (constant BAD)
-    , Clause Axiom "cfmin"  $ forall' [x] (cf (qvar x) ==> min' (qvar x))
-    ]
-  where
-    x = head varNames
+axiomsBadUNR :: HaltConf -> [AxClause]
+axiomsBadUNR HaltConf{..} | unr_and_bad =
+       [ Clause Axiom "cfunr"  $ cf (constant UNR) | use_cf ]
+    ++ [ Clause Axiom "ncfbad" $ neg (cf (constant BAD)) | use_cf  ]
+    ++ [ Clause Axiom "discr"  $ constant UNR =/= constant BAD ]
+    ++ [ Clause Axiom "cfmin"  $ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min && use_cf ]
+    ++ [ Clause Axiom "minbad" $ min' (constant BAD) | use_min ]
+  where x = head varNames
+axiomsBadUNR _ = []
 
 -- | A bunch of variable names to quantify over
 varNames :: [Int]

@@ -13,7 +13,7 @@ strStyle cnf = Style
     , linMin  = text "min"
     , linCF   = text "cf"
     , linProj = \i n -> text (n ++ "_" ++ show i)
-    -- ^ Possible collision here...
+       -- Possible collision here...
     , linPtr  = text . ("ptr" ++)
     , linCNF  = cnf
     , linConstant = text . show

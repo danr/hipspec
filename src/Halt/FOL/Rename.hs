@@ -78,14 +78,13 @@ renameQVar suggest clause =
         quants = allQuant clause
 
         rep_map :: Map q String
-        rep_map = B.toMap (foldr (allot suggest
-                                        (symbols `S.union` protectedWiredIn))
+        rep_map = B.toMap (foldr (allot suggest (symbols `S.union` protectedWiredIn))
                                  B.empty quants)
 
         replace :: q -> String
         replace q = case M.lookup q rep_map of
                         Just s  -> s
-                        Nothing -> error $ "renameQVar: elt not renamed!"
+                        Nothing -> error $ "renameQVar: quantified variable not renamed!"
 
     in  clauseMapTerms (replaceQVarsTm replace) replace clause
 

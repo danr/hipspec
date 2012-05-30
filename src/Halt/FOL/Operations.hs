@@ -62,11 +62,16 @@ allSymbols = nubOrd . mapMaybe get . universeBi
     get _            = Nothing
 
 allQuant :: forall f q v . (Data (f q v),Data q,Data v,Ord q) => f q v -> [q]
-allQuant = nubOrd . mapMaybe get . universeBi
+allQuant phi = nubOrd (mapMaybe getTm (universeBi phi)
+                    ++ concatMap getFm (universeBi phi))
   where
-    get :: Term q v -> Maybe q
-    get (QVar v) = Just v
-    get _        = Nothing
+    getTm :: Term q v -> Maybe q
+    getTm (QVar v) = Just v
+    getTm _        = Nothing
+
+    getFm :: Formula q v -> [q]
+    getFm (Forall qs _) = qs
+    getFm _             = []
 
 substVars :: forall f q v . (Data (f q v),Data q,Data v,Eq v)
           => v -> v -> f q v -> f q v
