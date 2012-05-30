@@ -7,6 +7,12 @@ programs to first order theories. Induction is applied on the meta
 level, and proof search is carried out by automated theorem provers
 for first order logic with equality.
 
+Exprimental version
+===================
+
+The `master` branch of this repository is still experimental. The old
+version is in the `src-exts` branch.
+
 Installation instructions
 =========================
 
@@ -37,8 +43,6 @@ You will need to install at least one or more of the following theorem provers:
 
   * [SPASS](http://www.spass-prover.org/)
 
-  * [prover9](http://www.cs.unm.edu/~mccune/prover9/)
-
   * [equinox](https://github.com/nick8325/equinox)
 
 Options and flags
@@ -59,7 +63,7 @@ prover:
    * **`v`**: vampire 32 bit
    * **`V`**: vampire 64 bit
    * **`s`**: SPASS
-   * **`x`**: equivox
+   * **`x`**: equinox
 
 You can specify many at the same time, i.e. `--provers=zevs`, which
 will run z3, E prover, vampire 32-bit and SPASS, in that order, on
@@ -91,12 +95,12 @@ Consistency
 
 Doubting the consistency of the theories that are generated? Run with
 the `--consistency` flag (for short, `-c`), which will let the theorem
-provers try to find a contradiction without any negated properties.
+provers try to find a contradiction without any properties.
 
-Output theory
--------------
+Output TPTP
+-----------
 
-Should you wish to inspect the generated theory, you can use
+Should you wish to inspect the generated tptp theory, you can use
 `--output` and make a `proving/` directory. Then all relevant `.tptp`
 files will be put there for you to view.
 
