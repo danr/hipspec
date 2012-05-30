@@ -1,0 +1,1096 @@
+\documentclass[serif,professionalfont]{beamer}
+\def\maindocument{} % To tell tikz images that they are not stand alone
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,calc}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{mathpartir}
+\usepackage{color}
+\tolerance=1000
+\usepackage{palatino,inconsolata,amsmath,array}
+\providecommand{\alert}[1]{\textbf{#1}}
+
+\definecolor{Purpleee}{RGB}{140,20,140}
+\setbeamercolor{title}{fg=Purpleee}
+\setbeamercolor{frametitle}{fg=Purpleee}
+\setbeamercolor{structure}{fg=Purpleee}
+
+\usepackage{listings}
+
+\lstnewenvironment{code}[1][]%
+  {
+   \noindent
+   \minipage{\linewidth}
+   \vspace{0.2\baselineskip}
+%   \vspace{-0.4\baselineskip}
+   \lstset{basicstyle=\ttfamily,
+%           frame=single,
+           language=Haskell,
+           keywordstyle=\color{black},
+           #1}}
+  {%\vspace{-0.8\baselineskip}
+   \endminipage}
+
+\title{HipSpec}
+\author{Dan Rosén}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+
+\makeatletter
+\newcommand*{\rom}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@.}}
+\newcommand*{\romnodot}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@}}
+\makeatother
+
+%\newcommand\note[1]{\mbox{}\marginpar{\footnotesize\raggedright\hspace{0pt}\emph{#1}}}
+%\newcommand\note[1]{}
+\newcommand\PA{\mathcal{P\!A}}
+\newcommand\hs[1]{\verb~#1~}
+\newcommand\ts[1]{\verb~#1~}
+\newcommand\fn[1]{\mathrm{#1}}
+%\newcommand\fn[1]{#1}
+\newcommand\ptr[1]{\fn{\operatorname{#1-ptr}}}
+\newcommand\appfn{@}
+\newcommand\app[2]{#1 \, \appfn \, #2}
+\newcommand\appp[2]{(#1) \, \appfn \, #2}
+\newcommand\ex[1]{\exists \, #1 \, . \,}
+\newcommand\nexxx[3]{\nexists \, #1 , #2 , #3 . \,}
+\newcommand\fa[1]{} % \forall \, #1 . \,}
+\newcommand\faa[2]{} % \forall \, #1 , #2 . \,}
+\newcommand\faaa[3]{} % \forall \, #1 , #2 , #3 . \,}
+\newcommand\faaaaaa[6]{} % \forall \, #1 , #2 , #3 , #4 , #5 , #6 . \,}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}%\usetikzlibrary {\trees,positioning,arrows}
+
+\newcommand\fixb[0]{ ^{\bullet}}
+\newcommand\fixw[0]{ ^{\circ}}
+
+\newcommand\tofix[1]{#1^{\bullet}}
+\newcommand\unfix[1]{#1^{\circ}}
+
+\newcommand\append[0]{\texttt{\small{++}}}
+
+\newcommand{\xsys}[2]{#1 \, xs \, #2 & = #1 \, ys #2}
+\newcommand{\desca}[1]{  & \hspace{44.5mm}                            \{ \text{#1} \}}
+\newcommand{\descra}[1]{ & \hspace{35mm} \Rightarrow     \hspace{4mm} \{ \text{#1} \}}
+\newcommand{\descla}[1]{ & \hspace{35mm} \Leftarrow      \hspace{4mm} \{ \text{#1} \}}
+\newcommand{\desclra}[1]{& \hspace{35mm} \Leftrightarrow \hspace{4mm} \{ \text{#1} \}}
+
+\newcommand\lub[1]{\sqcup_{#1}}
+
+\newcommand\defof[1]{definition of #1}
+
+\newcommand\w[0]{\,\,}
+\newcommand\eq[0]{ = }
+
+\newcommand{\defBNF}[4] {\text{#1}\quad&#2&::=&\;#3&\text{#4}}
+\newcommand{\defaltBNF}[2] {&&|&\;#1&\text{#2}}
+
+\newcommand{\hstup}[2]{\hs{(} #1 \hs{,} #2 \hs{)}}
+
+\newcommand{\nsqsubseteq}{\,\,\, /\!\!\!\!\!\!\sqsubseteq}
+
+\newcommand{\bindname}{>\!\!>\!\!=}
+\newcommand{\bind}[2]{#1 \bindname #2}
+\newcommand{\bindp}[3]{\fn{bind'}(#1,#2,#3)}
+\newcommand{\fork}[2]{\fn{fork}(#1,#2)}
+\newcommand{\forkr}[1]{\fn{right}(#1)}
+\newcommand{\forkl}[1]{\fn{left}(#1)}
+\newcommand{\leaf}[1]{\fn{leaf}(#1)}
+\newcommand{\unleaf}[1]{\fn{unleaf}(#1)}
+\newcommand{\return}[1]{\fn{return}(#1)}
+
+\newcommand{\bindb}[2]{#1 \tofix{\bindname} #2}
+\newcommand{\bindw}[2]{#1 \unfix{\bindname} #2}
+
+
+\newcommand\Inf{\fn{Inf}}
+\newcommand\Total{\fn{Total}}
+\newcommand\Fin{\fn{Fin}}
+
+\begin{frame}
+  \frametitle{HipSpec is based on...}
+
+  \begin{center}
+  {\Large Hip: the Haskell Inductive Prover}
+
+  \vspace{2\baselineskip}
+
+  Master's Thesis
+
+  \vspace{2\baselineskip}
+
+  Supervisor: Koen Claessen
+
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{HipSpec}
+
+  \begin{center}
+  {\Large HipSpec}
+
+  \vspace{2\baselineskip}
+
+  Our new tool
+
+  Combines Hip with QuickSpec to speculate lemmas
+
+  \vspace{2\baselineskip}
+
+  Koen Claessen, Moa Johansson,
+
+  Nick Smallbone, \textbf{Dan Ros\'en}
+
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{HipSpec overview}
+\input{hipspec-picture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Evaluation}
+
+  Two test suites
+
+  \begin{itemize}
+
+    \item \textbf{A}: From
+      \emph{Productive Use of Failure in Inductive Proof}
+      by Bundy and Ireland (1995)
+
+    \item \textbf{B}: From
+      \emph{Case-Analysis for Rippling and Inductive Proof}
+      by Johansson, Dixon and Bundy (2010)
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Results}
+
+  \textbf{A}: 50 theorems, 38 equational. HipSpec proves 36.
+
+  \vspace{\baselineskip}
+
+  Unproved:
+  \begin{center}
+  \begin{tabular}{>{\small}c >{\small}l}
+  No  & Conjecture \\
+  \hline
+  T14 & \verb!ordered (isort xs) = True! \\
+  T50 & \verb!count x (isort xs) = count x xs! \\
+  \end{tabular}
+  \end{center}
+
+  \pause
+
+  \textbf{B}: 85 theorems, 71 equational. HipSpec proves 67.
+
+  \vspace{\baselineskip}
+
+  Unproved:
+  \begin{center}
+  \begin{tabular}{>{\small}c >{\small}l}
+   No & Conjecture \\
+   \hline
+   53 & \verb!count n xs                  = count n (sort xs)! \\
+   66 & \verb!len (filter p xs) <= len xs = True! \\
+   68 & \verb!len (delete n xs) <= len xs = True! \\
+   78 & \verb!sorted (sort xs)            = True! \\
+  \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Results, Test Suite B continued}
+
+  \begin{center}
+  \begin{tabular}{l l}
+    Tool       & Proved conjectures (of 85) \\
+    \hline
+    Zeno       & 82 \\[3pt]
+    ACL2s      & 74 \\[3pt]
+    IsaPlanner & 47 \\[3pt]
+    Dafny      & 45 \\[3pt]
+    HipSpec    & 67 (of 71)
+  \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Test Suite B, continued}
+  Two properties only proved by HipSpec!
+  \begin{center}
+  \begin{tabular}{>{\small}c >{\small}l}
+   No & Conjecture \\
+   \hline
+  72 & \verb!rev (drop i xs) = take (len xs - i) (rev xs)! \\
+  74 & \verb!rev (take i xs) = drop (len xs - i) (rev xs)! \\
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Proof: \Large\texttt{rev (drop i xs) = take (len xs-i) (rev xs)}}
+  \begin{center}
+  \begin{tabular}{>{\small}c >{\small}l}
+   No & Conjecture \\
+   \hline
+  1 & \verb!len (drop x xs) = len xs-x!               \\[-1pt]
+  2 & \verb!len xs          = len (rev xs)!           \\[-1pt]
+  3 & \verb!xs              = take x xs++drop x xs!   \\[-1pt]
+  4 & \verb!rev (ys++xs)    = rev xs++rev ys!         \\[-1pt]
+  5 & \verb!xs              = take (len xs) (xs++ys)!
+  \end{tabular}
+  \end{center}
+
+  \begin{align*}
+  & \hspace{-2em} \small \hs{rev (drop x xs)}                                                   & \small = \left\{ 5 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len (rev (drop x xs))) (rev (drop x xs)++rev (take x xs))}   & \small = \left\{ 2 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len (drop x xs)) (rev (drop x xs)++rev (take x xs))}         & \small = \left\{ 1 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-x) (rev (drop x xs)++rev (take x xs))}                & \small = \left\{ 4 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-x) (rev (take x xs++drop x xs))}                      & \small = \left\{ 3 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-x) (rev xs)}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Current Limitations/Future Work}
+
+  \begin{itemize}
+
+    \item Conditional properties \pause
+
+    \item Irrelevant lemmas \pause
+
+    \item Number of functions in the module \pause
+
+    \item Expensive computations \pause
+
+    \item Number of variables \pause
+
+    \item Non-termination \pause
+
+    \item Feedback on Failure
+
+  \end{itemize}
+
+\end{frame}
+
+
+
+
+
+
+
+
+
+
+\begin{frame}
+  \frametitle{Behind the Scenes}
+%  \begin{itemize}
+%    \item Translation to first order logic\\
+%    \item Trying different induction techniques\\
+%    \item Running automated theorem provers\\
+%  \end{itemize}
+\end{frame}
+
+%\begin{frame}
+%\frametitle{Overview}
+%
+%Add an overview picture of the project. Highlight the parts that
+%
+%\begin{itemize}
+%\item The programmer supplies (source + properties)
+%\item What my tool does (translation, instantiating, displaying results)
+%\item ATPs job
+%\end{itemize}
+%
+%It is possible that this picture could make the previous slide superfluous
+%
+%\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Translation of bind}
+\label{sec-2}
+
+\begin{code}
+Fork u v >>= f = Fork (u >>= f) (v >>= f)
+Leaf x   >>= f = f x
+\end{code}
+
+\begin{align*}
+\onslide<2->{\rom{1} &&& \bind{\fork{u}{v}}{f} = \fork{\bind{u}{f}}{\bind{v}{f}}} \\
+\onslide<3->{\rom{2} &&& \bind{\leaf{x}}{f}    = \app{f}{x}} \\
+\onslide<5->{\rom{3} &&& t \neq \fork{\forkl{t}}{\forkr{t}} \wedge t \neq\leaf{\unleaf{t}} \rightarrow \bind{t}{f} = \bot}
+\end{align*}
+
+\begin{align*}
+\onslide<4->{\rom{4} &&& \leaf{x}    \neq \fork{u}{v}} & \onslide<7->{\rom{7} &&& \forkl{\fork{u}{v}} = u}\\
+\onslide<6->{\rom{5} &&& \leaf{x}    \neq \bot       } & \onslide<7->{\rom{8} &&& \forkr{\fork{u}{v}} = v}\\
+\onslide<6->{\rom{6} &&& \fork{u}{v} \neq \bot       } & \onslide<7->{\rom{9} &&& \unleaf{\leaf{x}}   = x}
+\end{align*}
+\end{frame}
+
+%% Describe this better
+
+\begin{frame}[fragile]
+\frametitle{Function pointers}
+\begin{center}
+$\rom{2} \quad \faa{x}{f} \bind{\leaf{x}}{f} = \app{f}{x}$
+
+\vspace{2\baselineskip}
+\end{center}
+For each function in the theory, make a new constant
+representing the function with an axiom:
+\begin{center}
+\begin{align*}
+\app{\ptr{return}}{x}         & = \fn{return}(x) \\
+\appp{\app{\ptr{bind}}{t}}{f} & = \bind{t}{f}
+\end{align*}
+
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Limitations in the Haskell translation}
+  \begin{itemize}
+    \item Difficult
+      \begin{itemize}
+        \item Type classes \\
+        \item Built-in types (\hs{Integer}, \hs{Int}, \hs{Char} $\ldots$)
+      \end{itemize}
+    \item Sugar etc
+      \begin{itemize}
+        \item list comprehensions \\
+        \item \hs{do}-notation \\
+        \item no \hs{seq}
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+%% Remove domino slide
+%
+%\begin{frame}
+%  \frametitle{Induction}
+%  \begin{center}
+%    \includegraphics[height=6cm]{dominofalling} \\
+%  \end{center}
+%\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Supported Techniques}
+\label{sec-4}
+\begin{itemize}
+
+\item Plain Equality \\
+\item Structural Induction \\
+\item Fixed Point Induction \\
+\item Approximation Lemma
+
+%\item Structural Induction\\
+%\begin{code}
+%prop_return_right t = t >>= return =:= t
+%\end{code}
+%
+%\pause
+%
+%\item Approximation Lemma\\
+%\begin{code}
+%prop_return_left f x = return x >>= f =:= f x
+%\end{code}
+%
+%\pause
+%
+%\item Fixed Point Induction\\
+%\begin{code}
+%prop_assoc t f g = (t >>= f) >>= g =:=
+%                   t >>= (\x -> f x >>= g)
+%\end{code}
+
+\end{itemize} % ends low level
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Plain Equality Example}
+
+\begin{code}
+return x >>= f =:= f x
+\end{code}
+
+\begin{align*}
+lhs = & \; \bind{\return{x}}{f}        \\
+    = & \; \bind{\leaf{x}}{f}          \\
+    = & \; f @ x                       \\
+    = & \; rhs
+\end{align*}
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Structural Induction Example}
+
+\begin{mathpar}
+  \inferrule*
+    {
+      P(\leaf{x})
+      \and
+      P(u)\wedge P(v)\rightarrow P(\fork{u}{v})
+    }
+    { P(t) }
+\end{mathpar}
+
+\pause
+
+\begin{code}
+t >>= return =:= t
+\end{code}
+
+We define $P$ as:
+
+$$P(t) \Leftrightarrow \bind{t}{\ptr{return}} = t$$
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Structural Induction Example}
+
+\begin{code}
+t >>= return =:= t
+\end{code}
+
+\vspace{2\baselineskip}
+
+Case $\leaf{x}$:
+
+\begin{align*}
+lhs = & \; \bind{\leaf{x}}{\ptr{return}} \\
+    = & \; \app{\ptr{return}}{x}         \\
+    = & \; \return{x}                    \\
+    = & \; \leaf{x}                      \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Structural Induction Example}
+
+\begin{code}
+t >>= return =:= t
+\end{code}
+
+\vspace{2\baselineskip}
+
+Case $\fork{u}{v}$:
+
+\vspace{1\baselineskip}
+
+Hypotheses: $\bind{u}{\ptr{return}} = u$ and $\bind{v}{\ptr{return}} = v$
+
+\begin{align*}
+lhs = & \; \bind{\fork{u}{v}}{\ptr{return}}                      \\
+    = & \; \fork{\bind{u}{\ptr{return}}}{\bind{v}{\ptr{return}}} \\
+    = & \; \fork{u}{v}                                           \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Structural Induction for Infinite Values}
+
+\begin{code}
+t >>= return =:= t
+\end{code}
+
+\vspace{1\baselineskip}
+
+But, if we also show the $\bot$ case...
+
+$$\bind{\bot}{\ptr{return}} = \bot$$
+
+\vspace{1\baselineskip}
+
+By a theorem from domain theory then it holds for \emph{infinite trees}:
+
+\begin{mathpar}
+  \inferrule*
+    {
+      P(\bot)
+      \and
+      P(\leaf{x})
+      \and
+      P(u)\!\wedge\!P(v)\!\!\rightarrow\!\!P(\fork{u}{v})
+      \and
+      P \, \mathrm{admissible}
+    }
+    { P(t) }
+\end{mathpar}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Fixed Point Induction}
+\begin{code}
+bind' b (Fork u v) f = Fork (b u f) (b v f)
+bind' b (Leaf x)   f = f x
+\end{code}
+
+\hs{(>>=) = fix bind'}
+
+\pause
+
+\begin{mathpar}
+  \inferrule*
+    {
+      P(\bot)
+      \\
+      P(x) \rightarrow P(f \w x)
+      \\
+      P \, \mathrm{admissible}
+    }
+    { P(\fn{fix} \w f) }
+\end{mathpar}
+
+\pause
+
+$$\bindp{b}{\fork{u}{v}}{f} = \fork{\appp{\app{b}{u}}{f}}{\appp{\app{b}{v}}{f}}$$
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Fixed Point Induction Redux}
+
+\begin{code}[mathescape]
+Fork u v >>=$\fixb$ f = Fork (u >>=$\fixw$ f) (v >>=$\fixw$ f)
+Leaf x   >>=$\fixb$ f = f x
+\end{code}
+
+\begin{mathpar}
+  \inferrule*
+     {
+       P(\bot)
+       \\
+       P(\unfix{\bindname}) \rightarrow P(\tofix{\bindname})
+       \\
+       P \, \mathrm{admissible}
+     }
+     { P(\bindname) }
+\end{mathpar}
+
+\pause
+
+\begin{code}
+(t >>= f) >>= g =:= t >>= (\x -> f x >>= g)
+\end{code}
+
+Define $P$:
+
+$$P(h) :\Leftrightarrow \bind{h(t,f)}{g} = h(t,\lambda x . \bind{\app{f}{x}}{g})$$
+
+\end{frame}
+
+\newcommand\lamptr[2]{(\appp{\app{\ptr{lam}}{#1}}{#2})}
+\newcommand\lam[3]{\fn{lam}(#1, \, #2, \, #3)}
+
+\begin{frame}[fragile]
+\frametitle{Bind Associativity with Fixed Point Induction}
+
+\begin{code}
+(t >>= f) >>= g =:= t >>= (\x -> f x >>= g)
+\end{code}
+
+
+To show:
+
+$$\bind{(\bindb{t}{f})}{g} = \bindb{t}{\lamptr{f}{g}}$$
+
+where
+
+$$\lam{f}{g}{x} = \bind{\app{f}{x}}{g}$$
+
+\pause
+
+\vspace{2\baselineskip}
+
+Cases: $t$ is one of $\bot$, $\leaf{x}$, $\fork{u}{v}$
+\pause
+
+\vspace{2\baselineskip}
+
+$t \neq \fork{\forkl{t}}{\forkr{t}} \wedge t \neq\leaf{\unleaf{t}} \rightarrow \bindb{t}{f} = \bot$
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bind Associativity with Fixed Point Induction}
+
+Case $\bot$. To show:
+$$\bind{(\bindb{\bot}{f})}{g} = \bindb{\bot}{\lamptr{f}{g}}$$
+
+\begin{align*}
+lhs = & \; \bind{(\bindb{\bot}{f})}{g} \\
+    = & \; \bind{\bot}{g}              \\
+    = & \; \bot                        \\
+    = & \; \bindb{\bot}{\lamptr{f}{g}} \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bind Associativity with Fixed Point Induction}
+
+Case $\leaf{x}$. To show:
+$$\bind{(\bindb{\leaf{x}}{f})}{g} = \bindb{\leaf{x}}{\lamptr{f}{g}}$$
+
+where
+$$\lam{f}{g}{x} = \bind{\app{f}{x}}{g}$$
+
+\begin{align*}
+lhs = & \; \bind{(\bindb{\leaf{x}}{f})}{g} \\
+    = & \; \bind{\app{f}{x}}{g}            \\
+    = & \; \lam{f}{g}{x}              \\
+    = & \; \app{\lamptr{f}{g}}{x}          \\
+    = & \; \bindb{\leaf{x}}{\lamptr{f}{g}} \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bind Associativity with Fixed Point Induction}
+
+Case $\fork{u}{v}$. To show:
+$$\bind{(\bindb{\fork{u}{v}}{f})}{g} = \bindb{\fork{u}{v}}{\lamptr{f}{g}}$$
+
+Induction hypothesis:
+$$\bind{(\bindw{t}{f})}{g} = \bindw{t}{\lamptr{f}{g}}$$
+
+
+\begin{align*}
+lhs = & \; \bind{(\bindb{\fork{u}{v}}{f})}{g} \\
+    = & \; \fork{\bind{(\bindw{u}{f})}{g}}{\bind{(\bindw{v}{f})}{g}}\\
+    = & \; \fork{\bindw{u}{\lamptr{f}{g}}}{\bindw{v}{\lamptr{f}{g}}} \\
+    = & \; \bindb{\fork{u}{v}}{\lamptr{f}{g}} \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+%\begin{frame}[fragile]
+%\frametitle{Approximation Lemma - iterate}
+%
+%\begin{code}
+%iterate f x = x : iterate f (f x)
+%\end{code}
+%
+%\begin{code}
+%iterate (^2) 1 = 1 : 2 : 4 : 8 : 16 : ...
+%\end{code}
+%
+%\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bind Associativity with Fixed Point Induction}
+
+We have shown
+\begin{align*}
+&\bind{(\bindw{t}{f})}{g} = \bindw{t}{\lamptr{f}{g}} \rightarrow \\
+&\bind{(\bindb{t}{f})}{g} = \bindb{t}{\lamptr{f}{g}}
+\end{align*}
+
+Base case is trivial
+$$\bind{\bot}{g} = \bot(\lamptr{f}{g})$$
+
+Fixed Point Induction gives
+$$\bind{(\bind{t}{f})}{g} = \bind{t}{\lamptr{f}{g}}$$
+
+\begin{code}
+(t >>= f) >>= g =:= t >>= (\x -> f x >>= g)
+\end{code}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Approximation Lemma - map-iterate}
+
+\pause
+
+\begin{code}
+map f (iterate f x) =:= iterate f (f x)
+\end{code}
+
+\begin{code}
+approx :: Nat -> [a] -> [a]
+approx (1 + n) []     = []
+approx (1 + n) (x:xs) = x : approx n xs
+\end{code}
+
+\pause
+
+To show $xs = ys$, use induction over $\mathbb{N}$ to prove
+
+$$\fa{n}\fn{approx}(n,xs) = \fn{approx}(n,ys)$$
+
+\pause
+
+\begin{code}
+ind :: [a] -> [a]
+ind []     = []
+ind (x:xs) = x : ind xs
+\end{code}
+
+Now we can use Fixed Point Induction!
+
+\end{frame}
+
+\newcommand\iter[2]{\fn{iterate}(#1,\,#2)}
+\newcommand\map[2]{\fn{map}(#1,\,#2)}
+\newcommand\appw[1]{\fn{\unfix{ind}}(#1)}
+\newcommand\appb[1]{\fn{\tofix{ind}}(#1)}
+
+\begin{frame}[fragile]
+\frametitle{Approximation Lemma - map-iterate}
+
+\small{
+\begin{code}[mathescape]
+ind$\fixb$ :: [a] -> [a]
+ind$\fixb$ []     = []
+ind$\fixb$ (x:xs) = x : ind$\fixw$ xs
+\end{code}
+}
+
+$$\map{f}{\iter{f}{x}} = \iter{f}{\app{f}{x}}$$
+
+\pause
+
+Induction hypothesis:
+$$\appw{\map{f}{\iter{f}{x}}} = \appw{\iter{f}{\app{f}{x}}}$$
+
+\pause
+
+\begin{align*}
+lhs = & \; \appb{\map{f}{\iter{f}{x}}} \\
+    = & \; \appb{\map{f}{x:\iter{f}{\app{f}{x}}}}\\
+    = & \; \appb{\app{f}{x} : \map{f}{\iter{f}{\app{f}{x}}}}\\
+    = & \; \app{f}{x} : \appw{\map{f}{\iter{f}{\app{f}{x}}}}\\
+    = & \; \app{f}{x} : \appw{\iter{f}{\app{f}{(\app{f}{x})}}}\\
+    = & \; \appb{\app{f}{x} : \iter{f}{\app{f}{(\app{f}{x})}}}\\
+    = & \; \appb{\iter{f}{\app{f}{x}}} \\
+    = & \; rhs
+\end{align*}
+
+\end{frame}
+
+%% DRAW THIS
+
+\begin{frame}[fragile]
+\frametitle{Test Suite}
+\begin{table}[p]
+\centering
+%\input{testsuite}
+\end{table}
+\end{frame}
+
+
+%%% REWRITE
+
+\begin{frame}
+\frametitle{Results}
+\label{sec-5}
+
+540 properties in the test suite
+
+\begin{itemize}
+\item 214 Theorems
+      \begin{itemize}
+      \item Definitional Equality: 74
+      \item Structural Induction:  124
+      \item Approximation Lemma:   145
+      \item Fixed Point Induction: 26
+      \end{itemize}
+\item 111 Finite Theorems
+\end{itemize}
+
+%\begin{tabular}{ >{\small}r@{/}>{\small}l | >{\small}r@{/}>{\small}l | >{\small}r@{/}>{\small}l | >{\small}r@{/}>{\small}l | >{\small}r@{/}>{\small}l || >{\small}r@{/}>{\small}l }
+%\multicolumn{2}{>{\small}l|}{Theorem} & \multicolumn{2}{>{\small}l|}{plain} & \multicolumn{2}{>{\small}l|}{induction} & \multicolumn{2}{>{\small}l|}{approx} & \multicolumn{2}{>{\small}l||}{fixpoint} & \multicolumn{2}{>{\small}l}{Finite Thm.}  \\
+%214&540 & 74&214 & 124&214 & 145&214 & 26&214 & 111&540 \\
+%\end{tabular}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Future Work: Lemma system - Totality}
+\label{sec-6}
+
+
+\centering
+\hs{data Nat = Succ Nat | Zero}
+
+\vspace{\baselineskip}
+
+\begin{align*}
+\rom{1} &&        & \neg \, \Total(\bot) \\
+\rom{2} &&        & \Total(\fn{zero}) \\
+\rom{3} && \fa{x} & \Total(x) \rightarrow \Total(\fn{succ}(x))
+\end{align*}
+
+\pause
+
+\begin{equation*}
+\faa{x}{y} \Total(x) \wedge \Total(y) \rightarrow x + y = y + x
+\end{equation*}
+\end{frame}
+\begin{frame}
+\frametitle{Future Work: Lemma system - Finiteness}
+\label{sec-7}
+
+
+\begin{center}
+$\fa{xs} \Fin(xs) \rightarrow \fn{reverse}(\fn{reverse}(xs)) = xs$
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Future Work: Lemma system - Infiniteness}
+\label{sec-8}
+
+
+\begin{center}
+$\fa{x} \Inf(x) \leftrightarrow (x = \fn{succ}(x))$
+\end{center}
+
+\vspace{1\baselineskip}
+
+\pause
+
+\begin{center}
+$\Fin(x) \leftrightarrow \Total(x) \wedge \neg \Inf(x)$
+\end{center}
+
+\pause
+
+\begin{align*}
+\rom{1} && \faa{x}{y} & \Fin(x) \wedge \Fin(y)                & \leftrightarrow &&& \Fin(x + y) \\
+\rom{2} && \faa{x}{y} & \Inf(x) \vee (\Fin(x) \wedge \Inf(y)) & \leftrightarrow &&& \Inf(x + y)
+\end{align*}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Future Work: Lemma synthesis from QuickSpec}
+
+\begin{verbatim}
+1: return x := x:[]
+2: x:xs := return x++xs
+== equations ==
+1: x:[] == return x
+2: xs++[] == xs
+3: []++xs == xs
+4: reverse [] == []
+5: (x:xs)++ys == x:(xs++ys)
+6: (xs++ys)++zs == xs++(ys++zs)
+7: reverse (return x) == return x
+8: reverse (reverse xs) == xs
+9: reverse xs++return x == reverse (x:xs)
+10: reverse xs++reverse ys == reverse (ys++xs)
+\end{verbatim}
+\end{frame}
+
+%% MOVE TO END
+\begin{frame}
+  \frametitle{Related Work}
+  \begin{itemize}
+    \item Zeno (Sonnex, Drossopoulou, Eisenbach) {\footnotesize(Imperial College)}
+
+    \item Combining Interactive and Automatic Reasoning about Functional Programs \\
+          (Bove, Dybjer, Sicard)
+    \item Dependently Typed Programming based on Automated Theorem Proving \\
+          (Armstrong, Foster, Struth) {\footnotesize(Univ. of Sheffield)}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Conclusion}
+
+\begin{itemize}
+\item FOL is expressible enough for various Haskell concepts; pattern
+  matching, infinite data structures and higher order functions
+\item Thanks to referential transparency
+\item Possible to prove many properties without proving termination
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Old slides}
+these are slides from the old presentation
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Future Work: GHC Core}
+\label{sec-9}
+\begin{itemize}
+
+\item Mimic GHC Semantics\\
+\label{sec-9-1}%
+\item Type classes and desugaring for free\\
+\label{sec-9-2}%
+\end{itemize} % ends low level
+\end{frame}
+
+\begin{frame}
+\frametitle{Name Contest!}
+\label{sec-11}
+\begin{itemize}
+\item hip - Haskell Inductive Prover\\
+\item auhapp - AUtomated HAskell Property Prover\\
+\item gluppe - GLUppe Proves Properties Equationally\\
+\item glapp - GLapp Automatically Proves Properties\\
+\item herp - Haskell Equational Reasoning Prover\\
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Dictionary passing}
+\label{sec-12}
+
+
+\begin{verbatim}
+class Monoid a where
+  mappend :: a -> a -> a
+  mempty  :: a
+
+mconcat :: Monoid a => [a] -> a
+mconcat = foldr mappend mempty
+\end{verbatim}
+
+\pause
+
+$\Rightarrow$
+
+\begin{verbatim}
+data Monoid a = Monoid { mappend :: a -> a -> a
+                       , mempty  :: a }
+
+mconcat :: Monoid a -> [a] -> a
+mconcat m = foldr (mappend m) (mempty m)
+\end{verbatim}
+\end{frame}
+
+\end{document}
+
+
+%\begin{frame}
+%\frametitle{HALT - HAskell to Logic Translator}
+%target logic is untyped.
+%
+%handle constructors as functions, and use function pointers
+%\end{frame}
+
+
+%\begin{frame}
+%  \frametitle{Motivation}
+%  \begin{itemize}
+%    \item Testing can only show presence of bugs, \\
+%          proving shows absence of bugs
+%    \item Theorem provers are good at proving
+%    \item Infinite values from lazy data structures
+%  \end{itemize}
+%\end{frame}
+
+
+%\begin{frame}
+%  \frametitle{Induction step}
+%  \begin{center}
+%    \includegraphics[height=6cm]{dominostop}
+%  \end{center}
+%\end{frame}
+
+%\begin{frame}[fragile]
+%  \frametitle{Induction Example}
+%  \begin{center}
+%    \begin{verbatim}
+%count :: Nat -> [Nat] -> Nat
+%count n (x:xs) = if n == x then S (count n xs) else count n xs
+%count n []    = Z
+%
+%prop_count :: Nat -> [Nat] -> [Nat] -> Prop Nat
+%prop_count n xs ys
+%  = count n xs + count n ys =:= count n (xs ++ ys)
+%    \end{verbatim}
+%  \end{center}
+%\end{frame}
+%
+%\begin{frame}[fragile]
+%  \frametitle{Infinite Lists}
+%  \begin{verbatim}
+%    natsFrom x = x : natsFrom (S x)
+%  \end{verbatim}
+%
+%  \hs{natsFrom 0} is the infinite list \hs{0 : 1 : 2 : 3 : ...}
+%  \\
+%  How can we prove properties about infinite lists?
+%\end{frame}
+%
+%\begin{frame}
+%  \begin{center}
+%    \includegraphics[height=8cm]{crashpdf}
+%  \end{center}
+%\end{frame}
+%
+%\begin{frame}[fragile]
+%  \frametitle{Crashes}
+%  \begin{center}
+
+
+
+%  \Huge\Huge$$\bot$$
+%  \end{center}
+%  \begin{center}
+%  ``bottom''
+%  \begin{verbatim}
+%         loop = loop
+%         head []
+%         undefined
+%  \end{verbatim}
+%  \end{center}
+%\end{frame}
+
+%\begin{frame}
+%  \frametitle{Properties related to bottom}
+%    \begin{itemize}
+%      \item Monotonicity \\
+%            $$x \sqsubseteq y \rightarrow f(x) \sqsubseteq f(y)$$ \\
+%            $f$ cannot return more information from $\hs{1:}\bot$ than for $\hs{1:[]}$ \\
+%\vspace{0.5cm}
+%      \item Continuity \\
+%            \hs{finite :: [a] -> Bool}
+%  \end{itemize}
+%\end{frame}
+

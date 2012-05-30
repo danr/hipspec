@@ -1,0 +1,19 @@
+
+./Tree -i -c --output
+
+Translation complete. Generating equivalence classes.
+Depth 1: 6 terms, 6 classes, 0 raw equations.
+Depth 2: 12 terms, 9 classes, 3 raw equations.
+Universe has 9 terms.
+Starting to prove...
+Discarding renamings and subsumptions: y = max y y
+[1m[032mProved x = max x x!![0m
+[1m[032mProved max x y = max y x!![0m
+Loop!
+Failed to prove [031minconsistencyCheck[0m.
+[1m[032mProved prop_47!![0m
+Proved: x = max x x,
+	max x y = max y x,
+	prop_47
+Unproved: [031minconsistencyCheck[0m
+3/4

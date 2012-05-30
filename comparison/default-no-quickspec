@@ -1,0 +1,155 @@
+
+./Default -i -c --indvars=3 --inddepth=2 --output
+
+Translation complete. Generating equivalence classes.
+Depth 1: 0 terms, 0 classes, 0 raw equations.
+Depth 2: 0 terms, 0 classes, 0 raw equations.
+Depth 3: 0 terms, 0 classes, 0 raw equations.
+Universe has 0 terms.
+Starting to prove...
+Failed to prove [031minconsistencyCheck[0m.
+[1m[032mProved prop_01!![0m
+[1m[032mProved prop_02!![0m
+[1m[032mProved prop_03!![0m
+[1m[032mProved prop_04!![0m
+[1m[032mProved prop_06!![0m
+[1m[032mProved prop_07!![0m
+[1m[032mProved prop_08!![0m
+[1m[032mProved prop_09!![0m
+[032mProved prop_11 without induction.[0m
+[1m[032mProved prop_10!![0m
+[032mProved prop_13 without induction.[0m
+[1m[032mProved prop_12!![0m
+[1m[032mProved prop_14!![0m
+[032mProved prop_17 without induction.[0m
+[1m[032mProved prop_15!![0m
+[1m[032mProved prop_18!![0m
+[1m[032mProved prop_19!![0m
+Failed to prove prop_20.
+[1m[032mProved prop_21!![0m
+[1m[032mProved prop_22!![0m
+[1m[032mProved prop_23!![0m
+[1m[032mProved prop_24!![0m
+[1m[032mProved prop_25!![0m
+[1m[032mProved prop_28!![0m
+Failed to prove prop_29.
+Failed to prove prop_30.
+[1m[032mProved prop_31!![0m
+[1m[032mProved prop_32!![0m
+[1m[032mProved prop_33!![0m
+[1m[032mProved prop_34!![0m
+[032mProved prop_35 without induction.[0m
+[1m[032mProved prop_36!![0m
+[1m[032mProved prop_37!![0m
+[032mProved prop_39 without induction.[0m
+[032mProved prop_40 without induction.[0m
+Failed to prove prop_38.
+[1m[032mProved prop_41!![0m
+[032mProved prop_42 without induction.[0m
+[032mProved prop_44 without induction.[0m
+[032mProved prop_45 without induction.[0m
+[032mProved prop_46 without induction.[0m
+[1m[032mProved prop_43!![0m
+Failed to prove prop_47.
+[1m[032mProved prop_49!![0m
+[1m[032mProved prop_50!![0m
+[1m[032mProved prop_51!![0m
+Failed to prove prop_52.
+Failed to prove prop_53.
+Failed to prove prop_54.
+[1m[032mProved prop_55!![0m
+[1m[032mProved prop_56!![0m
+[1m[032mProved prop_57!![0m
+[1m[032mProved prop_58!![0m
+[1m[032mProved prop_61!![0m
+[1m[032mProved prop_64!![0m
+Failed to prove prop_65.
+Failed to prove prop_66.
+[1m[032mProved prop_67!![0m
+Failed to prove prop_68.
+Failed to prove prop_69.
+Failed to prove prop_72.
+Failed to prove prop_73.
+Failed to prove prop_74.
+[1m[032mProved prop_75!![0m
+[1m[032mProved prop_79!![0m
+Failed to prove prop_78.
+[1m[032mProved prop_80!![0m
+Failed to prove prop_81.
+[1m[032mProved prop_82!![0m
+Failed to prove prop_83.
+Failed to prove prop_84.
+prop_11, prop_13, prop_17, prop_35, prop_39, prop_40, prop_42, prop_44, prop_45, prop_46 provable without induction
+Proved: prop_01,
+	prop_02,
+	prop_03,
+	prop_04,
+	prop_06,
+	prop_07,
+	prop_08,
+	prop_09,
+	prop_10,
+	prop_12,
+	prop_14,
+	prop_15,
+	prop_18,
+	prop_19,
+	prop_21,
+	prop_22,
+	prop_23,
+	prop_24,
+	prop_25,
+	prop_28,
+	prop_31,
+	prop_32,
+	prop_33,
+	prop_34,
+	prop_36,
+	prop_37,
+	prop_41,
+	prop_43,
+	prop_49,
+	prop_50,
+	prop_51,
+	prop_55,
+	prop_56,
+	prop_57,
+	prop_58,
+	prop_61,
+	prop_64,
+	prop_67,
+	prop_75,
+	prop_79,
+	prop_80,
+	prop_82,
+	prop_11,
+	prop_13,
+	prop_17,
+	prop_35,
+	prop_39,
+	prop_40,
+	prop_42,
+	prop_44,
+	prop_45,
+	prop_46
+Unproved: [031minconsistencyCheck[0m,
+	prop_20,
+	prop_29,
+	prop_30,
+	prop_38,
+	prop_47,
+	prop_52,
+	prop_53,
+	prop_54,
+	prop_65,
+	prop_66,
+	prop_68,
+	prop_69,
+	prop_72,
+	prop_73,
+	prop_74,
+	prop_78,
+	prop_81,
+	prop_83,
+	prop_84
+52/72

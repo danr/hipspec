@@ -1,0 +1,291 @@
+Linking ProductiveUseOfFailure ...
+warning: Nothing produced for declaration:     type Prop a = a
+warning: Nothing produced for declaration:      
+    instance Arbitrary Nat where
+            arbitrary
+              = let nats = iterate S Z in (nats !!) `fmap` choose (0, 25)
+warning: Nothing produced for declaration:     infixl 2 -->
+warning: Nothing produced for declaration:     infix 3 <=>
+warning: Nothing produced for declaration:      
+    instance Classify Nat where
+            type Value Nat = Nat
+            evaluate = return
+Translation complete. Generating equivalence classes.
+Depth 1: 35 terms, 35 classes, 0 raw equations.
+Depth 2: 179 terms, 130 classes, 49 raw equations.
+Depth 3: 11333 terms, 8609 classes, 2724 raw equations.
+Universe has 11323 terms.
+Starting to prove...
+Proved x+y = y+x!!
+Failed to prove double x = x+x.
+Proved [] = drop x [] without induction.
+Proved xs = xs++[]!!
+Failed to prove rev xs = qrev xs [].
+Proved x = x+Z without induction.
+Proved [] = rotate x [] without induction.
+Proved xs = []++xs without induction.
+Proved xs = drop Z xs without induction.
+Proved xs = qrev [] xs without induction.
+Proved xs = rotate Z xs without induction.
+Proved Z = length [] without induction.
+Proved True = even Z without induction.
+Proved Z = half Z without induction.
+Failed to prove drop x (drop y xs) = drop y (drop x xs).
+Proved x+(y+z) = y+(x+z)!!
+Proved x:(xs++ys) = (x:xs)++ys without induction.
+Failed to prove rotate x (rotate y xs) = rotate y (rotate x xs).
+Proved xs++(ys++zs) = (xs++ys)++zs!!
+Proved qrev xs (ys++zs) = qrev xs ys++zs!!
+Proved qrev xs (x:ys) = qrev (x:xs) ys without induction.
+Proved drop x (drop y xs) = drop (x+y) xs!!
+Proved qrev ys (qrev xs zs) = qrev (xs++ys) zs!!
+Proved qrev ys (xs++zs) = qrev (qrev xs ys) zs!!
+Proved length (x:xs) = length (y:xs) without induction.
+Failed to prove rotate x (rotate y xs) = rotate (x+y) xs.
+Proved length (xs++ys) = length (ys++xs)!!
+Failed to prove length (xs++ys) = length (qrev xs ys).
+Interesting candidates: length (xs++ys) = length (qrev xs ys)
+Proved length (xs++ys) = length (qrev xs ys)!!
+Failed to prove length xs = length (rotate x xs).
+Proved S (x+y) = x+S y without induction.
+Proved length (x:xs) = S (length xs) without induction.
+Proved length (xs++xs) = double (length xs)!!
+Proved x = half (double x)!!
+Proved True = even (double x)!!
+Proved [] = drop (length xs) xs!!
+Failed to prove xs = rotate (length xs) xs.
+Proved drop (x+y) (x:xs) = drop (x+y) (y:xs)!!
+Proved drop x xs = drop (S x) (y:xs) without induction.
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (y:xs).
+Failed to prove rotate x (xs++xs) = rotate x xs++rotate x xs.
+Proved ys = drop (length xs) (xs++ys)!!
+Proved ys = drop (length xs) (qrev xs ys) without induction.
+Proved length (xs++ys) = length xs+length ys!!
+Proved ys++xs = rotate (length xs) (xs++ys)!!
+Failed to prove rotate x (drop x xs) = rotate (length xs) (drop x xs).
+Proved Z = half (S Z) without induction.
+Proved y:[] = rotate x (y:[])!!
+Proved False = even (S Z) without induction.
+Failed to prove [] = drop (y+z) (x:[]).
+Discarding 21 renamings and subsumptions.
+Failed to prove xs = rev (rev xs).
+Proved xs = qrev (rev xs) []!!
+Interesting candidates: rev xs = qrev xs []
+Discarding 40 renamings and subsumptions.
+Proved rev xs = qrev xs [] without induction.
+Proved S = (S Z+) without induction.
+Interesting candidates: xs = rev (rev xs)
+Discarding 23 renamings and subsumptions.
+Proved [] = drop (length xs) (drop x xs) without induction.
+Failed to prove [] = drop (length xs) (rotate x xs).
+Discarding 42 renamings and subsumptions.
+Failed to prove [] = drop (y+z) (y:[]).
+Failed to prove [] = drop (y+z) (z:[]).
+Discarding 28 renamings and subsumptions.
+Failed to prove [] = drop (y+z) (Z:[]).
+Proved (x:) = ((x:[])++) without induction.
+Discarding renamings and subsumptions: (y:) = ((y:[])++), (y:) = qrev (y:[]), (z:) = ((z:[])++), (z:) = qrev (z:[])
+Proved (x:) = qrev (x:[]) without induction.
+Proved (xs++) = qrev (rev xs) without induction.
+Discarding 414 renamings and subsumptions.
+Failed to prove rotate x xs = rotate (length xs) (rotate x xs).
+Proved ([]++) = drop Z without induction.
+Discarding 639 renamings and subsumptions.
+Proved ([]++) = rotate Z without induction.
+Proved double (x+y) = (x+y)+(x+y)!!
+Interesting candidates: double x = x+x
+Discarding 329 renamings and subsumptions.
+Failed to prove rotate x (rotate x xs) = rotate (double x) xs.
+Failed to prove rotate (S x) xs = rotate (S Z) (rotate x xs).
+Discarding 140 renamings and subsumptions.
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (z:xs).
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (Z:xs).
+Discarding 6 renamings and subsumptions.
+Failed to prove rotate (x+y) (rotate z xs) = rotate (x+z) (rotate y xs).
+Failed to prove rotate (x+y) (rotate z xs) = rotate (y+z) (rotate x xs).
+Discarding 224 renamings and subsumptions.
+Failed to prove rotate (x+y) (rotate x xs) = rotate (double x) (rotate y xs).
+Failed to prove rotate (x+y) (rotate y xs) = rotate (double y) (rotate x xs).
+Discarding 529 renamings and subsumptions.
+Failed to prove rotate (S x) (rotate y xs) = rotate (S y) (rotate x xs).
+Proved drop x (y:[]) = drop (double x) (y:[])!!
+Interesting candidates: [] = drop (y+z) (x:[]), [] = drop (y+z) (y:[]), [] = drop (y+z) (z:[]), [] = drop (y+z) (Z:[])
+Failed to prove [] = drop (y+z) (x:[]).
+Failed to prove [] = drop (y+z) (y:[]).
+Failed to prove [] = drop (y+z) (z:[]).
+Failed to prove [] = drop (y+z) (Z:[]).
+Discarding 262 renamings and subsumptions.
+Loop!
+Discarding renamings and subsumptions: drop x (drop y xs) = drop y (drop x xs)
+Failed to prove rotate x (rotate y xs) = rotate y (rotate x xs).
+Failed to prove rotate x (rotate y xs) = rotate (x+y) xs.
+Discarding renamings and subsumptions: xs = rotate (length xs) xs
+Failed to prove length xs = length (rotate x xs).
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (y:xs).
+Failed to prove rotate x (xs++xs) = rotate x xs++rotate x xs.
+Failed to prove rotate x (drop x xs) = rotate (length xs) (drop x xs).
+Failed to prove [] = drop (length xs) (rotate x xs).
+Failed to prove rotate x xs = rotate (length xs) (rotate x xs).
+Failed to prove rotate x (rotate x xs) = rotate (double x) xs.
+Failed to prove rotate (S x) xs = rotate (S Z) (rotate x xs).
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (z:xs).
+Failed to prove drop (y+z) (x:xs) = drop (y+z) (Z:xs).
+Failed to prove rotate (x+y) (rotate z xs) = rotate (x+z) (rotate y xs).
+Failed to prove rotate (x+y) (rotate z xs) = rotate (y+z) (rotate x xs).
+Failed to prove rotate (x+y) (rotate x xs) = rotate (double x) (rotate y xs).
+Failed to prove rotate (x+y) (rotate y xs) = rotate (double y) (rotate x xs).
+Failed to prove rotate (S x) (rotate y xs) = rotate (S y) (rotate x xs).
+Failed to prove [] = drop (y+z) (x:[]).
+Failed to prove [] = drop (y+z) (y:[]).
+Failed to prove [] = drop (y+z) (z:[]).
+Failed to prove [] = drop (y+z) (Z:[]).
+Failed to prove inconsistencyCheck.
+Proved prop_T2 without induction.
+Proved prop_T1!!
+Proved prop_T3 without induction.
+Proved prop_T4 without induction.
+Proved prop_T5 without induction.
+Proved prop_T6 without induction.
+Proved prop_T7 without induction.
+Proved prop_T8 without induction.
+Proved prop_T9 without induction.
+Proved prop_T10 without induction.
+Proved prop_T11 without induction.
+Proved prop_T12 without induction.
+Proved prop_T13!!
+Proved prop_T15 without induction.
+Failed to prove prop_T14.
+Proved prop_T16!!
+Proved prop_T17 without induction.
+Proved prop_T18 without induction.
+Proved prop_T19 without induction.
+Proved prop_T20 without induction.
+Proved prop_T21 without induction.
+Proved prop_T22 without induction.
+Proved prop_T23 without induction.
+Proved prop_T24 without induction.
+Proved prop_T25 without induction.
+Proved prop_T26 without induction.
+Proved prop_T27 without induction.
+Proved prop_T29 without induction.
+Proved prop_T30 without induction.
+Proved prop_T31 without induction.
+Proved prop_T32 without induction.
+Failed to prove prop_T34.
+Proved prop_T36!!
+Proved prop_T37!!
+Proved prop_T38!!
+Proved prop_T39!!
+Failed to prove prop_T40.
+Failed to prove prop_T41.
+Failed to prove prop_T42.
+Failed to prove prop_T43.
+Failed to prove prop_T44.
+Failed to prove prop_T45.
+Failed to prove prop_T46.
+Failed to prove prop_T47.
+Failed to prove prop_T48.
+Failed to prove prop_T49.
+Failed to prove prop_T50.
+prop_T2, prop_T3, prop_T4, prop_T5, prop_T6, prop_T7, prop_T8, prop_T9, prop_T10, prop_T11, prop_T12, prop_T15, prop_T17, prop_T18, prop_T19, prop_T20, prop_T21, prop_T22, prop_T23, prop_T24, prop_T25, prop_T26, prop_T27, prop_T29, prop_T30, prop_T31, prop_T32 provable without induction
+Adding 7 lemmas: prop_T1, prop_T13, prop_T16, prop_T36, prop_T37, prop_T38, prop_T39
+Failed to prove inconsistencyCheck.
+Failed to prove prop_T14.
+Failed to prove prop_T34.
+Failed to prove prop_T40.
+Failed to prove prop_T41.
+Failed to prove prop_T42.
+Proved prop_T43!!
+Failed to prove prop_T44.
+Failed to prove prop_T45.
+Failed to prove prop_T46.
+Failed to prove prop_T47.
+Failed to prove prop_T48.
+Failed to prove prop_T49.
+Failed to prove prop_T50.
+Adding 1 lemmas: prop_T43
+Failed to prove inconsistencyCheck.
+Failed to prove prop_T14.
+Failed to prove prop_T34.
+Failed to prove prop_T40.
+Failed to prove prop_T41.
+Failed to prove prop_T42.
+Failed to prove prop_T44.
+2Failed to prove prop_T45.
+Failed to prove prop_T46.
+Failed to prove prop_T47.
+Failed to prove prop_T48.
+Failed to prove prop_T49.
+Failed to prove prop_T50.
+Proved: x+y = y+x,
+	xs = xs++[],
+	x+(y+z) = y+(x+z),
+	xs++(ys++zs) = (xs++ys)++zs,
+	qrev xs (ys++zs) = qrev xs ys++zs,
+	drop x (drop y xs) = drop (x+y) xs,
+	qrev ys (qrev xs zs) = qrev (xs++ys) zs,
+	qrev ys (xs++zs) = qrev (qrev xs ys) zs,
+	length (xs++ys) = length (ys++xs),
+	length (xs++ys) = length (qrev xs ys),
+	length (xs++xs) = double (length xs),
+	x = half (double x),
+	True = even (double x),
+	[] = drop (length xs) xs,
+	drop (x+y) (x:xs) = drop (x+y) (y:xs),
+	ys = drop (length xs) (xs++ys),
+	length (xs++ys) = length xs+length ys,
+	ys++xs = rotate (length xs) (xs++ys),
+	y:[] = rotate x (y:[]),
+	xs = qrev (rev xs) [],
+	double (x+y) = (x+y)+(x+y),
+	drop x (y:[]) = drop (double x) (y:[]),
+	prop_T1,
+	prop_T13,
+	prop_T16,
+	prop_T36,
+	prop_T37,
+	prop_T38,
+	prop_T39,
+	prop_T2,
+	prop_T3,
+	prop_T4,
+	prop_T5,
+	prop_T6,
+	prop_T7,
+	prop_T8,
+	prop_T9,
+	prop_T10,
+	prop_T11,
+	prop_T12,
+	prop_T15,
+	prop_T17,
+	prop_T18,
+	prop_T19,
+	prop_T20,
+	prop_T21,
+	prop_T22,
+	prop_T23,
+	prop_T24,
+	prop_T25,
+	prop_T26,
+	prop_T27,
+	prop_T29,
+	prop_T30,
+	prop_T31,
+	prop_T32,
+	prop_T43
+Unproved: inconsistencyCheck,
+	prop_T14,
+	prop_T34,
+	prop_T40,
+	prop_T41,
+	prop_T42,
+	prop_T44,
+	prop_T45,
+	prop_T46,
+	prop_T47,
+	prop_T48,
+	prop_T49,
+	prop_T50
+57/70
+

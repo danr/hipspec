@@ -1,0 +1,53 @@
+name:               hipspec-halt
+version:            0.1.0.2
+license:            BSD3
+author:             Dan Rosén
+maintainer:         danr@student.gu.se
+synopsis:           HipSpec, prove properties of Haskell functions using induction and ATPs, fuelled by GHC Core
+category:           Proving
+stability:          Experimental
+cabal-version:      >= 1.6
+build-type:         Simple
+homepage:           github.com/danr/hip
+
+{-
+Library
+  hs-source-dirs: src
+
+  Exposed-modules:
+    Hip.HipSpec
+    Test.QuickSpec
+-}
+
+executable          hipspec-halt
+    ghc-options:    -threaded -O2 -rtsopts -package ghc
+    hs-source-dirs: src halt/src
+    main-is:        Main.hs
+
+    build-depends:
+        -- Shared
+        base                          >= 4    && < 5,
+        mtl                           >= 2.0,
+        containers                    >= 0.3,
+
+        -- Command-line Arguments
+        cmdargs                       >= 0.9,
+
+        -- Halt
+        uniplate                      >= 1.6,
+        bimap                         >= 0.2,
+        ghc-paths                     >= 0.1,
+        filepath                      >= 1.0,
+
+        -- Structural Induction
+        safe                          >= 0.3,
+
+        -- QuickSpec
+        QuickCheck                    >= 2.0,
+        random                        >= 1.0,
+        array                         >= 0.4,
+
+        -- Running Theorem Provers
+        process                       >= 1.0.1.1,
+        stm                           >= 2.0,
+        directory                     >= 1.0

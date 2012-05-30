@@ -1,0 +1,76 @@
+Translation complete. Generating equivalence classes.
+Depth 1: 25 terms, 25 classes, 0 raw equations.
+Depth 2: 101 terms, 83 classes, 18 raw equations.
+Depth 3: 2805 terms, 2325 classes, 480 raw equations.
+Universe has 2796 terms.
+Starting to prove...
+[032mProved x:[] = insert x [] without induction.[0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved xs = []++xs without induction.[0m
+[1m[032mProved Z:xs = insert Z xs!![0m
+[032mProved Z = length [] without induction.[0m
+[032mProved [] = sort [] without induction.[0m
+[032mProved True = sorted [] without induction.[0m
+Failed to prove insert x (insert y xs) = insert y (insert x xs).
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[032mProved length (x:xs) = length (y:xs) without induction.[0m
+Failed to prove length (xs++ys) = length (ys++xs).
+[1m[032mProved length (x:xs) = length (insert x xs)!![0m
+Failed to prove sort (xs++ys) = sort (ys++xs).
+Failed to prove sort (x:xs) = sort (insert x xs).
+Failed to prove sorted xs = sorted (insert x xs).
+[032mProved sort (x:xs) = insert x (sort xs) without induction.[0m
+Failed to prove x:(x:xs) = insert x (x:xs).
+[1m[032mProved length xs = length (sort xs)!![0m
+Failed to prove sort xs = sort (sort xs).
+Failed to prove True = sorted (sort xs).
+[032mProved length (x:xs) = S (length xs) without induction.[0m
+Discarding 15 renamings and subsumptions.
+[032mProved True = sorted (x:[]) without induction.[0m
+[032mProved True = sorted (Z:[]) without induction.[0m
+Interesting candidates: True = sorted (sort xs), sorted xs = sorted (insert x xs)
+Failed to prove True = sorted (sort xs).
+Failed to prove sorted xs = sorted (insert x xs).
+Discarding 74 renamings and subsumptions.
+[032mProved (x:) = ((x:[])++) without induction.[0m
+[032mProved sorted xs = sorted (Z:xs) without induction.[0m
+Interesting candidates: sorted xs = sorted (insert x xs)
+Discarding 14 renamings and subsumptions.
+[032mProved (Z:) = insert Z without induction.[0m
+Failed to prove sorted xs = sorted (insert x xs).
+Discarding 298 renamings and subsumptions.
+[032mProved insert x (Z:xs) = Z:insert x xs without induction.[0m
+Failed to prove insert x (y:[]) = insert y (x:[]).
+Interesting candidates: insert x (insert y xs) = insert y (insert x xs)
+Discarding 36 renamings and subsumptions.
+Failed to prove insert x (insert y xs) = insert y (insert x xs).
+[032mProved x:(x:[]) = insert x (x:[]) without induction.[0m
+Interesting candidates: x:(x:xs) = insert x (x:xs)
+Discarding 35 renamings and subsumptions.
+Failed to prove x:(x:xs) = insert x (x:xs).
+Loop!
+Failed to prove length (xs++ys) = length (ys++xs).
+Failed to prove sort (xs++ys) = sort (ys++xs).
+Failed to prove sort (x:xs) = sort (insert x xs).
+Failed to prove sort xs = sort (sort xs).
+Failed to prove True = sorted (sort xs).
+Failed to prove sorted xs = sorted (insert x xs).
+Failed to prove insert x (y:[]) = insert y (x:[]).
+Failed to prove insert x (insert y xs) = insert y (insert x xs).
+Failed to prove x:(x:xs) = insert x (x:xs).
+Failed to prove [031minconsistencyCheck[0m.
+[032mProved prop_length_sort without induction.[0m
+Failed to prove prop_sort_idem.
+Failed to prove prop_sorted_sort.
+prop_length_sort provable without induction
+Proved: xs = xs++[],
+	Z:xs = insert Z xs,
+	xs++(ys++zs) = (xs++ys)++zs,
+	length (x:xs) = length (insert x xs),
+	length xs = length (sort xs),
+	prop_length_sort
+Unproved: [031minconsistencyCheck[0m,
+	prop_sort_idem,
+	prop_sorted_sort
+6/9

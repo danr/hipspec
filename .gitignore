@@ -1,0 +1,15 @@
+# Haskell temp
+*\.o
+*\.hi
+
+# Latex temp
+*nav
+*snm
+*vrb
+*bbl
+*blg
+*toc
+*pdf
+
+# TPTP
+*\.tptp

@@ -1,0 +1,66 @@
+Translation complete. Generating equivalence classes.
+Depth 1: 28 terms, 28 classes, 0 raw equations.
+Depth 2: 136 terms, 104 classes, 32 raw equations.
+Depth 3: 4262 terms, 2895 classes, 1367 raw equations.
+Universe has 4250 terms.
+Starting to prove...
+[1m[032mProved x==y = y==x!![0m
+[1m[032mProved x+y = y+x!![0m
+[1m[032mProved True = x==x!![0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved Z = count x [] without induction.[0m
+[032mProved x = x+Z without induction.[0m
+[032mProved xs = []++xs without induction.[0m
+[032mProved [] = rev [] without induction.[0m
+[1m[032mProved count x (xs++ys) = count x (ys++xs)!![0m
+[1m[032mProved x+(y+z) = y+(x+z)!![0m
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[032mProved S (count x xs) = count x (x:xs) without induction.[0m
+[1m[032mProved count x xs = count x (rev xs)!![0m
+[032mProved S (x+y) = x+S y without induction.[0m
+[1m[032mProved y==Z = x==(x+y)!![0m
+Failed to prove xs = rev (rev xs).
+[1m[032mProved x==S x = y==S y!![0m
+[1m[032mProved y==z = (x+y)==(x+z)!![0m
+[1m[032mProved count x (xs++ys) = count x xs+count x ys!![0m
+[032mProved (x+y)==S y = (x+z)==S z without induction.[0m
+[1m[032mProved rev (ys++xs) = rev xs++rev ys!![0m
+[032mProved count (S x) xs = count (S x) (x:xs) without induction.[0m
+[032mProved x==y = S x==S y without induction.[0m
+[032mProved count x (y:[]) = count y (x:[]) without induction.[0m
+[032mProved x==S x = Z==S x without induction.[0m
+[032mProved x:[] = rev (x:[]) without induction.[0m
+[1m[032mProved x==y = (x+x)==(y+y)!![0m
+[032mProved count (x+y) (y:[]) = count (x+z) (z:[]) without induction.[0m
+[032mProved count (S x) xs = count (S x) (Z:xs) without induction.[0m
+[032mProved count (x+x) (x:xs) = count (x+x) (Z:xs) without induction.[0m
+[032mProved x==S x = (x+x)==S Z without induction.[0m
+Discarding 77 renamings and subsumptions.
+[032mProved S = (S Z+) without induction.[0m
+[032mProved (x:) = ((x:[])++) without induction.[0m
+Discarding 1288 renamings and subsumptions.
+Loop!
+[1m[032mProved xs = rev (rev xs)!![0m
+Loop!
+[032mProved prop_52 without induction.[0m
+Failed to prove [031minconsistencyCheck[0m.
+prop_52 provable without induction
+Proved: x==y = y==x,
+	x+y = y+x,
+	True = x==x,
+	xs = xs++[],
+	count x (xs++ys) = count x (ys++xs),
+	x+(y+z) = y+(x+z),
+	xs++(ys++zs) = (xs++ys)++zs,
+	count x xs = count x (rev xs),
+	y==Z = x==(x+y),
+	x==S x = y==S y,
+	y==z = (x+y)==(x+z),
+	count x (xs++ys) = count x xs+count x ys,
+	rev (ys++xs) = rev xs++rev ys,
+	x==y = (x+x)==(y+y),
+	xs = rev (rev xs),
+	prop_52
+Unproved: [031minconsistencyCheck[0m
+16/17

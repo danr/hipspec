@@ -1,0 +1,13 @@
+#!/bin/bash
+
+for FILE in `ls proving/*tptp`
+do
+#    echo $FILE
+    BASE=`basename $FILE .tptp`
+    tptp_to_ladr < $FILE | runghc Util/FixLADR.hs | timeout 1 prover9 > prover9/$BASE.out 2> err
+    if [ $? -ne 124 ]
+       then
+           echo Theorem : $FILE
+           prooftrans xml -f prover9/$BASE.out > prover9/$BASE.xml
+    fi
+done

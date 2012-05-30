@@ -1,0 +1,423 @@
+Translation complete. Generating equivalence classes.
+Depth 1: 35 terms, 35 classes, 0 raw equations.
+Depth 2: 236 terms, 168 classes, 68 raw equations.
+Depth 3: 16159 terms, 12464 classes, 3695 raw equations.
+Universe has 16146 terms.
+Starting to prove...
+[1m[032mProved x==y = y==x!![0m
+[1m[032mProved x+y = y+x!![0m
+[1m[032mProved x<=x = y<=y!![0m
+[1m[032mProved x<=x = x==x!![0m
+[1m[032mProved Z = x-x!![0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved [] = take x [] without induction.[0m
+[032mProved [] = drop x [] without induction.[0m
+[032mProved Z = count x [] without induction.[0m
+[032mProved [] = filter p [] without induction.[0m
+[032mProved x<=Z = x==Z without induction.[0m
+[032mProved x = x+Z without induction.[0m
+[032mProved x = x-Z without induction.[0m
+[032mProved xs = []++xs without induction.[0m
+[032mProved [] = take Z xs without induction.[0m
+[032mProved xs = drop Z xs without induction.[0m
+[032mProved x<=x = Z<=x without induction.[0m
+[032mProved Z = Z-x without induction.[0m
+[032mProved Z = len [] without induction.[0m
+[032mProved [] = rev [] without induction.[0m
+[1m[032mProved take x (take y xs) = take y (take x xs)!![0m
+Failed to prove drop x (drop y xs) = drop y (drop x xs).
+[1m[032mProved count x (xs++ys) = count x (ys++xs)!![0m
+[1m[032mProved x+(y+z) = y+(x+z)!![0m
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[1m[032mProved drop x (drop y xs) = drop (x+y) xs!![0m
+[1m[032mProved x<=(y+z) = (x-y)<=z!![0m
+[032mProved len (x:xs) = len (y:xs) without induction.[0m
+[1m[032mProved x-(y+z) = (x-y)-z!![0m
+[1m[032mProved len (xs++ys) = len (ys++xs)!![0m
+[1m[032mProved take x xs = take x (take x xs)!![0m
+[032mProved S (count x xs) = count x (x:xs) without induction.[0m
+[1m[032mProved [] = drop x (take x xs)!![0m
+[1m[032mProved count x xs = count x (rev xs)!![0m
+[1m[032mProved filter p xs = filter p (filter p xs)!![0m
+Failed to prove rev (filter p xs) = filter p (rev xs).
+Failed to prove x<=(x-y) = y<=(y-x).
+[1m[032mProved y<=Z = x==(x+y)!![0m
+Failed to prove x<=(x-y) = x==(x-y).
+[032mProved S (x+y) = x+S y without induction.[0m
+Failed to prove x==(y+y) = y==(x-y).
+[1m[032mProved x+(y-x) = y+(x-y)!![0m
+Failed to prove x-(x-y) = y-(y-x).
+[1m[032mProved y<=Z = (x+y)<=x!![0m
+[1m[032mProved y = (x+y)-x!![0m
+[1m[032mProved len (drop x xs) = len xs-x!![0m
+[1m[032mProved len xs = len (rev xs)!![0m
+[032mProved len (x:xs) = S (len xs) without induction.[0m
+Failed to prove xs = rev (rev xs).
+[1m[032mProved x==S x = y==S y!![0m
+[1m[032mProved xs = take (len xs) xs!![0m
+[032mProved [] = drop (len xs) xs without induction.[0m
+[1m[032mProved x==S x = S y<=y!![0m
+[1m[032mProved S Z = S y-y!![0m
+Failed to prove filter p (xs++ys) = filter p xs++filter p ys.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++ys).
+[1m[032mProved take x xs = take (x+y) (take x xs)!![0m
+[1m[032mProved take (x-y) xs = take (x-y) (take x xs)!![0m
+[1m[032mProved drop y (take x xs) = take (x-y) (drop y xs)!![0m
+[032mProved (x+y)<=(y-z) = (x+z)<=(z-y) without induction.[0m
+[1m[032mProved drop (x+y) (x:xs) = drop (x+y) (y:xs)!![0m
+[032mProved (x-z)<=(x-y) = (y-z)<=(y-x) without induction.[0m
+[1m[032mProved y==z = (x+y)==(x+z)!![0m
+[1m[032mProved (x+y)<=(x-z) = (x+y)==(x-z)!![0m
+Failed to prove (x-y)==S z = (x-z)==S y.
+[032mProved (x+y)-(y-z) = (x+z)-(z-y) without induction.[0m
+Failed to prove count x (xs++ys) = count x xs+count x ys.
+[032mProved y:take x xs = take (S x) (y:xs) without induction.[0m
+[032mProved (x-z)-(x-y) = (y-z)-(y-x) without induction.[0m
+[032mProved drop x xs = drop (S x) (y:xs) without induction.[0m
+Failed to prove filter (x==) (xs++ys) = filter (x==) (ys++xs).
+Failed to prove S x<=(z-y) = S y<=(z-x).
+[1m[032mProved xs = take x xs++drop x xs!![0m
+Failed to prove x<=x = count x xs<=len xs.
+[1m[032mProved (x+y)<=S y = (x+z)<=S z!![0m
+[032mProved x<=y = (x-y)<=(y-x) without induction.[0m
+[1m[032mProved (x+y)==S y = (x+z)==S z!![0m
+[1m[032mProved x==y = (x-y)==(y-x)!![0m
+Failed to prove Z = count x xs-len xs.
+[032mProved (x+y)-S y = (x+z)-S z without induction.[0m
+[032mProved x-y = (x-y)-(y-x) without induction.[0m
+[1m[032mProved rev (ys++xs) = rev xs++rev ys!![0m
+[1m[032mProved xs = take (len xs) (xs++ys)!![0m
+[032mProved drop x xs = take (len xs) (drop x xs) without induction.[0m
+Failed to prove filter p xs = take (len xs) (filter p xs).
+[032mProved take x xs = take (S x) (take x xs) without induction.[0m
+[1m[032mProved ys = drop (len xs) (xs++ys)!![0m
+[032mProved count (S x) xs = count (S x) (x:xs) without induction.[0m
+Failed to prove [] = drop (len xs) (filter p xs).
+Failed to prove filter (x==) xs = filter (x==) (rev xs).
+Failed to prove count x xs==len xs = len xs<=count x xs.
+[032mProved x<=y = S x<=S y without induction.[0m
+[032mProved x==y = S x==S y without induction.[0m
+[032mProved len (xs++ys) = len xs+len ys without induction.[0m
+[032mProved x-y = S x-S y without induction.[0m
+[032mProved S x-(x-y) = S y-(y-x) without induction.[0m
+Failed to prove x<=(y-x) = (x+x)<=y.
+Failed to prove count x (y:[]) = count y (x:[]).
+[1m[032mProved x<=y = (x+x)<=(y+y)!![0m
+[1m[032mProved x==y = (x+x)==(y+y)!![0m
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+[032mProved x:[] = rev (x:[]) without induction.[0m
+[1m[032mProved xs = filter (Z<=) xs!![0m
+Failed to prove S x-(x+y) = count (x+y) (x:[]).
+Failed to prove count (x-y) (x:[]) = count (y-x) (y:[]).
+[1m[032mProved take x (y:[]) = take (x+x) (y:[])!![0m
+[1m[032mProved drop x (y:[]) = drop (x+x) (y:[])!![0m
+[032mProved count (S x) xs = count (S x) (Z:xs) without induction.[0m
+Failed to prove count (y-x) (x:[]) = count (x+x) (y:[]).
+[032mProved count (x+x) (x:xs) = count (x+x) (Z:xs) without induction.[0m
+Failed to prove drop (x-y) (y:[]) = filter (x<=) (y:[]).
+[032mProved x:[] = filter (x==) (x:[]) without induction.[0m
+Failed to prove filter (x==) (y:[]) = filter (y==) (x:[]).
+[1m[032mProved x<=Z = (x+x)<=S Z!![0m
+[1m[032mProved x==S x = (x+x)==S Z!![0m
+[1m[032mProved take (S Z) xs = take (S Z) (xs++xs)!![0m
+[1m[032mProved S y<=(x+y) = S Z<=(x+x)!![0m
+Failed to prove S Z-count x xs = count (count x xs) (Z:[]).
+Failed to prove S Z-(x+y) = count (x+y) (Z:[]).
+Failed to prove S Z-(x-y) = count (x-y) (Z:[]).
+Failed to prove S Z-len xs = count (len xs) (Z:[]).
+Discarding 78 renamings and subsumptions.
+[032mProved S = (S Z+) without induction.[0m
+Failed to prove drop x (x:[]) = filter (x==) (Z:[]).
+Discarding 374 renamings and subsumptions.
+[032mProved [] = drop (len xs) (drop x xs) without induction.[0m
+Failed to prove Z = count Z xs-len xs.
+Discarding 577 renamings and subsumptions.
+[032mProved (x:) = ((x:[])++) without induction.[0m
+Failed to prove x<=x = count y xs<=len xs.
+Discarding 109 renamings and subsumptions.
+[032mProved ([]++) = drop Z without induction.[0m
+Failed to prove x<=x = count Z xs<=len xs.
+Discarding 9 renamings and subsumptions.
+[032mProved ([]++) = filter (Z<=) without induction.[0m
+[032mProved x:[] = filter (x<=) (x:[]) without induction.[0m
+Interesting candidates: drop (x-y) (y:[]) = filter (x<=) (y:[])
+Discarding 43 renamings and subsumptions.
+Failed to prove drop (x-y) (y:[]) = filter (x<=) (y:[]).
+Failed to prove x<=Z = (x+y)<=(y-x).
+Discarding renamings and subsumptions: x<=Z = (x+z)<=(z-x), x<=Z = (x+z)==(z-x)
+Failed to prove x<=Z = (x+y)==(y-x).
+Failed to prove x<=Z = (x-y)==(x+x).
+Discarding renamings and subsumptions: x<=Z = (x-z)==(x+x), x<=Z = (z-x)==(x+z)
+Failed to prove x<=Z = (y-x)==(x+y).
+Failed to prove x<=Z = (x+x)<=(x-y).
+Discarding 20 renamings and subsumptions.
+Failed to prove x<=Z = (x+x)==(x-y).
+Failed to prove y<=Z = (x+y)<=(x-y).
+Discarding renamings and subsumptions: y<=Z = (y+z)<=(z-y), y<=Z = (y+z)==(z-y)
+Failed to prove y<=Z = (x+y)==(x-y).
+Failed to prove y<=Z = (x-y)==(x+y).
+Discarding 632 renamings and subsumptions.
+Failed to prove count x (xs++ys) = count x ys+count x xs.
+Failed to prove x==(y-x) = y==(x+x).
+Discarding 8 renamings and subsumptions.
+Failed to prove x==(y-x) = (x+x)==y.
+[1m[032mProved x==S y = (x-y)==S Z!![0m
+Interesting candidates: (x-y)==S z = (x-z)==S y
+Discarding 169 renamings and subsumptions.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++xs).
+[1m[032mProved S x<=y = S Z<=(y-x)!![0m
+Interesting candidates: S x<=(z-y) = S y<=(z-x)
+Discarding 729 renamings and subsumptions.
+Failed to prove count Z (xs++ys) = count Z xs+count Z ys.
+Failed to prove count Z (xs++ys) = count Z ys+count Z xs.
+Discarding 238 renamings and subsumptions.
+Failed to prove S x-(x+y) = count (y+z) (z:[]).
+Failed to prove S x-(x+y) = count y (Z:[]).
+[1m[032mProved S x-(x+y) = count Z (y:[])!![0m
+Failed to prove S x-(x+y) = count (y+y) (y:[]).
+Discarding renamings and subsumptions: S x-(x+y) = S Z-(y+y), S x-(x+z) = S y-(y+z), S x-(x+z) = S z-(z+z), S x-(x+z) = S Z-z, S x-(x+z) = count (x+z) (x:[])
+Failed to prove S x-(x+y) = count (y+y) (Z:[]).
+Failed to prove S x-(x+z) = count (y+z) (y:[]).
+Discarding 10 renamings and subsumptions.
+Failed to prove S y-(x+y) = count (x+y) (y:[]).
+Failed to prove S y-(x+y) = count (x+z) (z:[]).
+Discarding renamings and subsumptions: S y-(x+y) = count Z (x:[])
+Failed to prove S y-(x+y) = count x (Z:[]).
+Failed to prove S y-(x+y) = count (x+x) (x:[]).
+Discarding 35 renamings and subsumptions.
+Failed to prove S y-(x+y) = count (x+x) (Z:[]).
+Failed to prove count x (xs++xs) = count x xs+count x xs.
+Discarding 17 renamings and subsumptions.
+Failed to prove filter p (xs++xs) = filter p xs++filter p xs.
+Failed to prove x==(y+y) = (x-y)==y.
+Discarding 278 renamings and subsumptions.
+Failed to prove drop x (x:[]) = filter (x<=) (Z:[]).
+[1m[032mProved drop x (x:[]) = filter (Z==) (x:[])!![0m
+Discarding 23 renamings and subsumptions.
+Failed to prove count Z (xs++xs) = count Z xs+count Z xs.
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++ys).
+Discarding 19 renamings and subsumptions.
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++xs).
+Failed to prove filter (Z==) xs = filter (Z==) (rev xs).
+Discarding 245 renamings and subsumptions.
+Failed to prove filter (Z==) (xs++ys) = filter (Z==) (ys++xs).
+Failed to prove len xs<=count Z xs = len xs==count Z xs.
+Discarding 19 renamings and subsumptions.
+Failed to prove len xs<=count Z xs = count Z xs==len xs.
+Failed to prove S Z-count Z xs = count (count Z xs) (Z:[]).
+Discarding renamings and subsumptions: S Z-count Z ys = count (count Z ys) (Z:[]), S Z-count Z zs = count (count Z zs) (Z:[]), Z:(Z:[]) = (Z:[])++(Z:[])
+Loop!
+Discarding renamings and subsumptions: drop x (drop y xs) = drop y (drop x xs), x<=(x-y) = y<=(y-x), x<=(x-y) = x==(x-y)
+Failed to prove rev (filter p xs) = filter p (rev xs).
+Failed to prove x==(y+y) = y==(x-y).
+Discarding renamings and subsumptions: x-(x-y) = y-(y-x)
+[1m[032mProved xs = rev (rev xs)!![0m
+Failed to prove filter p (xs++ys) = filter p xs++filter p ys.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++ys).
+Failed to prove count x (xs++ys) = count x xs+count x ys.
+Failed to prove filter (x==) (xs++ys) = filter (x==) (ys++xs).
+Failed to prove x<=x = count x xs<=len xs.
+Failed to prove Z = count x xs-len xs.
+Failed to prove filter p xs = take (len xs) (filter p xs).
+Failed to prove [] = drop (len xs) (filter p xs).
+Failed to prove filter (x==) xs = filter (x==) (rev xs).
+Failed to prove count x xs==len xs = len xs<=count x xs.
+Failed to prove x<=(y-x) = (x+x)<=y.
+Failed to prove count x (y:[]) = count y (x:[]).
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+Failed to prove S x-(x+y) = count (x+y) (x:[]).
+Failed to prove count (x-y) (x:[]) = count (y-x) (y:[]).
+Failed to prove count (y-x) (x:[]) = count (x+x) (y:[]).
+Failed to prove filter (x==) (y:[]) = filter (y==) (x:[]).
+Failed to prove S Z-count x xs = count (count x xs) (Z:[]).
+Failed to prove S Z-(x+y) = count (x+y) (Z:[]).
+Failed to prove S Z-(x-y) = count (x-y) (Z:[]).
+Failed to prove S Z-len xs = count (len xs) (Z:[]).
+Failed to prove drop x (x:[]) = filter (x==) (Z:[]).
+Failed to prove Z = count Z xs-len xs.
+Failed to prove x<=x = count y xs<=len xs.
+Failed to prove x<=x = count Z xs<=len xs.
+Failed to prove drop (x-y) (y:[]) = filter (x<=) (y:[]).
+Failed to prove x<=Z = (x+y)<=(y-x).
+Failed to prove x<=Z = (x+y)==(y-x).
+Failed to prove x<=Z = (x-y)==(x+x).
+Failed to prove x<=Z = (y-x)==(x+y).
+Failed to prove x<=Z = (x+x)<=(x-y).
+Failed to prove x<=Z = (x+x)==(x-y).
+Failed to prove y<=Z = (x+y)<=(x-y).
+Failed to prove y<=Z = (x+y)==(x-y).
+Failed to prove y<=Z = (x-y)==(x+y).
+Failed to prove count x (xs++ys) = count x ys+count x xs.
+Failed to prove x==(y-x) = y==(x+x).
+Failed to prove x==(y-x) = (x+x)==y.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++xs).
+Failed to prove count Z (xs++ys) = count Z xs+count Z ys.
+Failed to prove count Z (xs++ys) = count Z ys+count Z xs.
+Failed to prove S x-(x+y) = count (y+z) (z:[]).
+Failed to prove S x-(x+y) = count y (Z:[]).
+Failed to prove S x-(x+y) = count (y+y) (y:[]).
+Failed to prove S x-(x+y) = count (y+y) (Z:[]).
+Failed to prove S x-(x+z) = count (y+z) (y:[]).
+Failed to prove S y-(x+y) = count (x+y) (y:[]).
+Failed to prove S y-(x+y) = count (x+z) (z:[]).
+Failed to prove S y-(x+y) = count x (Z:[]).
+Failed to prove S y-(x+y) = count (x+x) (x:[]).
+Failed to prove S y-(x+y) = count (x+x) (Z:[]).
+Failed to prove count x (xs++xs) = count x xs+count x xs.
+Failed to prove filter p (xs++xs) = filter p xs++filter p xs.
+Failed to prove x==(y+y) = (x-y)==y.
+Failed to prove drop x (x:[]) = filter (x<=) (Z:[]).
+Failed to prove count Z (xs++xs) = count Z xs+count Z xs.
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++ys).
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++xs).
+Failed to prove filter (Z==) xs = filter (Z==) (rev xs).
+Failed to prove filter (Z==) (xs++ys) = filter (Z==) (ys++xs).
+Failed to prove len xs<=count Z xs = len xs==count Z xs.
+Failed to prove len xs<=count Z xs = count Z xs==len xs.
+Failed to prove S Z-count Z xs = count (count Z xs) (Z:[]).
+Loop!
+Failed to prove rev (filter p xs) = filter p (rev xs).
+Failed to prove x==(y+y) = y==(x-y).
+Failed to prove filter p (xs++ys) = filter p xs++filter p ys.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++ys).
+Failed to prove count x (xs++ys) = count x xs+count x ys.
+Failed to prove filter (x==) (xs++ys) = filter (x==) (ys++xs).
+Failed to prove x<=x = count x xs<=len xs.
+Failed to prove Z = count x xs-len xs.
+Failed to prove filter p xs = take (len xs) (filter p xs).
+Failed to prove [] = drop (len xs) (filter p xs).
+Failed to prove filter (x==) xs = filter (x==) (rev xs).
+Failed to prove count x xs==len xs = len xs<=count x xs.
+Failed to prove x<=(y-x) = (x+x)<=y.
+Failed to prove count x (y:[]) = count y (x:[]).
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+Failed to prove S x-(x+y) = count (x+y) (x:[]).
+Failed to prove count (x-y) (x:[]) = count (y-x) (y:[]).
+Failed to prove count (y-x) (x:[]) = count (x+x) (y:[]).
+Failed to prove filter (x==) (y:[]) = filter (y==) (x:[]).
+Failed to prove S Z-count x xs = count (count x xs) (Z:[]).
+Failed to prove S Z-(x+y) = count (x+y) (Z:[]).
+Failed to prove S Z-(x-y) = count (x-y) (Z:[]).
+Failed to prove S Z-len xs = count (len xs) (Z:[]).
+Failed to prove drop x (x:[]) = filter (x==) (Z:[]).
+Failed to prove Z = count Z xs-len xs.
+Failed to prove x<=x = count y xs<=len xs.
+Failed to prove x<=x = count Z xs<=len xs.
+Failed to prove drop (x-y) (y:[]) = filter (x<=) (y:[]).
+Failed to prove x<=Z = (x+y)<=(y-x).
+Failed to prove x<=Z = (x+y)==(y-x).
+Failed to prove x<=Z = (x-y)==(x+x).
+Failed to prove x<=Z = (y-x)==(x+y).
+Failed to prove x<=Z = (x+x)<=(x-y).
+Failed to prove x<=Z = (x+x)==(x-y).
+Failed to prove y<=Z = (x+y)<=(x-y).
+Failed to prove y<=Z = (x+y)==(x-y).
+Failed to prove y<=Z = (x-y)==(x+y).
+Failed to prove count x (xs++ys) = count x ys+count x xs.
+Failed to prove x==(y-x) = y==(x+x).
+Failed to prove x==(y-x) = (x+x)==y.
+Failed to prove take (count x xs) xs = take (count x xs) (xs++xs).
+Failed to prove count Z (xs++ys) = count Z xs+count Z ys.
+Failed to prove count Z (xs++ys) = count Z ys+count Z xs.
+Failed to prove S x-(x+y) = count (y+z) (z:[]).
+Failed to prove S x-(x+y) = count y (Z:[]).
+Failed to prove S x-(x+y) = count (y+y) (y:[]).
+Failed to prove S x-(x+y) = count (y+y) (Z:[]).
+Failed to prove S x-(x+z) = count (y+z) (y:[]).
+Failed to prove S y-(x+y) = count (x+y) (y:[]).
+Failed to prove S y-(x+y) = count (x+z) (z:[]).
+Failed to prove S y-(x+y) = count x (Z:[]).
+Failed to prove S y-(x+y) = count (x+x) (x:[]).
+Failed to prove S y-(x+y) = count (x+x) (Z:[]).
+Failed to prove count x (xs++xs) = count x xs+count x xs.
+Failed to prove filter p (xs++xs) = filter p xs++filter p xs.
+Failed to prove x==(y+y) = (x-y)==y.
+Failed to prove drop x (x:[]) = filter (x<=) (Z:[]).
+Failed to prove count Z (xs++xs) = count Z xs+count Z xs.
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++ys).
+Failed to prove take (count Z xs) xs = take (count Z xs) (xs++xs).
+Failed to prove filter (Z==) xs = filter (Z==) (rev xs).
+Failed to prove filter (Z==) (xs++ys) = filter (Z==) (ys++xs).
+Failed to prove len xs<=count Z xs = len xs==count Z xs.
+Failed to prove len xs<=count Z xs = count Z xs==len xs.
+Failed to prove S Z-count Z xs = count (count Z xs) (Z:[]).
+Failed to prove [031minconsistencyCheck[0m.
+Failed to prove prop_20.
+[032mProved prop_38 without induction.[0m
+[032mProved prop_52 without induction.[0m
+Failed to prove prop_53.
+Failed to prove prop_66.
+[032mProved prop_72 without induction.[0m
+Failed to prove prop_68.
+[032mProved prop_74 without induction.[0m
+Failed to prove prop_73.
+Failed to prove prop_78.
+prop_38, prop_52, prop_72, prop_74 provable without induction
+Proved: x==y = y==x,
+	x+y = y+x,
+	x<=x = y<=y,
+	x<=x = x==x,
+	Z = x-x,
+	xs = xs++[],
+	take x (take y xs) = take y (take x xs),
+	count x (xs++ys) = count x (ys++xs),
+	x+(y+z) = y+(x+z),
+	xs++(ys++zs) = (xs++ys)++zs,
+	drop x (drop y xs) = drop (x+y) xs,
+	x<=(y+z) = (x-y)<=z,
+	x-(y+z) = (x-y)-z,
+	len (xs++ys) = len (ys++xs),
+	take x xs = take x (take x xs),
+	[] = drop x (take x xs),
+	count x xs = count x (rev xs),
+	filter p xs = filter p (filter p xs),
+	y<=Z = x==(x+y),
+	x+(y-x) = y+(x-y),
+	y<=Z = (x+y)<=x,
+	y = (x+y)-x,
+	len (drop x xs) = len xs-x,
+	len xs = len (rev xs),
+	x==S x = y==S y,
+	xs = take (len xs) xs,
+	x==S x = S y<=y,
+	S Z = S y-y,
+	take x xs = take (x+y) (take x xs),
+	take (x-y) xs = take (x-y) (take x xs),
+	drop y (take x xs) = take (x-y) (drop y xs),
+	drop (x+y) (x:xs) = drop (x+y) (y:xs),
+	y==z = (x+y)==(x+z),
+	(x+y)<=(x-z) = (x+y)==(x-z),
+	xs = take x xs++drop x xs,
+	(x+y)<=S y = (x+z)<=S z,
+	(x+y)==S y = (x+z)==S z,
+	x==y = (x-y)==(y-x),
+	rev (ys++xs) = rev xs++rev ys,
+	xs = take (len xs) (xs++ys),
+	ys = drop (len xs) (xs++ys),
+	x<=y = (x+x)<=(y+y),
+	x==y = (x+x)==(y+y),
+	xs = filter (Z<=) xs,
+	take x (y:[]) = take (x+x) (y:[]),
+	drop x (y:[]) = drop (x+x) (y:[]),
+	x<=Z = (x+x)<=S Z,
+	x==S x = (x+x)==S Z,
+	take (S Z) xs = take (S Z) (xs++xs),
+	S y<=(x+y) = S Z<=(x+x),
+	x==S y = (x-y)==S Z,
+	S x<=y = S Z<=(y-x),
+	S x-(x+y) = count Z (y:[]),
+	drop x (x:[]) = filter (Z==) (x:[]),
+	xs = rev (rev xs),
+	prop_38,
+	prop_52,
+	prop_72,
+	prop_74
+Unproved: [031minconsistencyCheck[0m,
+	prop_20,
+	prop_53,
+	prop_66,
+	prop_68,
+	prop_73,
+	prop_78
+59/66

@@ -1,0 +1,37 @@
+Translation complete. Generating equivalence classes.
+Depth 1: 20 terms, 20 classes, 0 raw equations.
+Depth 2: 67 terms, 58 classes, 9 raw equations.
+Depth 3: 1174 terms, 925 classes, 249 raw equations.
+Universe has 1166 terms.
+Starting to prove...
+[032mProved [] = filter p [] without induction.[0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved xs = []++xs without induction.[0m
+[032mProved [] = rev [] without induction.[0m
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[1m[032mProved filter p xs = filter p (filter p xs)!![0m
+Failed to prove rev (filter p xs) = filter p (rev xs).
+Failed to prove xs = rev (rev xs).
+[1m[032mProved filter p (xs++ys) = filter p xs++filter p ys!![0m
+[032mProved x:[] = rev (x:[]) without induction.[0m
+[1m[032mProved rev (ys++xs) = rev xs++rev ys!![0m
+Discarding 248 renamings and subsumptions.
+[032mProved (x:) = ((x:[])++) without induction.[0m
+Loop!
+[1m[032mProved rev (filter p xs) = filter p (rev xs)!![0m
+[1m[032mProved xs = rev (rev xs)!![0m
+Loop!
+[032mProved prop_73 without induction.[0m
+Failed to prove [031minconsistencyCheck[0m.
+prop_73 provable without induction
+Proved: xs = xs++[],
+	xs++(ys++zs) = (xs++ys)++zs,
+	filter p xs = filter p (filter p xs),
+	filter p (xs++ys) = filter p xs++filter p ys,
+	rev (ys++xs) = rev xs++rev ys,
+	rev (filter p xs) = filter p (rev xs),
+	xs = rev (rev xs),
+	prop_73
+Unproved: [031minconsistencyCheck[0m
+8/9

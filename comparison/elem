@@ -1,0 +1,64 @@
+
+./Elem -i -c --provers=z --prepend-pruned --indvars=3 --inddepth=2
+
+Translation complete. Generating equivalence classes.
+Depth 1: 21 terms, 21 classes, 0 raw equations.
+Depth 2: 83 terms, 69 classes, 14 raw equations.
+Depth 3: 839 terms, 618 classes, 221 raw equations.
+Universe has 829 terms.
+Starting to prove...
+[1m[032mProved x==y = y==x!![0m
+[1m[032mProved x==x = y==y!![0m
+[032mProved elem x [] = elem y [] without induction.[0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved xs = []++xs without induction.[0m
+[1m[032mProved elem x (xs++ys) = elem x (ys++xs)!![0m
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[032mProved x==x = elem x (x:xs) without induction.[0m
+[1m[032mProved elem x xs = elem x (xs++xs)!![0m
+Discarding 7 renamings and subsumptions.
+[032mProved (x:) = ((x:[])++) without induction.[0m
+[1m[032mProved x==y = elem x (y:[])!![0m
+Discarding 213 renamings and subsumptions.
+Loop!
+Failed to prove [031minconsistencyCheck[0m.
+Failed to prove prop_20.
+[1m[032mProved prop_29!![0m
+[1m[032mProved prop_30!![0m
+[1m[032mProved prop_38!![0m
+Failed to prove prop_52.
+Failed to prove prop_53.
+Failed to prove prop_66.
+Failed to prove prop_68.
+Failed to prove prop_72.
+Failed to prove prop_73.
+Failed to prove prop_74.
+Failed to prove prop_78.
+Proved: x==y = y==x,
+	x==x = y==y,
+	xs = xs++[],
+	elem x (xs++ys) = elem x (ys++xs),
+	xs++(ys++zs) = (xs++ys)++zs,
+	elem x xs = elem x (xs++xs),
+	x==y = elem x (y:[]),
+	prop_29,
+	prop_30,
+	prop_38
+Unproved: [031minconsistencyCheck[0m,
+	prop_20,
+	prop_52,
+	prop_53,
+	prop_66,
+	prop_68,
+	prop_72,
+	prop_73,
+	prop_74,
+	prop_78
+10/20
+
+
+
+real	0m39.568s
+user	1m9.125s
+sys	0m2.347s

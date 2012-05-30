@@ -1,0 +1,3 @@
+[submodule "halt"]
+	path = halt
+	url = git@github.com:danr/halt.git

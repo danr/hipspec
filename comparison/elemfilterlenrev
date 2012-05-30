@@ -1,0 +1,294 @@
+./ElemFilterLenRev -i -c --provers=z --prepend-pruned --indvars=3 --inddepth=2 --output
+
+Translation complete. Generating equivalence classes.
+Depth 1: 31 terms, 31 classes, 0 raw equations.
+Depth 2: 152 terms, 119 classes, 33 raw equations.
+Depth 3: 4203 terms, 2972 classes, 1231 raw equations.
+Universe has 4190 terms.
+Starting to prove...
+[1m[032mProved x+y = y+x!![0m
+[1m[032mProved Z = x-x!![0m
+[032mProved elem x [] = elem y [] without induction.[0m
+[1m[032mProved xs = xs++[]!![0m
+[032mProved [] = filter p [] without induction.[0m
+[032mProved x = x+Z without induction.[0m
+[032mProved x = x-Z without induction.[0m
+[032mProved xs = []++xs without induction.[0m
+[032mProved Z = len [] without induction.[0m
+[032mProved Z = Z-x without induction.[0m
+[032mProved [] = rev [] without induction.[0m
+Failed to prove elem x (xs++ys) = elem x (ys++xs).
+[032mProved x:(xs++ys) = (x:xs)++ys without induction.[0m
+[1m[032mProved x+(y+z) = y+(x+z)!![0m
+[1m[032mProved xs++(ys++zs) = (xs++ys)++zs!![0m
+[1m[032mProved x-(y+z) = (x-y)-z!![0m
+[032mProved len (x:xs) = len (y:xs) without induction.[0m
+[1m[032mProved len (xs++ys) = len (ys++xs)!![0m
+Failed to prove elem x (x:xs) = elem x (x:ys).
+Failed to prove elem x xs = elem x (rev xs).
+Failed to prove elem x (x:xs) = elem y (y:xs).
+[1m[032mProved filter p xs = filter p (filter p xs)!![0m
+[032mProved S (x+y) = x+S y without induction.[0m
+Failed to prove rev (filter p xs) = filter p (rev xs).
+[1m[032mProved x+(y-x) = y+(x-y)!![0m
+Failed to prove x-(x-y) = y-(y-x).
+[1m[032mProved y = (x+y)-x!![0m
+[1m[032mProved len xs = len (rev xs)!![0m
+[032mProved len (x:xs) = S (len xs) without induction.[0m
+Failed to prove xs = rev (rev xs).
+[1m[032mProved S Z = S y-y!![0m
+[1m[032mProved filter p (xs++ys) = filter p xs++filter p ys!![0m
+[032mProved (x+y)-(y-z) = (x+z)-(z-y) without induction.[0m
+[032mProved (x-z)-(x-y) = (y-z)-(y-x) without induction.[0m
+[032mProved (x+y)-S y = (x+z)-S z without induction.[0m
+[032mProved x-y = (x-y)-(y-x) without induction.[0m
+[1m[032mProved rev (ys++xs) = rev xs++rev ys!![0m
+[1m[032mProved elem (S x) xs = elem (S x) (x:xs)!![0m
+[032mProved x-y = S x-S y without induction.[0m
+[1m[032mProved len (xs++ys) = len xs+len ys!![0m
+[032mProved S x-(x-y) = S y-(y-x) without induction.[0m
+Failed to prove elem x xs = elem x (xs++xs).
+Failed to prove elem x (y:[]) = elem y (x:[]).
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+[032mProved x:[] = rev (x:[]) without induction.[0m
+Failed to prove elem (x+y) (y:[]) = elem (x+z) (z:[]).
+[032mProved elem (S x) xs = elem (S x) (Z:xs) without induction.[0m
+Failed to prove elem (x-y) (x:[]) = elem (y-x) (y:[]).
+Failed to prove elem (y-x) (x:[]) = elem (x+x) (y:[]).
+Failed to prove elem (x+x) (x:xs) = elem (x+x) (Z:xs).
+Discarding 30 renamings and subsumptions.
+[032mProved S = (S Z+) without induction.[0m
+[1m[032mProved S y-(x+y) = S Z-(x+x)!![0m
+Discarding 271 renamings and subsumptions.
+[032mProved (x:) = ((x:[])++) without induction.[0m
+[032mProved (Z:) = ((Z:[])++) without induction.[0m
+Discarding 47 renamings and subsumptions.
+Failed to prove elem Z xs = elem Z (rev xs).
+Failed to prove elem Z xs = elem Z (xs++xs).
+Discarding 115 renamings and subsumptions.
+Failed to prove elem (x+y) xs = elem (x+y) (rev xs).
+Failed to prove elem (x+y) xs = elem (x+y) (xs++xs).
+Discarding 16 renamings and subsumptions.
+Failed to prove elem (x-y) xs = elem (x-y) (rev xs).
+Failed to prove elem (x-y) xs = elem (x-y) (xs++xs).
+Discarding 146 renamings and subsumptions.
+Failed to prove elem x (x:xs) = elem y (y:ys).
+Failed to prove elem x (x:xs) = elem x (x:[]).
+Discarding renamings and subsumptions: elem x (x:xs) = elem z (z:[])
+Failed to prove elem x (x:xs) = elem y (y:[]).
+Failed to prove elem x (x:xs) = elem Z (Z:xs).
+Discarding renamings and subsumptions: elem x (x:xs) = elem Z (Z:zs)
+Failed to prove elem x (x:xs) = elem Z (Z:ys).
+Failed to prove elem x (x:xs) = elem Z (Z:[]).
+Discarding 42 renamings and subsumptions.
+Failed to prove elem (len xs) ys = elem (len xs) (rev ys).
+Failed to prove elem (len xs) ys = elem (len xs) (ys++ys).
+Discarding 11 renamings and subsumptions.
+Failed to prove elem (S x) xs = elem (S x) (rev xs).
+Failed to prove elem (S x) xs = elem (S x) (xs++xs).
+Discarding 39 renamings and subsumptions.
+Failed to prove elem (len xs) xs = elem (len xs) (rev xs).
+Failed to prove elem (len xs) xs = elem (len xs) (xs++xs).
+Discarding 15 renamings and subsumptions.
+Failed to prove elem (x+y) (xs++ys) = elem (x+y) (ys++xs).
+Failed to prove elem (x-y) (xs++ys) = elem (x-y) (ys++xs).
+Discarding 105 renamings and subsumptions.
+Failed to prove elem (len xs) (ys++zs) = elem (len xs) (zs++ys).
+Failed to prove elem (S x) (xs++ys) = elem (S x) (ys++xs).
+Discarding 115 renamings and subsumptions.
+Failed to prove elem Z (xs++ys) = elem Z (ys++xs).
+Failed to prove elem (len xs) (xs++ys) = elem (len xs) (ys++xs).
+Discarding 76 renamings and subsumptions.
+Failed to prove elem (len ys) (xs++ys) = elem (len ys) (ys++xs).
+Failed to prove elem (x+x) xs = elem (x+x) (rev xs).
+Discarding 52 renamings and subsumptions.
+Failed to prove elem (x+x) xs = elem (x+x) (xs++xs).
+Failed to prove elem (x+x) (xs++ys) = elem (x+x) (ys++xs).
+Discarding 71 renamings and subsumptions.
+Failed to prove elem (S Z) xs = elem (S Z) (rev xs).
+Failed to prove elem (S Z) xs = elem (S Z) (xs++xs).
+Discarding 8 renamings and subsumptions.
+Failed to prove elem (x+y) (x:[]) = elem (y+z) (z:[]).
+Failed to prove elem (x+y) (x:[]) = elem y (Z:[]).
+Failed to prove elem (x+y) (x:[]) = elem Z (y:[]).
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (y:[]).
+Discarding renamings and subsumptions: elem (x+y) (y:[]) = elem (x+z) (z:[])
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem x (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem Z (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (Z:[]).
+Failed to prove elem (x+z) (x:[]) = elem (y+z) (y:[]).
+Discarding 25 renamings and subsumptions.
+Failed to prove elem (S Z) (xs++ys) = elem (S Z) (ys++xs).
+Loop!
+Failed to prove elem x (xs++ys) = elem x (ys++xs).
+Failed to prove elem x (x:xs) = elem x (x:ys).
+Failed to prove elem x xs = elem x (rev xs).
+Failed to prove elem x (x:xs) = elem y (y:xs).
+Discarding renamings and subsumptions: x-(x-y) = y-(y-x)
+Failed to prove rev (filter p xs) = filter p (rev xs).
+[1m[032mProved xs = rev (rev xs)!![0m
+Failed to prove elem x xs = elem x (xs++xs).
+Failed to prove elem x (y:[]) = elem y (x:[]).
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+Failed to prove elem (x+y) (y:[]) = elem (x+z) (z:[]).
+Failed to prove elem (x-y) (x:[]) = elem (y-x) (y:[]).
+Failed to prove elem (y-x) (x:[]) = elem (x+x) (y:[]).
+Failed to prove elem (x+x) (x:xs) = elem (x+x) (Z:xs).
+Failed to prove elem Z xs = elem Z (rev xs).
+Failed to prove elem Z xs = elem Z (xs++xs).
+Failed to prove elem (x+y) xs = elem (x+y) (rev xs).
+Failed to prove elem (x+y) xs = elem (x+y) (xs++xs).
+Failed to prove elem (x-y) xs = elem (x-y) (rev xs).
+Failed to prove elem (x-y) xs = elem (x-y) (xs++xs).
+Failed to prove elem x (x:xs) = elem y (y:ys).
+Failed to prove elem x (x:xs) = elem x (x:[]).
+Failed to prove elem x (x:xs) = elem y (y:[]).
+Failed to prove elem x (x:xs) = elem Z (Z:xs).
+Failed to prove elem x (x:xs) = elem Z (Z:ys).
+Failed to prove elem x (x:xs) = elem Z (Z:[]).
+Failed to prove elem (len xs) ys = elem (len xs) (rev ys).
+Failed to prove elem (len xs) ys = elem (len xs) (ys++ys).
+Failed to prove elem (S x) xs = elem (S x) (rev xs).
+Failed to prove elem (S x) xs = elem (S x) (xs++xs).
+Failed to prove elem (len xs) xs = elem (len xs) (rev xs).
+Failed to prove elem (len xs) xs = elem (len xs) (xs++xs).
+Failed to prove elem (x+y) (xs++ys) = elem (x+y) (ys++xs).
+Failed to prove elem (x-y) (xs++ys) = elem (x-y) (ys++xs).
+Failed to prove elem (len xs) (ys++zs) = elem (len xs) (zs++ys).
+Failed to prove elem (S x) (xs++ys) = elem (S x) (ys++xs).
+Failed to prove elem Z (xs++ys) = elem Z (ys++xs).
+Failed to prove elem (len xs) (xs++ys) = elem (len xs) (ys++xs).
+Failed to prove elem (len ys) (xs++ys) = elem (len ys) (ys++xs).
+Failed to prove elem (x+x) xs = elem (x+x) (rev xs).
+Failed to prove elem (x+x) xs = elem (x+x) (xs++xs).
+Failed to prove elem (x+x) (xs++ys) = elem (x+x) (ys++xs).
+Failed to prove elem (S Z) xs = elem (S Z) (rev xs).
+Failed to prove elem (S Z) xs = elem (S Z) (xs++xs).
+Failed to prove elem (x+y) (x:[]) = elem (y+z) (z:[]).
+Failed to prove elem (x+y) (x:[]) = elem y (Z:[]).
+Failed to prove elem (x+y) (x:[]) = elem Z (y:[]).
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (y:[]).
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem x (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem Z (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (Z:[]).
+Failed to prove elem (x+z) (x:[]) = elem (y+z) (y:[]).
+Failed to prove elem (S Z) (xs++ys) = elem (S Z) (ys++xs).
+Loop!
+Failed to prove elem x (xs++ys) = elem x (ys++xs).
+Failed to prove elem x (x:xs) = elem x (x:ys).
+Failed to prove elem x xs = elem x (rev xs).
+Failed to prove elem x (x:xs) = elem y (y:xs).
+Failed to prove rev (filter p xs) = filter p (rev xs).
+Failed to prove elem x xs = elem x (xs++xs).
+Failed to prove elem x (y:[]) = elem y (x:[]).
+Failed to prove (x-y)+(x-y) = (x+x)-(y+y).
+Failed to prove elem (x+y) (y:[]) = elem (x+z) (z:[]).
+Failed to prove elem (x-y) (x:[]) = elem (y-x) (y:[]).
+Failed to prove elem (y-x) (x:[]) = elem (x+x) (y:[]).
+Failed to prove elem (x+x) (x:xs) = elem (x+x) (Z:xs).
+Failed to prove elem Z xs = elem Z (rev xs).
+Failed to prove elem Z xs = elem Z (xs++xs).
+Failed to prove elem (x+y) xs = elem (x+y) (rev xs).
+Failed to prove elem (x+y) xs = elem (x+y) (xs++xs).
+Failed to prove elem (x-y) xs = elem (x-y) (rev xs).
+Failed to prove elem (x-y) xs = elem (x-y) (xs++xs).
+Failed to prove elem x (x:xs) = elem y (y:ys).
+Failed to prove elem x (x:xs) = elem x (x:[]).
+Failed to prove elem x (x:xs) = elem y (y:[]).
+Failed to prove elem x (x:xs) = elem Z (Z:xs).
+Failed to prove elem x (x:xs) = elem Z (Z:ys).
+Failed to prove elem x (x:xs) = elem Z (Z:[]).
+Failed to prove elem (len xs) ys = elem (len xs) (rev ys).
+Failed to prove elem (len xs) ys = elem (len xs) (ys++ys).
+Failed to prove elem (S x) xs = elem (S x) (rev xs).
+Failed to prove elem (S x) xs = elem (S x) (xs++xs).
+Failed to prove elem (len xs) xs = elem (len xs) (rev xs).
+Failed to prove elem (len xs) xs = elem (len xs) (xs++xs).
+Failed to prove elem (x+y) (xs++ys) = elem (x+y) (ys++xs).
+Failed to prove elem (x-y) (xs++ys) = elem (x-y) (ys++xs).
+Failed to prove elem (len xs) (ys++zs) = elem (len xs) (zs++ys).
+Failed to prove elem (S x) (xs++ys) = elem (S x) (ys++xs).
+Failed to prove elem Z (xs++ys) = elem Z (ys++xs).
+Failed to prove elem (len xs) (xs++ys) = elem (len xs) (ys++xs).
+Failed to prove elem (len ys) (xs++ys) = elem (len ys) (ys++xs).
+Failed to prove elem (x+x) xs = elem (x+x) (rev xs).
+Failed to prove elem (x+x) xs = elem (x+x) (xs++xs).
+Failed to prove elem (x+x) (xs++ys) = elem (x+x) (ys++xs).
+Failed to prove elem (S Z) xs = elem (S Z) (rev xs).
+Failed to prove elem (S Z) xs = elem (S Z) (xs++xs).
+Failed to prove elem (x+y) (x:[]) = elem (y+z) (z:[]).
+Failed to prove elem (x+y) (x:[]) = elem y (Z:[]).
+Failed to prove elem (x+y) (x:[]) = elem Z (y:[]).
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (y:[]).
+Failed to prove elem (x+y) (x:[]) = elem (y+y) (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem x (Z:[]).
+Failed to prove elem (x+y) (y:[]) = elem Z (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (x:[]).
+Failed to prove elem (x+y) (y:[]) = elem (x+x) (Z:[]).
+Failed to prove elem (x+z) (x:[]) = elem (y+z) (y:[]).
+Failed to prove elem (S Z) (xs++ys) = elem (S Z) (ys++xs).
+Failed to prove [031minconsistencyCheck[0m.
+Failed to prove prop_20.
+Failed to prove prop_29.
+Failed to prove prop_30.
+Failed to prove prop_38.
+Failed to prove prop_52.
+[032mProved prop_54 without induction.[0m
+Failed to prove prop_53.
+[1m[032mProved prop_65!![0m
+Failed to prove prop_66.
+Failed to prove prop_68.
+[1m[032mProved prop_69!![0m
+Failed to prove prop_72.
+Failed to prove prop_73.
+Failed to prove prop_74.
+Failed to prove prop_78.
+[1m[032mProved prop_81!![0m
+[1m[032mProved prop_83!![0m
+[1m[032mProved prop_84!![0m
+prop_54 provable without induction
+Proved: x+y = y+x,
+	Z = x-x,
+	xs = xs++[],
+	x+(y+z) = y+(x+z),
+	xs++(ys++zs) = (xs++ys)++zs,
+	x-(y+z) = (x-y)-z,
+	len (xs++ys) = len (ys++xs),
+	filter p xs = filter p (filter p xs),
+	x+(y-x) = y+(x-y),
+	y = (x+y)-x,
+	len xs = len (rev xs),
+	S Z = S y-y,
+	filter p (xs++ys) = filter p xs++filter p ys,
+	rev (ys++xs) = rev xs++rev ys,
+	elem (S x) xs = elem (S x) (x:xs),
+	len (xs++ys) = len xs+len ys,
+	S y-(x+y) = S Z-(x+x),
+	xs = rev (rev xs),
+	prop_65,
+	prop_69,
+	prop_81,
+	prop_83,
+	prop_84,
+	prop_54
+Unproved: [031minconsistencyCheck[0m,
+	prop_20,
+	prop_29,
+	prop_30,
+	prop_38,
+	prop_52,
+	prop_53,
+	prop_66,
+	prop_68,
+	prop_72,
+	prop_73,
+	prop_74,
+	prop_78
+24/37
+
+
+real	13m35.858s

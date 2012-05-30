@@ -1,0 +1,140 @@
+Translation complete. Generating equivalence classes.
+Depth 1: 16 terms, 16 classes, 0 raw equations.
+Depth 2: 82 terms, 64 classes, 18 raw equations.
+Depth 3: 4147 terms, 1723 classes, 2424 raw equations.
+Universe has 4139 terms.
+Starting to prove...
+Failed to prove mult' x y z = mult' y x z.
+[1m[032mProved x+y = y+x!![0m
+Failed to prove x*y = y*x.
+Failed to prove mult' x y (x*z) = mult' x z (x*y).
+Failed to prove nat (mult' y z x) = x+(y*z).
+[1m[032mProved x+(y+z) = y+(x+z)!![0m
+[1m[032mProved x*(y*z) = y*(x*z)!![0m
+Failed to prove mult' y z (x*x) = mult' x x (y*z).
+Failed to prove mult' x (y*z) x = mult' y (x*z) x.
+Failed to prove mult' x (y*y) z = mult' y (x*y) z.
+[032mProved x = nat (Not x) without induction.[0m
+Failed to prove mult' x (y+z) (y*z) = mult' y (x+z) (x*z).
+Failed to prove mult' x (y*z) (x+y) = mult' y (x*z) (x+y).
+Failed to prove mult' x (y*z) (x+z) = mult' y (x*z) (x+z).
+Failed to prove mult' x (y*z) (x*y) = mult' y (x*z) (x*y).
+Failed to prove mult' x (y*z) (x*z) = mult' y (x*z) (x*z).
+[1m[032mProved x*(y+z) = (x*y)+(x*z)!![0m
+Failed to prove mult' x (y+z) (x*x) = mult' x (x+y) (x*z).
+Failed to prove mult' y (x+z) (x*x) = mult' x (x+y) (y*z).
+Failed to prove mult' (x*y) (z*z) (x+y) = mult' (x*z) (y*z) (x+y).
+Failed to prove mult' (x*y) (z*z) (x*y) = mult' (x*z) (y*z) (x*y).
+[1m[032mProved mult' x (y+y) z = mult' y (x+x) z!![0m
+Failed to prove mult' x (y*z) (x+x) = mult' y (x*z) (x+x).
+Failed to prove mult' x (y+z) (x*y) = mult' x (y+y) (x*z).
+Failed to prove mult' (x*y) (x*y) z = mult' (x*x) (y*y) z.
+Failed to prove mult' (x+y) (x+z) (y*y) = mult' (x+y) (y+z) (x*x).
+Discarding 14 renamings and subsumptions.
+Failed to prove mult' x y = mult' y x.
+Failed to prove mult' x y x = mult' y x x.
+Discarding renamings and subsumptions: mult' x z x = mult' z x x, mult' x z z = mult' z x z, mult' y z y = mult' z y y, mult' y z z = mult' z y z
+Failed to prove mult' x y y = mult' y x y.
+Failed to prove mult' x (y+z) = mult' (y+z) x.
+Failed to prove mult' x (y*z) = mult' y (x*z).
+Failed to prove mult' x (y*z) = mult' z (x*y).
+Failed to prove mult' x (y*z) = mult' (x*y) z.
+Failed to prove mult' x (y*z) = mult' (x*z) y.
+Discarding renamings and subsumptions: mult' y (x+z) = mult' (x+z) y, mult' z (x+y) = mult' (x+y) z
+Failed to prove mult' x (y*z) = mult' (y*z) x.
+Failed to prove mult' x (x+y) = mult' (x+y) x.
+Discarding renamings and subsumptions: mult' x (x+z) = mult' (x+z) x
+Failed to prove mult' x (x*y) = mult' y (x*x).
+Failed to prove mult' x (x*y) = mult' (x*y) x.
+Discarding renamings and subsumptions: mult' x (x*z) = mult' z (x*x), mult' x (x*z) = mult' (x*z) x, mult' x (x*z) = mult' (x*x) z
+Failed to prove mult' x (x*y) = mult' (x*x) y.
+Failed to prove mult' y (x+y) = mult' (x+y) y.
+Discarding 11 renamings and subsumptions.
+[1m[032mProved nat (mult' x y z) = (x*y)+z!![0m
+[1m[032mProved mult' x y (x+z) = mult' y x (x+z)!![0m
+Interesting candidates: mult' x y = mult' y x, mult' x y z = mult' y x z, nat (mult' y z x) = x+(y*z)
+Failed to prove mult' x y = mult' y x.
+[1m[032mProved mult' x y z = mult' y x z!![0m
+Interesting candidates: mult' x y = mult' y x
+Discarding renamings and subsumptions: nat (mult' y z x) = x+(y*z), mult' x y (y+z) = mult' y x (y+z), mult' x y (x*z) = mult' x z (x*y), mult' x y (x*z) = mult' y x (x*z)
+[032mProved mult' x y = mult' y x without induction.[0m
+[032mProved mult' x y (x*z) = mult' z x (x*y) without induction.[0m
+Interesting candidates: mult' x y (x*z) = mult' x z (x*y)
+Discarding renamings and subsumptions: mult' x y (x*z) = mult' x z (x*y), mult' x y (y*z) = mult' y x (y*z)
+[032mProved mult' x y (y*z) = mult' y z (x*y) without induction.[0m
+[032mProved mult' x y (y*z) = mult' z y (x*y) without induction.[0m
+Interesting candidates: x*y = y*x
+Discarding 12 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[1m[032mProved x*(y+z) = (y+z)*x!![0m
+Interesting candidates: x*y = y*x
+Discarding renamings and subsumptions: x*(y+z) = (x*y)+(x*z), x*(y+z) = (x*z)+(x*y), x*(y*z) = y*(x*z)
+Failed to prove x*y = y*x.
+[1m[032mProved x*(y*z) = z*(x*y)!![0m
+Interesting candidates: x*y = y*x
+Failed to prove x*y = y*x.
+[032mProved x*(y*z) = (x*y)*z without induction.[0m
+Interesting candidates: x*y = y*x
+Discarding 12 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[032mProved mult' x (y*z) x = mult' z (x*y) x without induction.[0m
+Interesting candidates: mult' x (y*z) = mult' z (x*y), mult' x (y*z) = mult' (x*y) z
+[032mProved mult' x (y*z) = mult' z (x*y) without induction.[0m
+[032mProved mult' x (y*z) = mult' (x*y) z without induction.[0m
+Discarding renamings and subsumptions: mult' x (y*z) x = mult' (x*y) z x, mult' x (y*z) x = mult' (y*z) x x
+[032mProved mult' x (y*z) x = mult' (x*z) y x without induction.[0m
+[032mProved mult' x (y*z) y = mult' y (x*z) y without induction.[0m
+Interesting candidates: x*y = y*x, mult' x (y*z) = mult' y (x*z), mult' x (y*z) = mult' (x*z) y, mult' x (y*z) x = mult' y (x*z) x
+Failed to prove x*y = y*x.
+[032mProved mult' x (y*z) = mult' y (x*z) without induction.[0m
+Interesting candidates: x*y = y*x
+Discarding 133 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[032mProved mult' x (y+z) (x*y) = mult' y (x+x) (x*z) without induction.[0m
+Interesting candidates: mult' x (y+z) (x*y) = mult' x (y+y) (x*z)
+Discarding 9 renamings and subsumptions.
+[032mProved mult' x (y+z) (y*z) = mult' z (x+y) (x*y) without induction.[0m
+[032mProved mult' x (y+z) (y*z) = mult' (x+y) z (x*y) without induction.[0m
+Discarding 405 renamings and subsumptions.
+[032mProved mult' x (y+z) (y*z) = mult' (x+z) y (x*z) without induction.[0m
+[032mProved mult' x (y+y) = mult' y (x+x) without induction.[0m
+Interesting candidates: x*y = y*x, mult' x (y+z) (y*z) = mult' y (x+z) (x*z)
+Discarding 123 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[032mProved mult' x x (y*y) = mult' y y (x*x) without induction.[0m
+Interesting candidates: mult' y z (x*x) = mult' x x (y*z)
+Discarding 135 renamings and subsumptions.
+[032mProved mult' y z (x*x) = mult' x x (y*z) without induction.[0m
+[032mProved mult' x (y+z) (x*x) = mult' x (x+z) (x*y) without induction.[0m
+Interesting candidates: mult' x (y+z) (x*x) = mult' x (x+y) (x*z)
+Discarding renamings and subsumptions: mult' x (y+z) (x*x) = mult' x (x+y) (x*z), mult' x (y+z) (x*x) = mult' (x+y) x (x*z), mult' x (y+z) (x*x) = mult' (x+z) x (x*y), mult' x (y+z) (y*y) = mult' (y+z) x (y*y)
+[032mProved mult' x (y+z) (y*y) = mult' y (x+y) (x*z) without induction.[0m
+[032mProved mult' x (y+z) (y*y) = mult' (x+y) y (x*z) without induction.[0m
+Interesting candidates: mult' y (x+z) (x*x) = mult' x (x+y) (y*z)
+Discarding 46 renamings and subsumptions.
+[032mProved mult' y (x+z) (z*z) = mult' z (y+z) (x*y) without induction.[0m
+[032mProved mult' y (x+z) (z*z) = mult' (y+z) z (x*y) without induction.[0m
+Interesting candidates: x*y = y*x
+Discarding 652 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[032mProved mult' (x+y) (x+z) (y*y) = mult' (y+z) (x+y) (x*x) without induction.[0m
+Interesting candidates: mult' (x+y) (x+z) (y*y) = mult' (x+y) (y+z) (x*x)
+Discarding 819 renamings and subsumptions.
+Loop!
+Discarding 18 renamings and subsumptions.
+Failed to prove x*y = y*x.
+[032mProved prop_T34 without induction.[0m
+prop_T34 provable without induction
+Proved: x+y = y+x,
+	x+(y+z) = y+(x+z),
+	x*(y*z) = y*(x*z),
+	x*(y+z) = (x*y)+(x*z),
+	mult' x (y+y) z = mult' y (x+x) z,
+	nat (mult' x y z) = (x*y)+z,
+	mult' x y (x+z) = mult' y x (x+z),
+	mult' x y z = mult' y x z,
+	x*(y+z) = (y+z)*x,
+	x*(y*z) = z*(x*y),
+	prop_T34
+Unproved: (none)
+11/11

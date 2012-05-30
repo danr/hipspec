@@ -1,0 +1,58 @@
+
+% A little hack so this can be compiled stand alone
+\ifx\maindocument\undefined
+    \documentclass{article}
+    \usepackage[latin1]{inputenc}
+    \usepackage{tikz}
+    \usetikzlibrary{shapes,arrows,calc}
+
+    \begin{document}
+    \pagestyle{empty}
+    \def\donext{\end{document}}
+\else
+    \def\donext{}
+\fi
+
+% Define block styles
+\tikzstyle{bigblock}   = [rectangle, draw=Purpleee, thick,
+                          text width=4.75em, text centered,
+                          minimum height=10em,
+                          rounded corners=.8ex]
+
+\tikzstyle{smallblock} = [rectangle,
+                          text width=6em, text centered,
+                          minimum height=3em,thick,
+                          draw=Purpleee,rounded corners=.8ex]
+
+\tikzstyle{arr} = [->,>=stealth',semithick]
+
+\makebox[\textwidth][c]{
+\begin{tikzpicture}
+
+    % Place nodes
+    \node at (-0.75,0)     [bigblock] (src)  {Haskell Source};
+    \node at (4,1.5)  [smallblock] (conj) {Conjectures};
+    \node at (4,-1.5) [smallblock] (thy)  {First-Order Theory};
+    \node at (8.5,0)     [smallblock] (atp)  {Theorem Prover};
+   % Draw edges
+
+    \node at (4.5,0) (text) {Induction (Hip)};
+
+    \draw [arr] (src)  to [bend left=15] node [above] {QuickSpec} (conj);
+    \draw [arr] (src)  to [bend left=-15] node [below,text centered,text width=5em] {Translation (Hip)} (thy);
+
+    \draw [arr] (conj) to [bend right=17]  (atp);
+    \draw [arr] (thy)  to [bend right=-17] (atp);
+
+    \draw [arr] (atp)  to [bend left=-15]
+        node [right,near start] {\texttt{ Timeout}}
+        node [above right,very near end] {Open conjecture} (conj);
+    \draw [arr] (atp)  to [bend left=15]
+        node [right,near start] {\texttt{ Theorem}}
+        node [below right,very near end] {Extend theory} (thy);
+
+\end{tikzpicture}
+}
+
+
+\donext
