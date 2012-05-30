@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 -- (c) Dan Rosén 2012
 module Halt.FOL.Abstract
        (VarTerm,VarFormula,VarClause
