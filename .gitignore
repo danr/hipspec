@@ -1,4 +1,8 @@
+# Emacs temp
+\#*\#
+
 # Haskell temp
+dist
 *\.o
 *\.hi
 
