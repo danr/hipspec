@@ -2,24 +2,23 @@
 module Hip.Trans.ProofDatatypes where
 
 import Data.Function
+import Data.List
 
 import Halt.FOL.Abstract
 
-data ProofMethod
-    = Plain
-    | StructuralInduction { indVars :: [String]
-                          , depth :: Int }
+data ProofMethod = Plain
+                 | StructuralInduction { coords :: [Int] }
   deriving (Eq,Ord)
 
 instance Show ProofMethod where
-    show Plain                      = "plain"
-    show (StructuralInduction vs d) = "structural induction on "
-                                    ++ unwords vs ++ " depth " ++ show d
+    show Plain                    = "plain"
+    show (StructuralInduction vs) = "structural induction on "
+                                  ++ unwords (map show vs)
 
 proofMethodFile :: ProofMethod -> String
 proofMethodFile pt = case pt of
-    Plain                    -> "plain"
-    StructuralInduction vs d -> concat vs ++ show d
+    Plain                  -> "plain"
+    StructuralInduction vs -> intercalate "_" (map show vs)
 
 type Property  = PropertyMatter [Part]
 type Part      = PartMatter     ([AxClause],[VarClause],[Particle])

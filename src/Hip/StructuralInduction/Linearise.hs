@@ -47,8 +47,8 @@ linHyp :: Style c v t -> Hypothesis c v t -> Doc
 linHyp st (qs,hyp) = (if null qs then id else parens)
                    $ linForall st parens qs <+> linPred st hyp
 
-linPart :: Style c v t -> Part c v t -> Doc
-linPart st (Part implicit hyps conc) = hang
+linPart :: Style c v t -> IndPart c v t -> Doc
+linPart st (IndPart implicit hyps conc) = hang
      (linForall st id implicit)
      4
      $ parens $ cat $ parList (punctuate (fluff ampersand) (map (linHyp st) hyps)

@@ -1,5 +1,5 @@
 -- Properties come from QuickSpec
-module Lists where
+module Reverse where
 
 import HipPrelude
 import Prelude (Int)

@@ -19,6 +19,7 @@ import Halt.Conf
 import Halt.Monad
 import Halt.Trans
 import Halt.Entry
+import Halt.Utils
 
 import Data.List
 import Data.Maybe
@@ -97,16 +98,14 @@ main = do
           (data_axioms,def_axioms,_msgs_trans)
               = translate halt_env ty_cons_with_builtin core_defns
 
-          theory = Theory data_axioms def_axioms (error "Theory.thyTyEnv")
+          theory = Theory data_axioms def_axioms
 
           props = inconsistentProp : mapMaybe trProperty core_props
 
-      {-
       forM_ props $ \prop -> do let Prop{..} = prop
                                 putStrLn $ propName ++ ": "
                                         ++ showExpr proplhs ++ " = "
                                         ++ showExpr proprhs
-      -}
 
       (unproved,proved) <- parLoop halt_env params theory props []
 
@@ -137,9 +136,12 @@ tryProve halt_env params@(Params{..}) props thy lemmas = do
                   , propCodes       = error "main env propCodes"
                   }
 
-        (properties,_msgs) = runHaltM halt_env
-                           . mapM (\prop -> theoryToInvocations params thy prop lemmas)
-                           $ props
+    us <- mkSplitUniqSupply '&'
+
+    let ((properties,msgs),_us) = runMakerM halt_env us
+                                 . mapM (\prop -> theoryToInvocations
+                                                      params thy prop lemmas)
+                                 $ props
 
     res <- invokeATPs properties env
 

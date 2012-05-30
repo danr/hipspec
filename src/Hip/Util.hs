@@ -1,6 +1,6 @@
 module Hip.Util
        ((?),(.:),unlist,avgList,selections,inspect,uniqueCartesian,withPrevious,concatMapM,concatMaybe
-       ,isOp,putEither,mif,countBy,groupSortedOn,nubSorted,forFind
+       ,isOp,putEither,mif,countBy,groupSortedOn,nubSorted,nubSortedOn,forFind
        ,bold,color,Color(..))
        where
 
@@ -90,6 +90,10 @@ groupSortedOn :: (Eq b,Ord b) => (a -> b) -> [a] -> [[a]]
 groupSortedOn f = groupBy ((==) `on` f)
                 . sortBy (comparing f)
 
+nubSortedOn :: (Eq b,Ord b) => (a -> b) -> [a] -> [a]
+nubSortedOn f = map head
+              . groupBy ((==) `on` f)
+              . sortBy (comparing f)
 
 forFind :: Monad m => [a] -> (a -> m Bool) -> m (Maybe a)
 forFind []     _ = return Nothing

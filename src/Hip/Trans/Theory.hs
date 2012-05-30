@@ -14,7 +14,6 @@ import qualified Test.QuickSpec.Term as QST
 
 data Theory = Theory { thyDataAxioms :: [AxClause]
                      , thyDefAxioms  :: [VarClause]
-                     , thyTyEnv      :: TyEnv Var Type
                      }
 
 data Prop = Prop { proplhs  :: CoreExpr

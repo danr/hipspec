@@ -41,6 +41,7 @@ executable          hipspec-halt
 
         -- Structural Induction
         safe                          >= 0.3,
+        pretty                        >= 1.0,
 
         -- QuickSpec
         QuickCheck                    >= 2.0,

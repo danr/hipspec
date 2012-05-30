@@ -12,9 +12,9 @@
 >              TypeOperators #-}
 
 > module Hip.StructuralInduction
->        (Term(..)  ,TermV
->        ,Hypothesis,HypothesisV
->        ,Part(..)  ,PartV
+>        (Term(..)   ,TermV
+>        ,Hypothesis ,HypothesisV
+>        ,IndPart(..),IndPartV
 >        ,(:::)
 >        ,Arg(..)
 >        ,unV
@@ -34,14 +34,14 @@
 > import Data.List
 > import Data.Maybe
 
-> import Hip.Util (concatMapM,(.:),nubSorted)
+> import Hip.Util (concatMapM,(.:),nubSortedOn)
 
 > import Safe
 
   Context of Data and Ord
   -----------------------
 
-> type DataOrds c v t = (Data c,Data v,Data t,Ord c,Ord v,Ord t)
+> type DataOrds c v = (Data c,Data v,Ord c,Ord v)
 
   Typed variables
   ===============
@@ -65,11 +65,12 @@
 
 > type Hypothesis c v t = ([v ::: t],Predicate c v)
 
-> quantify :: DataOrds c v t => [v ::: t] -> Hypothesis c v t -> Hypothesis c v t
+> quantify :: DataOrds c v => [v ::: t] -> Hypothesis c v t -> Hypothesis c v t
 > quantify xs (ys,hyp) = ([(x,t) | (x,t) <- xs, any (x `varFree`) hyp] ++ ys,hyp)
 
-> tidy :: DataOrds c v t => [Hypothesis c v t] -> [Hypothesis c v t]
-> tidy = nubSorted . filter (not . all isAtom . snd)
+> tidy :: DataOrds c v => [Hypothesis c v t] -> [Hypothesis c v t]
+> tidy = nubSortedOn (first (map fst))
+>      . filter (not . all isAtom . snd)
 >   where
 >     isAtom (Con _ tms) = all isAtom tms
 >     isAtom _           = False
@@ -77,10 +78,10 @@
   Induction steps data type
   =========================
  
-> data Part c v t = Part { implicit   :: [v ::: t]
->                        , hypotheses :: [Hypothesis c v t]
->                        , conclusion :: Predicate c v
->                        }
+> data IndPart c v t = IndPart { implicit   :: [v ::: t]
+>                              , hypotheses :: [Hypothesis c v t]
+>                              , conclusion :: Predicate c v
+>                              }
 >   deriving(Eq,Ord,Show,Data,Typeable)
 
   Terms
@@ -188,7 +189,7 @@
  
   Our datatypes with tagged variables
  
-> type PartV c v t = Part c (V v) t
+> type IndPartV c v t = IndPart c (V v) t
 > type TermV c v = Term c (V v)
 > type HypothesisV c v t = Hypothesis c (V v) t
 
@@ -219,11 +220,12 @@
   ------------------------
 
 > -- | Flattens out fresh variable names, in a monad
-> unVM :: (Applicative m,Monad m) => (v -> Integer -> m v) -> PartV c v t -> m (Part c v t)
-> unVM f (Part imp hyps conc)
->   = Part <$> unList imp
->          <*> mapM (\(x,y) -> (,) <$> unList x <*> mapM unTm y) hyps
->          <*> mapM unTm conc
+> unVM :: (Applicative m,Monad m)
+>      => (v -> Integer -> m v) -> IndPartV c v t -> m (IndPart c v t)
+> unVM f (IndPart imp hyps conc)
+>   = IndPart <$> unList imp
+>             <*> mapM (\(x,y) -> (,) <$> unList x <*> mapM unTm y) hyps
+>             <*> mapM unTm conc
 >   where
 >     f' = uncurry f
 >
@@ -235,7 +237,7 @@
 >         Fun x tms -> Fun <$> f' x <*> mapM unTm tms
 >
 > -- | Flattens out fresh variable names
-> unV :: (v -> Integer -> v) -> PartV c v t -> Part c v t
+> unV :: (v -> Integer -> v) -> IndPartV c v t -> IndPart c v t
 > unV f = runIdentity . unVM (return .: f)
 
   Induction
@@ -326,8 +328,9 @@
 
   | Induction on a constructor, given its arguments as above
 
-> indCon :: forall c v t . DataOrds c v t => PartV c v t -> V v -> c -> [Arg t] -> Fresh (PartV c v t)
-> indCon (Part x_and_xs gamma_and_phi psi) x con arg_types = do
+> indCon :: forall c v t . DataOrds c v
+>        => IndPartV c v t -> V v -> c -> [Arg t] -> Fresh (IndPartV c v t)
+> indCon (IndPart x_and_xs gamma_and_phi psi) x con arg_types = do
 >
 >    let phis :: [HypothesisV c v t]
 >        (phis,gamma) = partition (any (varFree x) . snd) gamma_and_phi
@@ -357,9 +360,9 @@
 >
 >        x1xn_typed = map (second argRepr) x1xn_args
 >
->    return $ Part (x1xn_typed ++ xs)
->                  (tidy $ gamma ++ antecedents)
->                  (consequent)
+>    return $ IndPart (x1xn_typed ++ xs)
+>                     (tidy $ gamma ++ antecedents)
+>                     (consequent)
 
   In the commentary about indCon we assumed that all arguments were
   recurisive. This is not necessarily so, consider
@@ -411,7 +414,7 @@
   | This function returns the hypothesis, given a φ(/x),
     i.e a hypothesis waiting for a substiution
 
-> hypothesis :: DataOrds c v t
+> hypothesis :: DataOrds c v
 >            => (TermV c v -> HypothesisV c v t) -> V v -> Arg t
 >            -> Fresh (Maybe (HypothesisV c v t))
 > hypothesis phi_slash xi arg = case arg of
@@ -425,8 +428,8 @@
   | Induction on a variable, given all its constructors and their types
     Returns a number of clauses to be proved, one for each constructor.
  
-> induction :: DataOrds c v t
->           => PartV c v t -> V v -> [c ::: [Arg t]] -> Fresh [PartV c v t]
+> induction :: DataOrds c v
+>           => IndPartV c v t -> V v -> [c ::: [Arg t]] -> Fresh [IndPartV c v t]
 > induction phi x cons = sequence [ indCon phi x con arg_types
 >                                 | (con,arg_types) <- cons ]
 
@@ -434,9 +437,9 @@
     predicate P, it may just as well be a constructor x : xs, and then
     we can do induction on x and xs (possibly).
 
-> inductionTm :: DataOrds c v t
->             => TyEnv c t -> PartV c v t -> TermV c v -> Fresh [PartV c v t]
-> inductionTm ty_env part@(Part xs _ _) tm = case tm of
+> inductionTm :: DataOrds c v
+>             => TyEnv c t -> IndPartV c v t -> TermV c v -> Fresh [IndPartV c v t]
+> inductionTm ty_env part@(IndPart xs _ _) tm = case tm of
 >     Var x -> let ty = lookupJustNote "inductionTm: x not quantified" x xs
 >              in  case ty_env ty of
 >                      Just cons -> induction part x cons
@@ -445,13 +448,13 @@
 
   | Gets the n:th argument of the conclusion, in the consequent
  
-> getNthArg :: Int -> Part c v t -> Term c v
+> getNthArg :: Int -> IndPart c v t -> Term c v
 > getNthArg i p = atNote "StructuralInduction.getNthArg" (conclusion p) i
 
   | Induction on the term on the n:th coordinate of the predicate.
  
-> inductionNth :: DataOrds c v t
->              => TyEnv c t -> PartV c v t -> Int -> Fresh [PartV c v t]
+> inductionNth :: DataOrds c v
+>              => TyEnv c t -> IndPartV c v t -> Int -> Fresh [IndPartV c v t]
 > inductionNth ty_env phi i = inductionTm ty_env phi (getNthArg i phi)
 
   | Perform repeated lexicographic induction, given the typing environment
@@ -462,20 +465,20 @@
  
       * which coordinates to do induction on, in order
 
-> structuralInduction :: DataOrds c v t
+> structuralInduction :: DataOrds c v
 >                     => TyEnv c t
 >                     -- ^ Constructor typed environment
 >                     -> [(v,t)]
 >                     -- ^ The initial arguments and types to P
 >                     -> [Int]
 >                     -- ^ The coordinates to do induction on in P, in order
->                     -> [PartV c v t]
+>                     -> [IndPartV c v t]
 >                     -- ^ The set of clauses to prove
 > structuralInduction ty_env args coordinates = flip evalState 0 $ do
 >
 >     args_fresh <- mapM (uncurry newTyped) args
 >
->     let init_part = Part args_fresh [] (map (Var . fst) args_fresh)
+>     let init_part = IndPart args_fresh [] (map (Var . fst) args_fresh)
 >
 >     concatFoldM (inductionNth ty_env) init_part coordinates
 
