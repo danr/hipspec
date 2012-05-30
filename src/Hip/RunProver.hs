@@ -13,6 +13,7 @@ import Control.Monad
 
 import System.Process
 import System.IO
+import System.Exit
 import System.CPUTime
 
 runProver :: Prover -> String -> Int -> IO ProverResult
@@ -44,7 +45,7 @@ runProver (Prover{..}) inputStr timelimit = do
          -- read output
          takeMVar outMVar
          hClose outh
-         void (return output)
+         return output
          -- wait on the process
          ex <- waitForProcess pid
          putMVar exitCodeMVar (Just ex)
@@ -53,7 +54,7 @@ runProver (Prover{..}) inputStr timelimit = do
          threadDelay (timelimit * 1000 * 1000)
          killThread tid
          terminateProcess pid
-         void (waitForProcess pid)
+         ex <- waitForProcess pid
          putMVar exitCodeMVar Nothing
 
     maybeExitCode <- takeMVar exitCodeMVar

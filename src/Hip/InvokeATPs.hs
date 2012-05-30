@@ -38,7 +38,11 @@ module Hip.InvokeATPs where
 -- time on successes. histogram maybe?! :D
 
 
+import System.CPUTime
+
 import Control.Concurrent
+import Control.Concurrent.Chan
+import Control.Concurrent.MVar
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
 import Control.Monad.STM
@@ -49,20 +53,22 @@ import Control.Monad.State
 
 import Control.Arrow ((***),first,second)
 
+import Data.Function
 import Data.List
 import Data.Maybe
 
 import qualified Data.Map as M
 import Data.Map (Map)
 
+--import qualified Data.Set as S
+--import Data.Set (Set)
+
 import Hip.Trans.ProofDatatypes
 import Hip.ResultDatatypes
 import Hip.Provers
 import Hip.RunProver
-
-import Halt.FOL.Linearise
-import Halt.FOL.Style
-import Halt.FOL.Rename
+import Hip.Util
+import Language.TPTP.Pretty
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)
@@ -74,8 +80,8 @@ type PartResult = PartMatter [ParticleResult]
 type ParticleResult = ParticleMatter (ProverResult,Maybe ProverName)
 
 statusFromPart :: PartResult -> Status
-statusFromPart (Part _ (map (fst . particleMatter) -> res))
-    = statusFromResults res
+statusFromPart (Part _ coverage (map (fst . particleMatter) -> res))
+  = statusFromResults coverage res
 
 plainProof :: PropResult -> Bool
 plainProof = any (\p -> partMethod p == Plain && statusFromPart p /= None)
@@ -113,17 +119,17 @@ invokeATPs properties env@(Env{..}) = do
 
     workers <- replicateM processes $ forkIO (runProveM env' (worker probChan intermediateChan))
 
-    void $ forkIO $ runProveM env' (listener intermediateChan resChan propParts workers doneMVar)
+    res <- forkIO $ runProveM env' (listener intermediateChan resChan propParts workers doneMVar)
 
     consume resChan doneMVar
   where
     consume :: TChan PropResult -> TVar Bool -> IO [PropResult]
     consume resChan doneTVar = fix $ \loop -> unsafeInterleaveIO $ do
---      putStrLn "consuming..."
-        element <- atomically $ do is_empty <- isEmptyTChan resChan
+--        putStrLn "consuming..."
+        element <- atomically $ do empty <- isEmptyTChan resChan
                                    done  <- readTVar doneTVar
-                                   if is_empty then (if done then return Nothing else retry)
-                                               else Just <$> readTChan resChan
+                                   if empty then (if done then return Nothing else retry)
+                                            else Just <$> readTChan resChan
         case element of
                 Nothing -> return []
                 Just e  -> (e:) <$> loop
@@ -162,7 +168,7 @@ listener intermediateChan resChan propParts workers doneTVar = do
 
         process :: StateT ListenerSt ProveM ()
         process = fix $ \loop -> do
-            res@(propName,part) <- liftIO (readChan intermediateChan)
+            res@(propName,part@(Part _ _ resParticles)) <- liftIO (readChan intermediateChan)
             let status = statusFromPart part
             lift $ updatePropStatus propName status
 
@@ -198,41 +204,39 @@ listener intermediateChan resChan propParts workers doneTVar = do
         alterer :: Maybe PropResult -> PropResult
         alterer m = case m of
            Nothing -> Property name (propCodeMap M.! name) (statusFromPart partRes,[partRes])
-           Just (Property name' code (status,parts)) ->
-                      Property name' code (statusFromPart partRes `max` status,partRes:parts)
+           Just (Property name code (status,parts)) ->
+                      Property name code (statusFromPart partRes `max` status,partRes:parts)
 
 -- | A worker. Reads the channel of parts to process, and writes to
 -- the result channel. Skips doing the rest of the particles if one
 -- fails, or if the property is proved elsewhere.
 worker :: Chan (PropName,Part) -> Chan (PropName,PartResult) -> ProveM ()
 worker partChan resChan = forever $ do
-    (propName,Part partMethod
-                   (data_axioms,def_axioms,particles)) <- liftIO (readChan partChan)
+    (propName,Part partMethod partCoverage (partTheory,particles))  <- liftIO (readChan partChan)
+    let theoryStr = prettyTPTP partTheory
 
     env@(Env{..}) <- ask
 
     let unnecessary Theorem       = True
+        unnecessary FiniteTheorem = partCoverage == Finite
         unnecessary _             = False
 
-        processParticle :: Particle -> StateT Bool ProveM ParticleResult
-        processParticle (Particle particleDesc particle_axioms) = do
+    let processParticle :: Particle -> StateT Bool ProveM ParticleResult
+        processParticle (Particle particleDesc particleAxioms) = do
             stop <- get
             if stop then return (Particle particleDesc (Failure,Nothing)) else do
                 resvar <- liftIO newEmptyMVar
+                let axiomsStr = theoryStr ++ "\n" ++ prettyTPTP particleAxioms
 
-                let tptp = linTPTP (strStyle True)
-                                   (renameClauses data_axioms
-                                                  (def_axioms ++ particle_axioms))
-
-                length tptp `seq`
-                    (void . liftIO . forkIO . runProveM env . runProvers tptp $ resvar)
+                length axiomsStr `seq`
+                    (liftIO $ forkIO $ runProveM env $ runProvers axiomsStr resvar)
 
                 case store of
                    Nothing  -> return ()
                    Just dir -> let filename = dir ++ propName ++ "/" ++
                                               intercalate "-" [proofMethodFile partMethod,particleDesc] ++ ".tptp"
                                in  liftIO (do createDirectoryIfMissing True (dir ++ propName)
-                                              writeFile filename tptp)
+                                              writeFile filename axiomsStr)
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)
                 provedElsewhere <- unnecessary <$> lift (propStatus propName)
@@ -244,7 +248,7 @@ worker partChan resChan = forever $ do
 
     res <- evalStateT (mapM processParticle particles) provedElsewhere
 
-    liftIO (writeChan resChan (propName,Part partMethod res))
+    liftIO (writeChan resChan (propName,Part partMethod partCoverage res))
 
 runProvers :: String -> MVar (ProverResult,Maybe ProverName) -> ProveM ()
 runProvers str res = do

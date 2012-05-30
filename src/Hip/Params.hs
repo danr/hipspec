@@ -19,14 +19,10 @@ data Params = Params { files           :: [FilePath]
                      , reprove         :: Bool
                      , consistency     :: Bool
 
-                     , cnf             :: Bool
-
                      , ord_swap        :: Bool
                      , ord_prep_pruned :: Bool
                      , ord_quadratic   :: Bool
                      , ord_dep_sort    :: Bool
-
-                     , dont_print_unproved  :: Bool
 
                      , inddepth        :: Int
                      , indvars         :: Int
@@ -75,14 +71,10 @@ defParams = Params
   , reprove     = False   &= help "Reprove theorems already known to be true"
   , consistency = False   &= help "Try to prove the consistency a file's generated theory"
 
-  , cnf         = False   &= help "Output in cnf"
-
   , ord_swap        = False &= ignore
   , ord_prep_pruned = False &= ignore
   , ord_quadratic   = False &= ignore
   , ord_dep_sort    = False &= ignore
-
-  , dont_print_unproved  = False &= ignore
 
   , thy_no_exteq    = False &= help "Extensional equality of pointers (completness)"            &= name "ne" &= groupname "Theory properties"
   , thy_no_typreds  = False &= help "Typing predicates of potentially finite types (soundness)" &= name "nt"
@@ -124,14 +116,10 @@ hipSpecParams file = Params
   , reprove     = False   &= help "Reprove theorems already known to be true"
   , consistency = False   &= help "Add a consistency check (default: off)" &= name "c"
 
-  , cnf         = False   &= help "Output in cnf"
-
   , ord_swap        = False &= help "Swap equations with their representative" &= name "swap" &= groupname "\nQuickSpec equation ordering"
   , ord_prep_pruned = False &= help "Add nice pruned equations from QuickSpec in front of all equations" &= name "prepend-pruned"
   , ord_quadratic   = False &= help "Add quadratic number of equations instead of linear" &= name "quadratic"
   , ord_dep_sort    = False &= help "Sort equations by function dependency ordering" &= name "dep-sort"
-
-  , dont_print_unproved  = False &= help "Don't print unproved equations from QuickSpec"
 
   , thy_no_exteq    = False &= help "Extensional equality of pointers (completness)"            &= name "ne" &= groupname "Theory properties"
   , thy_no_typreds  = False &= help "Typing predicates of potentially finite types (soundness)" &= name "nt"

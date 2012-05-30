@@ -1,5 +1,5 @@
 module Hip.Util
-       ((?),(.:),unlist,avgList,selections,inspect,uniqueCartesian,withPrevious,concatMapM,concatMaybe
+       ((?),unlist,avgList,selections,inspect,uniqueCartesian,withPrevious,concatMapM,concatMaybe
        ,isOp,putEither,mif,countBy,groupSortedOn,nubSorted,forFind
        ,bold,color,Color(..))
        where
@@ -8,12 +8,8 @@ import Data.Maybe
 import Data.List
 import Data.Function
 import Data.Ord
+import Test.QuickCheck
 import Control.Monad
-
-infixl 9 .:
-
-(.:) :: (b -> c) -> (a -> a' -> b) -> a -> a' -> c
-(.:) = (.) . (.)
 
 infix 1 ?
 
@@ -23,8 +19,8 @@ True  ? f = f
 False ? _ = id
 
 unlist :: a -> ([b] -> a) -> [b] -> a
-unlist d _ [] = d
-unlist _ f xs = f xs
+unlist d f [] = d
+unlist d f xs = f xs
 
 avgList :: Integral a => [a] -> a
 avgList xs = sum xs `div` genericLength xs
@@ -65,13 +61,22 @@ isOp = all (`elem` opsyms)
         opsyms = "!#$%*+./<=>?\\^|:-~@"
 
 -- | concatMapM
-concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = liftM concat . mapM f
+concatMapM :: (Functor m,Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f = fmap concat . mapM f
 
 -- | If any is nothing (unreachable branch etc), return nothing,
 --   otherwise return just the catMaybes.
 concatMaybe :: [Maybe [a]] -> Maybe [a]
 concatMaybe = fmap concat . sequence
+
+-- | Alternative implementation
+concatMaybe' :: [Maybe [a]] -> Maybe [a]
+concatMaybe' ms | any isNothing ms = Nothing
+                | otherwise        = Just (concat (catMaybes ms))
+
+-- | Test equality of implementations
+prop_concats :: [Maybe [Bool]] -> Bool
+prop_concats ms = concatMaybe ms == concatMaybe' ms
 
 -- | Monadic if
 mif :: Monad m => m Bool -> m a -> m a -> m a
@@ -92,7 +97,7 @@ groupSortedOn f = groupBy ((==) `on` f)
 
 
 forFind :: Monad m => [a] -> (a -> m Bool) -> m (Maybe a)
-forFind []     _ = return Nothing
+forFind []     p = return Nothing
 forFind (x:xs) p = mif (p x)
                        (return (Just x))
                        (forFind xs p)
@@ -111,7 +116,6 @@ fgcol col = "\ESC[0" ++ show (30+col2num col) ++ "m"
 
 data Color = Red | Green | Blue | Pink | Yellow | Turquoise
 
-col2num :: Color -> Int
 col2num c = case c of
   Red       -> 1
   Green     -> 2
@@ -119,4 +123,5 @@ col2num c = case c of
   Blue      -> 4
   Pink      -> 5
   Turquoise -> 7
+
 

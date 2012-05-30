@@ -1,53 +1,108 @@
-name:               hipspec-halt
-version:            0.1.0.2
+name:               hipspec
+version:            0.1
 license:            BSD3
 author:             Dan Rosén
 maintainer:         danr@student.gu.se
-synopsis:           HipSpec, prove properties of Haskell functions using induction and ATPs, fuelled by GHC Core
+synopsis:           Haskell Inductive Prover - Prove properties of Haskell functions using ATPs
 category:           Proving
 stability:          Experimental
 cabal-version:      >= 1.6
 build-type:         Simple
 homepage:           github.com/danr/hip
 
-{-
 Library
   hs-source-dirs: src
 
   Exposed-modules:
     Hip.HipSpec
     Test.QuickSpec
--}
 
-executable          hipspec-halt
-    ghc-options:    -threaded -O2 -rtsopts -package ghc
-    hs-source-dirs: src halt/src
-    main-is:        Main.hs
+  Other-modules:
+    Hip.InvokeATPs
+    Hip.Provers
+    Hip.FromHaskell.Names
+    Hip.FromHaskell.Monad
+    Hip.FromHaskell.Vars
+    Hip.FromHaskell.FromHaskell
+    Hip.Messages
+    Hip.Params
+    Hip.ResultDatatypes
+    Hip.Util
+    Hip.RunProver
+    Hip.Trans.NecessaryDefinitions
+    Hip.Trans.TranslateExpr
+    Hip.Trans.Names
+    Hip.Trans.Monad
+    Hip.Trans.MakeProofs
+    Hip.Trans.Theory
+    Hip.Trans.ProofDatatypes
+    Hip.Trans.Pretty
+    Hip.Trans.Parser
+    Hip.Trans.Core
+    Hip.Trans.Lexer
+    Hip.Trans.FixBranches
+    Hip.Trans.ArbitraryCore
+    Hip.Trans.TyEnv
+    Hip.Trans.ParserInternals
+    Hip.Trans.MakeTheory
+    Hip.Trans.Latex
+    Hip.Trans.TranslateDecl
+    Hip.Trans.FixpointInduction
+    Hip.Trans.Constructors
+    Hip.Trans.Types
+    Hip.StructuralInduction
+    Hip.StructuralInduction.Linearise
+    Test.QuickSpec.Equations
+    Test.QuickSpec.UnionFind
+    Test.QuickSpec.CongruenceClosure
+    Test.QuickSpec.CatchExceptions
+    Test.QuickSpec.Term
+    Test.QuickSpec.Utils
+    Test.QuickSpec.TestTree
+    Language.TPTP.Pretty
+    Language.TPTP
 
-    build-depends:
-        -- Shared
-        base                          >= 4    && < 5,
-        mtl                           >= 2.0,
-        containers                    >= 0.3,
+  Build-depends: base                          >= 4    && < 5
+               , process                       >= 1.0.1.1
+               , uniplate                      >= 1.6
+               , Grempa                        >= 0.2
+               , th-lift                       >= 0.5
+               , haskell-src-exts              >= 1.11.1
+               , mtl                           >= 2.0
+               , pretty                        >= 1.1.1.0
+               , QuickCheck                    >= 2.0
+               , fclabels                      >= 1.0
+               , containers                    >= 0.3
+               , cmdargs                       >= 0.9
+               , stm                           >= 2.0
+               , directory                     >= 1.0
+               , random                        >= 1.0
+               , array                         >= 0.4
+               , parallel                      >= 3.0
+               , safe                          >= 0.3
 
-        -- Command-line Arguments
-        cmdargs                       >= 0.9,
 
-        -- Halt
-        uniplate                      >= 1.6,
-        bimap                         >= 0.2,
-        ghc-paths                     >= 0.1,
-        filepath                      >= 1.0,
+executable          hipspec
+    ghc-options:    -threaded -O2 -rtsopts
+    hs-source-dirs: src
+    main-is:        Hip/SpecMain.hs
 
-        -- Structural Induction
-        safe                          >= 0.3,
+    build-depends: base                          >= 4    && < 5
+                 , process                       >= 1.0.1.1
+                 , uniplate                      >= 1.6
+                 , Grempa                        >= 0.2
+                 , haskell-src-exts              >= 1.11.1
+                 , mtl                           >= 2.0
+                 , pretty                        >= 1.0
+                 , QuickCheck                    >= 2.0
+                 , th-lift                       >= 0.5
+                 , fclabels                      >= 1.0
+                 , containers                    >= 0.3
+                 , cmdargs                       >= 0.9
+                 , stm                           >= 2.0
+                 , directory                     >= 1.0
+                 , random                        >= 1.0
+                 , array                         >= 0.4
+                 , parallel                      >= 3.0
+                 , safe                          >= 0.3
 
-        -- QuickSpec
-        QuickCheck                    >= 2.0,
-        random                        >= 1.0,
-        array                         >= 0.4,
-
-        -- Running Theorem Provers
-        process                       >= 1.0.1.1,
-        stm                           >= 2.0,
-        directory                     >= 1.0

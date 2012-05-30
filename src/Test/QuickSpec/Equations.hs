@@ -84,7 +84,7 @@ partitionBy value = map (map fst) . groupBy (\x y -> snd x == snd y) . sortBy (c
 
 -- A single unary function doesn't increase depth, but two in a row
 -- do.
--- varDepths d (App (Const s) t) = varDepths1 d t
+varDepths d (App (Const s) t) = varDepths1 d t
 varDepths d t = varDepths1 d t
 
 varDepths1 d (App s t) = varDepths1 d s `merge` varDepths (d-1) t

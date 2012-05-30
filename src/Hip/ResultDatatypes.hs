@@ -1,8 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hip.ResultDatatypes where
 
+import Hip.Trans.ProofDatatypes
 import Hip.Util
-
 import Data.Maybe
 import Data.Function
 
@@ -11,7 +11,7 @@ import Data.Function
 data ProverResult = Success { successTime :: Integer }
                   -- ^ Success: Theorem or Countersatisfiable
                   | Failure
-                  -- ^ Failure: Satisfiable etc, and timeouts or skipped
+                  -- ^ Fialure: Satisfiable etc, and timeouts or skipped
                   | Unknown String
                   -- ^ Unreckognized output. For debugging
 
@@ -38,12 +38,22 @@ instance Show ProverResult where
 
 -- Status (result) for an entire property or a proof part ------------------------------
 
-data Status = None | Theorem
+data Status = None | FiniteTheorem | Theorem
   deriving (Eq,Ord,Show,Enum,Bounded)
 
-statusFromResults :: [ProverResult] -> Status
-statusFromResults [] = None
-statusFromResults res
-    | all success res = Theorem
+latexStatus :: Status -> String
+latexStatus Theorem       = "$\\checkmark_{\\infty}$"
+latexStatus FiniteTheorem = "$\\checkmark_{\\mathrm{fin}}$"
+latexStatus None          = ""
+
+statuses :: [Status]
+statuses = [minBound..maxBound]
+
+statusFromResults :: Coverage -> [ProverResult] -> Status
+statusFromResults coverage [] = None
+statusFromResults coverage res
+    | all success res = case coverage of
+                           Infinite -> Theorem
+                           Finite   -> FiniteTheorem
     | otherwise = None
 

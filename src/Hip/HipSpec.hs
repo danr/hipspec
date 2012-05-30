@@ -215,12 +215,9 @@ hipSpec file ctxt depth = do
     (qslemmas,qsunproved) <- deep params theory ctxt depth univ
                                   (ord_prep_pruned ? (prunedEqs ++) $ classToEqs quickSpecClasses)
 
-
     (unproved,proved) <- parLoop params theory props' qslemmas
 
     printInfo unproved proved
-
-    unless dont_print_unproved $ putStrLn $ "Unproved from QuickSpec: " ++ intercalate "," (map showEq qsunproved)
 
     return ()
 

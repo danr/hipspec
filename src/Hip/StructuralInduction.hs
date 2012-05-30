@@ -8,6 +8,7 @@
 module Hip.StructuralInduction
        (Term(..)
        ,Formula(..)
+       ,V
        ,TermV
        ,FormulaV
        ,unV
@@ -15,6 +16,7 @@ module Hip.StructuralInduction
        ,Arg(..)
        ,TyEnv
        ,structuralInduction
+       ,consequent
        ) where
 
 import Control.Arrow hiding ((<+>))
@@ -29,11 +31,12 @@ import Data.Data
 import Data.List
 import Data.Maybe
 
-import Hip.Util (concatMapM,(.:),nubSorted)
+import Hip.Util (concatMapM,nubSorted)
 
 import Safe
 
 type DataOrds c v t = (Ord c,Ord v,Ord t,Data c,Data v,Data t)
+
 
 -- Terms ----------------------------------------------------------------------
 
@@ -394,7 +397,7 @@ induction phi x cons = sequence [ indCon phi x con arg_types
 type TyEnv c t = t -> Maybe [(c,[Arg t])]
 
 -- | Folds and concats in a monad
-concatFoldM :: Monad m => (a -> i -> m [a]) -> a -> [i] -> m [a]
+concatFoldM :: (Functor m, Monad m) => (a -> i -> m [a]) -> a -> [i] -> m [a]
 concatFoldM _ a []     = return [a]
 concatFoldM k a (x:xs) = do rs <- k a x
                             concatMapM (\r -> concatFoldM k r xs) rs
@@ -415,18 +418,20 @@ inductionTm ty_env phi tm = case tm of
     Con _ tms -> concatFoldM (inductionTm ty_env) phi tms
     Fun _ _   -> error "inductionTm: cannot do induction on a function"
 
+-- | Get consequents
+consequent :: Formula c v t -> [Term c v]
+consequent (Forall _ phi) = consequent phi
+consequent (_ :=> phi)    = consequent phi
+consequent (P tms)        = tms
+
 -- | Gets the n:th argument of P, in the consequent
-getNthArg :: Int -> Formula c v t -> Term c v
-getNthArg i = go
-  where
-    go (Forall _ phi) = go phi
-    go (_ :=> phi)    = go phi
-    go (P xs)         = atNote "StructuralInduction.getNthArg" xs i
+nthArg :: Int -> Formula c v t -> Term c v
+nthArg i phi = atNote "StructuralInduction.nthArg" (consequent phi) i
 
 -- | Induction on the term on the n:th coordinate of the predicate.
 inductionNth :: DataOrds c v t
              => TyEnv c t -> FormulaV c v t -> Int -> Fresh [FormulaV c v t]
-inductionNth ty_env phi i = inductionTm ty_env phi (getNthArg i phi)
+inductionNth ty_env phi i = inductionTm ty_env phi (nthArg i phi)
 
 -- | Performs repeated lexicographic induction, given the typing environment
 --
@@ -452,3 +457,4 @@ structuralInduction ty_env args coordinates = flip evalState 0 $ do
 
     concatFoldM (inductionNth ty_env) phi coordinates
 
+(.:) = (.) . (.)

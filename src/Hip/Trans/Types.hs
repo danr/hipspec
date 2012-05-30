@@ -10,8 +10,7 @@ module Hip.Trans.Types
 import Hip.Trans.Core
 import Hip.Trans.Pretty
 import Hip.Trans.ParserInternals
-import Hip.Trans.StructuralInduction
-import Hip.Trans.TyEnv hiding (VarName)
+import Hip.Trans.TyEnv
 import Hip.Trans.Names
 
 import qualified Language.TPTP as T
@@ -35,7 +34,7 @@ finiteTy :: TyEnv -> Type -> Bool
 finiteTy _ (TyCon "Int" []) = False
 finiteTy env ty = finiteTypeMut env [] ty
 
-finiteTypeMut env tys ty@TyCon{} = case instantiate ty env of
+finiteTypeMut env tys ty@TyCon{} = case instantiate env ty of
     Just cons -> all (finiteCon env (ty:tys) . snd) cons
     Nothing   -> error $ "finiteTypeMut: " ++ show ty
 finiteTypeMut _ _ _ = False -- Type variable or function space
@@ -49,6 +48,7 @@ keep :: TyEnv -> Type -> Bool
 keep env ty@(TyCon _ ts) = finiteTy env ty || any (keep env) ts
 keep env _               = False
 
+{-
 testTypes = map parseType
    [ "Bool"
    , "Tree Bool"
@@ -72,6 +72,7 @@ testTypes = map parseType
 testFiniteTy,testKeep :: [(TypeName,Bool)]
 testFiniteTy = map ((,) <$> show <*> finiteTy testEnv) testTypes
 testKeep     = map ((,) <$> show <*> keep testEnv) testTypes
+-}
 
 -- | Generates the type predicate for a type
 --
@@ -82,7 +83,7 @@ testKeep     = map ((,) <$> show <*> keep testEnv) testTypes
 --
 --     Ty((a,b),(x,y)) <-> (Ty(a,x) /\ Ty(b,y))
 genTypePred :: TyEnv -> Type -> T.Decl
-genTypePred env ty@(TyCon n as) = case instantiate ty env of
+genTypePred env ty@(TyCon n as) = case instantiate env ty of
    Just cons -> genPred ty cons
    Nothing   -> error $ "genTypePred, not found: " ++ show ty
 genTypePred env ty = error $ "genTypePred, not on a type constructor: " ++ show ty
@@ -107,7 +108,7 @@ genPred ty cons = Axiom "ty" (forall' (x : map quantName (tyVars ty))
 
 infDomainAxiom :: TyEnv -> Type -> Maybe T.Decl
 infDomainAxiom env ty
-  | not (finiteTy env ty), Just cons <- instantiate ty env =
+  | not (finiteTy env ty), Just cons <- instantiate env ty =
      Just (Axiom "inf" (forall' [x] (foldr1 (\/) (map (uncurry gen) cons))))
        where
          x  = VarName "X"

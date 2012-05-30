@@ -19,35 +19,13 @@ import Control.Arrow
 import Control.Monad
 import Control.Monad.State
 
-import Test.QuickCheck
+import qualified Hip.StructuralInduction as S
 
 type ConName = Name
-type VarName = Name
 type TypeName = Name
+type VarName = Name
 
-type TyEnv = [(TypeName,[(Name,Type)])]
-
-testEnv :: TyEnv
-testEnv = map (declName &&& conTypes) $ parseDecls $ concatMap (++ ";")
-  [ "data Tree a = Branch (Tree a) a (Tree a) | Empty"
-  , "data T = B T T | E"
-  , "data Nat = Suc Nat | Zero"
-  , "data List a = Cons a (List a) | Nil"
-  , "data Expr = Add Expr Expr | Mul Expr Expr | Value Nat | X | Neg Expr"
-  , "data Integ = PS Nat | NS Nat | Z"
-  , "data Tup a b = Tup a b"
-  , "data Either a b = Left a | Right b"
-  , "data Bool = True | False"
-  , "data Maybe a = Just a | Nothing"
-  , "data Unit = Unit"
-  , "data Ord = Zero | Suc Ord | Lim (Nat -> Ord)"
-  , "data WrapList a = Wrap (List a)"
-  , "data Z = P Nat | N Nat"
-  , "data Even = Zero | ESucc Odd"
-  , "data Odd = OSucc Even"
-  , "data T a = B (T (Tup a a)) | V a"
-  , "data Phantom a = Phantom"
-  ]
+type TyEnv = [(Name,[(Name,Type)])]
 
 substType :: [(Name,Type)] -> Type -> Type
 substType s = transform f
@@ -59,11 +37,8 @@ unTyVar :: Type -> Name
 unTyVar (TyVar x) = x
 unTyVar t         = error $ "unTyVar: " ++ show t
 
-bottomless :: Expr -> Bool
-bottomless e = and [ False | Var x <- universe e, x == bottomName ]
-
-instantiate :: Type -> TyEnv -> Maybe [(Name,Type)]
-instantiate (TyCon n ts) env
+instantiate :: TyEnv -> Type -> Maybe [(Name,Type)]
+instantiate env (TyCon n ts)
     | Just cons <- lookup n env = Just (map (uncurry inst) cons)
   where
     inst :: Name -> Type -> (Name,Type)
@@ -81,4 +56,18 @@ instantiate (TyCon n ts) env
                        TyApp xs -> (init xs,last xs)
                        _        -> ([],t)
 instantiate _ _ = Nothing
+
+translateEnv :: TyEnv -> S.TyEnv String Type
+translateEnv env t = fmap (map (second argEnv)) (instantiate env t)
+  where
+    argEnv :: Type -> [S.Arg Type]
+    argEnv t = let res  = resType t
+                   args = argsTypes t
+               in  map (arg res) args
+
+    arg :: Type -> Type -> S.Arg Type
+    arg t1 t@(TyApp{})    = S.Exp t (argsTypes t)
+    arg t1 t2 | t1 == t2  = S.Rec t2
+    arg t1 t2             = S.NonRec t2
+
 

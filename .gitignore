@@ -1,4 +1,5 @@
 # Haskell temp
+dist
 *\.o
 *\.hi
 

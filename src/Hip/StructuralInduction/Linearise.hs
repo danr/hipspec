@@ -30,6 +30,9 @@ linTerm st tm = case tm of
     Con c ts -> linc st c <> parens (csv (map (linTerm st) ts))
     Fun v ts -> linv st v <> parens (csv (map (linTerm st) ts))
 
+ppTerm :: TermV String String -> String
+ppTerm = render . linTerm (Style text (text . fst) undefined)
+
 linTypedVar :: Style c v t -> v -> t -> Doc
 linTypedVar st v t = linv st v <+> colon <+> lint st t
 

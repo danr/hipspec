@@ -7,15 +7,15 @@ programs to first order theories. Induction is applied on the meta
 level, and proof search is carried out by automated theorem provers
 for first order logic with equality.
 
+This branch is the old version based on haskell-src-exts
+========================================================
+
+The new development using `halt`, based on GHC Core, is in the `master` branch.
+
 Installation instructions
 =========================
 
-First, you need to pull `halt`, the Haskell to Logic Translator:
-
-    git submodule init
-    git submodule update
-
-Then, in the main directory, run
+In the main directory, run
 
     cabal install
 
