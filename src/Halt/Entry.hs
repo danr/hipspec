@@ -1,8 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Halt.Entry where
 
-
-import BasicTypes
 import CoreMonad
 import CoreSubst (simpleOptExpr)
 import CoreSyn
@@ -11,30 +9,15 @@ import FloatOut
 import GHC
 import GHC.Paths
 import HscTypes
-import TysWiredIn
-import Outputable
 import UniqSupply
 import SimplCore
 
-import Halt.Trans
-import Halt.Lift
-import Halt.Conf
-import Halt.Monad
-import Halt.FOL.Linearise
-import Halt.FOL.Style
-import Halt.FOL.Rename
-
-import Contracts.Make
-import Contracts.Trans
-import Contracts.Types
-
 import Control.Monad
-import System.Environment
-import System.Exit
 
-data DesugarConf = DesugarConf { debug_float_out :: Bool
-                               , core2core_pass  :: Bool
-                               }
+data DesugarConf
+    = DesugarConf { debug_float_out :: Bool
+                  , core2core_pass  :: Bool
+                  }
 
 desugar :: DesugarConf -> FilePath -> IO (ModGuts,DynFlags)
 desugar DesugarConf{..} targetFile =
