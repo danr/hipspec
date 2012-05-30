@@ -1,5 +1,7 @@
 module Hip.StructuralInduction.Test where
 
+import Text.PrettyPrint (render)
+
 import Hip.StructuralInduction
 import Hip.StructuralInduction.Linearise
 
@@ -43,7 +45,8 @@ testEnv xs = Nothing
 testStrInd :: [(String,String)] -> [Int] -> IO ()
 testStrInd vars coords = putStr $ unlines
                                 $ map ( (++ ".")
-                                      . linFormula strStyle
+                                      . render
+                                      . linPart strStyle
                                       . unV (\x i -> x ++ show i))
                                 $ structuralInduction testEnv vars coords
 

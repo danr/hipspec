@@ -1,6 +1,7 @@
+{-# LANGUAGE TypeOperators #-}
 {-
 
-   Linearises the simple formulae and terms defined in Hip.StructuralInduction.
+   Linearises the parts defined in Hip.StructuralInduction.
 
    This is only for testing, rather translate the formulae to your own
    representations.
@@ -33,18 +34,25 @@ linTerm st tm = case tm of
 linTypedVar :: Style c v t -> v -> t -> Doc
 linTypedVar st v t = linv st v <+> colon <+> lint st t
 
-linForm :: Style c v t -> (Doc -> Doc) -> Formula c v t -> Doc
-linForm st par form = case form of
-    Forall qs f -> par $ hang (bang <+> brackets (csv (map (uncurry (linTypedVar st)) qs)) <+> colon)
-                              4
-                              (linForm st parens f)
-    xs :=> f -> par $ cat $ parList (punctuate (fluff ampersand)
-                                               (map (linForm st parens) xs))
-                          ++ [darrow <+> linForm st parens f]
-    P xs -> char 'P' <> parens (csv (map (linTerm st) xs))
+linForall :: Style c v t -> (Doc -> Doc) -> [v ::: t] -> Doc
+linForall st par [] = empty
+linForall st par qs = bang
+                   <+> brackets (csv (map (uncurry (linTypedVar st)) qs))
+                   <+> colon
 
-linFormula :: Style c v t -> Formula c v t -> String
-linFormula st = render . linForm st id
+linPred :: Style c v t -> [Term c v] -> Doc
+linPred st xs = char 'P' <> parens (csv (map (linTerm st) xs))
+
+linHyp :: Style c v t -> Hypothesis c v t -> Doc
+linHyp st (qs,hyp) = (if null qs then id else parens)
+                   $ linForall st parens qs <+> linPred st hyp
+
+linPart :: Style c v t -> Part c v t -> Doc
+linPart st (Part implicit hyps conc) = hang
+     (linForall st id implicit)
+     4
+     $ parens $ cat $ parList (punctuate (fluff ampersand) (map (linHyp st) hyps)
+                 ++ [(if null hyps then id else (darrow <+>)) (linPred st conc)])
 
 csv :: [Doc] -> Doc
 csv = hcat . punctuate comma
@@ -56,9 +64,6 @@ parList (x:xs) = (lparen <> x) : init xs ++ [last xs <> rparen]
 
 ampersand :: Doc
 ampersand = char '&'
-
-pipe :: Doc
-pipe = char '|'
 
 bang :: Doc
 bang = char '!'
