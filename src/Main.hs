@@ -53,8 +53,6 @@ main = do
   when (null files) $ do
       putStrLn "No input files. Run with --help to see possible flags"
       exitFailure
-  whenLoud $ do putStrLn $ "Verbose output, files: " ++ unwords files
-                putStrLn $ "Param: " ++ showParams params
 
   forM_ files $ \(dropExtension -> file) -> do
       when (file /= head files) $ putStrLn ""
@@ -127,7 +125,7 @@ printInfo unproved proved = do
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: HaltEnv -> Params -> [Prop] -> Theory -> [Prop] -> IO [(Prop,Bool)]
 tryProve halt_env params@(Params{..}) props thy lemmas = do
-    let env = Env { reproveTheorems = reprove
+    let env = Env { reproveTheorems = False
                   , timeout         = timeout
                   , store           = output
                   , provers         = proversFromString provers
