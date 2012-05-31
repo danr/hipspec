@@ -15,6 +15,7 @@ import Halt.Monad
 
 import qualified Data.Map as M
 import Data.Map (Map)
+import Data.Maybe (mapMaybe)
 
 import Control.Arrow
 import Control.Applicative
@@ -54,7 +55,7 @@ runMakerM env us mm = let ((hm,(us',_)),msg) = runHaltM env (runStateT mm (us,M.
 --   for a property and adds the lemmas
 theoryToInvocations :: Params -> Theory -> Prop -> [Prop] -> MakerM Property
 theoryToInvocations params@(Params{..}) theory prop lemmas = do
-    tr_lemmas <- sequence [ Clause Lemma (propRepr lemma) <$> equals lemma
+    tr_lemmas <- sequence [ Clause Lemma "_" <$> equals lemma
                           | lemma <- lemmas ]
     parts <- map (extendPart tr_lemmas) <$> prove params theory prop
     return $ Property { propName   = Thy.propName prop
@@ -70,10 +71,10 @@ equals Prop{..} = lift $ local (pushQuant (map fst propVars)) $ do
     return (forall' vars (lhs === rhs))
 
 prove :: Params -> Theory -> Prop -> MakerM [Part]
-prove Params{methods} Theory{..} prop@Prop{..} =
+prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..} =
     sequence $ [ plainProof | 'p' `elem` methods ]
-            ++ (guard ('s' `elem` methods) >>
-                map induction [ [i] | _ <- propVars | i <- [0..] ])
+            ++ (do guard ('s' `elem` methods)
+                   mapMaybe induction inductionCoords)
 
   where
     mkPart :: ProofMethod -> [Particle] -> Part
@@ -81,18 +82,47 @@ prove Params{methods} Theory{..} prop@Prop{..} =
 
     plainProof :: MakerM Part
     plainProof = do
-         equality <- equals prop
-         let particle = Particle "plain" [Clause Conjecture "plain" equality]
-         return (mkPart Plain [particle])
+        equality <- equals prop
+        let particle = Particle "plain" [Clause Conjecture "_" equality]
+        return (mkPart Plain [particle])
 
-    induction :: [Int] -> MakerM Part
+    inductionCoords :: [[Int]]
+    inductionCoords =
+        let var_indicies :: [Int]
+            var_indicies = zipWith const [0..] propVars
+
+            var_pow :: [[Int]]
+            var_pow = drop 1 $ filterM (const [False,True]) var_indicies
+
+        in  [ concat (replicate depth var_ixs)
+            | var_ixs <- var_pow
+            , length var_ixs <= indvars
+            , depth <- [1..inddepth]
+            ]
+
+    induction :: [Int] -> Maybe (MakerM Part)
     induction coords = do
-        parts <- mapM (unVM getVar)
-                      (structuralInduction tyEnv propVars coords)
-        particles <- lift $ sequence
-                                [ Particle (show i) <$> trIndPart prop part
-                                | part <- parts | i <- [(0 :: Int)..] ]
-        return (mkPart (StructuralInduction coords) particles)
+        let parts = structuralInduction tyEnv propVars coords
+
+        -- If induction on these variables with this depth gives too many
+        -- parts, then do not do this induction, return Nothing
+        guard (length parts <= indparts)
+
+        -- Some parts give very many hypotheses. If this is the case,
+        -- we cruelly drop some of the first weak ones
+        let dropHyps part = part { hypotheses =
+                                      take indhyps (reverse $ hypotheses part) }
+
+        return $ do
+            -- Rename the variables
+            parts' <- mapM (unVM getVar) parts
+
+            -- Translate all induction parts to particles
+            particles <- lift $ sequence
+                           [ Particle (show i) <$> trIndPart prop (dropHyps part)
+                           | part <- parts' | i <- [(0 :: Int)..] ]
+
+            return (mkPart (StructuralInduction coords) particles)
 
 -- Induction ------------------------------------------------------------------
 
@@ -125,8 +155,8 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
        trHyp (map fst -> qs,tms) = local (pushQuant qs) (forall' qs <$> trPred tms)
 
    local (extendArities skolem_arities) $ do
-       tr_hyp   <- mapM (fmap (Clause Hypothesis "hyp") . trHyp) hyps
-       tr_concl <- Clause NegatedConjecture "conc" . neg <$> trPred concl
+       tr_hyp   <- mapM (fmap (Clause Hypothesis "_") . trHyp) hyps
+       tr_concl <- Clause NegatedConjecture "_" . neg <$> trPred concl
        return (tr_concl:tr_hyp)
 
 

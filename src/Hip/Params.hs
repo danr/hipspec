@@ -31,7 +31,7 @@ data Params = Params { files           :: [FilePath]
                      , inddepth        :: Int
                      , indvars         :: Int
                      , indhyps         :: Int
-                     , indsteps        :: Int
+                     , indparts        :: Int
 
                      , thy_no_exteq       :: Bool
                      , thy_no_typreds     :: Bool
@@ -54,7 +54,7 @@ showParams Params{..} = " timeout: "  ++ show timeout ++
                         " reprove: "  ++ show reprove ++
                         " inddepth: " ++ show inddepth ++
                         " indvars: "  ++ show indvars ++
-                        " indsteps: " ++ show indsteps ++
+                        " indparts: " ++ show indparts ++
                         " fpimax: "   ++ show fpimax
 
 defParams :: Params
@@ -91,7 +91,7 @@ defParams = Params
   , inddepth    = 1       &= help "Max depth to do structural induction (default 1)" &= groupname "\nStructural induction"
   , indvars     = 1       &= help "Number of variables to do structural induction on (default 1)"
   , indhyps     = 200     &= help "Maximum number of hypotheses from structural induction (default 200)"
-  , indsteps    = 10      &= help "Maximum number of step cases from structural induction (default 10)"
+  , indparts    = 10      &= help "Maximum number of step cases from structural induction (default 10)"
 
   , fpimax      = 25      &= help "Maximum number of lifted functions (default 25)" &= groupname "\nFixpoint induction"
 
@@ -140,7 +140,7 @@ hipSpecParams file = Params
   , inddepth    = 1       &= help "Max depth to do structural induction (default 1)" &= groupname "\nStructural induction"
   , indvars     = 1       &= help "Number of variables to do structural induction on (default 1)"
   , indhyps     = 200     &= help "Maximum number of hypotheses from structural induction (default 200)"
-  , indsteps    = 10      &= help "Maximum number of step cases from structural induction (default 10)"
+  , indparts    = 10      &= help "Maximum number of step cases from structural induction (default 10)"
 
   , fpimax      = 25      &= ignore -- help "Maximum number of lifted functions (default 25)" &= groupname "\nFixpoint induction"
 
