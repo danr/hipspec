@@ -15,20 +15,30 @@ import System.Process
 import System.IO
 import System.CPUTime
 
-runProver :: Prover -> String -> Int -> IO ProverResult
-runProver (Prover{..}) inputStr timelimit = do
+runProver :: FilePath -> Prover -> String -> Int -> IO ProverResult
+runProver filename (Prover{..}) inputStr timelimit = do
 --    putStrLn $ "Running prover " ++ show proverName
-    (Just inh, Just outh, _, pid) <-
+    (Just inh, Just outh, Just errh, pid) <-
        createProcess (proc proverCmd (proverArgs timelimit))
                      { std_in  = CreatePipe
                      , std_out = CreatePipe
-                     , std_err = Inherit }
+                     , std_err = CreatePipe }
 
 --    putStrLn "Reading output..."
     -- fork off a thread to start consuming the output
     output  <- hGetContents outh
     outMVar <- newEmptyMVar
     _ <- forkIO $ evaluate (length output) >> putMVar outMVar ()
+
+    -- fork off a thread to start consuming standard error,
+    -- if there is any report it
+    _ <- forkIO $ do
+            err <- hGetContents errh
+            n   <- evaluate (length err)
+            when (n > 0) $ do
+                hPutStrLn stderr $ "*** " ++ filename ++ " using "
+                                ++ show proverName ++ " stderr: ***"
+                hPutStrLn stderr err
 
 --    putStrLn "Write and flush input"
     -- now write and flush any input

@@ -66,6 +66,7 @@ import Halt.FOL.Rename
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
 
 type PropName = String
 
@@ -223,16 +224,19 @@ worker partChan resChan = forever $ do
                 let tptp = linTPTP (strStyle True)
                                    (renameClauses data_axioms
                                                   (def_axioms ++ particle_axioms))
+                let filename = propName </>
+                               intercalate "_" [proofMethodFile partMethod,particleDesc]
+                               ++ ".tptp"
 
                 length tptp `seq`
-                    (void . liftIO . forkIO . runProveM env . runProvers tptp $ resvar)
+                    (void . liftIO . forkIO
+                          . runProveM env . runProvers filename tptp $ resvar)
 
                 case store of
                    Nothing  -> return ()
-                   Just dir -> let filename = dir ++ propName ++ "/" ++
-                                              intercalate "-" [proofMethodFile partMethod,particleDesc] ++ ".tptp"
-                               in  liftIO (do createDirectoryIfMissing True (dir ++ propName)
-                                              writeFile filename tptp)
+                   Just dir -> liftIO $ do
+                       createDirectoryIfMissing True (dir ++ propName)
+                       writeFile (dir ++ filename) tptp
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)
                 provedElsewhere <- unnecessary <$> lift (propStatus propName)
@@ -246,13 +250,14 @@ worker partChan resChan = forever $ do
 
     liftIO (writeChan resChan (propName,Part partMethod res))
 
-runProvers :: String -> MVar (ProverResult,Maybe ProverName) -> ProveM ()
-runProvers str res = do
+runProvers :: FilePath -> String
+           -> MVar (ProverResult,Maybe ProverName) -> ProveM ()
+runProvers filename str res = do
     Env{..} <- ask
     liftIO . putMVar res =<< go provers
   where
     go (p:ps) = do t <- asks timeout
-                   r <- liftIO $ runProver p str t
+                   r <- liftIO $ runProver filename p str t
                    case r of
                       Failure   -> go ps
                       _         -> return (r,Just (proverName p))
