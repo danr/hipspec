@@ -7,7 +7,7 @@ import CoreSyn
 import Var
 import TysWiredIn
 
-import Halt.Utils
+import Halt.Shared
 
 import Control.Arrow (second)
 

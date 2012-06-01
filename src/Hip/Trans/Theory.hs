@@ -1,6 +1,6 @@
 module Hip.Trans.Theory where
 
-import Hip.Util
+import Halt.Util
 import Hip.StructuralInduction (TyEnv)
 
 import Halt.FOL.Abstract
@@ -28,7 +28,7 @@ inconsistentProp :: Prop
 inconsistentProp = Prop { proplhs  = Var trueDataConId
                         , proprhs  = Var falseDataConId
                         , propVars = []
-                        , propName = color Red "inconsistencyCheck"
+                        , propName = colour Red "inconsistencyCheck"
                         , propRepr = "inconsistecy check: this should never be provable"
                         , propQSTerms = error "propQSTerms: inconsistentProp"
                         }

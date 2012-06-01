@@ -1,8 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hip.ResultDatatypes where
 
-import Hip.Util
+import Halt.Util
 
+import Data.List
 import Data.Maybe
 import Data.Function
 
@@ -23,6 +24,9 @@ unknown :: ProverResult -> Bool
 unknown Unknown{} = True
 unknown _         = False
 
+avgList :: Integral a => [a] -> a
+avgList xs = sum xs `div` genericLength xs
+
 flattenProverResults :: [ProverResult] -> ProverResult
 flattenProverResults xs
     | all success xs = Success (avgList (map successTime xs))
@@ -33,8 +37,8 @@ instance Eq ProverResult where
 
 instance Show ProverResult where
   show (Success{..}) = "Success (" ++ show (successTime `div` 1000) ++ " ms)"
-  show Failure     = "Failure"
-  show (Unknown s) = "Unknown: " ++ show s
+  show Failure       = "Failure"
+  show (Unknown s)   = "Unknown: " ++ show s
 
 -- Status (result) for an entire property or a proof part ------------------------------
 

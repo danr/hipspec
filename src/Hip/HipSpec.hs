@@ -6,7 +6,7 @@ import qualified Test.QuickSpec.Term as T
 import Test.QuickSpec.Equations
 import Test.QuickSpec.CongruenceClosure
 
-import Hip.Util
+import Halt.Util
 import Hip.Trans.MakeTheory
 import Hip.Trans.Theory
 import Hip.Messages

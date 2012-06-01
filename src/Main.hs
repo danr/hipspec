@@ -19,7 +19,7 @@ import Halt.Conf
 import Halt.Monad
 import Halt.Trans
 import Halt.Entry
-import Halt.Utils
+import Halt.Shared
 
 import Data.List
 import Data.Maybe

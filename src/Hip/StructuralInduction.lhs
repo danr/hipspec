@@ -34,7 +34,7 @@
 > import Data.List
 > import Data.Maybe
 
-> import Hip.Util (concatMapM,(.:),nubSortedOn)
+> import Halt.Util (concatMapM,(.:),nubSortedOn)
 
 > import Safe
 

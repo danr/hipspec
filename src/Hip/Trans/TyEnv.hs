@@ -9,7 +9,7 @@ import Hip.Trans.Core
 import Hip.Trans.ParserInternals
 import Hip.Trans.Pretty
 import Hip.Trans.Constructors
-import Hip.Util
+import Halt.Util
 
 import Data.List hiding (partition)
 import Data.Maybe (fromMaybe)
