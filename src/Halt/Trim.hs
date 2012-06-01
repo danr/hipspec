@@ -56,6 +56,7 @@ trim vars subthys =
 
         keep :: Subtheory -> Bool
         keep (Subtheory (Function vs) _ _ _) = intersects keep_vars vs
+        keep (Subtheory (Lemma _ vs) _ _ _)  = intersects keep_vars vs
         keep _                               = True
 
     in  filter keep subthys
