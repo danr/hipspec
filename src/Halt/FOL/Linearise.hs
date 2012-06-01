@@ -4,6 +4,8 @@ module Halt.FOL.Linearise where
 
 import Outputable
 
+import Data.List
+
 import Halt.Common
 import Halt.PrimCon
 import Halt.FOL.Internals.Internals
@@ -73,10 +75,10 @@ linForm st par form = case form of
 
 linClause :: Style q v -> Clause q v -> SDoc
 linClause st (Comment s)
-    | linComments st = text s
+    | linComments st = text ("\n" ++ intercalate "\n" (map ("% " ++) (lines s)))
     | otherwise      = empty
-linClause st (Clause cl_type cl_name cl_formula)
-    | linCNF st, Just lits <- simpleCNF cl_formula, cl_type /= Conjecture
+linClause st (Clause cl_name cl_type cl_formula)
+    | linCNF st, Just lits <- simpleCNF (((cl_type == Conjecture) ? neg) cl_formula)
        = linClEntry (text "cnf") cl_name cl_type (linBinOp st pipe lits)
     | otherwise
        = linClEntry (text "fof") cl_name cl_type (linForm st id cl_formula)

@@ -4,6 +4,9 @@ module Halt.Trans(translate) where
 
 import CoreSubst
 import CoreSyn
+import CoreFVs
+import UniqSet
+import PprCore
 import DataCon
 import Id
 import Outputable
@@ -17,6 +20,7 @@ import Halt.Data
 import Halt.ExprTrans
 import Halt.Constraints
 import Halt.Case
+import Halt.Subtheory
 
 import Halt.FOL.Abstract
 
@@ -24,32 +28,40 @@ import Control.Monad.Reader
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([AxClause],[VarClause],[String])
-translate env ty_cons program =
-  let -- Remove the unnecessary SCC information
-      binds :: [(Var,CoreExpr)]
-      binds = flattenBinds program
-
-      -- Translate each declaration
-      -- TODO : Make these return Decl?
-      translated :: HaltM [VarFormula]
-      translated = concatMapM (uncurry trDecl) binds
-
-      formulae :: [VarFormula]
+translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
+translate env ty_cons binds =
+  let tr_funs :: [Subtheory]
       msgs :: [String]
-      (formulae,msgs) = runHaltM env translated
+      (tr_funs,msgs) = runHaltM env (mapM trBind binds)
 
-  in  (concat [mkProjs (conf env) ty_cons
-              ,mkDiscrim (conf env) ty_cons
-              ,mkCF (conf env) ty_cons
-              ,axiomsBadUNR (conf env)]
-      ,[ Clause Definition (show n) phi
-       | phi <- formulae
-       | n <- [(0 :: Int)..]]
+  in  (concat
+          [mkProjDiscrim (conf env) ty_cons
+          ,mkCF          (conf env) ty_cons
+          ,axiomsBadUNR  (conf env)
+          {- ,pointers -}
+          ,tr_funs]
       ,msgs ++ showArityMap (arities env))
 
--- | Translate a CoreDecl or a Let
-trDecl :: Var -> CoreExpr -> HaltM [VarFormula]
+
+trBind :: CoreBind -> HaltM Subtheory
+trBind bind = do
+    let fses       = flattenBinds [bind]
+        fun_names  = map fst fses
+
+    fun_translated <- concatMapM (uncurry trDecl) fses
+
+    let dependencies = uniqSetToList (bindFreeVars bind)
+
+    return $ Subtheory { provides    = Function fun_names
+                       , depends     = map (Function . (:[])) dependencies
+                       , description = showSDoc (pprCoreBinding bind)
+                                     ++ "\nDependencies: "
+                                     ++ unwords (map idToStr dependencies)
+                       , formulae    = fun_translated
+                       }
+
+-- | Translate a CoreDecl
+trDecl :: Var -> CoreExpr -> HaltM [Formula']
 trDecl f e = do
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
     local (\env -> env { current_fun = f
@@ -62,14 +74,14 @@ trDecl f e = do
     (_ty,as,e') = collectTyAndValBinders e
 
 -- | Translate a case expression
-trCase :: CoreExpr -> HaltM [VarFormula]
+trCase :: CoreExpr -> HaltM [Formula']
 trCase e = case e of
     Case scrutinee scrut_var _ty alts_unsubst -> do
 
         write $ "Case on " ++ showExpr scrutinee
 
         -- Substitute the scrutinee var to the scrutinee expression
-        let subst_alt (c,bs,e) = (c,bs,substExpr (text "trCase") s e)
+        let subst_alt (c,bs,e_alt) = (c,bs,substExpr (text "trCase") s e_alt)
               where  s = extendIdSubst emptySubst scrut_var scrutinee
 
             alts_wo_bottom = map subst_alt alts_unsubst
@@ -126,7 +138,7 @@ trCase e = case e of
                           [ min' lhs | use_min ] ++ tr_constr ===> lhs === rhs]
 
 
-trLhs :: HaltM VarTerm
+trLhs :: HaltM Term'
 trLhs = do
     HaltEnv{current_fun,args} <- ask
     apply current_fun <$> mapM trExpr args
@@ -139,7 +151,7 @@ invertAlt scrut_exp (cons, _bs, _) = case cons of
     _                -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
-trAlt :: CoreExpr -> CoreAlt -> HaltM [VarFormula]
+trAlt :: CoreExpr -> CoreAlt -> HaltM [Formula']
 trAlt scrut_exp (cons, bound, e) = do
     HaltEnv{quant} <- ask
 
@@ -158,7 +170,7 @@ trAlt scrut_exp (cons, bound, e) = do
         DEFAULT -> error "trAlt on DEFAULT"
         _       -> error "trAlt on LitAlt (literals not supported yet!)"
 
-trConstraints :: HaltM (Maybe [VarFormula])
+trConstraints :: HaltM (Maybe [Formula'])
 trConstraints = do
     HaltEnv{constr} <- ask
     write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
@@ -166,7 +178,7 @@ trConstraints = do
         then write "  Conflict!" >> return Nothing
         else Just <$> mapM trConstr constr
 
-trConstr :: Constraint -> HaltM VarFormula
+trConstr :: Constraint -> HaltM Formula'
 trConstr (Equality e data_con bs) = do
     lhs <- trExpr e
     rhs <- apply (dataConWorkId data_con) <$> mapM trExpr bs

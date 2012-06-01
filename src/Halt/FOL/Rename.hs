@@ -24,17 +24,12 @@ import Data.Data
 import Data.Char
 import Data.Maybe
 
-renameClauses :: [AxClause] -> [VarClause] -> [StrClause]
-renameClauses ax_clauses var_clauses =
+renameClauses :: [Clause'] -> [StrClause]
+renameClauses clauses =
     let renameFuns :: Clause q Var -> Clause q String
-        renameFuns = mkFunRenamer (map WrapClause ax_clauses ++
-                                   map WrapClause var_clauses)
+        renameFuns = mkFunRenamer (map WrapClause clauses)
 
-        ax_clauses' = map (renameQVar suggest) (map renameFuns ax_clauses)
-          where
-            suggest _ = [ 'X':show i | i <- [(0 :: Int)..] ]
-
-        var_clauses' = map (renameQVar suggest) (map renameFuns var_clauses)
+        clauses' = map (renameQVar suggest) (map renameFuns clauses)
           where
             suggest :: Var -> [String]
             suggest v = [ case s of
@@ -45,12 +40,12 @@ renameClauses ax_clauses var_clauses =
                         | i <- [(0 :: Int)..]
                         ]
 
-     in  ax_clauses' ++ var_clauses'
+     in  clauses'
 
-data WrappedVarClause
+data WrappedClause'
   = forall q . (Data q,Data (Clause q Var)) => WrapClause (Clause q Var)
 
-mkFunRenamer :: [WrappedVarClause] -> Clause q Var -> Clause q String
+mkFunRenamer :: [WrappedClause'] -> Clause q Var -> Clause q String
 mkFunRenamer clauses =
     let symbols :: [Var]
         symbols = nubOrd $ concatMap (\(WrapClause cl) -> allSymbols cl) clauses
@@ -70,12 +65,12 @@ mkFunRenamer clauses =
 renameQVar :: forall q . (Data q,Ord q)
             => (q -> [String])
             -> Clause q String -> Clause String String
-renameQVar suggest clause =
+renameQVar suggest cl =
     let symbols :: Set String
-        symbols = S.fromList (allSymbols clause)
+        symbols = S.fromList (allSymbols cl)
 
         quants :: [q]
-        quants = allQuant clause
+        quants = allQuant cl
 
         rep_map :: Map q String
         rep_map = B.toMap (foldr (allot suggest (symbols `S.union` protectedWiredIn))
@@ -86,7 +81,7 @@ renameQVar suggest clause =
                         Just s  -> s
                         Nothing -> error $ "renameQVar: quantified variable not renamed!"
 
-    in  clauseMapTerms (replaceQVarsTm replace) replace clause
+    in  clauseMapTerms (replaceQVarsTm replace) replace cl
 
 allot :: Ord v => (v -> [String]) -> Set String -> v
                -> Bimap v String -> Bimap v String
@@ -182,8 +177,8 @@ prelude = M.fromList
    , (".","comp")
    , ("$","apply")
 
-   , ("&&","or")
-   , ("||","and")
+   , ("&&","and")
+   , ("||","or")
 
    , ("==","eq")
    , ("/=","ne")

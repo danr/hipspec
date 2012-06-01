@@ -1,9 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
 -- (c) Dan Rosén 2012
 module Halt.FOL.Abstract
-       (VarTerm,VarFormula,VarClause
-       ,AxTerm,AxFormula,AxClause
-       ,StrClause
+       (Term',Formula',Clause',StrClause
 
        ,apply,con
 
@@ -32,7 +30,10 @@ module Halt.FOL.Abstract
        ,Formula
        ,Term
        ,ClType(..)
-       ,Clause(..)
+       ,Clause
+       ,clause
+       ,comment
+       ,namedClause
        ) where
 
 import Halt.FOL.Internals.Internals
@@ -41,14 +42,20 @@ import Halt.PrimCon
 import Var
 import Id
 
-type VarTerm    = Term    Var Var
-type VarFormula = Formula Var Var
-type VarClause  = Clause  Var Var
-type AxTerm     = Term    Int Var
-type AxFormula  = Formula Int Var
-type AxClause   = Clause  Int Var
+type Term'    = Term    Var Var
+type Formula' = Formula Var Var
+type Clause'  = Clause  Var Var
 
 type StrClause  = Clause String String
+
+comment :: String -> Clause q v
+comment = Comment
+
+clause :: ClType -> Formula q v -> Clause q v
+clause = Clause "_"
+
+namedClause :: String -> ClType -> Formula q v -> Clause q v
+namedClause = Clause
 
 -- | Figure out if this var is one of the primitive constants, or if
 --   it is a data constructor or a function, and make a term accordingly.

@@ -44,6 +44,6 @@ data ClType = Axiom | Lemma | Hypothesis | Definition
             | Conjecture | NegatedConjecture | Question
   deriving (Eq,Ord,Show,Data,Typeable)
 
-data Clause q v = Clause ClType String (Formula q v)
+data Clause q v = Clause String ClType (Formula q v)
                 | Comment String
   deriving (Eq,Ord,Show,Data,Typeable)

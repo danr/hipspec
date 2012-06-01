@@ -20,7 +20,7 @@ import Data.List (intercalate)
 import Control.Monad.Reader
 
 -- | Translate expressions, i.e. not case (nor let/lambda)
-trExpr :: CoreExpr -> HaltM VarTerm
+trExpr :: CoreExpr -> HaltM Term'
 trExpr e = do
     HaltEnv{..} <- ask
     let isFunction x = case M.lookup (idName x) arities of

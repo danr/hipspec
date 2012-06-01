@@ -51,12 +51,16 @@ run m us = initUs us (runWriterT (runWriterT m `runReaderT` initEnv))
 -- | caseLetLift a core program
 caseLetLift :: [CoreBind] -> UniqSupply -> (([CoreBind],[String]),UniqSupply)
 caseLetLift []     us = (([],[]),us)
-caseLetLift (b:bs) us = ((reverse lifted_binds ++ b':more_binds
+caseLetLift (b:bs) us = ((maybeRec (flattenBinds (b':lifted_binds)):more_binds
                          ,msgs++more_msgs)
                         ,fin_us)
    where
-     (((b',lifted_binds),msgs),us') = run (liftCoreBind b) us
+     (((b',lifted_binds),msgs),us')  = run (liftCoreBind b) us
      ((more_binds,more_msgs),fin_us) = caseLetLift bs us'
+
+maybeRec :: [(Var,CoreExpr)] -> CoreBind
+maybeRec [(f,e)] = NonRec f e
+maybeRec fses    = Rec fses
 
 -- | Lift a binding group
 liftCoreBind :: CoreBind -> LiftM CoreBind
