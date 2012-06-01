@@ -24,6 +24,9 @@ module Halt.Util
     , groupSortedOn
     , nubSortedOn
 
+    -- * Intersection
+    , intersects
+
     -- * Printing in colour and bold
     , Colour(..)
     , colour
@@ -39,6 +42,8 @@ import Control.Monad (liftM)
 import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
+
+infixr 9 .:
 
 -- | Function composition deluxe
 --   (f .: g) = \x y -> f (g x y)
@@ -100,6 +105,10 @@ groupSortedOn f = groupBy ((==) `on` f)
 -- | /O(n log n)/ nub by a comparison function. Destroys ordering
 nubSortedOn :: Ord b => (a -> b) -> [a] -> [a]
 nubSortedOn f = map head . groupSortedOn f
+
+-- | Do these two lists have a non-empty intersection?
+intersects :: Eq a => [a] -> [a] -> Bool
+intersects = (not . null) .: intersect
 
 data Colour = Red | Green | Blue | Pink | Yellow | Turquoise
 

@@ -14,6 +14,7 @@
 module Halt.Trim where
 
 import Halt.Subtheory
+import Halt.Util
 
 import Var
 
@@ -54,7 +55,7 @@ trim vars subthys =
         keep_vars = map (middle . fromVertex) (concatMap flatten forest)
 
         keep :: Subtheory -> Bool
-        keep (Subtheory (Function vs) _ _ _) = any (`elem` keep_vars) vs
+        keep (Subtheory (Function vs) _ _ _) = intersects keep_vars vs
         keep _                               = True
 
     in  filter keep subthys
