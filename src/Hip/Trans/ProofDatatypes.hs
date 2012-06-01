@@ -4,6 +4,9 @@ module Hip.Trans.ProofDatatypes where
 import Data.Function
 import Data.List
 
+import Var
+
+import Halt.Subtheory
 import Halt.FOL.Abstract
 
 data ProofMethod = Plain
@@ -21,8 +24,8 @@ proofMethodFile pt = case pt of
     StructuralInduction vs -> intercalate "_" (map show vs)
 
 type Property  = PropertyMatter [Part]
-type Part      = PartMatter     ([AxClause],[VarClause],[Particle])
-type Particle  = ParticleMatter [VarClause]
+type Part      = PartMatter     ([Var],[Subtheory],[Particle])
+type Particle  = ParticleMatter [Clause']
 
 data PropertyMatter m = Property { propName   :: String
                                  -- ^ The identifier of the property
@@ -55,5 +58,6 @@ data ParticleMatter m = Particle { particleDesc   :: String
                                  }
   deriving (Eq,Ord,Show,Functor)
 
-extendPart :: [VarClause] -> Part -> Part
-extendPart vc' (Part n (ac,vc,p)) = Part n (ac,vc++vc',p)
+extendPart :: [Subtheory] -> Part -> Part
+extendPart st' (Part n (vs,st,p)) = Part n (vs,st++st',p)
+

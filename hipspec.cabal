@@ -1,5 +1,5 @@
-name:               hipspec-halt
-version:            0.1.0.2
+name:               hipspec
+version:            0.1.1
 license:            BSD3
 author:             Dan Rosén
 maintainer:         danr@student.gu.se
@@ -19,7 +19,7 @@ Library
     Test.QuickSpec
 -}
 
-executable          hipspec-halt
+executable          hipspec
     ghc-options:    -threaded -O2 -rtsopts -package ghc
     hs-source-dirs: src halt/src
     main-is:        Main.hs

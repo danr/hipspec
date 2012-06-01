@@ -20,6 +20,13 @@ import Halt.Monad
 import Halt.Trans
 import Halt.Entry
 import Halt.Shared
+import Halt.Util
+import Halt.Trim
+import Halt.Subtheory
+
+import Halt.FOL.Linearise
+import Halt.FOL.Style
+import Halt.FOL.Rename
 
 import Data.List
 import Data.Maybe
@@ -93,17 +100,19 @@ main = do
 
           halt_env = mkEnv halt_conf ty_cons_with_builtin core_defns
 
-          (data_axioms,def_axioms,_msgs_trans)
+          (subtheories,_msgs_trans)
               = translate halt_env ty_cons_with_builtin core_defns
 
-          theory = Theory data_axioms def_axioms
+          theory = Theory subtheories
 
           props = inconsistentProp : mapMaybe trProperty core_props
 
+      {-
       forM_ props $ \prop -> do let Prop{..} = prop
                                 putStrLn $ propName ++ ": "
                                         ++ showExpr proplhs ++ " = "
                                         ++ showExpr proprhs
+      -}
 
       (unproved,proved) <- parLoop halt_env params theory props []
 
@@ -113,12 +122,18 @@ main = do
 
   return ()
 
+showProp :: Bool -> Prop -> String
+showProp proved Prop{..}
+    | propOops && proved     = bold (colour Red propName)
+    | propOops && not proved = colour Green propName
+    | otherwise              = propName
+
 printInfo :: [Prop] -> [Prop] -> IO ()
 printInfo unproved proved = do
-    let pr xs | null xs   = "(none)"
-              | otherwise = unwords (map propName xs)
-    putStrLn ("Proved: " ++ pr proved)
-    putStrLn ("Unproved: " ++ pr unproved)
+    let pr b xs | null xs   = "(none)"
+                | otherwise = unwords (map (showProp b) xs)
+    putStrLn ("Proved: "   ++ pr True proved)
+    putStrLn ("Unproved: " ++ pr False unproved)
     putStrLn (show (length proved) ++ "/" ++ show (length (proved ++ unproved)))
 
 
@@ -137,11 +152,27 @@ tryProve halt_env params@(Params{..}) props thy lemmas = do
     us <- mkSplitUniqSupply '&'
 
     let ((properties,msgs),_us) = runMakerM halt_env us
-                                 . mapM (\prop -> theoryToInvocations
-                                                      params thy prop lemmas)
-                                 $ props
+                                . mapM (\prop -> theoryToInvocations
+                                                     params thy prop lemmas)
+                                $ props
 
-    res <- invokeATPs properties env
+        properties' =
+            [ PD.Property n c $
+              [ let subs  = trim deps subtheories
+                    pcls' = [ fmap (\cls -> linTPTP
+                                     (strStyle cnf)
+                                     (renameClauses
+                                         (concatMap toClauses subs ++ cls))
+                                      ++ "\n"
+                                   ) pcl
+                            | pcl <- pcls ]
+                in  PD.Part m pcls'
+              | PD.Part m (deps,subtheories,pcls) <- parts
+              ]
+            | PD.Property n c parts <- properties
+            ]
+
+    res <- invokeATPs properties' env
 
     forM res $ \property -> do
         let proved = fst (propMatter property) /= None

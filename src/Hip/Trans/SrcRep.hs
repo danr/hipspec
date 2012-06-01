@@ -17,3 +17,7 @@ isEquals    = isInfixOf "=:=" . showSDoc . ppr
 isProveBool :: Var -> Bool
 isProveBool = isInfixOf "proveBool" . showSDoc . ppr
 
+isOops      :: Var -> Bool
+isOops      = isInfixOf "oops" . showSDoc . ppr
+
+

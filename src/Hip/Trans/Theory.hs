@@ -4,6 +4,7 @@ import Halt.Util
 import Hip.StructuralInduction (TyEnv)
 
 import Halt.FOL.Abstract
+import Halt.Subtheory
 
 import CoreSyn
 import Var
@@ -12,27 +13,28 @@ import TysWiredIn
 
 import qualified Test.QuickSpec.Term as QST
 
-data Theory = Theory { thyDataAxioms :: [AxClause]
-                     , thyDefAxioms  :: [VarClause]
-                     }
+data Theory = Theory { subthys :: [Subtheory] }
 
-data Prop = Prop { proplhs  :: CoreExpr
-                 , proprhs  :: CoreExpr
-                 , propVars :: [(Var,Type)]
-                 , propName :: String
-                 , propRepr :: String
-                 , propQSTerms :: {- Maybe -} (QST.Term QST.Symbol,QST.Term QST.Symbol)
-                 }
+data Prop = Prop
+    { proplhs     :: CoreExpr
+    , proprhs     :: CoreExpr
+    , propVars    :: [(Var,Type)]
+    , propName    :: String
+    , propRepr    :: String
+    , propQSTerms :: (QST.Term QST.Symbol,QST.Term QST.Symbol)
+    , propDeps    :: [Var]
+    , propOops    :: Bool
+    -- ^ It's an error if this property was provable
+    }
 
 inconsistentProp :: Prop
-inconsistentProp = Prop { proplhs  = Var trueDataConId
-                        , proprhs  = Var falseDataConId
-                        , propVars = []
-                        , propName = colour Red "inconsistencyCheck"
-                        , propRepr = "inconsistecy check: this should never be provable"
-                        , propQSTerms = error "propQSTerms: inconsistentProp"
-                        }
-
-thyFiniteType :: Theory -> Type -> Bool
-thyFiniteType = error "thyFiniteType: unimplemented"
-
+inconsistentProp = Prop
+    { proplhs     = Var trueDataConId
+    , proprhs     = Var falseDataConId
+    , propVars    = []
+    , propName    = "inconsistencyCheck"
+    , propRepr    = "inconsistecy check: this should never be provable"
+    , propQSTerms = error "propQSTerms: inconsistentProp"
+    , propDeps    = []
+    , propOops    = True
+    }

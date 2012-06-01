@@ -9,9 +9,12 @@ import Hip.Trans.Theory as Thy
 import Hip.Trans.Types
 import Hip.Params
 
-import Halt.FOL.Abstract hiding (Term)
+import qualified Halt.FOL.Abstract as A
+import Halt.FOL.Abstract hiding (Term,Lemma)
 import Halt.ExprTrans
 import Halt.Monad
+import Halt.Util
+import Halt.Subtheory
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -51,11 +54,13 @@ runMakerM :: HaltEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
 runMakerM env us mm = let ((hm,(us',_)),msg) = runHaltM env (runStateT mm (us,M.empty))
                       in  ((hm,msg),us')
 
+
 -- | Takes a theory, and prepares the invocations
 --   for a property and adds the lemmas
 theoryToInvocations :: Params -> Theory -> Prop -> [Prop] -> MakerM Property
 theoryToInvocations params@(Params{..}) theory prop lemmas = do
-    tr_lemmas <- sequence [ Clause Lemma "_" <$> equals lemma
+    tr_lemmas <- sequence [ Subtheory (Lemma (propRepr lemma) (propDeps lemma))
+                                      [] "" . (:[]) <$> equals lemma
                           | lemma <- lemmas ]
     parts <- map (extendPart tr_lemmas) <$> prove params theory prop
     return $ Property { propName   = Thy.propName prop
@@ -63,7 +68,7 @@ theoryToInvocations params@(Params{..}) theory prop lemmas = do
                       , propMatter = parts
                       }
 
-equals :: Prop -> MakerM VarFormula
+equals :: Prop -> MakerM Formula'
 equals Prop{..} = lift $ local (pushQuant (map fst propVars)) $ do
     let vars = map fst propVars
     lhs <- trExpr proplhs
@@ -73,17 +78,17 @@ equals Prop{..} = lift $ local (pushQuant (map fst propVars)) $ do
 prove :: Params -> Theory -> Prop -> MakerM [Part]
 prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..} =
     sequence $ [ plainProof | 'p' `elem` methods ]
-            ++ (do guard ('s' `elem` methods)
+            ++ (do guard ('i' `elem` methods)
                    mapMaybe induction inductionCoords)
 
   where
     mkPart :: ProofMethod -> [Particle] -> Part
-    mkPart meth particles = Part meth (thyDataAxioms,thyDefAxioms,particles)
+    mkPart meth particles = Part meth (propDeps,subthys,particles)
 
     plainProof :: MakerM Part
     plainProof = do
         equality <- equals prop
-        let particle = Particle "plain" [Clause Conjecture "_" equality]
+        let particle = Particle "plain" [clause Conjecture equality]
         return (mkPart Plain [particle])
 
     inductionCoords :: [[Int]]
@@ -137,12 +142,12 @@ ghcStyle = Style { linc = const (P.text "c")
                  , lint = const P.empty
                  }
 
-trIndPart :: Prop -> IndPart DataCon Var Type -> HaltM [VarClause]
+trIndPart :: Prop -> IndPart DataCon Var Type -> HaltM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
    let skolem_arities = M.fromList [ (idName sk,0) | (sk,_) <- skolem ]
 
-       trPred :: [Term DataCon Var] -> HaltM VarFormula
+       trPred :: [Term DataCon Var] -> HaltM Formula'
        trPred tms = (===) <$> trExpr lhs <*> trExpr rhs
          where
            s = extendIdSubstList emptySubst
@@ -151,12 +156,12 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
            lhs = substExpr (text "trPred") s proplhs
            rhs = substExpr (text "trPred") s proprhs
 
-       trHyp :: Hypothesis DataCon Var Type -> HaltM VarFormula
+       trHyp :: Hypothesis DataCon Var Type -> HaltM Formula'
        trHyp (map fst -> qs,tms) = local (pushQuant qs) (forall' qs <$> trPred tms)
 
    local (extendArities skolem_arities) $ do
-       tr_hyp   <- mapM (fmap (Clause Hypothesis "_") . trHyp) hyps
-       tr_concl <- Clause NegatedConjecture "_" . neg <$> trPred concl
+       tr_hyp   <- mapM (fmap (clause Hypothesis) . trHyp) hyps
+       tr_concl <- clause NegatedConjecture . neg <$> trPred concl
        return (tr_concl:tr_hyp)
 
 

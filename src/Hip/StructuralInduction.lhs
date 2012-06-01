@@ -34,7 +34,7 @@
 > import Data.List
 > import Data.Maybe
 
-> import Halt.Util (concatMapM,(.:),nubSortedOn)
+> import Halt.Util (concatFoldM,(.:),nubSortedOn)
 
 > import Safe
 
@@ -482,12 +482,3 @@
 >
 >     concatFoldM (inductionNth ty_env) init_part coordinates
 
-  Auxiliary functions
-  ===================
- 
-  | Folds and concats in a monad
- 
-> concatFoldM :: Monad m => (a -> i -> m [a]) -> a -> [i] -> m [a]
-> concatFoldM _ a []     = return [a]
-> concatFoldM k a (x:xs) = do rs <- k a x
->                             concatMapM (\r -> concatFoldM k r xs) rs

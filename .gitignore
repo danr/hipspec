@@ -1,3 +1,9 @@
+# Testsuite temp
+testsuite/*
+!testsuite/*\.hs
+testsuite/*/*
+!testsuite/*/*\.hs
+
 # Emacs temp
 *\.\#*
 \#*\#
