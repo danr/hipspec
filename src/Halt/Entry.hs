@@ -17,13 +17,17 @@ import Data.Maybe
 
 import Control.Monad
 
-data DesugarConf
-    = DesugarConf { debug_float_out :: Bool
-                  , core2core_pass  :: Bool
-                  }
+data DesugarConf = DesugarConf
+    { debug_float_out :: Bool
+    , core2core_pass  :: Bool
+    }
 
 desugar :: DesugarConf -> FilePath -> IO (ModGuts,DynFlags)
-desugar DesugarConf{..} targetFile =
+desugar dc fp = fmap snd (desugarWith (\_ -> return ()) dc fp)
+
+desugarWith :: (ModGuts -> Ghc a) -> DesugarConf -> FilePath
+            -> IO (a,(ModGuts,DynFlags))
+desugarWith extra DesugarConf{..} targetFile =
   defaultErrorHandler defaultLogAction $
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
@@ -50,7 +54,12 @@ desugar DesugarConf{..} targetFile =
         s <- getSession
         modguts' <- if core2core_pass then liftIO (core2core s modguts)
                                       else return modguts
-        return (modguts',dflags')
+        a <- extra modguts'
+        return (a,(modguts',dflags'))
+
+-- desugarAnn :: DesugarConf -> FilePath
+--            -> IO ((String -> Var,String -> TyCon),(ModGuts,DynFlags)
+-- findAnnsForNamedThing nm = findGlobalAnns deserializeWithData (NamedTarget nm)
 
 lambdaLift :: DynFlags -> CoreProgram -> IO CoreProgram
 lambdaLift dflags program = do
