@@ -5,7 +5,7 @@ import CoreSyn
 import DataCon
 import Outputable
 
-import Halt.Utils
+import Halt.Shared
 
 -- Constraints from case expressions to results, under a substitution
 data Constraint = Equality   CoreExpr DataCon [CoreExpr]

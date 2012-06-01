@@ -9,8 +9,8 @@ import Id
 import Outputable
 import TyCon
 
-import Halt.Common
-import Halt.Utils
+import Halt.Util
+import Halt.Shared
 import Halt.Monad
 import Halt.Conf
 import Halt.Data
@@ -69,7 +69,7 @@ trCase e = case e of
         write $ "Case on " ++ showExpr scrutinee
 
         -- Substitute the scrutinee var to the scrutinee expression
-        let subst_alt (c,bs,e) = (c,bs,substExpr (text "trCase") s e)
+        let subst_alt (c,bs,e_alt) = (c,bs,substExpr (text "trCase") s e_alt)
               where  s = extendIdSubst emptySubst scrut_var scrutinee
 
             alts_wo_bottom = map subst_alt alts_unsubst

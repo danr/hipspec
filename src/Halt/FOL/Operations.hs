@@ -2,7 +2,7 @@
 module Halt.FOL.Operations where
 
 import Halt.FOL.Internals.Internals
-import Halt.Common (nubOrd)
+import Halt.Util (nubSorted)
 
 import Data.Generics.Uniplate.Data
 import Data.Data
@@ -52,7 +52,7 @@ clauseMapTerms tm qv cl = case cl of
     Comment s    -> Comment s
 
 allSymbols :: forall f q v . (Data (f q v),Data q,Data v,Ord v) => f q v -> [v]
-allSymbols = nubOrd . mapMaybe get . universeBi
+allSymbols = nubSorted . mapMaybe get . universeBi
   where
     get :: Term q v -> Maybe v
     get (Fun v _)    = Just v
@@ -62,7 +62,7 @@ allSymbols = nubOrd . mapMaybe get . universeBi
     get _            = Nothing
 
 allQuant :: forall f q v . (Data (f q v),Data q,Data v,Ord q) => f q v -> [q]
-allQuant phi = nubOrd (mapMaybe getTm (universeBi phi)
+allQuant phi = nubSorted (mapMaybe getTm (universeBi phi)
                     ++ concatMap getFm (universeBi phi))
   where
     getTm :: Term q v -> Maybe q

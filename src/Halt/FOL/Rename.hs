@@ -7,7 +7,7 @@ import Name
 import Id
 import Outputable
 
-import Halt.Common
+import Halt.Util
 
 import Halt.FOL.Internals.Internals
 import Halt.FOL.Operations
@@ -53,7 +53,7 @@ data WrappedVarClause
 mkFunRenamer :: [WrappedVarClause] -> Clause q Var -> Clause q String
 mkFunRenamer clauses =
     let symbols :: [Var]
-        symbols = nubOrd $ concatMap (\(WrapClause cl) -> allSymbols cl) clauses
+        symbols = nubSorted $ concatMap (\(WrapClause cl) -> allSymbols cl) clauses
 
         rep_map :: Map Var String
         rep_map = B.toMap (foldr (allot varSuggest protectedWiredIn)

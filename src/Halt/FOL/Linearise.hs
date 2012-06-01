@@ -4,7 +4,7 @@ module Halt.FOL.Linearise where
 
 import Outputable
 
-import Halt.Common
+import Halt.Util
 import Halt.PrimCon
 import Halt.FOL.Internals.Internals
 import Halt.FOL.Abstract
