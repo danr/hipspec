@@ -78,8 +78,11 @@ linClause st (Comment s)
     | linComments st = text ("\n" ++ intercalate "\n" (map ("% " ++) (lines s)))
     | otherwise      = empty
 linClause st (Clause cl_name cl_type cl_formula)
-    | linCNF st, Just lits <- simpleCNF (((cl_type == Conjecture) ? neg) cl_formula)
-       = linClEntry (text "cnf") cl_name cl_type (linBinOp st pipe lits)
+    | let (cl_type',cl_formula') = (cl_type == Conjecture
+                                      ? const NegatedConjecture *** neg)
+                                      $ (cl_type,cl_formula)
+    , linCNF st, Just lits <- simpleCNF cl_formula'
+       = linClEntry (text "cnf") cl_name cl_type' (linBinOp st pipe lits)
     | otherwise
        = linClEntry (text "fof") cl_name cl_type (linForm st id cl_formula)
 
