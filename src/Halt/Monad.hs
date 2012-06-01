@@ -13,11 +13,11 @@ import Outputable
 import TyCon
 import Unique
 
-import Halt.Common
+import Halt.Util
 import Halt.Conf
 import Halt.Constraints
 import Halt.Data
-import Halt.Utils
+import Halt.Shared
 
 import qualified Data.Map as M
 import Data.Map (Map)

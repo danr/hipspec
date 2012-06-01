@@ -8,11 +8,11 @@ import Literal
 import MkCore
 
 import Halt.FOL.Abstract
-import Halt.Common
+import Halt.Util
 import Halt.Monad
 import Halt.PrimCon
 
-import Halt.Utils
+import Halt.Shared
 
 import qualified Data.Map as M
 import Data.List (intercalate)

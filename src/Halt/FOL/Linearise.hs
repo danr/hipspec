@@ -6,7 +6,7 @@ import Outputable
 
 import Data.List
 
-import Halt.Common
+import Halt.Util
 import Halt.PrimCon
 import Halt.FOL.Internals.Internals
 import Halt.FOL.Abstract

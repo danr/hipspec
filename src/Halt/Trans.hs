@@ -12,8 +12,8 @@ import Id
 import Outputable
 import TyCon
 
-import Halt.Common
-import Halt.Utils
+import Halt.Util
+import Halt.Shared
 import Halt.Monad
 import Halt.Conf
 import Halt.Data

@@ -1,4 +1,4 @@
-module Halt.Utils where
+module Halt.Shared where
 
 import Id
 import Name

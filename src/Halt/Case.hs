@@ -5,7 +5,7 @@ import CoreUtils
 
 import Halt.Monad
 import Halt.PrimCon
-import Halt.Common
+import Halt.Util
 import Halt.Conf
 
 import Control.Monad.Reader
