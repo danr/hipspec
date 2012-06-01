@@ -12,6 +12,9 @@ import HscTypes
 import UniqSupply
 import SimplCore
 
+import Data.List
+import Data.Maybe
+
 import Control.Monad
 
 data DesugarConf
@@ -34,8 +37,13 @@ desugar DesugarConf{..} targetFile =
         target <- guessTarget targetFile Nothing
         setTargets [target]
         void $ load LoadAllTargets
-        modSum <- getModSummary (mkModuleName targetFile)
-        p <- parseModule modSum
+        mod_graph <- getModuleGraph
+        let mod_sum = fromMaybe (error $ "Cannot find module " ++ targetFile)
+                    $ find (\m -> ms_mod_name m == mkModuleName targetFile
+                               || ms_mod_name m == mkModuleName "Main"
+                               || ml_hs_file (ms_location m) == Just targetFile)
+                           mod_graph
+        p <- parseModule mod_sum
         t <- typecheckModule p
         d <- desugarModule t
         let modguts = dm_core_module d
