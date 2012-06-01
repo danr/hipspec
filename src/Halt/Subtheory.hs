@@ -24,16 +24,16 @@ data Content
     | Lemma String [Var]
     -- ^ [hipspec] Lemma with a name, regarding a group of definitions
 
-data Subtheory
-    = Subtheory { provides    :: Content
-                -- ^ Content defined
-                , depends     :: [Content]
-                -- ^ Content depending upon
-                , description :: String
-                -- ^ Commentary
-                , formulae    :: [Formula']
-                -- ^ Formulae in this subtheory
-                }
+data Subtheory = Subtheory
+    { provides    :: Content
+    -- ^ Content defined
+    , depends     :: [Content]
+    -- ^ Content depending upon
+    , description :: String
+    -- ^ Commentary
+    , formulae    :: [Formula']
+    -- ^ Formulae in this sub theory
+    }
 
 toClauses :: Subtheory -> [Clause']
 toClauses (Subtheory{..}) =
