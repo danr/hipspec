@@ -57,10 +57,6 @@ desugarWith extra DesugarConf{..} targetFile =
         a <- extra modguts'
         return (a,(modguts',dflags'))
 
--- desugarAnn :: DesugarConf -> FilePath
---            -> IO ((String -> Var,String -> TyCon),(ModGuts,DynFlags)
--- findAnnsForNamedThing nm = findGlobalAnns deserializeWithData (NamedTarget nm)
-
 lambdaLift :: DynFlags -> CoreProgram -> IO CoreProgram
 lambdaLift dflags program = do
     us <- mkSplitUniqSupply 'l'
