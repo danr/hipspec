@@ -10,19 +10,59 @@ cabal-version:      >= 1.6
 build-type:         Simple
 homepage:           github.com/danr/hip
 
-{-
 Library
-  hs-source-dirs: src
-
-  Exposed-modules:
-    Hip.HipSpec
-    Test.QuickSpec
--}
-
-executable          hipspec
-    ghc-options:    -threaded -O2 -rtsopts -package ghc
+    ghc-options:    -threaded -O2 -rtsopts -package ghc -Wall
     hs-source-dirs: src halt/src
-    main-is:        Main.hs
+
+    Exposed-modules:
+        Hip.HipSpec
+        Hip.Prelude
+        Test.QuickSpec
+
+    Other-modules:
+        Halt.Case
+        Halt.Conf
+        Halt.Constraints
+        Halt.Data
+        Halt.Entry
+        Halt.ExprTrans
+        Halt.FOL.Abstract
+        Halt.FOL.Internals.Internals
+        Halt.FOL.Linearise
+        Halt.FOL.Operations
+        Halt.FOL.Rename
+        Halt.FOL.Style
+        Halt.Lift
+        Halt.Monad
+        Halt.PrimCon
+        Halt.Shared
+        Halt.Subtheory
+        Halt.Trans
+        Halt.Trim
+        Halt.Util
+        Hip.Init
+        Hip.InvokeATPs
+        Hip.MakeInvocations
+        Hip.Params
+        Hip.Provers
+        Hip.ResultDatatypes
+        Hip.RunProver
+        Hip.StructuralInduction
+        Hip.StructuralInduction.Linearise
+        Hip.Trans.MakeProofs
+        Hip.Trans.ProofDatatypes
+        Hip.Trans.Property
+        Hip.Trans.QSTerm
+        Hip.Trans.SrcRep
+        Hip.Trans.Theory
+        Hip.Trans.Types
+        Test.QuickSpec.CatchExceptions
+        Test.QuickSpec.CongruenceClosure
+        Test.QuickSpec.Equations
+        Test.QuickSpec.Term
+        Test.QuickSpec.TestTree
+        Test.QuickSpec.UnionFind
+        Test.QuickSpec.Utils
 
     build-depends:
         -- Shared
@@ -47,6 +87,37 @@ executable          hipspec
         QuickCheck                    >= 2.0,
         random                        >= 1.0,
         array                         >= 0.4,
+        parallel                      >= 3.0,
+
+        -- Running Theorem Provers
+        process                       >= 1.0.1.1,
+        stm                           >= 2.0,
+        directory                     >= 1.0
+
+
+executable          hipspec
+    ghc-options:    -threaded -O2 -rtsopts -package ghc -Wall
+    hs-source-dirs: src halt/src
+    main-is:        Main.hs
+
+    build-depends:
+        -- Shared
+        base                          >= 4    && < 5,
+        mtl                           >= 2.0,
+        containers                    >= 0.3,
+
+        -- Command-line Arguments
+        cmdargs                       >= 0.9,
+
+        -- Halt
+        uniplate                      >= 1.6,
+        bimap                         >= 0.2,
+        ghc-paths                     >= 0.1,
+        filepath                      >= 1.0,
+
+        -- Structural Induction
+        safe                          >= 0.3,
+        pretty                        >= 1.0,
 
         -- Running Theorem Provers
         process                       >= 1.0.1.1,

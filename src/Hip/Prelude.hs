@@ -1,0 +1,32 @@
+{-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts #-}
+module Hip.Prelude
+    (module Test.QuickCheck
+    ,Prop
+    ,(=:=)
+    ,proveBool
+    ,oops) where
+
+import Test.QuickCheck hiding (Prop)
+import Test.QuickCheck.Function
+
+infix 1 =:=
+
+data Prop a = a :=: a | Oops (Prop a)
+
+proveBool :: Bool -> Prop Bool
+proveBool lhs = lhs =:= True
+
+oops :: Prop a -> Prop a
+oops = Oops
+
+(=:=) :: a -> a -> Prop a
+(=:=) = (:=:)
+
+instance (Eq a,Show a,Arbitrary a,Testable (Prop b)) => Testable (Prop (a -> b)) where
+  property (lhs :=: rhs) = forAll arbitrary $ \x -> property (lhs x :=: rhs x)
+
+instance Eq a => Testable (Prop a) where
+  property (lhs :=: rhs) = property (lhs == rhs)
+
+instance Show (a -> b) where
+  show _ = "<fun>"

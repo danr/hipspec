@@ -1,33 +1,39 @@
 {-# LANGUAGE DeriveDataTypeable, TypeFamilies, CPP #-}
 module Main where
 
+import Prelude hiding ((+),(*),even,odd,sum,id)
+
 import Data.Typeable
 
 import Hip.HipSpec
+import Hip.Prelude
 
-import Test.QuickCheck hiding (Prop)
-import Test.QuickSpec
+{-# ANN Z "Z" #-}
+{-# ANN (:) ":" #-}
 
-import Prelude hiding ((+),(*),even,odd,pred,sum,id)
-import qualified Prelude as P
-
+{-# ANN type Nat "Nat" #-}
+{-# ANN Z "Z" #-}
+{-# ANN S "S" #-}
 data Nat = Z | S Nat
-
+  deriving (Eq,Ord,Show,Typeable)
 
 infixl 6 +
 infixl 7 *
 
+{-# ANN (+) "+" #-}
 (+) :: Nat -> Nat -> Nat
-Z   + m = m
 S n + m = S (n + m)
+_   + m = m
 
+{-# ANN (*) "*" #-}
 (*) :: Nat -> Nat -> Nat
-Z   * m = Z
 S n * m = m + (n * m)
+_   * m = Z
 
+prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
+prop_mul_comm x y z = x * y =:= y * x
 
-main = return ()
-    hipSpec "Nat.hs" conf 3
+main = hipSpec "Nat.hs" conf 3
   where conf = describe "Nats"
                [ var "x" natType
                , var "y" natType
@@ -39,24 +45,19 @@ main = return ()
                ]
            where natType = (error "Nat type" :: Nat)
 
-prop_assoc :: Nat -> Nat -> Nat -> Prop Nat
-prop_assoc x y z = x + (y + z) =:= (x + y) + z
-
-type Prop a = a
-
-infix 0 =:=
-(=:=) = (=:=)
 
 instance Enum Nat where
   toEnum 0 = Z
-  toEnum n = S (toEnum (P.pred n))
+  toEnum n = S (toEnum (pred n))
   fromEnum Z = 0
   fromEnum (S n) = succ (fromEnum n)
 
 instance Arbitrary Nat where
-  arbitrary = sized $ \s -> do
-    x <- choose (0,round (sqrt (toEnum s)))
-    return (toEnum x)
+  arbitrary = sized arbSized
+
+arbSized s = do
+  x <- choose (0,round (sqrt (toEnum s)))
+  return (toEnum x)
 
 instance CoArbitrary Nat where
   coarbitrary Z     = variant 0

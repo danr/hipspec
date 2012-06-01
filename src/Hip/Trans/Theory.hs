@@ -1,9 +1,5 @@
 module Hip.Trans.Theory where
 
-import Halt.Util
-import Hip.StructuralInduction (TyEnv)
-
-import Halt.FOL.Abstract
 import Halt.Subtheory
 
 import CoreSyn

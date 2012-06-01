@@ -9,19 +9,17 @@ import Hip.Trans.Theory as Thy
 import Hip.Trans.Types
 import Hip.Params
 
-import qualified Halt.FOL.Abstract as A
 import Halt.FOL.Abstract hiding (Term,Lemma)
 import Halt.ExprTrans
 import Halt.Monad
 import Halt.Util
+import Halt.Shared
 import Halt.Subtheory
 
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Maybe (mapMaybe)
 
-import Control.Arrow
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -33,7 +31,7 @@ import DataCon
 import Type
 import Var
 import Id
-import Outputable (text)
+import Outputable hiding (equals)
 
 import qualified Text.PrettyPrint as P
 
@@ -137,32 +135,39 @@ trTerm (Con c as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
 trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
 
 ghcStyle :: Style DataCon Var Type
-ghcStyle = Style { linc = const (P.text "c")
-                 , linv = const (P.text "v")
-                 , lint = const P.empty
+ghcStyle = Style { linc = P.text . showSDoc . ppr
+                 , linv = P.text . showSDoc . ppr
+                 , lint = P.text . showSDoc . ppr
                  }
 
 trIndPart :: Prop -> IndPart DataCon Var Type -> HaltM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
-   let skolem_arities = M.fromList [ (idName sk,0) | (sk,_) <- skolem ]
+    let skolem_arities = M.fromList [ (idName sk,0) | (sk,_) <- skolem ]
 
-       trPred :: [Term DataCon Var] -> HaltM Formula'
-       trPred tms = (===) <$> trExpr lhs <*> trExpr rhs
-         where
-           s = extendIdSubstList emptySubst
-                  [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
+        trPred :: [Term DataCon Var] -> HaltM (String,Formula')
+        trPred tms = do
+            phi <- (===) <$> trExpr lhs <*> trExpr rhs
+            return (showExpr lhs ++ "=" ++ showExpr rhs,phi)
+          where
+            s = extendIdSubstList emptySubst
+                   [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
-           lhs = substExpr (text "trPred") s proplhs
-           rhs = substExpr (text "trPred") s proprhs
+            lhs = substExpr (text "trPred") s proplhs
+            rhs = substExpr (text "trPred") s proprhs
 
-       trHyp :: Hypothesis DataCon Var Type -> HaltM Formula'
-       trHyp (map fst -> qs,tms) = local (pushQuant qs) (forall' qs <$> trPred tms)
+        trHyp :: Hypothesis DataCon Var Type -> HaltM (String,Formula')
+        trHyp (map fst -> qs,tms) = local (pushQuant qs)
+             (second (forall' qs) <$> trPred tms)
 
-   local (extendArities skolem_arities) $ do
-       tr_hyp   <- mapM (fmap (clause Hypothesis) . trHyp) hyps
-       tr_concl <- clause NegatedConjecture . neg <$> trPred concl
-       return (tr_concl:tr_hyp)
+    local (extendArities skolem_arities) $ do
+        (comm_hyp,tr_hyp)     <- mapAndUnzipM (fmap (second (clause Hypothesis))
+                                              . trHyp) hyps
+        (comm_concl,tr_concl) <- second (clause NegatedConjecture . neg)
+                                    <$> trPred concl
+        return (comment (unlines comm_hyp ++ "\n" ++ comm_concl)
+               :comment (P.render $ linPart ghcStyle ind_part)
+               :tr_concl:tr_hyp)
 
 
 
