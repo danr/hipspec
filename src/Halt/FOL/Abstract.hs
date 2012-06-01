@@ -52,7 +52,7 @@ comment :: String -> Clause q v
 comment = Comment
 
 clause :: ClType -> Formula q v -> Clause q v
-clause = Clause "_"
+clause = Clause "x"
 
 namedClause :: String -> ClType -> Formula q v -> Clause q v
 namedClause = Clause

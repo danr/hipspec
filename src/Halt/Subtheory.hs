@@ -42,7 +42,7 @@ toClauses (Subtheory{..}) =
   where
     name   = case provides of
                  Lemma s _ -> s
-                 _         -> "_"
+                 _         -> "x"
 
     cltype = case provides of
                  Lemma{}    -> A.Lemma
