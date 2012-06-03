@@ -1,0 +1,21 @@
+TODO:
+
+  * Either enforce a default branch or add infinite domain axioms.
+
+  * Follow type predicates.
+
+  * Add type predicates/guards for finite types
+
+  * Perform eta-expansion of properties
+
+  * Only add necessary data types to generated theories;
+    don't only restrict to tuples of size two
+
+  * Add function pointer axioms are to the theory
+
+BUGs:
+
+  * There seems to be some bug when the theorem provers report
+    CounterSatisfiable. At one occasion I think a problem got
+    registered as theorem when it actually was counter-satisfiable.
+
