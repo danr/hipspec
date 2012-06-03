@@ -128,6 +128,7 @@ escapes = M.fromList
     , ('#' ,"hash")
     , ('$' ,"dollar")
     , ('%' ,"pc")
+    , ('&' ,"amp")
     , ('*' ,"star")
     , ('+' ,"plus")
     , ('.' ,"_")
