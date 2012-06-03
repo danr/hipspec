@@ -1,7 +1,7 @@
 module ProductiveUseOfFailure where
 
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),undefined,Int)
-import HipPrelude
+import Hip.Prelude
 
 otherwise = True
 

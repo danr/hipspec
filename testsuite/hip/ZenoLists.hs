@@ -1,7 +1,7 @@
 -- Lists and functions, many properties come from QuickSpec
 module ZenoLists where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),Int)
 
 data Nat = Z | S Nat deriving (Eq,Show)
@@ -322,9 +322,9 @@ prop_52 :: Nat -> [Nat] -> Prop Nat
 prop_52 n xs
   = count n xs =:= count n (rev xs)
 
---prop_53 :: Nat -> [Nat] -> Prop Nat
---prop_53 n xs
---  = count n xs =:= count n (sort xs)
+prop_53 :: Nat -> [Nat] -> Prop Nat
+prop_53 n xs
+  = count n xs =:= count n (sort xs)
 
 prop_55 :: Nat -> [a] -> [a] -> Prop [a]
 prop_55 n xs ys
@@ -447,7 +447,7 @@ prop_84 xs ys zs
 -- zip (rev xs) (rev ys) =:= rev (zip xs ys)
 -- but that it obviously not true =/
 prop_85 :: [a] -> Prop [(a,a)]
-prop_85 xs
+prop_85 xs ys
   = zip (rev xs) (rev xs) =:= rev (zip xs xs)
 
 prop_map_compose :: (b -> c) -> (a -> b) -> [a] -> Prop [c]

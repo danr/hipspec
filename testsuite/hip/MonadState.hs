@@ -2,7 +2,7 @@
 -- Does not yet check put/get properties!
 module MonadState where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Int,Eq)
 
 -- Poor man's equality

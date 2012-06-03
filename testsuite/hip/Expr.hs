@@ -1,6 +1,6 @@
 module Expr where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Bool(..),Eq,Show)
 
 -- Expressions with Nats ------------------------------------------------------

@@ -1,7 +1,7 @@
 -- Lists and functions, many properties come from QuickSpec
-module ListFunctions where
+module Tricky where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),Int)
 
 data Nat = Z | S Nat

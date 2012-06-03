@@ -1,19 +1,21 @@
 module Queues where
 
-import HipPrelude
-import Prelude (Eq((==)),Ord,Show,iterate,(!!),fmap,Bool(..),Int,return)
+import Hip.Prelude
+import Prelude (Eq((==)),Ord,Show,iterate,(!!),fmap,Bool(..),Int,return,undefined)
 
 -- Invariant : front is never empty unless back also is
 -- We cannot currently express this in logic?
 data Queue a = Queue [a] [a] -- front, then back
-  deriving Show
+-- deriving Show
 
+{-
 -- Equality and Ordering is by lists: {-# OPTIONS_EQUALITY Queue toList #-}
 instance Eq a => Eq (Queue a) where
   q == q' = toList q == toList q'
+-}
 
 instance Arbitrary a => Arbitrary (Queue a) where
-  arbitrary = sized (\s ->def_2
+  arbitrary = sized (\s ->
     frequency [(0,return (Queue [] []))
               ,(s,do x  <- arbitrary
                      xs <- arbitrary

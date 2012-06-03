@@ -1,6 +1,6 @@
 module MergeSort where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
 
 otherwise = True

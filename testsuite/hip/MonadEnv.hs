@@ -2,7 +2,7 @@
 -- No properties of local yet
 module MonadEnv where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Int,Eq)
 
 -- Poor man's equality

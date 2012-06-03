@@ -2,7 +2,7 @@
 -- but production in normal speed
 module NatDoubleSlow where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
 
 data Nat = Z | S Nat
@@ -77,14 +77,6 @@ prop_right_distrib :: Nat -> Nat -> Nat -> Prop Nat
 prop_right_distrib x y z
   = (x + y) * z =:= (x * z) + (y * z)
 
-prop_idem_plus :: Nat -> Prop Nat
-prop_idem_plus x
-  = x + x =/= x
-
-prop_idem_mul :: Nat -> Prop Nat
-prop_idem_mul x
-  = x * x =/= x
-
 prop_minus_zeroish :: Nat -> Nat -> Prop Nat
 prop_minus_zeroish n m
   = n - (n + m) =:= Z
@@ -128,8 +120,6 @@ main = do
   quickCheck (printTestCase "prop_mul_comm" prop_mul_comm)
   quickCheck (printTestCase "prop_left_distrib" prop_left_distrib)
   quickCheck (printTestCase "prop_right_distrib" prop_right_distrib)
-  quickCheck (printTestCase "prop_idem_plus" prop_idem_plus)
-  quickCheck (printTestCase "prop_idem_mul" prop_idem_mul)
   quickCheck (printTestCase "prop_minus_zeroish" prop_minus_zeroish)
   quickCheck (printTestCase "prop_minus_absorbish" prop_minus_absorbish)
   quickCheck (printTestCase "prop_minus_distribish" prop_minus_distribish)

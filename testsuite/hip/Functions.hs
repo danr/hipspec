@@ -1,6 +1,6 @@
 module Functions where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude ()
 
 const x y = x

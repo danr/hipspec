@@ -2,7 +2,7 @@
 -- Agda standard library, which is proved to be a commutative ring
 module Integers where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
 
 data Nat = Z | S Nat deriving (Eq)

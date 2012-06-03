@@ -1,7 +1,7 @@
 -- Properties of infinite objects
-module Infinity where
+module Infinite where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Bool(..),(&&),(==),div,Eq,Show,return,Int,pred)
 import Control.Monad (liftM3)
 

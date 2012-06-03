@@ -3,12 +3,10 @@
 
 module IWC where
 
-import HipPrelude
+import Hip.Prelude hiding (choose)
+import Prelude(Bool(..))
+
 data Nat = S Nat | Z
-
-
-(=:=) :: a -> a -> a
-(=:=) = (=:=)
 
 otherwise = True
 
@@ -22,20 +20,17 @@ even (S (S x)) = even x
 []     `app` ys = ys
 (x:xs) `app` ys = x : (xs `app` ys)
 
-prop_evenLengthAppend :: [a] -> [a] -> Prop [a]
-prop_evenLengthAppend xs ys = even (len (xs `app` ys) =:=
-                                     even (len (ys `app` xs)))
+prop_evenLengthAppend :: [a] -> [a] -> Prop Bool
+prop_evenLengthAppend xs ys = even (len (xs `app` ys)) =:=
+                              even (len (ys `app` xs))
 
 rotate Z     xs     = xs
 rotate (S n) []     = []
 rotate (S n) (x:xs) = rotate n (xs `app` [x])
 
-prop_rotateLength :: [a] -> Prop [a]
 prop_rotateLength xs = rotate (len xs) xs =:= xs
 
-prop_rotateLength2 :: [a] -> [a] -> Prop [a]
-prop_rotateLength2 xs ys = rotate (len xs) (xs `app` ys
-                                              =:= (ys `app` xs))
+prop_rotateLength2 xs ys = rotate (len xs) (xs `app` ys) =:= (ys `app` xs)
 
 plus x Z     = x
 plus x (S y) = S (plus x y)

@@ -2,7 +2,7 @@
 -- Many of these examples come from Zeno
 module Nat where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
 
 data Nat = Z | S Nat
@@ -37,12 +37,6 @@ min (S x) (S y) = S (min x y)
 max Z     y     = y
 max x     Z     = x
 max (S x) (S y) = S (max x y)
-
---prop_zero_is_one :: Prop Nat
---prop_zero_is_one = Z =/= S Z
-
-prop_stuff :: Prop Nat
-prop_stuff = S Z * S (S Z) =:= S (S (S Z)) - S Z
 
 prop_refl :: Nat -> Prop Bool
 prop_refl x = proveBool (x == x)
@@ -88,12 +82,6 @@ prop_min_absorb x y = min x (max x y) =:= x
 
 prop_max_absorb :: Nat -> Nat -> Prop Nat
 prop_max_absorb x y = max x (min x y) =:= x
-
---prop_idem_plus :: Nat -> Prop Nat
---prop_idem_plus x = x + x =/= x
---
---prop_idem_mul :: Nat -> Prop Nat
---prop_idem_mul x = x * x =/= x
 
 prop_minus_zeroish :: Nat -> Nat -> Prop Nat
 prop_minus_zeroish n m = n - (n + m) =:= Z

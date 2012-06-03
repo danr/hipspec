@@ -8,9 +8,6 @@ import Data.Typeable
 import Hip.HipSpec
 import Hip.Prelude
 
-{-# ANN Z "Z" #-}
-{-# ANN (:) ":" #-}
-
 {-# ANN type Nat "Nat" #-}
 {-# ANN Z "Z" #-}
 {-# ANN S "S" #-}

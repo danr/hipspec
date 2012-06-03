@@ -1,7 +1,7 @@
 -- Properties come from QuickSpec
 module Reverse where
 
-import HipPrelude
+import Hip.Prelude
 import Prelude (Int)
 
 (++) :: [a] -> [a] -> [a]
