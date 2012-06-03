@@ -18,6 +18,7 @@ module Halt.Util
     , selections
     , inspect
     , withPrevious
+    , uniqueCartesian
 
     -- * Efficient nub and group
     , nubSorted
@@ -92,6 +93,14 @@ inspect = map (\(i,x,r) -> (x,i++r)) . selections
 -- @
 withPrevious :: [a] -> [(a,[a])]
 withPrevious xs = zip xs (inits xs)
+
+-- | Non-reflexive and non-symmetric cartesian product
+--
+-- @
+--     uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
+-- @
+uniqueCartesian :: [a] -> [(a,a)]
+uniqueCartesian as = concat [ zip (repeat x) xs | (x,xs) <- inspect as ]
 
 -- | /O(n log n)/ nub, but destroys ordering
 nubSorted :: Ord a => [a] -> [a]
