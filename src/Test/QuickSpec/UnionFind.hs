@@ -25,9 +25,11 @@ execUF s m = snd (runUF s m)
 initial :: Int -> S
 initial n = S IntMap.empty n
 
+modifyLinks :: (IntMap Int -> IntMap Int) -> UF ()
 modifyLinks f = modify (\s -> s { links = f (links s) })
+
+modifySym :: (Int -> Int) -> UF ()
 modifySym f = modify (\s -> s { sym = f (sym s) })
-putLinks l = modifyLinks (const l)
 
 newSym :: UF Int
 newSym = do

@@ -1,5 +1,5 @@
 name:               hipspec
-version:            0.1.1
+version:            0.2
 license:            BSD3
 author:             Dan Rosén
 maintainer:         danr@student.gu.se
@@ -11,7 +11,7 @@ build-type:         Simple
 homepage:           github.com/danr/hip
 
 Library
-    ghc-options:    -threaded -O2 -rtsopts -package ghc -Wall
+    ghc-options:    -threaded -O2 -rtsopts -package ghc
     hs-source-dirs: src halt/src
 
     Exposed-modules:
@@ -98,7 +98,7 @@ Library
 
 
 executable          hipspec
-    ghc-options:    -threaded -O2 -rtsopts -package ghc -Wall
+    ghc-options:    -threaded -O2 -rtsopts -package ghc
     hs-source-dirs: src halt/src
     main-is:        Main.hs
 

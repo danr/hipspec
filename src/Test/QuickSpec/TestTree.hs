@@ -1,14 +1,13 @@
 module Test.QuickSpec.TestTree(TestTree, terms, union, test,
                TestResults, cutOff, numTests, classes, reps) where
 
-import Data.List(sort)
 import Test.QuickSpec.Utils
 import Control.Exception(assert)
 import Control.Parallel.Strategies
 
 -- Invariant: the children of a TestTree are sorted according to the
 -- parent's test. We exploit this in defining merge.
--- 
+--
 -- A TestTree is always infinite, and branches t is always a
 -- refinement of t (it may be trivial, so that length (branches t) == 1).
 -- As a special case, a TestTree may be Nil, but Nil may not appear in
@@ -19,9 +18,9 @@ data TestTree' r a = Tree { rep :: a, rest :: [a], eval :: a -> r, branches :: [
 -- Precondition: bs must be sorted according to the TestCase.
 tree :: Ord r => [a] -> (a -> r) -> [TestTree' r a] -> TestTree' r a
 tree [] _ _ = error "TestTree.tree: bug: empty equivalence class"
-tree (x:xs) eval bs =
-  assert (isSortedBy (eval . rep) bs) $
-    Tree { rep = x, rest = xs, eval = eval, branches = bs }
+tree (x:xs) ev bs =
+  assert (isSortedBy (ev . rep) bs) $
+    Tree { rep = x, rest = xs, eval = ev, branches = bs }
 
 terms :: TestTree r a -> [a]
 terms Nil = []
@@ -57,7 +56,7 @@ newtype TestResults r a = Results (TestTree r a)
 
 cutOff :: Int -> TestTree r a -> TestResults r a
 cutOff _ Nil = Results Nil
-cutOff n (NonNil t) = Results (NonNil (aux n t))
+cutOff n (NonNil t0) = Results (NonNil (aux n t0))
   where aux 0 t = t { branches = [] }
         aux m t@Tree{branches = [t']} = t { branches = [aux (m-1) t'] }
         aux _ t = t { branches = map (aux n) (branches t) }
@@ -72,7 +71,7 @@ classes :: TestResults r a -> [[a]]
 classes (Results Nil) = []
 classes (Results (NonNil t)) = aux t
   where aux Tree{rep = x, rest = xs, branches = []} = [x:xs]
-        aux Tree{branches = bs} = concat (parMap rwhnf aux bs)
+        aux Tree{branches = bs} = concat (parMap rseq aux bs)
 
 reps :: TestResults r a -> [a]
 reps = map head . classes
