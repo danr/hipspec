@@ -93,7 +93,9 @@ linClType ty = case ty of
     Hypothesis        -> text "hypothesis"
     Definition        -> text "definition"
     Conjecture        -> text "conjecture"
-    NegatedConjecture -> text "negated_conjecture"
+    NegatedConjecture -> text "axiom"
+                      -- ^ SPASS ignores fof negated_conjecture,
+                      --   so we write these as axiom instead
     Question          -> text "question"
 
 linClEntry :: SDoc -> String -> ClType -> SDoc -> SDoc
