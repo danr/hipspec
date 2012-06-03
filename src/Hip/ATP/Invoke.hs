@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
-module Hip.InvokeATPs where
+module Hip.ATP.Invoke where
 
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
@@ -19,9 +19,9 @@ import qualified Data.Map as M
 import Data.Map (Map)
 
 import Hip.Trans.ProofDatatypes
-import Hip.ResultDatatypes
-import Hip.Provers
-import Hip.RunProver
+import Hip.ATP.Results
+import Hip.ATP.Provers
+import Hip.ATP.RunProver
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)

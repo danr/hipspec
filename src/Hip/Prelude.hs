@@ -7,7 +7,6 @@ module Hip.Prelude
     ,oops) where
 
 import Test.QuickCheck hiding (Prop)
-import Test.QuickCheck.Function
 
 infix 1 =:=
 
@@ -24,9 +23,11 @@ oops = Oops
 
 instance (Eq a,Show a,Arbitrary a,Testable (Prop b)) => Testable (Prop (a -> b)) where
   property (lhs :=: rhs) = forAll arbitrary $ \x -> property (lhs x :=: rhs x)
+  property (Oops p)      = expectFailure (property p)
 
 instance Eq a => Testable (Prop a) where
   property (lhs :=: rhs) = property (lhs == rhs)
+  property (Oops p)      = expectFailure (property p)
 
 instance Show (a -> b) where
   show _ = "<fun>"

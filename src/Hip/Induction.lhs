@@ -11,7 +11,7 @@
 >              ConstraintKinds, ScopedTypeVariables,
 >              TypeOperators #-}
 
-> module Hip.StructuralInduction
+> module Hip.Induction
 >        (Term(..)   ,TermV
 >        ,Hypothesis ,HypothesisV
 >        ,IndPart(..),IndPartV
@@ -25,7 +25,6 @@
 
 > import Control.Arrow hiding ((<+>))
 > import Control.Applicative hiding (empty)
-> import Control.Monad
 > import Control.Monad.State
 > import Control.Monad.Identity
 
@@ -74,10 +73,10 @@
 >   where
 >     isAtom (Con _ tms) = all isAtom tms
 >     isAtom _           = False
- 
+
   Induction steps data type
   =========================
- 
+
 > data IndPart c v t = IndPart { implicit   :: [v ::: t]
 >                              , hypotheses :: [Hypothesis c v t]
 >                              , conclusion :: Predicate c v
@@ -92,11 +91,11 @@
 >               | Fun { termFunName :: v , termArgs :: [Term c v] }
 
                 ^ Exponential datatypes yield functions
- 
+
 >   deriving (Eq,Ord,Show,Data,Typeable)
 
   | Does this variable occur in this term?
- 
+
 > varFree :: forall c v . (Data c,Data v,Eq v) => v -> Term c v -> Bool
 > varFree v tm = or $ [ v == v' | Var v'   <- universe tm ]
 >                  ++ [ v == v' | Fun v' _ <- universe tm ]
@@ -117,7 +116,7 @@
 >         _                                 -> tm
 
   | Substitution. The rhs of the substitution must be only fresh variables.
- 
+
 > subst :: (Data c,Data v,Eq v) => v -> Term c v -> Term c v -> Term c v
 > subst x t = substList [(x,t)]
 
@@ -155,7 +154,7 @@
 >   deriving (Eq,Ord,Show)
 
   Get the representation of the argument
- 
+
 > argRepr :: Arg t -> t
 > argRepr (Rec t)    = t
 > argRepr (NonRec t) = t
@@ -166,14 +165,14 @@
 
   Given a type, returns the constructors and the types of their arguments,
   and also if the arguments are recursive, non-recursive or exponential (see Arg).
- 
+
   The function should instantiate type variables.
   For instance, looking up the type List Nat, should return the constructors
   Nil with args [], and Cons with args [NonRec Nat,Rec (List Nat)].
- 
+
   If it is not possible to do induction on this type, return Nothing.
   Examples are function spaces and type variables.
- 
+
 > type TyEnv c t = t -> Maybe [c ::: [Arg t]]
 
   Fresh variables
@@ -182,13 +181,13 @@
   A monad of fresh Integers
 
 > type Fresh = State Integer
- 
+
   Cheap way of introducing fresh variables
 
 > type V v = (v,Integer)
- 
+
   Our datatypes with tagged variables
- 
+
 > type IndPartV c v t = IndPart c (V v) t
 > type TermV c v = Term c (V v)
 > type HypothesisV c v t = Hypothesis c (V v) t
@@ -200,19 +199,19 @@
 >     x <- get
 >     modify succ
 >     return (v,x)
- 
+
   Create a fresh variable that has a type
- 
+
 > newTyped :: v -> t -> Fresh (V v ::: t)
 > newTyped v t = flip (,) t <$> newFresh v
- 
+
   Refresh variable
- 
+
 > refreshV :: V v -> Fresh (V v)
 > refreshV (v,_) = newFresh v
 
   Refresh a variable that has a type
- 
+
 > refreshTypedV :: V v -> t -> Fresh (V v ::: t)
 > refreshTypedV v t = flip (,) t <$> refreshV v
 
@@ -222,14 +221,14 @@
 > -- | Flattens out fresh variable names, in a monad
 > unVM :: (Applicative m,Monad m)
 >      => (v -> Integer -> m v) -> IndPartV c v t -> m (IndPart c v t)
-> unVM f (IndPart imp hyps conc)
->   = IndPart <$> unList imp
->             <*> mapM (\(x,y) -> (,) <$> unList x <*> mapM unTm y) hyps
->             <*> mapM unTm conc
+> unVM f (IndPart skolem hyps concl)
+>     = IndPart <$> unQuant skolem
+>               <*> mapM (\(qs,hyp) -> (,) <$> unQuant qs <*> mapM unTm hyp) hyps
+>               <*> mapM unTm concl
 >   where
 >     f' = uncurry f
 >
->     unList = mapM (\(x,y) -> (,) <$> f' x <*> return y)
+>     unQuant = mapM (\(v,t) -> (,) <$> f' v <*> return t)
 >
 >     unTm tm = case tm of
 >         Var x     -> Var <$> f' x
@@ -427,7 +426,7 @@
 
   | Induction on a variable, given all its constructors and their types
     Returns a number of clauses to be proved, one for each constructor.
- 
+
 > induction :: DataOrds c v
 >           => IndPartV c v t -> V v -> [c ::: [Arg t]] -> Fresh [IndPartV c v t]
 > induction phi x cons = sequence [ indCon phi x con arg_types
@@ -447,22 +446,22 @@
 >     con_or_fun -> concatFoldM (inductionTm ty_env) part (termArgs con_or_fun)
 
   | Gets the n:th argument of the conclusion, in the consequent
- 
+
 > getNthArg :: Int -> IndPart c v t -> Term c v
-> getNthArg i p = atNote "StructuralInduction.getNthArg" (conclusion p) i
+> getNthArg i p = atNote "Induction.getNthArg" (conclusion p) i
 
   | Induction on the term on the n:th coordinate of the predicate.
- 
+
 > inductionNth :: DataOrds c v
 >              => TyEnv c t -> IndPartV c v t -> Int -> Fresh [IndPartV c v t]
 > inductionNth ty_env phi i = inductionTm ty_env phi (getNthArg i phi)
 
   | Perform repeated lexicographic induction, given the typing environment
- 
+
       * the constructors and their Arg types, for any type
- 
+
       * arguments and their types
- 
+
       * which coordinates to do induction on, in order
 
 > structuralInduction :: DataOrds c v

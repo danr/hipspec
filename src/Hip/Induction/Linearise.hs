@@ -1,15 +1,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-
 
-   Linearises the parts defined in Hip.StructuralInduction.
+   Linearises the parts defined in Hip.Induction.
 
-   This is only for testing, rather translate the formulae to your own
-   representations.
+   Used in comments in generated TPTP files, and for testing.
 
 -}
-module Hip.StructuralInduction.Linearise where
+module Hip.Induction.Linearise where
 
-import Hip.StructuralInduction
+import Hip.Induction
 
 import Text.PrettyPrint hiding (Style)
 
@@ -35,8 +34,8 @@ linTypedVar :: Style c v t -> v -> t -> Doc
 linTypedVar st v t = linv st v <+> colon <+> lint st t
 
 linForall :: Style c v t -> (Doc -> Doc) -> [v ::: t] -> Doc
-linForall st par [] = empty
-linForall st par qs = bang
+linForall _  par [] = empty
+linForall st _   qs = bang
                    <+> brackets (csv (map (uncurry (linTypedVar st)) qs))
                    <+> colon
 
@@ -48,11 +47,11 @@ linHyp st (qs,hyp) = (if null qs then id else parens)
                    $ linForall st parens qs <+> linPred st hyp
 
 linPart :: Style c v t -> IndPart c v t -> Doc
-linPart st (IndPart implicit hyps conc) = hang
-     (linForall st id implicit)
+linPart st (IndPart skolem hyps concl) = hang
+     (linForall st id skolem)
      4
      $ parens $ cat $ parList (punctuate (fluff ampersand) (map (linHyp st) hyps)
-                 ++ [(if null hyps then id else (darrow <+>)) (linPred st conc)])
+                ++ [(if null hyps then id else (darrow <+>)) (linPred st concl)])
 
 csv :: [Doc] -> Doc
 csv = hcat . punctuate comma

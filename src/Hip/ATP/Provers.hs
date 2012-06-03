@@ -1,6 +1,6 @@
-module Hip.Provers where
+module Hip.ATP.Provers where
 
-import Hip.ResultDatatypes
+import Hip.ATP.Results
 import Data.List
 
 data ProverName = E | Vampire | Vampire64 | Prover9 | SPASS | Equinox | Z3

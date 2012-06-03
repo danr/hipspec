@@ -1,7 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.ResultDatatypes where
-
-import Halt.Util
+module Hip.ATP.Results where
 
 import Data.List
 import Data.Maybe

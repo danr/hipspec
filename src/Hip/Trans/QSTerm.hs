@@ -10,6 +10,7 @@ module Hip.Trans.QSTerm where
 import Test.QuickSpec.Term
 import qualified Test.QuickSpec.Term as T
 
+import Hip.Annotations
 import Hip.Init
 import Hip.Trans.Theory
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns,PatternGuards #-}
 {-|
 
-    Getting Types from GHC
+    Getting Types from GHC to use with induction
 
     Functions to consider:
 
@@ -13,12 +13,11 @@
 -}
 module Hip.Trans.Types (tyEnv) where
 
-import Hip.StructuralInduction
+import Hip.Induction
 
-import Var
 import Type
 import DataCon
-import TyCon
+import TyCon hiding (data_con)
 
 -- | Type environment for structural induction
 tyEnv :: TyEnv DataCon Type

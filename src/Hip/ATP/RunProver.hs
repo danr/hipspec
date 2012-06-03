@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.RunProver where
+module Hip.ATP.RunProver where
 
 import Prelude hiding (catch)
 
-import Hip.ResultDatatypes
-import Hip.Provers
+import Hip.ATP.Results
+import Hip.ATP.Provers
 
 import Control.Concurrent
 

@@ -10,18 +10,18 @@ import Halt.Subtheory
 import Halt.FOL.Abstract
 
 data ProofMethod = Plain
-                 | StructuralInduction { coords :: [Int] }
+                 | Induction { coords :: [Int] }
   deriving (Eq,Ord)
 
 instance Show ProofMethod where
     show Plain                    = "plain"
-    show (StructuralInduction vs) = "structural induction on "
+    show (Induction vs) = "structural induction on "
                                   ++ unwords (map show vs)
 
 proofMethodFile :: ProofMethod -> String
 proofMethodFile pt = case pt of
     Plain                  -> "plain"
-    StructuralInduction vs -> intercalate "_" (map show vs)
+    Induction vs -> intercalate "_" (map show vs)
 
 type Property  = PropertyMatter [Part]
 type Part      = PartMatter     ([Var],[Subtheory],[Particle])

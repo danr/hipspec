@@ -40,15 +40,17 @@ Library
         Halt.Trans
         Halt.Trim
         Halt.Util
+        Hip.Annotations
+        Hip.ATP.Invoke
+        Hip.ATP.Provers
+        Hip.ATP.Results
+        Hip.ATP.RunProver
+        Hip.BuiltinTypes
         Hip.Init
-        Hip.InvokeATPs
         Hip.MakeInvocations
         Hip.Params
-        Hip.Provers
-        Hip.ResultDatatypes
-        Hip.RunProver
-        Hip.StructuralInduction
-        Hip.StructuralInduction.Linearise
+        Hip.Induction
+        Hip.Induction.Linearise
         Hip.Trans.MakeProofs
         Hip.Trans.ProofDatatypes
         Hip.Trans.Property

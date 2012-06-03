@@ -14,6 +14,7 @@ import System.FilePath
 
 main :: IO ()
 main = do
+
     params@Params{..} <- cmdArgs defParams
 
     when (null files) $ do

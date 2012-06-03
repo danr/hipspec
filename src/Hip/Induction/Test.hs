@@ -1,9 +1,9 @@
-module Hip.StructuralInduction.Test where
+module Hip.Induction.Test where
 
 import Text.PrettyPrint (render)
 
-import Hip.StructuralInduction
-import Hip.StructuralInduction.Linearise
+import Hip.Induction
+import Hip.Induction.Linearise
 
 -- | A small test envirenment of Ordinals, Naturals, Integers,
 --   Lists, Trees and Expressions.

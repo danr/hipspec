@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hip.MakeInvocations where
 
-import Hip.InvokeATPs
+import Hip.ATP.Invoke
 import Hip.Params
-import Hip.Provers
-import Hip.ResultDatatypes
+import Hip.ATP.Provers
+import Hip.ATP.Results
 import Hip.Trans.MakeProofs
 import Hip.Trans.ProofDatatypes (propMatter)
 import Hip.Trans.Theory

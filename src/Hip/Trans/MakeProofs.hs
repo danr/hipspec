@@ -2,8 +2,8 @@
              ParallelListComp,ViewPatterns #-}
 module Hip.Trans.MakeProofs where
 
-import Hip.StructuralInduction
-import Hip.StructuralInduction.Linearise
+import Hip.Induction
+import Hip.Induction.Linearise
 import Hip.Trans.ProofDatatypes
 import Hip.Trans.Theory as Thy
 import Hip.Trans.Types
@@ -125,7 +125,7 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
                            [ Particle (show i) <$> trIndPart prop (dropHyps part)
                            | part <- parts' | i <- [(0 :: Int)..] ]
 
-            return (mkPart (StructuralInduction coords) particles)
+            return (mkPart (Induction coords) particles)
 
 -- Induction ------------------------------------------------------------------
 

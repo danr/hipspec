@@ -39,7 +39,7 @@ defParams = Params
                                     &= name "p" &= help "Prover processes (default 2)"
     , batchsize           = 2       &= name "b" &= help "Equations to process simultaneously (default 2)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
-    , provers             = "e"     &= help "Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
+    , provers             = "e"     &= help "ATP.Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
     , methods             = "pi"    &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
