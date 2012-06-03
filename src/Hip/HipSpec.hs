@@ -23,7 +23,6 @@ import Data.Tuple
 import Data.Function
 
 import Control.Monad
-import Control.Monad.State
 
 import System.Console.CmdArgs hiding (summary)
 
@@ -142,10 +141,9 @@ hipSpec file ctxt depth = do
 
     let classToEqs :: [[Term Symbol]] -> [(Term Symbol,Term Symbol)]
         classToEqs = sortBy (comparing (equationOrder . (swap_repr ? swap)))
-                   . {- if ord_quadratic
-                         then sort . concatMap uniqueCartesian
-                         else -}
-                            concatMap ((\(x:xs) -> zip (repeat x) xs) . sort)
+                   . if quadratic
+                          then sort . concatMap uniqueCartesian
+                          else concatMap ((\(x:xs) -> zip (repeat x) xs) . sort)
 
     (quickSpecClasses,prunedEqs) <- packLaws depth ctxt True
                                              (const True) (const True)

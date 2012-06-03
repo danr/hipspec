@@ -11,7 +11,6 @@ import Test.QuickSpec.Term
 import qualified Test.QuickSpec.Term as T
 
 import Hip.Annotations
-import Hip.Init
 import Hip.Trans.Theory
 
 import qualified Data.Map as M
@@ -31,8 +30,6 @@ import Unique
 import Id
 import Var
 
-import Debug.Trace
-
 import Control.Monad
 
 type Equation = (Term Symbol,Term Symbol)
@@ -43,9 +40,7 @@ typeRepToType (_,strToTyCon) = go
     go :: TypeRep -> Type
     go t | [(ta,tb)] <- funTypes [t]   = go ta `GhcType.mkFunTy` go tb
     go t = let (ty_con,ts) = Typeable.splitTyConApp t
-               tr r = tyConName ty_con
-                      ++ " [to] "
-                      ++ showSDoc (pprSourceTyCon r)
+               _tr r = tyConName ty_con ++ " ~> " ++ showSDoc (pprSourceTyCon r)
            in  fromMaybe a
                 (fmap (\r -> {- trace (tr r) -} r `GhcType.mkTyConApp` map go ts)
                       (M.lookup (tyConName ty_con) strToTyCon))
