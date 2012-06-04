@@ -11,13 +11,18 @@
         @tcView   :: Type -> Maybe Type@
 
 -}
-module Hip.Trans.Types (tyEnv) where
+module Hip.Trans.Types
+       (tyEnv
+       ,finiteType) where
 
 import Hip.Induction
 
 import Type
 import DataCon
 import TyCon hiding (data_con)
+import Outputable
+import TysWiredIn
+import BasicTypes
 
 -- | Type environment for structural induction
 tyEnv :: TyEnv DataCon Type
@@ -52,4 +57,72 @@ instDataCon data_con args =
            | otherwise               = NonRec ty
 
    in  map calc_Arg inst_args
+
+-- | Is this type definitely finite?
+--
+--   Examples: (), Bool, Ordering, Either Bool Bool, Maybe (), ...
+--
+--   Counterexamples: [()], [Bool], [a], Either a Bool, ...
+finiteType :: Type -> Bool
+finiteType ty = finType [] ty
+  where
+    --
+    finType :: [Type] -> Type -> Bool
+    finType visited (dropForAlls -> ty)
+
+        -- Recursive types are never finite
+        | any (eqType ty) visited = False
+
+        -- Check that arguments to all constructors are finite
+        | isAlgType ty =
+             let (ty_con,args) = splitTyConApp ty
+
+                 cons :: [DataCon]
+                 cons = tyConDataCons ty_con
+
+             in  all (finType visited')
+                     (concatMap (\con -> dataConInstArgTys con args) cons)
+
+        -- If a and b are finite, then a -> b is too.
+        -- TODO: if b is singleton (or empty) then this is also finite
+        --       (1 or 0 inhabitants)
+        | isFunTy ty =
+             let (args,res) = splitFunTys ty
+             in  all (finType visited') (res:args)
+
+        -- Type variable types are not always finite
+        | isTyVarTy ty = False
+
+        -- Raise error if we get some other type
+        | otherwise    = error $ "Hip.Trans.Types.finiteType "
+                              ++ showSDoc (ppr ty)
+                              ++ " neither forall, alge, fun or type variable!"
+      where
+        visited' = ty:visited
+
+-- | Finite types
+true :: [Type]
+true = [ boolTy
+       , unitTy
+       , boolTy `mkFunTy` boolTy
+       , mkTupleTy UnboxedTuple [boolTy,boolTy]
+       , mkTupleTy UnboxedTuple [boolTy,boolTy] `mkFunTy`
+         mkTupleTy UnboxedTuple [unitTy,unitTy,boolTy `mkFunTy` boolTy]
+       ]
+
+-- | Infinite types
+false :: [Type]
+false = [ mkListTy boolTy
+        , mkListTy unitTy
+        , mkListTy boolTy `mkFunTy` boolTy
+        , mkTupleTy UnboxedTuple [boolTy,boolTy] `mkFunTy`
+          mkTupleTy UnboxedTuple [unitTy,mkListTy boolTy,boolTy `mkFunTy` boolTy]
+        , mkTyVarTy undefined
+        , mkListTy (mkTyVarTy undefined)
+        ]
+
+-- | Should give all True
+unitTests :: [Bool]
+unitTests = [ finiteType ty       | ty <- true ]
+         ++ [ not (finiteType ty) | ty <- false ]
 
