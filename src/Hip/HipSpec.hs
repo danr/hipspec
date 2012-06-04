@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,PatternGuards #-}
+{-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
 module Hip.HipSpec (hipSpec, module Test.QuickSpec.Term) where
 
 import Test.QuickSpec.Term hiding (depth)
@@ -23,27 +23,39 @@ import Data.Tuple
 import Data.Function
 
 import Control.Monad
+import Control.Monad.State
 
 import System.Console.CmdArgs hiding (summary)
 
 import System.IO
 
-
--- (sat p,unsat p (at most n),rest)
+-- | Get up to n elements satisfying the predicate, those skipped, and the rest
+--   (satisfies p,does not satisfy p (at most n),the rest)
 getUpTo :: Int -> (a -> [a] -> Bool) -> [a] -> [a] -> ([a],[a],[a])
 getUpTo 0 _ xs     _  = ([],[],xs)
 getUpTo _ _ []     _  = ([],[],[])
-getUpTo n p (x:xs) ys | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
-                      | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
+getUpTo n p (x:xs) ys
+   | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
+   | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
 
-deep :: HaltEnv -> Params -> Theory -> [Symbol] -> Int -> [Term Symbol] -> [Prop]
-     -> IO ([Prop],[Prop])
-deep halt_env params theory ctxt depth univ init_eqs =
+-- | The main loop
+deep :: HaltEnv            -- ^ Environment to run HaltM
+     -> Params             -- ^ Parameters to the program
+     -> Theory             -- ^ Translated theory
+     -> [Symbol]           -- ^ Configuration to QuickSpec
+     -> Int                -- ^ Maximum depth to QuickSpec
+     -> [Term Symbol]      -- ^ The universe from QuickSpec
+     -> [Prop]             -- ^ The equations from QuickSpec
+     -> IO ([Prop],[Prop]) -- ^ Resulting theorems and unproved
+deep halt_env params@Params{..} theory ctxt depth univ init_eqs =
     loop (initPrune ctxt univ) init_eqs [] [] False
   where
-    chunks = batchsize params
-
-    loop :: PruneState -> [Prop] -> [Prop] -> [Prop] -> Bool -> IO ([Prop],[Prop])
+    loop :: PruneState         -- ^ Prune state, to handle the congurece closure
+         -> [Prop]             -- ^ Equations to process
+         -> [Prop]             -- ^ Equations processed, but failed
+         -> [Prop]             -- ^ Equations proved
+         -> Bool               -- ^ Managed to prove something this round
+         -> IO ([Prop],[Prop]) -- ^ Resulting theorems and unproved
     loop _  []  failed proved False = return (proved,failed)
     loop ps []  failed proved True  = do putStrLn "Loop!"
                                          loop ps failed [] proved False
@@ -57,46 +69,52 @@ deep halt_env params theory ctxt depth univ init_eqs =
                                 (map propQSTerms failedacc)
                          || evalCC cc (uncurry canDerive (propQSTerms eq))
 
-          (renamings,try,next) = getUpTo chunks discard eqs failed
+          (renamings,try,next) = getUpTo batchsize discard eqs failed
 
       unless (null renamings) $ putStrLn $
          let n = length renamings
-         in if (n > 6) then "Discarding " ++ show n
-                               ++ " renamings and subsumptions."
-                       else "Discarding renamings and subsumptions: "
+         in if (n > 4)
+               then "Discarding " ++ show n ++ " renamings and subsumptions."
+               else "Discarding renamings and subsumptions: "
                                ++ csv (map (showEq . propQSTerms) renamings)
 
       res <- tryProve halt_env params try theory proved
 
       let (successes,without_induction,failures) = partitionInvRes res
-
-          -- This ps' was unused??
-          -- (_,ps') = doPrune (const True) ctxt depth
-          --                   (map propQSTerms successes) [] ps
-
           prunable = successes ++ without_induction
 
       if null prunable
           then loop ps next (failed ++ failures) proved retry
           else do
-              let (_,ps') = doPrune (const True) ctxt depth
+              let ps' :: PruneState
+                  (_,ps') = doPrune (const True) ctxt depth
                                     (map propQSTerms prunable) [] ps
+
+                  failed' :: [Prop]
                   failed' = failed ++ failures
-              loop ps' next failed' (proved ++ successes) True
 
-{- -- Interesting candidates
-                  (cand,failedWoCand) = first (sortBy (comparing equationOrder) . nub . concat)
-                                      $ flip runState failed'
-                                      $ forM prunable
-                                      $ \prop -> do failed <- get
-                                                    let eq = propQSTerms prop
-                                                        (cand,failed') = instancesOf ps eq failed
-                                                    put failed'
-                                                    return cand
-              unless (null cand) $ putStrLn $ "Interesting candidates: " ++ csv (map showEq cand)
-              loop ps' (cand ++ next) failedWoCand (proved ++ successes) True
--}
+                  -- Interesting candidates
+                  (cand,failed_wo_cand)
+                      = first (nubSortedOn (equationOrder . propQSTerms) . concat)
+                      $ flip runState failed'
+                      $ forM prunable
+                      $ \prop -> do
+                           failed <- get
+                           let (cand,failed') = instancesOf ps prop failed
+                           put failed'
+                           return cand
 
+              if interesting_cands
+                  then do
+                      unless (null cand) $ putStrLn $ "Interesting candidates: "
+                                         ++ csv (map (showEq . propQSTerms) cand)
+                      loop ps' (cand ++ next) failed_wo_cand
+                               (proved ++ successes) True
+
+                  else loop ps' next failed' (proved ++ successes) True
+
+
+    -- Renaming
     isomorphicTo :: Equation -> Equation -> Bool
     e1 `isomorphicTo` e2 =
       case matchEqSkeleton e1 e2 of
@@ -114,20 +132,19 @@ deep halt_env params theory ctxt depth univ init_eqs =
       liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
     matchSkeleton _ _ = Nothing
 
+    -- Relation is a function
     function :: (Ord a, Eq b) => [(a, b)] -> Bool
     function = all singleton . groupBy ((==) `on` fst) . nub . sortBy (comparing fst)
       where singleton xs = length xs == 1
 
-{-
-    instancesOf :: PruneState -> Equation -> [Equation] -> ([Equation],[Equation])
+    -- For interesting candidates
+    instancesOf :: PruneState -> Prop -> [Prop] -> ([Prop],[Prop])
     instancesOf ps new = partition (instanceOf ps new)
 
-    instanceOf :: PruneState -> Equation -> Equation -> Bool
-    instanceOf ps new cand =
+    instanceOf :: PruneState -> Prop -> Prop -> Bool
+    instanceOf ps (propQSTerms -> new) (propQSTerms -> cand) =
        let (_,(_,cc)) = doPrune (const True) ctxt depth [cand] [] ps
        in  evalCC cc (uncurry canDerive new)
--}
-
 
 -- Main library ---------------------------------------------------------------
 

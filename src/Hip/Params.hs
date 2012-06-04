@@ -21,6 +21,7 @@ data Params = Params
     , swap_repr           :: Bool
     , prepend_pruned      :: Bool
     , quadratic           :: Bool
+    , interesting_cands   :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -51,6 +52,7 @@ defParams = Params
                                     &= help "Swap equations with their representative"
     , prepend_pruned      = False   &= help "Add nice pruned equations from in front"
     , quadratic           = False   &= help "All pairs of equations"
+    , interesting_cands   = False   &= help "Add interesting candidates after theorems"
 
     , inddepth            = 1       &= groupname "\nStructural induction"
                                     &= help "Maximum depth                   (default 1)"
