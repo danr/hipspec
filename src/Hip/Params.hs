@@ -40,7 +40,7 @@ defParams = Params
                                     &= name "p" &= help "Prover processes (default 2)"
     , batchsize           = 2       &= name "b" &= help "Equations to process simultaneously (default 2)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
-    , provers             = "e"     &= help "ATP.Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
+    , provers             = "e"     &= help "Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
     , methods             = "pi"    &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
@@ -60,7 +60,7 @@ defParams = Params
     , indhyps             = 200     &= help "Maximum hypotheses              (default 200)"
     , indparts            = 10      &= help "Maximum parts (bases and steps) (default 10)"
     }
-    &= summary ("\n\nHipSpec v0.1.1 Dan Rosén danr@student.gu.se" ++
+    &= summary ("\n\nHipSpec v0.2 Dan Rosén danr@student.gu.se" ++
                 "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++
                 "\n             and Koen Claessen koen@chalmers.se")
     &= program "hipspec"
