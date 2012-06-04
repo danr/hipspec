@@ -18,8 +18,7 @@ Installation instructions
 
 First, you need to pull `halt`, the Haskell to Logic Translator:
 
-    git submodule init
-    git submodule update
+    git submodule update --init
 
 Then, in the main directory, run
 
