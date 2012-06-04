@@ -181,7 +181,7 @@ hipSpec file ctxt depth = do
 
     unless dont_print_unproved $
        putStrLn $ "Unproved from QuickSpec: "
-               ++ intercalate "," (map (showEq . propQSTerms) qsunproved)
+               ++ intercalate ", " (map (showEq . propQSTerms) qsunproved)
 
 
 

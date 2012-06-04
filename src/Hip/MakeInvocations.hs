@@ -136,9 +136,17 @@ printInfo :: [Prop] -> [Prop] -> IO ()
 printInfo unproved proved = do
 
     let pr b xs | null xs   = "(none)"
-                | otherwise = unwords (map (showProp b) xs)
+                | otherwise = intercalate "\n\t" (map (showProp b) xs)
+
+        len :: [Prop] -> Int
+        len = length . filter (not . propOops)
+
+        mistakes = filter propOops proved
 
     putStrLn ("Proved: "   ++ pr True proved)
     putStrLn ("Unproved: " ++ pr False unproved)
-    putStrLn (show (length proved) ++ "/" ++ show (length (proved ++ unproved)))
+    putStrLn (show (len proved) ++ "/" ++ show (len (proved ++ unproved)))
+
+    unless (null mistakes) $ putStrLn $ bold $ colour Red $
+        "Proved " ++ show (length mistakes) ++ " oops: " ++ pr True mistakes
 
