@@ -44,12 +44,121 @@ You will need to install at least one or more of the following theorem provers:
 
   * [equinox](https://github.com/nick8325/equinox)
 
+Only user stated properties mode
+================================
+
+To prove properties using structural induction without generating a
+background theory with QuickSpec, use the `hipspec` executable
+installed with the `cabal` file. Import `Hip.Prelude` to get access
+to the `=:=`, `oops` and `Prop` functions, and now you can enter
+properties in a fashion like this:
+
+    import Hip.Prelude
+
+    prop_mirror_involutive :: Tree a -> Prop (Tree a)
+    prop_mirror_involutive t = mirror (mirror t) =:= t
+
+    prop_mirror_idempotent :: Tree a -> Prop (Tree a)
+    prop_mirror_idempotent t = oops (mirror (mirror t) =:= mirror t)
+
+Type signatures on properties are optional, unlike the old version
+based on `haskell-src-exts`.
+
+The `oops` function exists mainly for the reason to check that HipSpec
+is not lying and proves whatever you give it.
+
+Theory exploration mode
+=======================
+
+The interesting mode is when you use QuickSpec to generate a theory.
+A few steps needs to be carried out. An example is given in `testsuite/Nat.hs`.
+
+Import the `Hip.HipSpec` library. This gives you the `hipSpec` function.
+
+Make a `main` function which calls `hipSpec`. This function takes
+three parameters: the file name, a configuration and the maximum depth
+of generated terms. Example:
+
+    main = hipSpec "Trees.hs" conf 3
+      where conf = ...
+
+The configuration explains what variables and constants QuickSpec
+should use when generating terms.
+
+  * Make variables with `var`, a string representation and something
+    of the type of the variable.
+
+  * Make constants with `con`, a string representation, and the
+    Haskell function or constructor you want this to constant to be
+    interpreted as.
+
+We continue the example above:
+
+    main = hipSpec "Trees.hs" conf 3
+      where conf = describe "Trees" [ var "t" (undefined :: Tree Int)
+                                    , var "x" (undefined :: Int)
+                                    , con "Leaf" Leaf
+                                    , con "Fork" Fork
+                                    , con "mirror" mirror ]
+
+For polymorphic functions, just enter some concrete and rich data type
+as `Int`. Now, annotate the functions you use with ANN pragmas. These
+need exactly the same string representation as used above.
+
+    {-# ANN Leaf "Leaf" #-}
+    {-# ANN Fork "Fork" #-}
+    {-# ANN mirror "mirror" #-}
+
+This needs to be done to translate between QuickSpec's
+`Typeable`-representation and GHC's core representation. Futhermore,
+annotate the types you use:
+
+    {-# ANN type Tree "Tree" #-}
+
+Leave out an annotation for `Int` to make this be an abstract type.
+
+Now, we are good to go. Compile this and run:
+
+    $ ghc Trees.hs
+    ...
+    $ ./Trees
+    ...
+
+To make things run a bit faster, use optimisation and parallelism by
+passing the flags `-O2 -threaded -rtsopts` to `ghc`. Then run the
+executable with `+RTS -N2`, where `2` is the number of cores on your
+machine.
+
 Options and flags
 =================
 
 Quick information about available flags can be accessed anytime by the
 `--help` flag to the `hipspec` executable, or executables compiled
 with the HipSpec library.
+
+QuickSpec flags
+---------------
+
+  * `--swap-repr`: Swap equations with their representative
+  * `--prepend-pruned`: Prepend nice, pruned, equations from QuickSpec
+    before attacking all equations.
+  * `--quadratic`: Add all pairs of equations from every equivalence
+    class instead of picking a representative.
+
+Induction flags
+---------------
+
+  * `--inddepth=INT`: Induction depth, default 1.
+  * `--indvars=INT`: Variables to do induction on simultaneously,
+    default 1.
+  * `--indhyps=INT`: For some data types, and with many variables and
+    depths, the number of hypotheses become very large. This flag
+    gives the upper bound, and just cuts of if it gets too
+    big (compromising completeness). Default is 200.
+  * `--indparts=INT`: If the number of parts (bases and steps) gets
+    over this threshold, this combination of variables and depths is
+    skipped. Default is 10.
+
 
 Specifying theorem prover
 -------------------------
@@ -77,7 +186,7 @@ single-core, you can run many of them in parallel. The `--processes`
 or `-p` flag will let you specify this. The default is 2, but if you
 have, say, 8 cores and you want to use all of them:
 
-    hipspec testsuite/Nat.hs -p=8
+    hipspec testsuite/hip/Nat.hs -p=8
 
 Timeout
 -------
@@ -85,9 +194,16 @@ Timeout
 The default timeout is one second. It can be specified with the `-t`
 or `--timeout` flag:
 
-    hipspec testsuite/PatternMatching.hs -t=5
+    hipspec testsuite/hip/Nat.hs -t=5
 
 Now, each theorem prover invocation will be 5 seconds long.
+
+Output TPTP
+-----------
+
+Should you wish to inspect the generated tptp theory, you can use
+`--output` (or `-o`) and make a `proving/` directory. Then all
+relevant `.tptp` files will be put there for you to view.
 
 Consistency
 -----------
@@ -95,13 +211,6 @@ Consistency
 Doubting the consistency of the theories that are generated? Run with
 the `--consistency` flag (for short, `-c`), which will let the theorem
 provers try to find a contradiction without any properties.
-
-Output TPTP
------------
-
-Should you wish to inspect the generated tptp theory, you can use
-`--output` and make a `proving/` directory. Then all relevant `.tptp`
-files will be put there for you to view.
 
 Authors and contact
 ===================
