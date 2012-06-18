@@ -1,13 +1,13 @@
+# Haskell temp
 *\.o
 *\.hi
 dist
-papers
-halt
+
+# Emacs temp
 \#*
 .\#*
-test/*
-!test/*hs
-test/*\#*
+
+# Latex temp
 *.aux
 *.log
 *.nav
@@ -15,7 +15,7 @@ test/*\#*
 *.snm
 *.toc
 *.vrb
-*.tptp
 *.pdf
+
 
 
