@@ -1,4 +1,4 @@
-module Halt.Util
+module Halo.Util
     (
     -- * Convenience reexports
       module Control.Arrow

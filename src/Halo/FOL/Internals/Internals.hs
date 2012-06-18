@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable,ScopedTypeVariables #-}
-module Halt.FOL.Internals.Internals where
+module Halo.FOL.Internals.Internals where
 
-import Halt.PrimCon
+import Halo.PrimCon
 import Data.Data
 
--- Only files under Halt.FOL should use this module!
+-- Only files under Halo.FOL should use this module!
 
 -- | Terms describing expressions, parameterised over
 --   the variables a
@@ -15,7 +15,7 @@ import Data.Data
 --         This will typically be GHC's Var or String
 --
 --  Note that other constants can be made by Fun and an empty list of
---  arguments (fun0 in Halt.FOL.Abstract)
+--  arguments (fun0 in Halo.FOL.Abstract)
 
 data Term q v
     = Fun v [Term q v]

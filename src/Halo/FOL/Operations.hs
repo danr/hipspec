@@ -1,8 +1,8 @@
 {-# LANGUAGE PatternGuards,ScopedTypeVariables #-}
-module Halt.FOL.Operations where
+module Halo.FOL.Operations where
 
-import Halt.FOL.Internals.Internals
-import Halt.Util (nubSorted)
+import Halo.FOL.Internals.Internals
+import Halo.Util (nubSorted)
 
 import Data.Generics.Uniplate.Data
 import Data.Data

@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 -- (c) Dan Rosén 2012
-module Halt.FOL.Abstract
+module Halo.FOL.Abstract
        (Term',Formula',Clause',StrClause
 
        ,apply,con
@@ -36,8 +36,8 @@ module Halt.FOL.Abstract
        ,namedClause
        ) where
 
-import Halt.FOL.Internals.Internals
-import Halt.PrimCon
+import Halo.FOL.Internals.Internals
+import Halo.PrimCon
 
 import Var
 import Id

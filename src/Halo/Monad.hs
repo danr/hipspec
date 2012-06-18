@@ -3,7 +3,7 @@
              FlexibleContexts,
              RecordWildCards
   #-}
-module Halt.Monad where
+module Halo.Monad where
 
 import CoreSubst
 import CoreSyn
@@ -13,11 +13,11 @@ import Outputable
 import TyCon
 import Unique
 
-import Halt.Util
-import Halt.Conf
-import Halt.Constraints
-import Halt.Data
-import Halt.Shared
+import Halo.Util
+import Halo.Conf
+import Halo.Constraints
+import Halo.Data
+import Halo.Shared
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -35,8 +35,8 @@ showArityMap m =
     | (k,v) <- M.toList m ]
 
 -- The Environment
-data HaltEnv
-    = HaltEnv { arities     :: ArityMap
+data HaloEnv
+    = HaloEnv { arities     :: ArityMap
               -- ^ Arities of top level definitions
               , current_fun :: Var
               -- ^ Current function
@@ -46,33 +46,33 @@ data HaltEnv
               -- ^ Quantified variables
               , constr      :: [Constraint]
               -- ^ Constraints
-              , conf        :: HaltConf
+              , conf        :: HaloConf
               -- ^ Configuration
               }
 
 -- Pushes new quantified variables to the environment
-pushQuant :: [Var] -> HaltEnv -> HaltEnv
+pushQuant :: [Var] -> HaloEnv -> HaloEnv
 pushQuant qs env = env { quant = qs `union` quant env }
 
 -- Deletes a variable from the quantified list
-delQuant :: Var -> HaltEnv -> HaltEnv
+delQuant :: Var -> HaloEnv -> HaloEnv
 delQuant v env = env { quant = delete v (quant env) }
 
 -- Pushes a new constraint to an environment
-pushConstraint :: Constraint -> HaltEnv -> HaltEnv
+pushConstraint :: Constraint -> HaloEnv -> HaloEnv
 pushConstraint c = pushConstraints [c]
 
 -- Pushes many new constraints to an environment
-pushConstraints :: [Constraint] -> HaltEnv -> HaltEnv
+pushConstraints :: [Constraint] -> HaloEnv -> HaloEnv
 pushConstraints cs env = env { constr = cs ++ constr env }
 
 -- Extends the arities
-extendArities :: ArityMap -> HaltEnv -> HaltEnv
+extendArities :: ArityMap -> HaloEnv -> HaloEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
 -- | Make the environment
-mkEnv :: HaltConf -> [TyCon] -> [CoreBind] -> HaltEnv
-mkEnv conf@(HaltConf{..}) ty_cons program =
+mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
+mkEnv conf@(HaloConf{..}) ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
@@ -82,7 +82,7 @@ mkEnv conf@(HaltConf{..}) ty_cons program =
       arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
                              ++ dataArities ty_cons
 
-  in HaltEnv { arities     = arities
+  in HaloEnv { arities     = arities
              , current_fun = error "initEnv: current_fun"
              , args        = []
              , quant       = []
@@ -90,16 +90,16 @@ mkEnv conf@(HaltConf{..}) ty_cons program =
              , conf        = conf
              }
 
-runHaltM :: HaltEnv -> HaltM a -> (a,[String])
-runHaltM env (HaltM m) = runWriter (m `runReaderT` env)
+runHaloM :: HaloEnv -> HaloM a -> (a,[String])
+runHaloM env (HaloM m) = runWriter (m `runReaderT` env)
 
 -- | The translation monad
-newtype HaltM a = HaltM (ReaderT HaltEnv (Writer [String]) a)
+newtype HaloM a = HaloM (ReaderT HaloEnv (Writer [String]) a)
   deriving (Applicative,Monad,Functor
-           ,MonadReader HaltEnv
+           ,MonadReader HaloEnv
            ,MonadWriter [String])
 
-substContext :: Subst -> HaltEnv -> HaltEnv
+substContext :: Subst -> HaloEnv -> HaloEnv
 substContext s env = env
     { args = map (substExpr (text "substContext:args") s) (args env)
     , constr = map (substConstr s) (constr env)

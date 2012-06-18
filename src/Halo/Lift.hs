@@ -1,4 +1,4 @@
-module Halt.Lift(caseLetLift) where
+module Halo.Lift(caseLetLift) where
 
 import CoreFVs
 import CoreSubst
@@ -14,8 +14,8 @@ import Unique
 import Var
 import VarSet
 
-import Halt.Util
-import Halt.Shared
+import Halo.Util
+import Halo.Shared
 
 import Control.Monad.Reader
 import Control.Monad.Writer

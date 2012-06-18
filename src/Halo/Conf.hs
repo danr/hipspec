@@ -1,8 +1,8 @@
-module Halt.Conf where
+module Halo.Conf where
 
 -- Translation configuration
 
-data HaltConf = HaltConf
+data HaloConf = HaloConf
     { use_min     :: Bool
     -- ^ Use min translation
     , use_cf      :: Bool
@@ -12,5 +12,5 @@ data HaltConf = HaltConf
     }
   deriving (Eq,Ord,Show)
 
-sanitizeConf :: HaltConf -> HaltConf
+sanitizeConf :: HaloConf -> HaloConf
 sanitizeConf = id

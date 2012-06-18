@@ -1,7 +1,7 @@
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
 -- Translating data types
 
-module Halt.Data where
+module Halo.Data where
 
 import DataCon
 import Id
@@ -12,11 +12,11 @@ import Outputable
 import Type
 import Unique
 
-import Halt.FOL.Abstract
+import Halo.FOL.Abstract
 
-import Halt.PrimCon
-import Halt.Conf
-import Halt.Subtheory
+import Halo.PrimCon
+import Halo.Conf
+import Halo.Subtheory
 
 import Data.List
 import Control.Monad.Reader
@@ -31,8 +31,8 @@ dataArities ty_cons =
           arity           = length ty_args
     ]
 
-mkProjDiscrim :: HaltConf -> [TyCon] -> [Subtheory]
-mkProjDiscrim HaltConf{..} ty_cons =
+mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory]
+mkProjDiscrim HaloConf{..} ty_cons =
    [
      -- Projections
      let projections =
@@ -84,8 +84,8 @@ mkProjDiscrim HaltConf{..} ty_cons =
    ]
 
 -- | Make axioms about CF
-mkCF :: HaltConf -> [TyCon] -> [Subtheory]
-mkCF HaltConf{..} ty_cons | use_cf = do
+mkCF :: HaloConf -> [TyCon] -> [Subtheory]
+mkCF HaloConf{..} ty_cons | use_cf = do
     ty_con <- ty_cons
     let DataTyCon cons _ = algTyConRhs ty_con
     c <- cons
@@ -106,8 +106,8 @@ mkCF HaltConf{..} ty_cons | use_cf = do
                 ])
 mkCF _ _ = []
 
-axiomsBadUNR :: HaltConf -> [Subtheory]
-axiomsBadUNR HaltConf{..} | unr_and_bad =
+axiomsBadUNR :: HaloConf -> [Subtheory]
+axiomsBadUNR HaloConf{..} | unr_and_bad =
     [ Subtheory { provides    = PrimConAxioms
                 , depends     = []
                 , description = "Axioms for BAD and UNR"

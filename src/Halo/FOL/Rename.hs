@@ -1,17 +1,17 @@
 {-# LANGUAGE ScopedTypeVariables, ParallelListComp, PatternGuards,
              ExistentialQuantification, FlexibleContexts #-}
-module Halt.FOL.Rename where
+module Halo.FOL.Rename where
 
 import Var
 import Name
 import Id
 import Outputable
 
-import Halt.Util
+import Halo.Util
 
-import Halt.FOL.Internals.Internals
-import Halt.FOL.Operations
-import Halt.FOL.Abstract
+import Halo.FOL.Internals.Internals
+import Halo.FOL.Operations
+import Halo.FOL.Abstract
 
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as B

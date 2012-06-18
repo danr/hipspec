@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Halt.PrimCon where
+module Halo.PrimCon where
 
 import CoreSyn
 import DataCon

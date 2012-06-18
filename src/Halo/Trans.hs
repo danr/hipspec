@@ -1,6 +1,6 @@
 -- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
-module Halt.Trans(translate) where
+module Halo.Trans(translate) where
 
 import CoreSubst
 import CoreSyn
@@ -12,27 +12,27 @@ import Id
 import Outputable
 import TyCon
 
-import Halt.Util
-import Halt.Shared
-import Halt.Monad
-import Halt.Conf
-import Halt.Data
-import Halt.ExprTrans
-import Halt.Constraints
-import Halt.Case
-import Halt.Subtheory
+import Halo.Util
+import Halo.Shared
+import Halo.Monad
+import Halo.Conf
+import Halo.Data
+import Halo.ExprTrans
+import Halo.Constraints
+import Halo.Case
+import Halo.Subtheory
 
-import Halt.FOL.Abstract
+import Halo.FOL.Abstract
 
 import Control.Monad.Reader
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
-translate :: HaltEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
+translate :: HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
 translate env ty_cons binds =
   let tr_funs :: [Subtheory]
       msgs :: [String]
-      (tr_funs,msgs) = runHaltM env (mapM trBind binds)
+      (tr_funs,msgs) = runHaloM env (mapM trBind binds)
 
   in  (concat
           [mkProjDiscrim (conf env) ty_cons
@@ -43,7 +43,7 @@ translate env ty_cons binds =
       ,msgs ++ showArityMap (arities env))
 
 
-trBind :: CoreBind -> HaltM Subtheory
+trBind :: CoreBind -> HaloM Subtheory
 trBind bind = do
     let fses       = flattenBinds [bind]
         fun_names  = map fst fses
@@ -61,7 +61,7 @@ trBind bind = do
                        }
 
 -- | Translate a CoreDecl
-trDecl :: Var -> CoreExpr -> HaltM [Formula']
+trDecl :: Var -> CoreExpr -> HaloM [Formula']
 trDecl f e = do
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
     local (\env -> env { current_fun = f
@@ -74,7 +74,7 @@ trDecl f e = do
     (_ty,as,e') = collectTyAndValBinders e
 
 -- | Translate a case expression
-trCase :: CoreExpr -> HaltM [Formula']
+trCase :: CoreExpr -> HaloM [Formula']
 trCase e = case e of
     Case scrutinee scrut_var _ty alts_unsubst -> do
 
@@ -86,7 +86,7 @@ trCase e = case e of
 
             alts_wo_bottom = map subst_alt alts_unsubst
 
-        HaltConf{..} <- asks conf
+        HaloConf{..} <- asks conf
 
         min_formula <- do
             m_tr_constr <- trConstraints
@@ -125,8 +125,8 @@ trCase e = case e of
 
         return (min_formula ++ alt_formulae ++ def_formula)
     _ -> do
-        HaltEnv{current_fun,quant} <- ask
-        HaltConf{..} <- asks conf
+        HaloEnv{current_fun,quant} <- ask
+        HaloConf{..} <- asks conf
         write $ "At the end of " ++ idToStr current_fun ++ "'s branch: " ++ showExpr e
         m_tr_constr <- trConstraints
         case m_tr_constr of
@@ -138,9 +138,9 @@ trCase e = case e of
                           [ min' lhs | use_min ] ++ tr_constr ===> lhs === rhs]
 
 
-trLhs :: HaltM Term'
+trLhs :: HaloM Term'
 trLhs = do
-    HaltEnv{current_fun,args} <- ask
+    HaloEnv{current_fun,args} <- ask
     apply current_fun <$> mapM trExpr args
 
 
@@ -151,9 +151,9 @@ invertAlt scrut_exp (cons, _bs, _) = case cons of
     _                -> error "invertAlt on LitAlt (literals not supported yet!)"
 
 
-trAlt :: CoreExpr -> CoreAlt -> HaltM [Formula']
+trAlt :: CoreExpr -> CoreAlt -> HaloM [Formula']
 trAlt scrut_exp (cons, bound, e) = do
-    HaltEnv{quant} <- ask
+    HaloEnv{quant} <- ask
 
     case cons of
         DataAlt data_con -> do
@@ -170,15 +170,15 @@ trAlt scrut_exp (cons, bound, e) = do
         DEFAULT -> error "trAlt on DEFAULT"
         _       -> error "trAlt on LitAlt (literals not supported yet!)"
 
-trConstraints :: HaltM (Maybe [Formula'])
+trConstraints :: HaloM (Maybe [Formula'])
 trConstraints = do
-    HaltEnv{constr} <- ask
+    HaloEnv{constr} <- ask
     write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
     if conflict constr
         then write "  Conflict!" >> return Nothing
         else Just <$> mapM trConstr constr
 
-trConstr :: Constraint -> HaltM Formula'
+trConstr :: Constraint -> HaloM Formula'
 trConstr (Equality e data_con bs) = do
     lhs <- trExpr e
     rhs <- apply (dataConWorkId data_con) <$> mapM trExpr bs

@@ -1,4 +1,4 @@
-module Halt.LiftPlugin where
+module Halo.LiftPlugin where
 
 import CoreMonad
 import DynFlags
@@ -7,7 +7,7 @@ import GHC
 import GHC.Paths
 import GhcPlugins
 
-import Halt.Lift
+import Halo.Lift
 
 plugin :: Plugin
 plugin = defaultPlugin {

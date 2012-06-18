@@ -1,12 +1,12 @@
-module Halt.Case where
+module Halo.Case where
 
 import CoreSyn
 import CoreUtils
 
-import Halt.Monad
-import Halt.PrimCon
-import Halt.Util
-import Halt.Conf
+import Halo.Monad
+import Halo.PrimCon
+import Halo.Util
+import Halo.Conf
 
 import Control.Monad.Reader
 
@@ -35,7 +35,7 @@ import Control.Monad.Reader
 
 -}
 -- | Adds a bottom case as described above.
-addBottomCase :: [CoreAlt] -> HaltM [CoreAlt]
+addBottomCase :: [CoreAlt] -> HaloM [CoreAlt]
 addBottomCase alts = do
     unr_bad <- unr_and_bad <$> asks conf
 

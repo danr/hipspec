@@ -11,10 +11,10 @@
         we decide to use, add its necessary function pointers.
 
 -}
-module Halt.Trim where
+module Halo.Trim where
 
-import Halt.Subtheory
-import Halt.Util
+import Halo.Subtheory
+import Halo.Util
 
 import Var
 
@@ -42,7 +42,7 @@ trim vars subthys =
             ]
 
         err :: Var -> Vertex
-        err v = error $ "Halt.Trim.trim: Trying to find dependencies of the \
+        err v = error $ "Halo.Trim.trim: Trying to find dependencies of the \
                         \variable " ++ show v ++ " which is not defined!"
 
         forest :: Forest Vertex

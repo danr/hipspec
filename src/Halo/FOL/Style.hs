@@ -1,8 +1,8 @@
-module Halt.FOL.Style where
+module Halo.FOL.Style where
 
 import Outputable
 
-import Halt.FOL.Linearise
+import Halo.FOL.Linearise
 
 strStyle :: Bool -> Style String String
 strStyle cnf = Style

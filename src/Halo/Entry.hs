@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Halt.Entry where
+module Halo.Entry where
 
 import CoreMonad
 import CoreSubst (simpleOptExpr)

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, PatternGuards #-}
-module Halt.ExprTrans where
+module Halo.ExprTrans where
 
 import CoreSyn
 import FastString
@@ -7,12 +7,12 @@ import Id
 import Literal
 import MkCore
 
-import Halt.FOL.Abstract
-import Halt.Util
-import Halt.Monad
-import Halt.PrimCon
+import Halo.FOL.Abstract
+import Halo.Util
+import Halo.Monad
+import Halo.PrimCon
 
-import Halt.Shared
+import Halo.Shared
 
 import qualified Data.Map as M
 import Data.List (intercalate)
@@ -20,9 +20,9 @@ import Data.List (intercalate)
 import Control.Monad.Reader
 
 -- | Translate expressions, i.e. not case (nor let/lambda)
-trExpr :: CoreExpr -> HaltM Term'
+trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
-    HaltEnv{..} <- ask
+    HaloEnv{..} <- ask
     let isFunction x = case M.lookup (idName x) arities of
                           Just i  -> i > 0
                           Nothing -> False

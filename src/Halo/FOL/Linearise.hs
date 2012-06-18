@@ -1,15 +1,15 @@
 -- Linearises into TPTP
 {-# LANGUAGE PatternGuards #-}
-module Halt.FOL.Linearise where
+module Halo.FOL.Linearise where
 
 import Outputable
 
 import Data.List
 
-import Halt.Util
-import Halt.PrimCon
-import Halt.FOL.Internals.Internals
-import Halt.FOL.Abstract
+import Halo.Util
+import Halo.PrimCon
+import Halo.FOL.Internals.Internals
+import Halo.FOL.Abstract
 
 data Style q v = Style { linFun   :: v -> SDoc
                        -- ^ Pretty printing functions and variables

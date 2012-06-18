@@ -1,11 +1,11 @@
-module Halt.Constraints where
+module Halo.Constraints where
 
 import CoreSubst
 import CoreSyn
 import DataCon
 import Outputable
 
-import Halt.Shared
+import Halo.Shared
 
 -- Constraints from case expressions to results, under a substitution
 data Constraint = Equality   CoreExpr DataCon [CoreExpr]

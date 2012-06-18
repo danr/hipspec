@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
-module Halt.Subtheory where
+module Halo.Subtheory where
 
-import Halt.Util
-import Halt.FOL.Abstract hiding (Lemma)
-import qualified Halt.FOL.Abstract as A
+import Halo.Util
+import Halo.FOL.Abstract hiding (Lemma)
+import qualified Halo.FOL.Abstract as A
 
 import Var
 import TyCon

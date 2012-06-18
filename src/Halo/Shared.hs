@@ -1,4 +1,4 @@
-module Halt.Shared where
+module Halo.Shared where
 
 import Id
 import Name
