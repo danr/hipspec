@@ -27,6 +27,8 @@ data Params = Params
     , indvars             :: Int
     , indhyps             :: Int
     , indparts            :: Int
+
+    , db_anns             :: Bool
     }
   deriving (Show,Data,Typeable)
 
@@ -59,6 +61,10 @@ defParams = Params
     , indvars             = 1       &= help "Maximum variables               (default 1)"
     , indhyps             = 200     &= help "Maximum hypotheses              (default 200)"
     , indparts            = 10      &= help "Maximum parts (bases and steps) (default 10)"
+
+
+    , db_anns             = False   &= groupname "\nDebugging"
+                                    &= help "Debug ANN pragmas"
     }
     &= summary ("\n\nHipSpec v0.2 Dan Rosén danr@student.gu.se" ++
                 "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++

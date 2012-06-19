@@ -29,7 +29,7 @@ processFile Params{..} file = do
                               , core2core_pass  = True
                               }
 
-    (anns,(modguts,dflags)) <- desugarWith findANNs ds_conf file
+    (anns,(modguts,dflags)) <- desugarWith (findANNs db_anns) ds_conf file
 
     let unlifted_program = mg_binds modguts
 

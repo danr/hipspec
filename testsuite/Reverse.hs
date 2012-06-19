@@ -1,15 +1,12 @@
 {-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances #-}
 module Main where
 
-import Prelude (Int,undefined,Eq,Show,Ord,return,div)
+import Prelude hiding (reverse,(++))
 
 import Data.Typeable
 
 import Hip.HipSpec
 import Hip.Prelude
-
-{-# ANN (:) ":" #-}
-{-# ANN [] "[]" #-}
 
 {-# ANN (++) "++" #-}
 (++) :: [a] -> [a] -> [a]
@@ -55,6 +52,6 @@ main = hipSpec "Reverse.hs" conf 3
                 , con "revacc"   (revacc   :: [Int] -> [Int] -> [Int])
                 ]
                    where
-                     intType   = undefined :: Int
-                     listType  = undefined :: [Int]
+                     intType   = intType  :: Int
+                     listType  = listType :: [Int]
 

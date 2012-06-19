@@ -7,6 +7,7 @@ module Hip.Annotations where
 
 import Hip.BuiltinTypes
 
+import Halt.Shared
 import Halt.Util
 
 import qualified Data.Map as M
@@ -27,21 +28,42 @@ import Var
 type ANNs = (Map String (Var,Bool) -- True: function, False: data constructor
             ,Map String TyCon)
 
-findANNs :: ModGuts -> Ghc ANNs
-findANNs mg = do
-    let ty_cons = mg_tcs mg ++ builtins
+findANNs :: Bool -> ModGuts -> Ghc ANNs
+findANNs debug mg = do
+    let ty_cons = mg_tcs mg
 
         binds = flattenBinds (mg_binds mg)
 
         findANN = findGlobalAnns deserializeWithData . NamedTarget
 
-    varANNs <- sequence $ [ (`zip` repeat (v,True)) <$> findANN (varName v)
-                          | v <- map fst binds ]
-                          ++
-                          [ (`zip` repeat (dataConWorkId c,False)) <$> findANN (dataConName c)
-                          | ty_con <- ty_cons
-                          , let DataTyCon cons _ = algTyConRhs ty_con
-                          , c <- cons ]
+        dbmsg s
+          | debug     = liftIO $ putStrLn s
+          | otherwise = return ()
+
+
+    varANNs <- sequence $
+               [ do dbmsg $ "Searching for definition " ++ idToStr v
+                    (`zip` repeat (v,True)) <$> findANN (varName v)
+               | v <- map fst binds ]
+               ++
+               [ do dbmsg $ "Searching for constructor " ++ show c
+                    (`zip` repeat (dataConWorkId c,False)) <$> findANN (dataConName c)
+               | ty_con <- ty_cons
+               , let DataTyCon cons _ = algTyConRhs ty_con
+               , c <- cons ]
+               ++
+               [ do dbmsg $ "Brutally adding builtin constructor " ++ show c
+                         ++ " to string " ++ n
+                    return [(n,(dataConWorkId c,False))]
+               | (n,c) <- [("True",trueDataCon)
+                          ,("False",falseDataCon)
+                          ,("[]",nilDataCon)
+                          ,(":",consDataCon)
+                          ,("(,)",tupleCon BoxedTuple 2)
+                          ]
+               ]
+
+    dbmsg $ "Found defns/cons: " ++ unlines (map show $ concat varANNs)
 
     tyANNs <- sequence [ (`zip` repeat t) <$> findANN (tyConName t)
                        | t <- ty_cons ]
@@ -55,6 +77,7 @@ findANNs mg = do
               --   so we add them in an ad-hoc way here.
               --   TODO: Get this information from `bulitin' automatically.
 
-    -- liftIO $ mapM_ print varANNs
+
+    -- dbmsg $ "Found tycons: " ++ unlines (map show tyANNs')
 
     return (M.fromList $ concat varANNs,M.fromList $ tyANNs')
