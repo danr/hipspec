@@ -74,8 +74,9 @@ mkProjDiscrim HaloConf{..} ty_cons =
            ]
 
      in Subtheory { provides    = Data ty_con
-                  , depends     = []
-                  -- ^ Make this depend on datatypes this is defined in terms of
+                  , depends     = [ CrashFree ty_con | use_cf ]
+                  -- ^ I think we might want to make this depend on
+                  --   datatypes this is defined in terms of
                   , description = showSDoc (pprSourceTyCon ty_con)
                   , formulae    = projections ++ discrims }
 
@@ -85,42 +86,45 @@ mkProjDiscrim HaloConf{..} ty_cons =
 
 -- | Make axioms about CF
 mkCF :: HaloConf -> [TyCon] -> [Subtheory]
-mkCF HaloConf{..} ty_cons | use_cf = do
+mkCF HaloConf{..} ty_cons = do
     ty_con <- ty_cons
     let DataTyCon cons _ = algTyConRhs ty_con
-    c <- cons
-    let data_c          = dataConWorkId c
-        (_,_,ty_args,_) = dataConSig c
-        arity           = length ty_args
-        vars            = take arity varNames
-        xbar            = map qvar vars
-        kxbar           = fun data_c xbar
 
-    return $ Subtheory (CrashFree ty_con) []
-                       ("CF " ++ showSDoc (pprSourceTyCon ty_con))
-           $ forall' vars ([ min' kxbar | use_min ] ++ map cf xbar ===> cf kxbar)
-           : (guard (arity > 0) >>
-                [ forall' vars $ cf kxbar ==> ands (map cf xbar)
-                , forall' vars $ [ min' kxbar | use_min ] ++ [ neg (cf kxbar) ]
-                                 ===> ors [ min' x /\ neg (cf x) | x <- xbar ]
-                ])
-mkCF _ _ = []
+    return $ Subtheory
+        { provides    = CrashFree ty_con
+        , depends     = []
+        , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
+        , formulae    = concat $
+            [ (forall' vars ([ min' kxbar | use_min ] ++ map cf xbar ===> cf kxbar) :)
+            $ guard (arity > 0) >>
+              [ forall' vars $ cf kxbar ==> ands (map cf xbar)
+              , forall' vars $ [ min' kxbar | use_min ] ++ [ neg (cf kxbar) ]
+                            ===> ors [ ands (neg (cf x) : [ min' x | use_min ]) | x <- xbar ]
+              ]
+            | c <- cons
+            , let data_c          = dataConWorkId c
+                  (_,_,ty_args,_) = dataConSig c
+                  arity           = length ty_args
+                  vars            = take arity varNames
+                  xbar            = map qvar vars
+                  kxbar           = fun data_c xbar
+            ]
+        }
 
-axiomsBadUNR :: HaloConf -> [Subtheory]
-axiomsBadUNR HaloConf{..} | unr_and_bad =
-    [ Subtheory { provides    = PrimConAxioms
-                , depends     = []
-                , description = "Axioms for BAD and UNR"
-                , formulae    = fs
-                } ]
+axiomsBadUNR :: HaloConf -> Subtheory
+axiomsBadUNR HaloConf{..} = Subtheory
+    { provides    = PrimConAxioms
+    , depends     = []
+    , description = "Axioms for BAD and UNR"
+    , formulae    = fs
+    }
   where
     x = head varNames
-    fs =    [ cf (constant UNR)       | use_cf ]
-         ++ [ neg (cf (constant BAD)) | use_cf  ]
+    fs =    [ cf (constant UNR)       ]
+         ++ [ neg (cf (constant BAD)) ]
          ++ [ constant UNR =/= constant BAD ]
-         ++ [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min && use_cf ]
+         ++ [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min ]
          ++ [ min' (constant BAD)                         | use_min ]
-axiomsBadUNR _ = []
 
 -- | A bunch of variable names to quantify over
 varNames :: [Var]

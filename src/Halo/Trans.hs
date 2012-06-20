@@ -21,10 +21,13 @@ import Halo.ExprTrans
 import Halo.Constraints
 import Halo.Case
 import Halo.Subtheory
+import Halo.FreeTyCons
 
 import Halo.FOL.Abstract
 
 import Control.Monad.Reader
+
+import Data.List
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 --   TODO: Register used function pointers
@@ -32,46 +35,74 @@ translate :: HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
 translate env ty_cons binds =
   let tr_funs :: [Subtheory]
       msgs :: [String]
-      (tr_funs,msgs) = runHaloM env (mapM trBind binds)
+      (tr_funs,msgs) = runHaloM env (concatMapM trBind binds)
+
+      halo_conf = conf env
 
   in  (concat
-          [mkProjDiscrim (conf env) ty_cons
-          ,mkCF          (conf env) ty_cons
-          ,axiomsBadUNR  (conf env)
-          {- ,pointers -}
+          [mkProjDiscrim halo_conf ty_cons
+          ,mkCF          halo_conf ty_cons
+          ,[axiomsBadUNR halo_conf]
           ,tr_funs]
       ,msgs ++ showArityMap (arities env))
 
+-- | Translate a group of mutally defined binders
+trBind :: CoreBind -> HaloM [Subtheory]
+trBind bind = concatMapM (uncurry (trDecl mutual_group)) fses
+  where
+    fses         = flattenBinds [bind]
+    mutual_group = map fst fses
 
-trBind :: CoreBind -> HaloM Subtheory
-trBind bind = do
-    let fses       = flattenBinds [bind]
-        fun_names  = map fst fses
+-- | Translate a CoreDecl, given the mutual group it was defined in
+--
+--   Generates a small subtheory for it including its pointer axiom
+trDecl :: [Var] -> Var -> CoreExpr -> HaloM [Subtheory]
+trDecl mutual_group f e = do
 
-    fun_translated <- concatMapM (uncurry trDecl) fses
-
-    let dependencies = uniqSetToList (bindFreeVars bind)
-
-    return $ Subtheory { provides    = Function fun_names
-                       , depends     = map (Function . (:[])) dependencies
-                       , description = showSDoc (pprCoreBinding bind)
-                                     ++ "\nDependencies: "
-                                     ++ unwords (map idToStr dependencies)
-                       , formulae    = fun_translated
-                       }
-
--- | Translate a CoreDecl
-trDecl :: Var -> CoreExpr -> HaloM [Formula']
-trDecl f e = do
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
-    local (\env -> env { current_fun = f
-                       , args = map Var as ++ args env
-                       , quant = as ++ quant env}) (trCase e')
+           ++ " coming from the mutual group " ++ unwords (map idToStr mutual_group)
+
+    (fun_tr,used_ptrs) <- capturePtrs $
+         local (\env -> env { current_fun = f
+                            , args = map Var as ++ args env
+                            , quant = as ++ quant env})
+               (trCase e')
+
+    ptr_subthy <- mk_ptr <$> asks conf
+
+    let fun_deps = uniqSetToList (exprFreeIds e) ++ delete f mutual_group
+
+        data_deps = freeTyCons e
+
+    return [ ptr_subthy
+           , Subtheory
+                 { provides    = Function f
+                 , depends     = map Function fun_deps
+                              ++ map Pointer used_ptrs
+                              ++ map Data data_deps
+                 , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
+                                 ++ "\nDependencies: "
+                                 ++ unwords (map idToStr fun_deps)
+                 , formulae    = fun_tr
+                 }
+           ]
   where
     -- Collect the arguments and the body expression
     as :: [Var]
     e' :: CoreExpr
     (_ty,as,e') = collectTyAndValBinders e
+
+    mk_ptr :: HaloConf -> Subtheory
+    mk_ptr HaloConf{use_min} = Subtheory
+        { provides    = Pointer f
+        , depends     = []
+        , description = "Pointer axiom to " ++ idToStr f
+        , formulae    = let as' = map qvar as
+                        in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
+                                              ===> apps (ptr f) as' === fun f as'
+                            ]
+
+        }
 
 -- | Translate a case expression
 trCase :: CoreExpr -> HaloM [Formula']

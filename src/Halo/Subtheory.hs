@@ -2,15 +2,18 @@
 module Halo.Subtheory where
 
 import Halo.Util
+import Halo.Shared
 import Halo.FOL.Abstract hiding (Lemma)
 import qualified Halo.FOL.Abstract as A
 
 import Var
 import TyCon
 
+import Data.Function
+
 data Content
-    = Function [Var]
-    -- ^ A group of mutually recursive definitions
+    = Function Var
+    -- ^ A definition of a function
     | Pointer Var
     -- ^ The pointer to a definition
     | Data TyCon
@@ -23,7 +26,27 @@ data Content
     -- ^ [hipspec] Type predicates for a data type
     | Lemma String [Var]
     -- ^ [hipspec] Lemma with a name, regarding a group of definitions
+  deriving (Eq,Ord)
 
+instance Show Content where
+  show c = case c of
+      Function v    -> "Function " ++ show v
+      Pointer v     -> "Pointer " ++ show v
+      Data tc       -> "Data " ++ showOutputable tc
+      CrashFree tc  -> "CrashFree " ++ showOutputable tc
+      PrimConAxioms -> "PrimConAxioms"
+      Typing tc     -> "Typing " ++ showOutputable tc
+      Lemma s vs    -> "Lemma " ++ s ++ " (" ++ unwords (map show vs) ++ ")"
+
+-- | A subtheory
+--
+--   Provides some content, and can also depend upon other content.
+--
+--   The provides fields should be unique when assembling a grand theory,
+--   Eq and Ord instances are on this field.
+--
+--   There is an optional description which is translated to a TPTP
+--   comment for debug output.
 data Subtheory = Subtheory
     { provides    :: Content
     -- ^ Content defined
@@ -34,6 +57,15 @@ data Subtheory = Subtheory
     , formulae    :: [Formula']
     -- ^ Formulae in this sub theory
     }
+
+instance Show Subtheory where
+  show subthy = "Subtheory { content=" ++ show (provides subthy) ++ "}"
+
+instance Eq Subtheory where
+  (==) = (==) `on` provides
+
+instance Ord Subtheory where
+  compare = compare `on` provides
 
 toClauses :: Subtheory -> [Clause']
 toClauses (Subtheory{..}) =

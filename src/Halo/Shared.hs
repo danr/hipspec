@@ -6,6 +6,9 @@ import Outputable
 import PprCore
 import CoreSyn
 
+showOutputable :: Outputable a => a -> String
+showOutputable = showSDoc . ppr
+
 -- | Short representation of an Id/Var to String (unsafely for now)
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName

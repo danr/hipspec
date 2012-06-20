@@ -12,6 +12,7 @@ import Name
 import Outputable
 import TyCon
 import Unique
+import VarSet
 
 import Halo.Util
 import Halo.Conf
@@ -21,10 +22,10 @@ import Halo.Shared
 
 import qualified Data.Map as M
 import Data.Map (Map)
+import Data.Maybe
 import Data.List (delete,union)
 
-import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.RWS
 
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Name Int
@@ -72,7 +73,7 @@ extendArities am env = env { arities = am `M.union` arities env }
 
 -- | Make the environment
 mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
-mkEnv conf@(HaloConf{..}) ty_cons program =
+mkEnv conf@HaloConf{..} ty_cons program =
   let -- Remove the unnecessary SCC information
       binds :: [(Var,CoreExpr)]
       binds = flattenBinds program
@@ -91,13 +92,40 @@ mkEnv conf@(HaloConf{..}) ty_cons program =
              }
 
 runHaloM :: HaloEnv -> HaloM a -> (a,[String])
-runHaloM env (HaloM m) = runWriter (m `runReaderT` env)
+runHaloM env (HaloM m) = evalRWS m env Nothing
+
+capturePtrs :: HaloM a -> HaloM (a,[Var])
+capturePtrs m = do
+    let nested_err = error "capturePtrs: Internal error, running nested capturePtrs"
+    check <- get
+    when (isNothing check) nested_err
+    put (Just emptyVarSet)
+    res <- m
+    m_vs <- get
+    put Nothing
+    case m_vs of
+        Just vs -> return (res,varSetElems vs)
+        Nothing -> nested_err
+
+usePtr :: Var -> HaloM ()
+usePtr v = do
+    write $ "Registering " ++ show v ++ " as a used pointer"
+    modify k
+  where
+    k Nothing   = error "usePtr: Internal error, ptr used without capturePtrs"
+    k (Just vs) = Just (extendVarSet vs v)
 
 -- | The translation monad
-newtype HaloM a = HaloM (ReaderT HaloEnv (Writer [String]) a)
+--
+--   Reader : see HaloEnv above
+--   Writer : Debug strings
+--   State  : Set of used function pointers
+newtype HaloM a = HaloM (RWS HaloEnv [String] (Maybe VarSet) a)
   deriving (Applicative,Monad,Functor
            ,MonadReader HaloEnv
-           ,MonadWriter [String])
+           ,MonadWriter [String]
+           ,MonadState (Maybe VarSet)
+           )
 
 substContext :: Subst -> HaloEnv -> HaloEnv
 substContext s env = env

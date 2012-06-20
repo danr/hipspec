@@ -1,20 +1,16 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-
 
    Trims away unnecessary function definitions from the theory.
 
-   TODO:
-
-      * Do this for data types as well. Problem: need to find
-        a good way to find all used data types in a function.
-
-      * Do something similar for function pointers. For every function
-        we decide to use, add its necessary function pointers.
+   TODO: What about HipSpec's lemmas?
 
 -}
 module Halo.Trim where
 
 import Halo.Subtheory
 import Halo.Util
+import Halo.Conf
 
 import Var
 
@@ -22,44 +18,48 @@ import Data.Maybe
 import Data.Graph
 import Data.Tree
 
--- | Given a set of variables, removes all function definitions that
---   are not interesting.
---
---   We make a graph. Every recursive group defines some functions fs
---   and depends on some functions ds. Make an arrow from fs to each ds.
---   In the end, we follow all arrows from our initial variables.
---
---   We have keys as Var:s, and nodes are just dummy ().
---   Afterwards, we filter out those function definitions that do not
---   correspond to any interesting Var:s.
-trim :: [Var] -> [Subtheory] -> [Subtheory]
-trim vars subthys =
-    let (g,fromVertex,toVertex) = graphFromEdges
-            [ ((),v,fun_deps)
-            | Subtheory (Function vs) all_deps _ _ <- subthys
-            , let fun_deps = [ d | Function ds <- all_deps, d <- ds ]
-            , v <- vs
+-- | Given a set of variables corresponding to top level definitions,
+--   removes all function definitions that are not interesting.
+trimFuns :: HaloConf -> [Var] -> [Subtheory] -> [Subtheory]
+trimFuns HaloConf{use_cf} vars grand_theory = trim important grand_theory
+  where important = [ PrimConAxioms | use_cf ] ++
+            [ Function v
+            | Subtheory (Function v) _ _ _ <- grand_theory
+            , v `elem` vars
             ]
 
-        err :: Var -> Vertex
-        err v = error $ "Halo.Trim.trim: Trying to find dependencies of the \
-                        \variable " ++ show v ++ " which is not defined!"
+-- | Trim down a grand theory, from the recursive dependencies from a set
+--   of interesting subtheories.
+--
+--   We make a graph. Every recursive group defines some content fs
+--   and depends on some content ds. Make an arrow from fs to each ds.
+--   In the end, we follow all arrows from our initial important
+--   subtheory.
+--
+--   We have keys as Content, and nodes are their corresponding Subtheories.
+trim :: [Content] -> [Subtheory] -> [Subtheory]
+trim important grand_theory =
+    let gr :: [(Subtheory,Content,[Content])]
+        gr = [ (subthy,provides subthy,depends subthy)
+             | subthy <- grand_theory
+             ]
+
+        g          :: Graph
+        fromVertex :: Vertex -> (Subtheory,Content,[Content])
+        toVertex   :: Content -> Maybe Vertex
+        (g,fromVertex,toVertex) = graphFromEdges gr
+
+        err :: Content -> Vertex
+        err subthy = error $ "Halo.Trim.trim: Trying to find dependencies of "
+                            ++ show subthy ++ " which could not be found!"
 
         forest :: Forest Vertex
-        forest = dfs g (map (\v -> fromMaybe (err v) (toVertex v)) vars)
+        forest = dfs g (map (\v -> fromMaybe (err v) (toVertex v)) important)
 
-        middle :: ((),Var,[Var]) -> Var
-        middle (_,v,_) = v
+        subtheory :: (Subtheory,Content,[Content]) -> Subtheory
+        subtheory (s,_,_) = s
 
-        keep_vars :: [Var]
-        keep_vars = map (middle . fromVertex) (concatMap flatten forest)
-
-        keep :: Subtheory -> Bool
-        keep (Subtheory (Function vs) _ _ _) = intersects keep_vars vs
-        keep (Subtheory (Lemma _ vs) _ _ _)  = intersects keep_vars vs
-        keep _                               = True
-
-    in  filter keep subthys
+    in  map (subtheory . fromVertex) (concatMap flatten forest)
 
 
 
