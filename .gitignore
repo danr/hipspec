@@ -6,6 +6,7 @@ dist
 # Emacs temp
 \#*
 .\#*
+*~
 
 # Latex temp
 *.aux
