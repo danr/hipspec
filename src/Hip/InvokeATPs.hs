@@ -72,6 +72,7 @@ import Language.TPTP.Pretty
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
 
 type PropName = String
 
@@ -233,9 +234,9 @@ worker partChan resChan = forever $ do
 
                 case store of
                    Nothing  -> return ()
-                   Just dir -> let filename = dir ++ propName ++ "/" ++
+                   Just dir -> let filename = dir </> propName </>
                                               intercalate "-" [proofMethodFile partMethod,particleDesc] ++ ".tptp"
-                               in  liftIO (do createDirectoryIfMissing True (dir ++ propName)
+                               in  liftIO (do createDirectoryIfMissing True (dir </> propName)
                                               writeFile filename axiomsStr)
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)

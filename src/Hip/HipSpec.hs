@@ -11,7 +11,6 @@ import Hip.Trans.MakeTheory
 import Hip.Trans.Theory
 import Hip.Messages
 import Hip.Params as P
-import Hip.Trans.Parser
 import Hip.Trans.Core as C
 import Hip.Trans.Pretty
 import Hip.FromHaskell.FromHaskell
@@ -169,9 +168,7 @@ hipSpec file ctxt depth = do
 
   params@Params{..} <- cmdArgs (hipSpecParams file)
 
-  (eitherds,hsdebug) <- if "hs" `isSuffixOf` file
-                            then parseHaskell <$> readFile file
-                            else flip (,) []  <$> parseFile file
+  (eitherds,hsdebug) <- parseHaskell <$> readFile file
   (err,ds) <- case eitherds of
                     Left  estr -> putStrLn estr >> return (True,error estr)
                     Right ds'  -> return (False,ds')
@@ -271,8 +268,8 @@ tryProve params@(Params{..}) props thy lemmas = do
     forM res $ \property -> do
         let invRes = toInvokeResult property
         case invRes of
-           ByInduction -> putStrLn $ bold $ color Green $ "Proved " ++ PD.propName property ++ "!!"
-           ByPlain     -> putStrLn $        color Green $ "Proved " ++ PD.propName property ++ " without induction."
+           ByInduction -> putStrLn $ "Proved " ++ PD.propName property ++ "!!"
+           ByPlain     -> putStrLn $ "Proved " ++ PD.propName property ++ " without induction."
            NoProof     -> putStrLn $ "Failed to prove " ++ PD.propName property ++ "."
         return (fromMaybe (error "tryProve: lost")
                           (find ((PD.propName property ==) . propName) props)

@@ -1,3 +1,6 @@
+# Windows temp
+*\.exe
+
 # Haskell temp
 dist
 *\.o

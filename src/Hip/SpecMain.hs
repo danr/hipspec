@@ -6,7 +6,6 @@ import Hip.Trans.MakeTheory
 import Hip.Trans.Theory
 import Hip.Messages
 import Hip.Params
-import Hip.Trans.Parser
 import Hip.Trans.Core
 import Hip.Trans.Pretty
 import Hip.FromHaskell.FromHaskell
@@ -43,9 +42,7 @@ main = do
       when (file /= head files) $ putStrLn ""
       unless (null files) $ putStrLn $ file ++ ":"
       -- Parse either Haskell or Core
-      (eitherds,hsdebug) <- if "hs" `isSuffixOf` file
-                                then parseHaskell <$> readFile file
-                                else flip (,) []  <$> parseFile file
+      (eitherds,hsdebug) <- parseHaskell <$> readFile file
       (err,ds) <- case eitherds of
                         Left  estr -> putStrLn estr >> return (True,error estr)
                         Right ds'  -> return (False,ds')

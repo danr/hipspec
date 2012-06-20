@@ -9,6 +9,7 @@ data ProverName = E | Vampire | Vampire64 | Prover9 | SPASS | Equinox | Z3
 instance Show ProverName where
   show Z3        = "z3"
   show E         = "eprover"
+  show E         = "eprover_win"
   show Vampire   = "vampire"
   show Vampire64 = "vampire (64)"
   show Prover9   = "prover9"
@@ -40,7 +41,7 @@ statusSZS = [("Theorem",Success),("Unsatisfiable",Success)
             ,("CounterSatisfiable",const Failure),("Timeout",const Failure)]
 
 allProvers :: [Prover]
-allProvers = [vampire,vampire64,prover9,spass,eprover,equinox,z3]
+allProvers = [vampire,vampire64,prover9,spass,eprover,eprover_win,equinox,z3]
 
 proversFromString :: String -> [Prover]
 proversFromString str = filter ((`elem` str) . proverShort) allProvers
@@ -52,6 +53,15 @@ eprover = Prover
   , proverArgs          = \_ -> words "-tAuto -xAuto --tptp3-format -s"
   , proverProcessOutput = searchOutput statusSZS
   , proverShort         = 'e'
+  }
+
+eprover_win :: Prover
+eprover_win = Prover
+  { proverName          = E
+  , proverCmd           = "eprover.exe"
+  , proverArgs          = \_ -> words "-tAuto -xAuto --tptp3-format -s"
+  , proverProcessOutput = searchOutput statusSZS
+  , proverShort         = 'E'
   }
 
 z3 :: Prover

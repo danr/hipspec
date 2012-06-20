@@ -58,7 +58,7 @@ defParams = Params
   { files       = []      &= args &= typFile
   , latex       = False   &= help "Generate latex output (currently unsupported)"
   , warnings    = False   &= help "Show warnings from translation"
-  , output      = Nothing &= opt  "proving/" &= typDir &= help "Output all tptp files in a directory (default proving/)"
+  , output      = Nothing &= opt  "proving" &= typDir &= help "Output all tptp files in a directory (default proving/)"
   , statistics  = False   &= help "Generate statistics files (run with --reprove)"
 
   , isolate_user_props = False &= help "Isolate user props, i.e. do not use user stated properties as lemmas"

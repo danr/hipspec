@@ -37,13 +37,10 @@ Library
     Hip.Trans.Theory
     Hip.Trans.ProofDatatypes
     Hip.Trans.Pretty
-    Hip.Trans.Parser
     Hip.Trans.Core
-    Hip.Trans.Lexer
     Hip.Trans.FixBranches
     Hip.Trans.ArbitraryCore
     Hip.Trans.TyEnv
-    Hip.Trans.ParserInternals
     Hip.Trans.MakeTheory
     Hip.Trans.Latex
     Hip.Trans.TranslateDecl
@@ -65,7 +62,6 @@ Library
   Build-depends: base                          >= 4    && < 5
                , process                       >= 1.0.1.1
                , uniplate                      >= 1.6
-               , Grempa                        >= 0.2
                , th-lift                       >= 0.5
                , haskell-src-exts              >= 1.11.1
                , mtl                           >= 2.0
@@ -80,6 +76,7 @@ Library
                , array                         >= 0.4
                , parallel                      >= 3.0
                , safe                          >= 0.3
+               , filepath                      >= 1.0
 
 
 executable          hipspec
@@ -90,7 +87,6 @@ executable          hipspec
     build-depends: base                          >= 4    && < 5
                  , process                       >= 1.0.1.1
                  , uniplate                      >= 1.6
-                 , Grempa                        >= 0.2
                  , haskell-src-exts              >= 1.11.1
                  , mtl                           >= 2.0
                  , pretty                        >= 1.0
@@ -105,4 +101,5 @@ executable          hipspec
                  , array                         >= 0.4
                  , parallel                      >= 3.0
                  , safe                          >= 0.3
+                 , filepath                      >= 1.0
 

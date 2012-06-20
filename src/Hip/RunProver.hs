@@ -19,11 +19,11 @@ import System.CPUTime
 runProver :: Prover -> String -> Int -> IO ProverResult
 runProver (Prover{..}) inputStr timelimit = do
 --    putStrLn $ "Running prover " ++ show proverName
-    (Just inh, Just outh, _, pid) <-
+    (Just inh, Just outh, Just _, pid) <-
        createProcess (proc proverCmd (proverArgs timelimit))
                      { std_in  = CreatePipe
                      , std_out = CreatePipe
-                     , std_err = Inherit }
+                     , std_err = CreatePipe }
 
 --    putStrLn "Reading output..."
     -- fork off a thread to start consuming the output

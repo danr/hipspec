@@ -9,7 +9,6 @@ module Hip.Trans.Types
 
 import Hip.Trans.Core
 import Hip.Trans.Pretty
-import Hip.Trans.ParserInternals
 import Hip.Trans.TyEnv
 import Hip.Trans.Names
 

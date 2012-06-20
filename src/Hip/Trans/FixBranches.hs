@@ -19,7 +19,6 @@ module Hip.Trans.FixBranches
 
 import Hip.Trans.Core
 -- import Hip.Trans.Pretty
-import Hip.Trans.ParserInternals
 import Hip.Trans.Constructors
 
 import Hip.Util
@@ -205,8 +204,8 @@ addBottomPattern _scrut (PCon c ps) = bottomP : fails
 -- > moreSpecificPatterns (x:xs)  [(x:xs | p x)] = [(x,x | p x),(xs,xs)]
 -}
 
-testExpr = parseExpr "Cons x xs"
-testPMG  = brPMG (parseBranch "Cons x xs | xs -> e")
+-- testExpr = parseExpr "Cons x xs"
+-- testPMG  = brPMG (parseBranch "Cons x xs | xs -> e")
 
 moreSpecificPatterns :: Expr -> [PMG] -> [[(Expr,Pattern)]]
 moreSpecificPatterns e pmgs = reverse $ filter (not . null) $ catMaybes
@@ -327,6 +326,7 @@ prop_fixBranches' scrut brs = forAll (botpatFromScrut scrut) $ \p ->
 
 -- For manual testing --------------------------------------------------------
 
+                              {-
 -- | A small test :)
 testOverlap :: [Branch]
 testOverlap = map parseBranch
@@ -345,6 +345,7 @@ testOverlap = map parseBranch
         ,"_                  -> e9"
         ]
 
+-}
 -- | What are the bottom patterns for
 --
 -- > A (B C) (D E) ?
@@ -357,8 +358,10 @@ testOverlap = map parseBranch
 -- > A (B ⊥) _
 -- > A _     (D ⊥)
 
+                              {-
 testExpr1,testExpr2,testExpr3,testPattern :: Pattern
 testExpr1    = parsePattern "_"
 testExpr2    = parsePattern "A x y"
 testExpr3    = parsePattern "A (B x) y"
 testPattern  = parsePattern "A (B C) (D E)"
+-}

@@ -76,6 +76,21 @@ localBindScope m = do
   puts scope sc
   return r
 
+scopePrefix :: Name -> FH Name
+scopePrefix n = do
+  s <- asks scopeName
+  if null s then return n
+            else do u <- newUnique
+                    let delim = "."
+                    return ({- intercalate delim (reverse s) ++ delim ++ -}
+                            n ++ delim ++ show u)
+
+newUnique :: FH Int
+newUnique = do
+  x:xs <- gets namesupply
+  puts namesupply xs
+  return x
+
 addToScope :: Name -> FH ()
 addToScope = modify scope . S.insert
 
@@ -101,21 +116,6 @@ addBind fname scopedfname args
 
 lookupBind :: Name -> FH (Maybe (Name,[Name]))
 lookupBind n = M.lookup n <$> gets binds
-
-scopePrefix :: Name -> FH Name
-scopePrefix n = do
-  s <- asks scopeName
-  if null s then return n
-            else do u <- newUnique
-                    let delim = "."
-                    return ({- intercalate delim (reverse s) ++ delim ++ -}
-                            n ++ delim ++ show u)
-
-newUnique :: FH Int
-newUnique = do
-  x:xs <- gets namesupply
-  puts namesupply xs
-  return x
 
 wildName :: FH Name
 wildName = (("wild."++) . show) <$> newUnique

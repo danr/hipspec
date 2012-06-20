@@ -1,7 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hip.Trans.FixpointInduction where
 
-import Hip.Trans.ParserInternals
 import Hip.Trans.Core
 import Hip.Trans.Pretty
 import Hip.Trans.NecessaryDefinitions
@@ -19,6 +18,7 @@ import Data.Generics.Uniplate.Data
 import Data.Maybe
 import Data.List
 
+  {-
 exampleCode :: [Decl]
 exampleCode = parseDecls $ concatMap (++ ";")
   [ "even Z     = True"
@@ -38,6 +38,7 @@ exampleCode2 = parseDecls $ unlines
  , "                      T3 f q0 (Cons x xs) -> Cons (f x (q1 f q0 xs)) (qs0 f q0 xs)"
  , "                  } ;"
  ]
+-}
 
 unRec = "oi"
 
@@ -119,9 +120,11 @@ powSubst m = transformM f
         f e@(App x as) = [e] +-+ [App x' as | Just x' <- [lookup x m]]
         f e = [e]
 
+        {-
 testPowSubst = mapM_ print
              $ powSubst [("x","X"),("g","G")]
                         (parseExpr "eq (x x) (x x)")
+-}
 
 proofByFixpoint :: [Decl] -> Set Name -> Expr -> Expr -> [FixProof]
 proofByFixpoint ds recset lhs rhs =
@@ -173,4 +176,6 @@ proofByFixpoint ds recset lhs rhs =
        $ lookup f
        $ map (declName &&& length . declArgs) ds
 
+    {-
 testFPI = mapM_ print $ map step $ proofByFixpoint (parseDecls "f = f;") (S.fromList ["f"]) (parseExpr "f (f x)") (parseExpr "f (f x)")
+-}

@@ -39,7 +39,7 @@ prop_assoc m f g = ((m >>= f) >>= g) =:= (m >>= (\x -> f x >>= g))
 point :: a -> [a]
 point x = [x]
 
-f . g = \x -> f (g x)
+-- f . g = \x -> f (g x)
 
 id :: a -> a
 id x = x
@@ -65,8 +65,8 @@ main = hipSpec "ListMonad.hs" conf 3
                 , var "t"        (undefined :: Int     -> [[Int]])
                 , con "id"       (id        :: [Int] -> [Int])
                 , con "id"       (id        :: Int   -> Int)
-                , con "."        ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
-                , con "."        ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
+--                , con "."        ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
+--                , con "."        ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
                 , con "[]"       ([]        :: [Int])
                 , con "[]"       ([]        :: [[Int]])
                 , con "point"    (point     :: Int   -> [Int])

@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Hip.Trans.NecessaryDefinitions where
 
-import Hip.Trans.ParserInternals
 import Hip.Trans.Core
 import Hip.Trans.Constructors
 
