@@ -12,16 +12,18 @@ import Hip.Induction
 
 import Text.PrettyPrint hiding (Style)
 
-data Style c v t = Style { linc :: c -> Doc
-                         , linv :: v -> Doc
-                         , lint :: t -> Doc
-                         }
+data Style c v t = Style
+    { linc :: c -> Doc
+    , linv :: v -> Doc
+    , lint :: t -> Doc
+    }
 
 strStyle :: Style String String String
-strStyle = Style { linc = text
-                 , linv = text
-                 , lint = text
-                 }
+strStyle = Style
+    { linc = text
+    , linv = text
+    , lint = text
+    }
 
 linTerm :: Style c v t -> Term c v -> Doc
 linTerm st tm = case tm of

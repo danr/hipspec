@@ -60,7 +60,7 @@ trLemma lemma@Prop{..} = do
         { provides    = Lemma propRepr propFunDeps
         , depends     = map Function propFunDeps ++ map Pointer ptrs
         , description = "Lemma " ++ propRepr
-                        ++ "dependencies: " ++ unwords (map show propFunDeps)
+                        ++ "\ndependencies: " ++ unwords (map idToStr propFunDeps)
         , formulae    = [tr_lem]
         }
 
@@ -97,8 +97,11 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
     plainProof :: MakerM Part
     plainProof = do
         (equality,ptrs) <- lift $ capturePtrs $ equals prop
-        let particle = Particle "plain" [clause Conjecture equality]
+        let particle = Particle "plain" [comment "Proof by definitional equality"
+                                        ,clause Conjecture equality]
         return (mkPart Plain ptrs [particle])
+
+-- Induction ------------------------------------------------------------------
 
     inductionCoords :: [[Int]]
     inductionCoords =
@@ -134,11 +137,10 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
             -- Translate all induction parts to particles
             (particles,ptrs) <- lift $ capturePtrs $ sequence
                            [ Particle (show i) <$> trIndPart prop (dropHyps part)
-                           | part <- parts' | i <- [(0 :: Int)..] ]
+                           | part <- parts'
+                           | i <- [(0 :: Int)..] ]
 
             return (mkPart (Induction coords) ptrs particles)
-
--- Induction ------------------------------------------------------------------
 
 trTerm :: Term DataCon Var -> CoreExpr
 trTerm (Var x)    = C.Var x
@@ -147,10 +149,10 @@ trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
 
 ghcStyle :: Style DataCon Var Type
 ghcStyle = Style
-                 { linc = P.text . showSDoc . ppr
-                 , linv = P.text . showSDoc . ppr
-                 , lint = P.text . showSDoc . ppr
-                 }
+    { linc = P.text . showSDoc . ppr
+    , linv = P.text . showSDoc . ppr
+    , lint = P.text . showSDoc . ppr
+    }
 
 trIndPart :: Prop -> IndPart DataCon Var Type -> HaloM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
@@ -177,9 +179,12 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
                                               . trHyp) hyps
         (comm_concl,tr_concl) <- second (clause NegatedConjecture . neg)
                                     <$> trPred concl
-        return (comment (unlines comm_hyp ++ "\n" ++ comm_concl)
-               :comment (P.render $ linPart ghcStyle ind_part)
-               :tr_concl:tr_hyp)
+        return $
+            comment (  "Proof by structural induction\n"
+                    ++ unlines comm_hyp ++ "|-\n" ++ comm_concl
+                    ++ "\n" ++ P.render (linPart ghcStyle ind_part))
+            :tr_concl
+            :tr_hyp
 
 
 

@@ -73,7 +73,7 @@ termsToProp anns e1 e2 = Prop
     , propVars = [ (v,typeRepToType anns (symbolType x))
                  | (x,v) <- var_rename ]
     , propName = repr
-    , propRepr = repr ++ " (from quickSpec)"
+    , propRepr = repr
     , propQSTerms = (e1,e2)
     , propFunDeps = [ v
                     | c <- nub (constants e1 ++ constants e2)
