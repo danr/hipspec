@@ -11,10 +11,8 @@ TODO
 
   * Either enforce a default branch or add infinite domain axioms.
 
-  * Only add necessary data types to generated theories;
-    don't only restrict to tuples of size two.
-
-  * Add function pointer axioms to the theory.
+  * Print which axioms were used to prove a lemma.
+    E-proof and other provers supports the TSTP format.
 
 Bugs
 ====
