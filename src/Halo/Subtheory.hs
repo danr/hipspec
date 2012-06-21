@@ -12,22 +12,24 @@ import TyCon
 import Data.Function
 
 data Content
-    = Function Var
-    -- ^ A definition of a function
-    | Pointer Var
-    -- ^ The pointer to a definition
+    = ExtensionalEquality
+    -- ^ Extensional equality, (f @ x = g @ x) => f = g, has a flag in HaloConf
+    | PrimConAxioms
+    -- ^ [contracts only] Axioms about UNR and BAD
+    | PrimConApps
+    -- ^ [contracts only] App on UNR and BAD
     | Data TyCon
     -- ^ Discrimination and projection axioms for a data type
     | CrashFree TyCon
-    -- ^ [contracts] CF predicates for a data type
-    | PrimConAxioms
-    -- ^ [contracts] Axioms about UNR and BAD
-    | PrimConApps
-    -- ^ [contracts] App on UNR and BAD
+    -- ^ [contracts only] CF predicates for a data type
     | Typing TyCon
-    -- ^ [hipspec] Type predicates for a data type
+    -- ^ [hipspec only] Type predicates for a data type
+    | Function Var
+    -- ^ A definition of a function
+    | Pointer Var
+    -- ^ The pointer to a definition
     | Lemma String [Var]
-    -- ^ [hipspec] Lemma with a name, regarding a group of definitions
+    -- ^ [hipspec only] Lemma with a name, regarding a group of definitions
   deriving (Eq,Ord)
 
 instance Show Content where

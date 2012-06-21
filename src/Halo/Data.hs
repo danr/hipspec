@@ -143,6 +143,47 @@ axiomsBadUNR HaloConf{..} =
     x = head varNames
     x' = qvar x
 
+-- | Make pointers to constructors
+mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory]
+mkConPtrs halo_conf ty_cons = do
+    ty_con <- ty_cons
+    let DataTyCon cons _ = algTyConRhs ty_con
+
+    c <- cons
+    let data_c          = dataConWorkId c
+        (_,_,ty_args,_) = dataConSig c
+        arity           = length ty_args
+        vars            = take arity varNames
+
+    guard (arity > 0)
+
+    return $ (mkPtr halo_conf data_c vars) { depends = [Data ty_con] }
+
+
+mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
+mkPtr HaloConf{use_min,ext_eq} f as = Subtheory
+    { provides    = Pointer f
+    , depends     = [ ExtensionalEquality | ext_eq ]
+    , description = "Pointer axiom to " ++ show f
+    , formulae    = let as' = map qvar as
+                    in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
+                                          ===> apps (ptr f) as' === fun f as'
+                        ]
+
+    }
+
+extEq :: Subtheory
+extEq = Subtheory
+    { provides    = ExtensionalEquality
+    , depends     = []
+    , description = "Extensional equality"
+    , formulae    = return $
+         forall' [f,g] (forall' [x] (app f' x' === app g' x') ==> f' === g')
+    }
+  where
+    vs@[f,g,x] = take 3 varNames
+    [f',g',x'] = map qvar vs
+
 -- | A bunch of variable names to quantify over
 varNames :: [Var]
 varNames =

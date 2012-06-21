@@ -9,6 +9,8 @@ data HaloConf = HaloConf
     -- ^ Translate CF
     , unr_and_bad :: Bool
     -- ^ Use UNR and BAD when translating
+    , ext_eq      :: Bool
+    -- ^ Make function pointer axioms depend on extensional equality
     }
   deriving (Eq,Ord,Show)
 

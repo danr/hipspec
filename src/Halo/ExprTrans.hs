@@ -18,6 +18,7 @@ import qualified Data.Map as M
 import Data.List (intercalate)
 
 import Control.Monad.Reader
+import Control.Monad.Error
 
 -- | Translate expressions, i.e. not case (nor let/lambda)
 --
@@ -58,11 +59,15 @@ trExpr e = do
         Cast e' _ -> do
           write $ "Ignoring cast: " ++ showExpr e
           trExpr e'
-        Case{}     -> trErr "case" -- trCaseExpr e
-        Let{}      -> trErr "let"  -- trLet bind e'
+        Case{}     -> intErr "case"
+        Let{}      -> intErr "let"
         Lit{}      -> trErr "literals"
         Type{}     -> trErr "types"
         Lam{}      -> trErr "lambdas"
         Coercion{} -> trErr "coercions"
         Tick{}     -> trErr "ticks"
-  where trErr s = error ("trExpr: no support for " ++ s ++ "\n" ++ showExpr e)
+  where
+    trErr s  = throwError $ "trExpr: no support for " ++ s
+                         ++ "\n    in expression: " ++ showExpr e
+    intErr s = throwError $ "trExpr: internal error, unexpected " ++ s
+                         ++ "\n    in expression: " ++ showExpr e
