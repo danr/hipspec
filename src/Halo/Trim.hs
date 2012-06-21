@@ -17,6 +17,7 @@ import Var
 import Data.Maybe
 import Data.Graph
 import Data.Tree
+import Data.List
 
 -- | Given a set of variables corresponding to top level definitions,
 --   removes all function definitions that are not interesting.
@@ -59,7 +60,7 @@ trim important grand_theory =
         subtheory :: (Subtheory,Content,[Content]) -> Subtheory
         subtheory (s,_,_) = s
 
-    in  map (subtheory . fromVertex) (concatMap flatten forest)
+    in  sort $ map (subtheory . fromVertex) (concatMap flatten forest)
 
 
 

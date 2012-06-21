@@ -12,20 +12,20 @@ import TyCon
 import Data.Function
 
 data Content
-    = Function Var
+    = ExtensionalEquality
+    -- ^ Extensional equality, (f @ x = g @ x) => f = g, has a flag in HaloConf
+    | PrimConAxioms
+    -- ^ [contracts only] Axioms about UNR and BAD
+    | Data TyCon
+    -- ^ Discrimination and projection axioms for a data type
+    | CrashFree TyCon
+    -- ^ [contracts only] CF predicates for a data type
+    | Typing TyCon
+    -- ^ [hipspec only] Type predicates for a data type
+    | Function Var
     -- ^ A definition of a function
     | Pointer Var
     -- ^ The pointer to a definition
-    | Data TyCon
-    -- ^ Discrimination and projection axioms for a data type
-    | ExtensionalEquality
-    -- ^ ExtensionalEquality (has a flag in HaloConf)
-    | CrashFree TyCon
-    -- ^ [contracts only] CF predicates for a data type
-    | PrimConAxioms
-    -- ^ [contracts only] Axioms about UNR and BAD
-    | Typing TyCon
-    -- ^ [hipspec only] Type predicates for a data type
     | Lemma String [Var]
     -- ^ [hipspec only] Lemma with a name, regarding a group of definitions
   deriving (Eq,Ord)
