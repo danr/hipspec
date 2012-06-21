@@ -26,6 +26,7 @@ import Halo.FreeTyCons
 import Halo.FOL.Abstract
 
 import Control.Monad.Reader
+import Control.Monad.Error
 
 import Data.List
 
@@ -48,44 +49,44 @@ translate env ty_cons binds =
 
 -- | Translate a group of mutally defined binders
 trBind :: CoreBind -> HaloM [Subtheory]
-trBind bind = concatMapM (uncurry (trDecl mutual_group)) fses
-  where
-    fses         = flattenBinds [bind]
-    mutual_group = map fst fses
+trBind bind = concatMapM (uncurry trDecl) (flattenBinds [bind])
 
 -- | Translate a CoreDecl, given the mutual group it was defined in
 --
 --   Generates a small subtheory for it including its pointer axiom
-trDecl :: [Var] -> Var -> CoreExpr -> HaloM [Subtheory]
-trDecl mutual_group f e = do
+trDecl :: Var -> CoreExpr -> HaloM [Subtheory]
+trDecl f e = do
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
-           ++ " coming from the mutual group " ++ unwords (map idToStr mutual_group)
 
-    (fun_tr,used_ptrs) <- capturePtrs $
-         local (\env -> env { current_fun = f
-                            , args = map Var as ++ args env
-                            , quant = as ++ quant env})
-               (trCase e')
-
-    ptr_subthy <- mk_ptr <$> asks conf
-
-    let fun_deps = uniqSetToList (exprFreeIds e) ++ delete f mutual_group
+    let fun_deps = uniqSetToList (exprFreeIds e)
 
         data_deps = freeTyCons e
 
-    return [ ptr_subthy
-           , Subtheory
-                 { provides    = Function f
-                 , depends     = map Function fun_deps
-                              ++ map Pointer used_ptrs
-                              ++ map Data data_deps
-                 , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
-                                 ++ "\nDependencies: "
-                                 ++ unwords (map idToStr fun_deps)
-                 , formulae    = fun_tr
-                 }
-           ]
+        translate = local (\env -> env { current_fun = f
+                                       , args = map Var as ++ args env
+                                       , quant = as ++ quant env})
+                          (trCase e')
+
+    (fun_tr,used_ptrs) <- capturePtrs translate `catchError` \err -> do
+                              cleanUpFailedCapture
+                              return (error err,[])
+
+    ptr_subthy <- mk_ptr <$> asks conf
+
+    return
+        [ ptr_subthy
+        , Subtheory
+              { provides    = Function f
+              , depends     = map Function fun_deps
+                           ++ map Pointer used_ptrs
+                           ++ map Data data_deps
+              , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
+                              ++ "\nDependencies: "
+                              ++ unwords (map idToStr fun_deps)
+              , formulae    = fun_tr
+              }
+        ]
   where
     -- Collect the arguments and the body expression
     as :: [Var]
@@ -139,7 +140,7 @@ trCase e = case e of
              (DEFAULT,[],def_expr):alts -> do
 
                  -- Collect the negative patterns
-                 let neg_constrs = map (invertAlt scrutinee) alts
+                 neg_constrs <- mapM (invertAlt scrutinee) alts
 
                  -- Translate the default formula which happens on the negative
                  -- constraints
@@ -168,38 +169,35 @@ trCase e = case e of
                 return [forall' quant $
                           [ min' lhs | use_min ] ++ tr_constr ===> lhs === rhs]
 
-
 trLhs :: HaloM Term'
 trLhs = do
     HaloEnv{current_fun,args} <- ask
     apply current_fun <$> mapM trExpr args
 
-
-invertAlt :: CoreExpr -> CoreAlt -> Constraint
-invertAlt scrut_exp (cons, _bs, _) = case cons of
-    DataAlt data_con -> Inequality scrut_exp data_con
-    DEFAULT          -> error "invertAlt on DEFAULT"
-    _                -> error "invertAlt on LitAlt (literals not supported yet!)"
-
+invertAlt :: CoreExpr -> CoreAlt -> HaloM Constraint
+invertAlt scrut_exp (cons,_,_) = case cons of
+    DataAlt data_con -> return (Inequality scrut_exp data_con)
+    DEFAULT          -> throwError "invertAlt on DEFAULT"
+    _                -> throwError "invertAlt on LitAlt (literals not supported)"
 
 trAlt :: CoreExpr -> CoreAlt -> HaloM [Formula']
-trAlt scrut_exp (cons, bound, e) = do
+trAlt scrut_exp alt@(cons,_,_) = case cons of
+    DataAlt data_con -> trCon data_con scrut_exp alt
+    DEFAULT -> throwError "trAlt: on DEFAULT, internal error"
+    _       -> throwError "trAlt: on LitAlt, literals not supported yet!"
+
+trCon :: DataCon -> CoreExpr -> CoreAlt -> HaloM [Formula']
+trCon data_con scrut_exp (cons,bound,e) = do
     HaloEnv{quant} <- ask
-
-    case cons of
-        DataAlt data_con -> do
-            case scrut_exp of
-                Var x | x `elem` quant -> do
-                    let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
-                        s = extendIdSubst emptySubst x (tr_pat)
-                        e' = substExpr (text "trAlt") s e
-                    local (substContext s . pushQuant bound . delQuant x) (trCase e')
-                _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
-                           . pushQuant bound)
-                           (trCase e)
-
-        DEFAULT -> error "trAlt on DEFAULT"
-        _       -> error "trAlt on LitAlt (literals not supported yet!)"
+    case scrut_exp of
+        Var x | x `elem` quant -> do
+            let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
+                s = extendIdSubst emptySubst x (tr_pat)
+                e' = substExpr (text "trAlt") s e
+            local (substContext s . pushQuant bound . delQuant x) (trCase e')
+        _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
+                   . pushQuant bound)
+                   (trCase e)
 
 trConstraints :: HaloM (Maybe [Formula'])
 trConstraints = do

@@ -1,7 +1,8 @@
-{-# LANGUAGE NamedFieldPuns,
-             GeneralizedNewtypeDeriving,
-             FlexibleContexts,
-             RecordWildCards
+{-# LANGUAGE
+        NamedFieldPuns,
+        GeneralizedNewtypeDeriving,
+        FlexibleContexts,
+        RecordWildCards
   #-}
 module Halo.Monad where
 
@@ -26,6 +27,7 @@ import Data.Maybe
 import Data.List (delete,union)
 
 import Control.Monad.RWS
+import Control.Monad.Error
 
 -- Map associating each function/CAF with its arity
 type ArityMap = Map Name Int
@@ -83,22 +85,41 @@ mkEnv conf@HaloConf{..} ty_cons program =
       arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
                              ++ dataArities ty_cons
 
-  in HaloEnv { arities     = arities
-             , current_fun = error "initEnv: current_fun"
-             , args        = []
-             , quant       = []
-             , constr      = noConstraints
-             , conf        = conf
-             }
+  in HaloEnv
+         { arities     = arities
+         , current_fun = error "initEnv: current_fun"
+         , args        = []
+         , quant       = []
+         , constr      = noConstraints
+         , conf        = conf
+         }
+
+-- | The translation monad
+--
+--   Reader : see HaloEnv above
+--   Writer : Debug strings
+--   State  : Set of used function pointers
+newtype HaloM a = HaloM (ErrorT String (RWS HaloEnv [String] (Maybe VarSet)) a)
+  deriving
+      (Functor,Applicative,Monad
+      ,MonadReader HaloEnv
+      ,MonadWriter [String]
+      ,MonadState (Maybe VarSet)
+      ,MonadError String
+      )
 
 runHaloM :: HaloEnv -> HaloM a -> (a,[String])
-runHaloM env (HaloM m) = evalRWS m env Nothing
+runHaloM env hm = case runHaloMsafe env hm of
+    (err_or_res,msg) -> (either error id err_or_res,msg)
+
+runHaloMsafe :: HaloEnv -> HaloM a -> (Either String a,[String])
+runHaloMsafe env (HaloM m) = evalRWS (runErrorT m) env Nothing
 
 capturePtrs :: HaloM a -> HaloM (a,[Var])
 capturePtrs m = do
-    let nested_err = error "capturePtrs: Internal error, running nested capturePtrs"
+    let nested_err = throwError "capturePtrs: Internal error, nested captures"
     check <- get
-    when (isNothing check) nested_err
+    when (isJust check) nested_err
     put (Just emptyVarSet)
     res <- m
     m_vs <- get
@@ -110,22 +131,15 @@ capturePtrs m = do
 usePtr :: Var -> HaloM ()
 usePtr v = do
     write $ "Registering " ++ show v ++ " as a used pointer"
-    modify k
-  where
-    k Nothing   = error "usePtr: Internal error, ptr used without capturePtrs"
-    k (Just vs) = Just (extendVarSet vs v)
+    m_vs <- get
+    case m_vs of
+        Nothing -> throwError "usePtr: Internal error, ptr used without capture"
+        Just vs -> put $ Just (extendVarSet vs v)
 
--- | The translation monad
---
---   Reader : see HaloEnv above
---   Writer : Debug strings
---   State  : Set of used function pointers
-newtype HaloM a = HaloM (RWS HaloEnv [String] (Maybe VarSet) a)
-  deriving (Applicative,Monad,Functor
-           ,MonadReader HaloEnv
-           ,MonadWriter [String]
-           ,MonadState (Maybe VarSet)
-           )
+-- | If the translation of an expression fails, we need to clean up
+--   the capturing of function pointers
+cleanUpFailedCapture :: HaloM ()
+cleanUpFailedCapture = put Nothing
 
 substContext :: Subst -> HaloEnv -> HaloEnv
 substContext s env = env
