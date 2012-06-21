@@ -120,7 +120,7 @@ axiomsBadUNR :: HaloConf -> [Subtheory]
 axiomsBadUNR HaloConf{..} =
     [ Subtheory
          { provides    = PrimConAxioms
-         , depends     = []
+         , depends     = [ PrimConApps ]
          , description = "Axioms for BAD and UNR"
          , formulae    =
               [ cf (constant UNR)
@@ -138,6 +138,10 @@ axiomsBadUNR HaloConf{..} =
               , forall' [x] $ app (constant UNR) x' === constant UNR
               ]
          }
+         -- ^ Any file that uses app, but not necessarily on a pointer,
+         --   remind you, it could be app on a quantified variable,
+         --   should have PrimConApps as a dependency.
+         --   [contracts only]
     ]
   where
     x = head varNames
