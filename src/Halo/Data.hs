@@ -111,6 +111,22 @@ mkCF HaloConf{..} ty_cons = do
             ]
         }
 
+-- | Make pointers to constructors
+mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory]
+mkConPtrs halo_conf ty_cons = do
+    ty_con <- ty_cons
+    let DataTyCon cons _ = algTyConRhs ty_con
+
+    c <- cons
+    let data_c          = dataConWorkId c
+        (_,_,ty_args,_) = dataConSig c
+        arity           = length ty_args
+        vars            = take arity varNames
+
+    guard (arity > 0)
+
+    return $ (mkPtr halo_conf data_c vars) { depends = [Data ty_con] }
+
 axiomsBadUNR :: HaloConf -> Subtheory
 axiomsBadUNR HaloConf{..} = Subtheory
     { provides    = PrimConAxioms
@@ -135,3 +151,15 @@ varNames =
    | i <- [0..]
    | n <- [1..] >>= flip replicateM "xyzwvu"
    ]
+
+mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
+mkPtr HaloConf{use_min} f as = Subtheory
+    { provides    = Pointer f
+    , depends     = []
+    , description = "Pointer axiom to " ++ show f
+    , formulae    = let as' = map qvar as
+                    in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
+                                          ===> apps (ptr f) as' === fun f as'
+                        ]
+
+    }

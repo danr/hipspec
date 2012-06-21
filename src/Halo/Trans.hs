@@ -42,6 +42,7 @@ translate env ty_cons binds =
 
   in  (concat
           [mkProjDiscrim halo_conf ty_cons
+          ,mkConPtrs     halo_conf ty_cons
           ,mkCF          halo_conf ty_cons
           ,[axiomsBadUNR halo_conf]
           ,tr_funs]
@@ -72,10 +73,10 @@ trDecl f e = do
                               cleanUpFailedCapture
                               return (error err,[])
 
-    ptr_subthy <- mk_ptr <$> asks conf
+    halo_conf <- asks conf
 
     return
-        [ ptr_subthy
+        [ mkPtr halo_conf f as
         , Subtheory
               { provides    = Function f
               , depends     = map Function fun_deps
