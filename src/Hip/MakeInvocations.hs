@@ -57,6 +57,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
                   , processes       = processes
                   , propStatuses    = error "main env propStatuses"
                   , propCodes       = error "main env propCodes"
+                  , z_encode        = z_encode_filenames
                   }
 
     us <- mkSplitUniqSupply '&'
