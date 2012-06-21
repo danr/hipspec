@@ -171,6 +171,8 @@ hipSpec file ctxt depth = do
 
         qsprops = map (uncurry (termsToProp anns)) eqs
 
+    hSetBuffering stdout LineBuffering
+
     putStrLn "Starting to prove..."
 
     (qslemmas,qsunproved) <- deep halt_env params theory ctxt depth univ qsprops

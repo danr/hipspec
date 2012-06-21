@@ -54,12 +54,13 @@ runMakerM env us mm =
     in  ((hm,msg),us')
 
 trLemma :: Prop -> HaloM Subtheory
-trLemma lemma = do
+trLemma lemma@Prop{..} = do
     (tr_lem,ptrs) <- capturePtrs $ equals lemma
     return $ Subtheory
-        { provides    = Lemma (propRepr lemma) (propFunDeps lemma)
-        , depends     = map Function (propFunDeps lemma) ++ map Pointer ptrs
-        , description = ""
+        { provides    = Lemma propRepr propFunDeps
+        , depends     = map Function propFunDeps ++ map Pointer ptrs
+        , description = "Lemma " ++ propRepr
+                        ++ "dependencies: " ++ unwords (map show propFunDeps)
         , formulae    = [tr_lem]
         }
 

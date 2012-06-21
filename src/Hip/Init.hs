@@ -25,9 +25,10 @@ import UniqSupply
 
 processFile :: Params -> FilePath -> IO (Theory,HaloEnv,[Prop],ANNs)
 processFile Params{..} file = do
-    let ds_conf = DesugarConf { debug_float_out = False
-                              , core2core_pass  = True
-                              }
+    let ds_conf = DesugarConf
+                      { debug_float_out = False
+                      , core2core_pass  = True
+                      }
 
     (anns,(modguts,dflags)) <- desugarWith (findANNs db_anns) ds_conf file
 
@@ -54,6 +55,7 @@ processFile Params{..} file = do
                         { use_min      = False
                         , use_cf       = False
                         , unr_and_bad  = False
+                        , ext_eq       = True
                         }
 
         halt_env = mkEnv halt_conf ty_cons_with_builtins core_defns
