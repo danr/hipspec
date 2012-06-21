@@ -33,7 +33,7 @@
 > import Data.List
 > import Data.Maybe
 
-> import Halt.Util (concatFoldM,(.:),nubSortedOn)
+> import Halo.Util (concatFoldM,(.:),nubSortedOn)
 
 > import Safe
 

@@ -286,7 +286,7 @@ laws depth ctx0 cond p p' = do
 test :: (Term Symbol -> Bool) -> Int -> Context -> [(StdGen, Int)] -> (TypeRep -> [Term Symbol]) -> IO [[Term Symbol]]
 test p depth ctx seeds base = do
   printf "Depth %d: " depth
-  let ts = filter (not . null) [ filter p (terms ctx base ty) | ty <- allTypes ctx, funTypes [ty] == [] ]
+  let ts = filter (not . null) [ filter p (terms ctx base ty) | ty <- allTypes ctx {- , funTypes [ty] == [] -} ]
   printf "%d terms, " (length (concat ts))
   let evals = [ toValue . eval (memoSym ctx ctxFun) | (ctxFun, toValue) <- map useSeed seeds ]
       tree = map (T.test evals) ts

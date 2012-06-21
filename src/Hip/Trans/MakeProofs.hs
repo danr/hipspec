@@ -9,12 +9,12 @@ import Hip.Trans.Theory as Thy
 import Hip.Trans.Types
 import Hip.Params
 
-import Halt.FOL.Abstract hiding (Term,Lemma)
-import Halt.ExprTrans
-import Halt.Monad
-import Halt.Util
-import Halt.Shared
-import Halt.Subtheory
+import Halo.FOL.Abstract hiding (Term,Lemma)
+import Halo.ExprTrans
+import Halo.Monad
+import Halo.Util
+import Halo.Shared
+import Halo.Subtheory
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -35,7 +35,7 @@ import Outputable hiding (equals)
 
 import qualified Text.PrettyPrint as P
 
-type MakerM = StateT (UniqSupply,Map (Var,Integer) Var) HaltM
+type MakerM = StateT (UniqSupply,Map (Var,Integer) Var) HaloM
 
 getVar :: Var -> Integer -> MakerM Var
 getVar v i = do
@@ -48,26 +48,35 @@ getVar v i = do
             modify (const us *** M.insert (v,i) v')
             return v'
 
-runMakerM :: HaltEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
-runMakerM env us mm = let ((hm,(us',_)),msg) = runHaltM env (runStateT mm (us,M.empty))
-                      in  ((hm,msg),us')
+runMakerM :: HaloEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
+runMakerM env us mm =
+    let ((hm,(us',_)),msg) = runHaloM env (runStateT mm (us,M.empty))
+    in  ((hm,msg),us')
 
+trLemma :: Prop -> HaloM Subtheory
+trLemma lemma = do
+    (tr_lem,ptrs) <- capturePtrs $ equals lemma
+    return $ Subtheory
+        { provides    = Lemma (propRepr lemma) (propFunDeps lemma)
+        , depends     = map Function (propFunDeps lemma) ++ map Pointer ptrs
+        , description = ""
+        , formulae    = [tr_lem]
+        }
 
 -- | Takes a theory, and prepares the invocations
 --   for a property and adds the lemmas
 theoryToInvocations :: Params -> Theory -> Prop -> [Prop] -> MakerM Property
 theoryToInvocations params@(Params{..}) theory prop lemmas = do
-    tr_lemmas <- sequence [ Subtheory (Lemma (propRepr lemma) (propDeps lemma))
-                                      [] "" . (:[]) <$> equals lemma
-                          | lemma <- lemmas ]
+    tr_lemmas <- lift $ mapM trLemma lemmas
     parts <- map (extendPart tr_lemmas) <$> prove params theory prop
-    return $ Property { propName   = Thy.propName prop
-                      , propCode   = propRepr prop
-                      , propMatter = parts
-                      }
+    return $ Property
+        { propName   = Thy.propName prop
+        , propCode   = propRepr prop
+        , propMatter = parts
+        }
 
-equals :: Prop -> MakerM Formula'
-equals Prop{..} = lift $ local (pushQuant (map fst propVars)) $ do
+equals :: Prop -> HaloM Formula'
+equals Prop{..} = local (pushQuant (map fst propVars)) $ do
     let vars = map fst propVars
     lhs <- trExpr proplhs
     rhs <- trExpr proprhs
@@ -80,14 +89,15 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
                    mapMaybe induction inductionCoords)
 
   where
-    mkPart :: ProofMethod -> [Particle] -> Part
-    mkPart meth particles = Part meth (propDeps,subthys,particles)
+    mkPart :: ProofMethod -> [Var] -> [Particle] -> Part
+    mkPart meth ptrs particles = Part meth (deps,subthys,particles)
+      where deps = map Function propFunDeps ++ map Pointer ptrs
 
     plainProof :: MakerM Part
     plainProof = do
-        equality <- equals prop
+        (equality,ptrs) <- lift $ capturePtrs $ equals prop
         let particle = Particle "plain" [clause Conjecture equality]
-        return (mkPart Plain [particle])
+        return (mkPart Plain ptrs [particle])
 
     inductionCoords :: [[Int]]
     inductionCoords =
@@ -121,11 +131,11 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
             parts' <- mapM (unVM getVar) parts
 
             -- Translate all induction parts to particles
-            particles <- lift $ sequence
+            (particles,ptrs) <- lift $ capturePtrs $ sequence
                            [ Particle (show i) <$> trIndPart prop (dropHyps part)
                            | part <- parts' | i <- [(0 :: Int)..] ]
 
-            return (mkPart (Induction coords) particles)
+            return (mkPart (Induction coords) ptrs particles)
 
 -- Induction ------------------------------------------------------------------
 
@@ -135,17 +145,18 @@ trTerm (Con c as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
 trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
 
 ghcStyle :: Style DataCon Var Type
-ghcStyle = Style { linc = P.text . showSDoc . ppr
+ghcStyle = Style
+                 { linc = P.text . showSDoc . ppr
                  , linv = P.text . showSDoc . ppr
                  , lint = P.text . showSDoc . ppr
                  }
 
-trIndPart :: Prop -> IndPart DataCon Var Type -> HaltM [Clause']
+trIndPart :: Prop -> IndPart DataCon Var Type -> HaloM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
     let skolem_arities = M.fromList [ (idName sk,0) | (sk,_) <- skolem ]
 
-        trPred :: [Term DataCon Var] -> HaltM (String,Formula')
+        trPred :: [Term DataCon Var] -> HaloM (String,Formula')
         trPred tms = do
             phi <- (===) <$> trExpr lhs <*> trExpr rhs
             return (showExpr lhs ++ "=" ++ showExpr rhs,phi)
@@ -156,7 +167,7 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
             lhs = substExpr (text "trPred") s proplhs
             rhs = substExpr (text "trPred") s proprhs
 
-        trHyp :: Hypothesis DataCon Var Type -> HaltM (String,Formula')
+        trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
         trHyp (map fst -> qs,tms) = local (pushQuant qs)
              (second (forall' qs) <$> trPred tms)
 

@@ -8,12 +8,12 @@ import Hip.Trans.Property
 import Hip.Trans.SrcRep
 import Hip.Trans.Theory
 
-import Halt.Conf
-import Halt.Entry
-import Halt.Lift
-import Halt.Monad
-import Halt.Trans
-import Halt.Util
+import Halo.Conf
+import Halo.Entry
+import Halo.Lift
+import Halo.Monad
+import Halo.Trans
+import Halo.Util
 
 import Data.List
 import Data.Maybe
@@ -23,7 +23,7 @@ import GHC
 import HscTypes
 import UniqSupply
 
-processFile :: Params -> FilePath -> IO (Theory,HaltEnv,[Prop],ANNs)
+processFile :: Params -> FilePath -> IO (Theory,HaloEnv,[Prop],ANNs)
 processFile Params{..} file = do
     let ds_conf = DesugarConf { debug_float_out = False
                               , core2core_pass  = True
@@ -49,8 +49,8 @@ processFile Params{..} file = do
         ty_cons_with_builtins :: [TyCon]
         ty_cons_with_builtins = builtins ++ ty_cons
 
-        halt_conf :: HaltConf
-        halt_conf = sanitizeConf $ HaltConf
+        halt_conf :: HaloConf
+        halt_conf = sanitizeConf $ HaloConf
                         { use_min      = False
                         , use_cf       = False
                         , unr_and_bad  = False

@@ -28,17 +28,17 @@ runProver filename (Prover{..}) inputStr timelimit = do
     -- fork off a thread to start consuming the output
     output  <- hGetContents outh
     outMVar <- newEmptyMVar
-    _ <- forkIO $ evaluate (length output) >> putMVar outMVar ()
+    void $ forkIO $ evaluate (length output) >> putMVar outMVar ()
 
     -- fork off a thread to start consuming standard error,
     -- if there is any report it
-    _ <- forkIO $ do
-            err <- hGetContents errh
-            n   <- evaluate (length err)
-            when (n > 0) $ do
-                hPutStrLn stderr $ "*** " ++ filename ++ " using "
-                                ++ show proverName ++ " stderr: ***"
-                hPutStrLn stderr err
+    unless proverSuppressErrs $ void $ forkIO $ do
+        err <- hGetContents errh
+        n   <- evaluate (length err)
+        when (n > 0) $ do
+            hPutStrLn stderr $ "*** " ++ filename ++ " using "
+                            ++ show proverName ++ " stderr: ***"
+            hPutStrLn stderr err
 
 --    putStrLn "Write and flush input"
     -- now write and flush any input

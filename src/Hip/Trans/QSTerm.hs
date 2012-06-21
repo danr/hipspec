@@ -75,7 +75,7 @@ termsToProp anns e1 e2 = Prop
     , propName = repr
     , propRepr = repr ++ " (from quickSpec)"
     , propQSTerms = (e1,e2)
-    , propDeps    = [ v
+    , propFunDeps = [ v
                     | c <- nub (constants e1 ++ constants e2)
                     , let (v,is_function_not_constructor) = lookupSym anns c
                     , is_function_not_constructor

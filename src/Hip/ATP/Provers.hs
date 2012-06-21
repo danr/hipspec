@@ -25,6 +25,8 @@ data Prover = Prover { proverName          :: ProverName
                      -- ^ processes the output and time and gives a result
                      , proverShort         :: Char
                      -- ^ short char for command line options
+                     , proverSuppressErrs  :: Bool
+                     -- ^ should we ignore standard error from this prover?
                      }
 
 
@@ -41,68 +43,81 @@ statusSZS = [("Theorem",Success),("Unsatisfiable",Success)
             ,("CounterSatisfiable",const Failure),("Timeout",const Failure)]
 
 allProvers :: [Prover]
-allProvers = [vampire,vampire64,prover9,spass,eprover,equinox,z3]
+allProvers = [vampire,vampire64,prover9,spass,eprover,eprover_win,equinox,z3]
 
 proversFromString :: String -> [Prover]
 proversFromString str = filter ((`elem` str) . proverShort) allProvers
 
 eprover :: Prover
 eprover = Prover
-  { proverName          = E
-  , proverCmd           = "eprover"
-  , proverArgs          = \_ -> words "-tAuto -xAuto --tptp3-format -s"
-  , proverProcessOutput = searchOutput statusSZS
-  , proverShort         = 'e'
-  }
+    { proverName          = E
+    , proverCmd           = "eprover"
+    , proverArgs          = \_ -> words "-tAuto -xAuto --tptp3-format -s"
+    , proverProcessOutput = searchOutput statusSZS
+    , proverShort         = 'e'
+    , proverSuppressErrs  = False
+    }
+
+eprover_win :: Prover
+eprover_win = eprover
+    { proverCmd           = "eprover.exe"
+    , proverShort         = 'E'
+    , proverSuppressErrs  = True
+    }
 
 z3 :: Prover
 z3 = Prover
-  { proverName          = Z3
-  , proverCmd           = "z3"
-  , proverArgs          = \_ -> words "-tptp -nw /dev/stdin"
-  , proverProcessOutput = searchOutput statusSZS
-  , proverShort         = 'z'
-  }
+    { proverName          = Z3
+    , proverCmd           = "z3"
+    , proverArgs          = \_ -> words "-tptp -nw /dev/stdin"
+    , proverProcessOutput = searchOutput statusSZS
+    , proverShort         = 'z'
+    , proverSuppressErrs  = False
+    }
 
 vampire :: Prover
 vampire = Prover
-  { proverName          = Vampire
-  , proverCmd           = "vampire_lin32"
-  , proverArgs          = \t -> words ("--proof tptp --mode casc -t " ++ show t)
-  , proverProcessOutput = searchOutput statusSZS
-  , proverShort         = 'v'
-  }
+    { proverName          = Vampire
+    , proverCmd           = "vampire_lin32"
+    , proverArgs          = \t -> words ("--proof tptp --mode casc -t " ++ show t)
+    , proverProcessOutput = searchOutput statusSZS
+    , proverShort         = 'v'
+    , proverSuppressErrs  = False
+    }
 
 vampire64 :: Prover
 vampire64 = vampire
-  { proverName          = Vampire64
-  , proverCmd           = "vampire_lin64"
-  , proverShort         = 'V'
-  }
+    { proverName          = Vampire64
+    , proverCmd           = "vampire_lin64"
+    , proverShort         = 'V'
+    }
 
 prover9 :: Prover
 prover9 = Prover
-  { proverName          = Prover9
-  , proverCmd           = "prover9script"
-  , proverArgs          = \t -> [show t]
-  , proverProcessOutput = searchOutput [("THEOREM PROVED",Success),("SEARCH FAILED",const Failure)]
-  , proverShort         = 'p'
-  }
+    { proverName          = Prover9
+    , proverCmd           = "prover9script"
+    , proverArgs          = \t -> [show t]
+    , proverProcessOutput = searchOutput [("THEOREM PROVED",Success),("SEARCH FAILED",const Failure)]
+    , proverShort         = 'p'
+    , proverSuppressErrs  = False
+    }
 
 spass :: Prover
 spass = Prover
-  { proverName          = SPASS
-  , proverCmd           = "SPASS"
-  , proverArgs          = \t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
-  , proverProcessOutput = searchOutput [("Proof found.",Success),("Completion found.",const Failure),("Ran out of time.",const Failure)]
-  , proverShort         = 's'
-  }
+    { proverName          = SPASS
+    , proverCmd           = "SPASS"
+    , proverArgs          = \t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
+    , proverProcessOutput = searchOutput [("Proof found.",Success),("Completion found.",const Failure),("Ran out of time.",const Failure)]
+    , proverShort         = 's'
+    , proverSuppressErrs  = False
+    }
 
 equinox :: Prover
 equinox = Prover
-  { proverName          = Equinox
-  , proverCmd           = "equinox"
-  , proverArgs          = \_ -> words ("--tstp --split /dev/stdin")
-  , proverProcessOutput = searchOutput statusSZS
-  , proverShort         = 'x'
-  }
+    { proverName          = Equinox
+    , proverCmd           = "equinox"
+    , proverArgs          = \_ -> words ("--tstp --split /dev/stdin")
+    , proverProcessOutput = searchOutput statusSZS
+    , proverShort         = 'x'
+    , proverSuppressErrs  = False
+    }

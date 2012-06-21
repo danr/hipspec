@@ -1,6 +1,6 @@
 module Hip.Trans.Theory where
 
-import Halt.Subtheory
+import Halo.Subtheory
 
 import CoreSyn
 import Var
@@ -18,7 +18,7 @@ data Prop = Prop
     , propName    :: String
     , propRepr    :: String
     , propQSTerms :: (QST.Term QST.Symbol,QST.Term QST.Symbol)
-    , propDeps    :: [Var]
+    , propFunDeps :: [Var]
     , propOops    :: Bool
     -- ^ It's an error if this property was provable
     }
@@ -31,6 +31,6 @@ inconsistentProp = Prop
     , propName    = "inconsistencyCheck"
     , propRepr    = "inconsistecy check: this should never be provable"
     , propQSTerms = error "propQSTerms: inconsistentProp"
-    , propDeps    = []
+    , propFunDeps = []
     , propOops    = True
     }

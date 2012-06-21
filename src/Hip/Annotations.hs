@@ -7,8 +7,8 @@ module Hip.Annotations where
 
 import Hip.BuiltinTypes
 
-import Halt.Shared
-import Halt.Util
+import Halo.Shared
+import Halo.Util
 
 import qualified Data.Map as M
 import Data.Map (Map)

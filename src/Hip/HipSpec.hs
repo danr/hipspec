@@ -14,8 +14,8 @@ import Hip.MakeInvocations
 
 import Hip.Params
 
-import Halt.Monad
-import Halt.Util
+import Halo.Monad
+import Halo.Util
 
 import Data.List
 import Data.Ord
@@ -39,7 +39,7 @@ getUpTo n p (x:xs) ys
    | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
 
 -- | The main loop
-deep :: HaltEnv            -- ^ Environment to run HaltM
+deep :: HaloEnv            -- ^ Environment to run HaltM
      -> Params             -- ^ Parameters to the program
      -> Theory             -- ^ Translated theory
      -> [Symbol]           -- ^ Configuration to QuickSpec

@@ -12,7 +12,7 @@ homepage:           github.com/danr/hip
 
 Library
     ghc-options:    -threaded -O2 -rtsopts -package ghc
-    hs-source-dirs: src halt/src
+    hs-source-dirs: src halo/src
 
     Exposed-modules:
         Hip.HipSpec
@@ -20,26 +20,27 @@ Library
         Test.QuickSpec
 
     Other-modules:
-        Halt.Case
-        Halt.Conf
-        Halt.Constraints
-        Halt.Data
-        Halt.Entry
-        Halt.ExprTrans
-        Halt.FOL.Abstract
-        Halt.FOL.Internals.Internals
-        Halt.FOL.Linearise
-        Halt.FOL.Operations
-        Halt.FOL.Rename
-        Halt.FOL.Style
-        Halt.Lift
-        Halt.Monad
-        Halt.PrimCon
-        Halt.Shared
-        Halt.Subtheory
-        Halt.Trans
-        Halt.Trim
-        Halt.Util
+        Halo.Case
+        Halo.Conf
+        Halo.Constraints
+        Halo.Data
+        Halo.Entry
+        Halo.ExprTrans
+        Halo.FOL.Abstract
+        Halo.FOL.Internals.Internals
+        Halo.FOL.Linearise
+        Halo.FOL.Operations
+        Halo.FOL.Rename
+        Halo.FOL.Style
+        Halo.FreeTyCons
+        Halo.Lift
+        Halo.Monad
+        Halo.PrimCon
+        Halo.Shared
+        Halo.Subtheory
+        Halo.Trans
+        Halo.Trim
+        Halo.Util
         Hip.Annotations
         Hip.ATP.Invoke
         Hip.ATP.Provers
@@ -75,7 +76,7 @@ Library
         -- Command-line Arguments
         cmdargs                       >= 0.9,
 
-        -- Halt
+        -- Halo
         uniplate                      >= 1.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,
@@ -99,7 +100,7 @@ Library
 
 executable          hipspec
     ghc-options:    -threaded -O2 -rtsopts -package ghc
-    hs-source-dirs: src halt/src
+    hs-source-dirs: src halo/src
     main-is:        Main.hs
 
     build-depends:
@@ -111,7 +112,7 @@ executable          hipspec
         -- Command-line Arguments
         cmdargs                       >= 0.9,
 
-        -- Halt
+        -- Halo
         uniplate                      >= 1.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,

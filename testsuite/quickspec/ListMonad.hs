@@ -2,33 +2,33 @@
 {-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances #-}
 module Main where
 
-import Prelude (Int,undefined,Eq,Show,Ord,return,div)
-import qualified Prelude as P
+import Prelude hiding ((>>=),(++),fmap,id,(.))
 
 import Data.Typeable
 
 import Hip.HipSpec
-import Test.QuickCheck hiding (Prop)
-import Control.Applicative
+import Hip.Prelude
 
+{-# ANN (++) "++" #-}
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
+{-# ANN (>>=) ">>=" #-}
 (>>=) :: [a] -> (a -> [b]) -> [b]
 (x:xs) >>= f = f x ++ (xs >>= f)
 []     >>= f = []
 
+{-# ANN join "join" #-}
 join :: [[a]] -> [a]
 join ((x:xs):xss) = x:join (xs:xss)
 join ([]:xss)     = join xss
 join []           = []
 
+{-# ANN fmap "fmap" #-}
 fmap :: (a -> b) -> [a] -> [b]
 fmap f []     = []
 fmap f (x:xs) = f x : fmap f xs
-
-type List = [Int]
 
 prop_join_fmap_bind :: (a -> [b]) -> [a] -> Prop [b]
 prop_join_fmap_bind f xs = join (fmap f xs) =:= xs >>= f
@@ -36,16 +36,20 @@ prop_join_fmap_bind f xs = join (fmap f xs) =:= xs >>= f
 prop_assoc :: [a] -> (a -> [b]) -> (b -> [c]) -> Prop [c]
 prop_assoc m f g = ((m >>= f) >>= g) =:= (m >>= (\x -> f x >>= g))
 
+{-# ANN point "point" #-}
 point :: a -> [a]
 point x = [x]
 
+{-# ANN (.) "." #-}
 f . g = \x -> f (g x)
 
+{-# ANN id "id" #-}
 id :: a -> a
 id x = x
 
 main = hipSpec "ListMonad.hs" conf 3
-  where conf = describe "List Monad"
+  where
+    conf = describe "List Monad"
                 [ var "x"        (undefined :: Int)
                 , var "y"        (undefined :: Int)
                 , var "z"        (undefined :: Int)
@@ -65,8 +69,8 @@ main = hipSpec "ListMonad.hs" conf 3
                 , var "t"        (undefined :: Int     -> [[Int]])
                 , con "id"       (id        :: [Int] -> [Int])
                 , con "id"       (id        :: Int   -> Int)
-                , con "."        ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
-                , con "."        ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
+               -- , con "."        ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
+               -- , con "."        ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
                 , con "[]"       ([]        :: [Int])
                 , con "[]"       ([]        :: [[Int]])
                 , con "point"    (point     :: Int   -> [Int])
@@ -82,11 +86,4 @@ main = hipSpec "ListMonad.hs" conf 3
                 , con "fmap"     (fmap      :: (Int -> Int) -> [Int] -> [Int])
                 , con "fmap"     (fmap      :: (Int -> [Int]) -> [Int] -> [[Int]])
                 ]
-                   where
-                     intType   = undefined :: Int
-                     listType  = undefined :: List
 
--- The tiny Hip Prelude
-(=:=) = (=:=)
-
-type Prop a = a

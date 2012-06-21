@@ -9,7 +9,7 @@ import TysWiredIn
 import CoreFVs
 import UniqSet
 
-import Halt.Shared
+import Halo.Shared
 
 import Control.Arrow (second)
 
@@ -36,7 +36,7 @@ trProperty (NonRec prop_name e) = do
                   , propVars    = [ (x,varType x) | x <- vars ]
                   , propRepr    = showExpr lhs ++ " = " ++ showExpr rhs
                   , propQSTerms = error "trProperty : propQSTerms"
-                  , propDeps    = uniqSetToList free
+                  , propFunDeps = uniqSetToList free
                   , propOops    = oops
                   }
 trProperty _ = Nothing

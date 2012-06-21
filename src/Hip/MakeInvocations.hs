@@ -10,14 +10,14 @@ import Hip.Trans.ProofDatatypes (propMatter)
 import Hip.Trans.Theory
 import qualified Hip.Trans.ProofDatatypes as PD
 
-import Halt.Monad
-import Halt.Subtheory
-import Halt.Trim
-import Halt.Util
+import Halo.Monad
+import Halo.Subtheory
+import Halo.Trim
+import Halo.Util
 
-import Halt.FOL.Linearise
-import Halt.FOL.Rename
-import Halt.FOL.Style
+import Halo.FOL.Linearise
+import Halo.FOL.Rename
+import Halo.FOL.Style
 
 import Data.List
 import Data.Maybe
@@ -47,9 +47,9 @@ partitionInvRes ((x,ir):xs) =
 partitionInvRes [] = ([],[],[])
 
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: HaltEnv -> Params -> [Prop] -> Theory -> [Prop]
+tryProve :: HaloEnv -> Params -> [Prop] -> Theory -> [Prop]
          -> IO [(Prop,InvokeResult)]
-tryProve halt_env params@(Params{..}) props thy lemmas = do
+tryProve halo_env params@(Params{..}) props thy lemmas = do
     let env = Env { reproveTheorems = False
                   , timeout         = timeout
                   , store           = output
@@ -61,14 +61,16 @@ tryProve halt_env params@(Params{..}) props thy lemmas = do
 
     us <- mkSplitUniqSupply '&'
 
-    let ((properties,_msgs),_us) = runMakerM halt_env us
+    let ((properties,_msgs),_us) = runMakerM halo_env us
                                  . mapM (\prop -> theoryToInvocations
                                                       params thy prop lemmas)
                                  $ props
 
         properties' =
             [ PD.Property n c $
-              [ let subs  = trim deps subtheories
+              [ let lemma_deps =
+                        [ lem | Subtheory lem@Lemma{} _ _ _ <- subtheories ]
+                    subs  = trim (deps ++ lemma_deps) subtheories
                     pcls' = [ fmap (\cls -> linTPTP
                                      (strStyle cnf)
                                      (renameClauses
@@ -107,11 +109,11 @@ tryProve halt_env params@(Params{..}) props thy lemmas = do
 
         return (original,invRes)
 
-parLoop :: HaltEnv -> Params -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
-parLoop halt_env params thy props lemmas = do
+parLoop :: HaloEnv -> Params -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
+parLoop halo_env params thy props lemmas = do
 
     (proved,without_induction,unproved) <-
-         partitionInvRes <$> tryProve halt_env params props thy lemmas
+         partitionInvRes <$> tryProve halo_env params props thy lemmas
 
     unless (null without_induction) $
          putStrLn $ unwords (map (showProp True) without_induction)
@@ -123,7 +125,7 @@ parLoop halt_env params thy props lemmas = do
 
          else do putStrLn $ "Adding " ++ show (length proved)
                          ++ " lemmas: " ++ intercalate ", " (map propName proved)
-                 parLoop halt_env params thy unproved
+                 parLoop halo_env params thy unproved
                          (lemmas ++ proved ++ without_induction)
 
 showProp :: Bool -> Prop -> String
