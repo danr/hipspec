@@ -95,11 +95,14 @@ mkCF HaloConf{..} ty_cons = do
         , depends     = []
         , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
         , formulae    = concat $
-            [ (forall' vars ([ min' kxbar | use_min ] ++ map cf xbar ===> cf kxbar) :)
+            [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min ] :
+            [ (forall' vars ([ min' kxbar | use_min ] ++ map cf xbar
+                             ===> cf kxbar) :)
             $ guard (arity > 0) >>
               [ forall' vars $ cf kxbar ==> ands (map cf xbar)
               , forall' vars $ [ min' kxbar | use_min ] ++ [ neg (cf kxbar) ]
-                            ===> ors [ ands (neg (cf x) : [ min' x | use_min ]) | x <- xbar ]
+                            ===> ors [ ands (neg (cf x)
+                                            : [ min' x | use_min ]) | x <- xbar ]
               ]
             | c <- cons
             , let data_c          = dataConWorkId c
@@ -110,21 +113,35 @@ mkCF HaloConf{..} ty_cons = do
                   kxbar           = fun data_c xbar
             ]
         }
-
-axiomsBadUNR :: HaloConf -> Subtheory
-axiomsBadUNR HaloConf{..} = Subtheory
-    { provides    = PrimConAxioms
-    , depends     = []
-    , description = "Axioms for BAD and UNR"
-    , formulae    = fs
-    }
   where
     x = head varNames
-    fs =    [ cf (constant UNR)       ]
-         ++ [ neg (cf (constant BAD)) ]
-         ++ [ constant UNR =/= constant BAD ]
-         ++ [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min ]
-         ++ [ min' (constant BAD)                         | use_min ]
+
+axiomsBadUNR :: HaloConf -> [Subtheory]
+axiomsBadUNR HaloConf{..} =
+    [ Subtheory
+         { provides    = PrimConAxioms
+         , depends     = []
+         , description = "Axioms for BAD and UNR"
+         , formulae    =
+              [ cf (constant UNR)
+              , neg (cf (constant BAD))
+              , constant UNR =/= constant BAD
+              ] ++
+              [ min' (constant BAD) | use_min ]
+         }
+    , Subtheory
+         { provides    = PrimConApps
+         , depends     = []
+         , description = "App on BAD and UNR"
+         , formulae    =
+              [ forall' [x] $ app (constant BAD) x' === constant BAD
+              , forall' [x] $ app (constant UNR) x' === constant UNR
+              ]
+         }
+    ]
+  where
+    x = head varNames
+    x' = qvar x
 
 -- | A bunch of variable names to quantify over
 varNames :: [Var]

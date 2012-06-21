@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{- LANGUAGE PatternGuards #-}
 -- (c) Dan Rosén 2012
 module Halo.FOL.Abstract
        (Term',Formula',Clause',StrClause

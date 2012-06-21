@@ -22,6 +22,8 @@ data Content
     -- ^ [contracts] CF predicates for a data type
     | PrimConAxioms
     -- ^ [contracts] Axioms about UNR and BAD
+    | PrimConApps
+    -- ^ [contracts] App on UNR and BAD
     | Typing TyCon
     -- ^ [hipspec] Type predicates for a data type
     | Lemma String [Var]
