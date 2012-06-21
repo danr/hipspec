@@ -18,14 +18,16 @@ data Content
     -- ^ The pointer to a definition
     | Data TyCon
     -- ^ Discrimination and projection axioms for a data type
+    | ExtensionalEquality
+    -- ^ ExtensionalEquality (has a flag in HaloConf)
     | CrashFree TyCon
-    -- ^ [contracts] CF predicates for a data type
+    -- ^ [contracts only] CF predicates for a data type
     | PrimConAxioms
-    -- ^ [contracts] Axioms about UNR and BAD
+    -- ^ [contracts only] Axioms about UNR and BAD
     | Typing TyCon
-    -- ^ [hipspec] Type predicates for a data type
+    -- ^ [hipspec only] Type predicates for a data type
     | Lemma String [Var]
-    -- ^ [hipspec] Lemma with a name, regarding a group of definitions
+    -- ^ [hipspec only] Lemma with a name, regarding a group of definitions
   deriving (Eq,Ord)
 
 instance Show Content where

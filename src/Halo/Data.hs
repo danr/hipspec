@@ -136,11 +136,36 @@ axiomsBadUNR HaloConf{..} = Subtheory
     }
   where
     x = head varNames
+    x' = qvar x
     fs =    [ cf (constant UNR)       ]
          ++ [ neg (cf (constant BAD)) ]
          ++ [ constant UNR =/= constant BAD ]
-         ++ [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min ]
-         ++ [ min' (constant BAD)                         | use_min ]
+         ++ [ forall' [x] (cf x' ==> min' x') | use_min ]
+         ++ [ min' (constant BAD)             | use_min ]
+
+mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
+mkPtr HaloConf{use_min,ext_eq} f as = Subtheory
+    { provides    = Pointer f
+    , depends     = [ ExtensionalEquality | ext_eq ]
+    , description = "Pointer axiom to " ++ show f
+    , formulae    = let as' = map qvar as
+                    in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
+                                          ===> apps (ptr f) as' === fun f as'
+                        ]
+
+    }
+
+extEq :: Subtheory
+extEq = Subtheory
+    { provides    = ExtensionalEquality
+    , depends     = []
+    , description = "Extensional equality"
+    , formulae    = return $
+         forall' [f,g] (forall' [x] (app f' x' === app g' x') ==> f' === g')
+    }
+  where
+    vs@[f,g,x] = take 3 varNames
+    [f',g',x'] = map qvar vs
 
 -- | A bunch of variable names to quantify over
 varNames :: [Var]
@@ -151,15 +176,3 @@ varNames =
    | i <- [0..]
    | n <- [1..] >>= flip replicateM "xyzwvu"
    ]
-
-mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
-mkPtr HaloConf{use_min} f as = Subtheory
-    { provides    = Pointer f
-    , depends     = []
-    , description = "Pointer axiom to " ++ show f
-    , formulae    = let as' = map qvar as
-                    in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
-                                          ===> apps (ptr f) as' === fun f as'
-                        ]
-
-    }

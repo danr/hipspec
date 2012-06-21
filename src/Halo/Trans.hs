@@ -45,6 +45,7 @@ translate env ty_cons binds =
           ,mkConPtrs     halo_conf ty_cons
           ,mkCF          halo_conf ty_cons
           ,[axiomsBadUNR halo_conf]
+          ,[extEq]
           ,tr_funs]
       ,msgs ++ showArityMap (arities env))
 
