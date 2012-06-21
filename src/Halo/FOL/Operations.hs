@@ -41,7 +41,7 @@ formulaMapTerms tm qv = go
              Implies f1 f2 -> Implies (go f1) (go f2)
              Neg f'        -> Neg (go f')
              Forall qs f'  -> Forall (map qv qs) (go f')
-             Exists qs f'  -> Forall (map qv qs) (go f')
+             Exists qs f'  -> Exists (map qv qs) (go f')
              CF t          -> CF (tm t)
              Min t         -> Min (tm t)
 
