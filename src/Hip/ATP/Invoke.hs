@@ -23,6 +23,8 @@ import Hip.ATP.Results
 import Hip.ATP.Provers
 import Hip.ATP.RunProver
 
+import Halo.Util ((?))
+
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -45,14 +47,16 @@ plainProof :: PropResult -> Bool
 plainProof = any (\p -> partMethod p == Plain && statusFromPart p /= None)
            . snd . propMatter
 
-data Env = Env { propStatuses    :: MVar (Map PropName Status)
-               , propCodes       :: Map PropName String
-               , reproveTheorems :: Bool
-               , timeout         :: Int
-               , store           :: Maybe FilePath
-               , provers         :: [Prover]
-               , processes       :: Int
-               }
+data Env = Env
+    { propStatuses    :: MVar (Map PropName Status)
+    , propCodes       :: Map PropName String
+    , reproveTheorems :: Bool
+    , timeout         :: Int
+    , store           :: Maybe FilePath
+    , provers         :: [Prover]
+    , processes       :: Int
+    , z_encode        :: Bool
+    }
 
 type ProveM = ReaderT Env IO
 
@@ -66,8 +70,11 @@ invokeATPs properties env@(Env{..}) = do
 
     let codes = M.fromList [ (probName,probCode) | Property probName probCode _ <- properties ]
         env' = env { propStatuses = statusMVar, propCodes = codes }
-        allParts  = [ (propName,part) | Property propName _ parts <- properties , part <- parts ]
-        propParts = M.fromList [ (propName,length parts) | Property propName _ parts <- properties ]
+        allParts  = [ (propName,part)
+                    | Property propName _ parts <- properties
+                    , part <- parts ]
+        propParts = M.fromList [ (propName,length parts)
+                               | Property propName _ parts <- properties ]
 
     probChan         <- newChan
     intermediateChan <- newChan
@@ -75,19 +82,24 @@ invokeATPs properties env@(Env{..}) = do
 
     mapM_ (writeChan probChan) allParts
 
-    workers <- replicateM processes $ forkIO (runProveM env' (worker probChan intermediateChan))
+    workers <- replicateM processes $ forkIO $
+                   runProveM env' (worker probChan intermediateChan)
 
-    void $ forkIO $ runProveM env' (listener intermediateChan resChan propParts workers doneMVar)
+    void $ forkIO $ runProveM env' $
+        listener intermediateChan resChan propParts workers doneMVar
 
     consume resChan doneMVar
   where
     consume :: TChan PropResult -> TVar Bool -> IO [PropResult]
     consume resChan doneTVar = fix $ \loop -> unsafeInterleaveIO $ do
---      putStrLn "consuming..."
-        element <- atomically $ do is_empty <- isEmptyTChan resChan
-                                   done  <- readTVar doneTVar
-                                   if is_empty then (if done then return Nothing else retry)
-                                               else Just <$> readTChan resChan
+        -- Consuming
+        element <- atomically $ do
+            is_empty <- isEmptyTChan resChan
+            done  <- readTVar doneTVar
+            if is_empty then (if done then return Nothing else retry)
+                        else Just <$> readTChan resChan
+
+        -- Time to stop?
         case element of
                 Nothing -> return []
                 Just e  -> (e:) <$> loop
@@ -96,21 +108,21 @@ propStatus :: PropName -> ProveM Status
 propStatus propName = do
     Env{..} <- ask
     if reproveTheorems
-      then return None
-      else do
-        statusMap <- liftIO (readMVar propStatuses)
-        let status = fromMaybe None (M.lookup propName statusMap)
---        liftIO $ putStrLn $ "status on " ++ propName ++ " is " ++ show status
-        return status
+        then return None
+        else do
+            statusMap <- liftIO (readMVar propStatuses)
+            let status = fromMaybe None (M.lookup propName statusMap)
+--          liftIO $ putStrLn $ "status on " ++ propName ++ " is " ++ show status
+            return status
 
 updatePropStatus :: PropName -> Status -> ProveM ()
 updatePropStatus propName status = do
     Env{..} <- ask
-    unless reproveTheorems
-       (liftIO $ modifyMVar_ propStatuses (return . M.insertWith max propName status))
---    liftIO $ do putStrLn $ "updated " ++ propName ++ " to " ++ show status
---                map <- readMVar propStatuses
---                print map
+    unless reproveTheorems $ liftIO $
+        modifyMVar_ propStatuses (return . M.insertWith max propName status)
+--  liftIO $ do putStrLn $ "updated " ++ propName ++ " to " ++ show status
+--              map <- readMVar propStatuses
+--              print map
 
 type ListenerSt = (Map PropName Int,Map PropName PropResult)
 
@@ -142,7 +154,10 @@ listener intermediateChan resChan propParts workers doneTVar = do
 
             -- all parts are done, write on res chan and remove from the state
             when (left == 0) $ do
-                liftIO . atomically . writeTChan resChan =<< gets ((M.! propName) . snd)
+
+                liftIO . atomically . writeTChan resChan =<<
+                     gets ((M.! propName) . snd)
+
                 modify (M.delete propName *** M.delete propName)
 
             -- are we finished?
@@ -151,7 +166,7 @@ listener intermediateChan resChan propParts workers doneTVar = do
 
     unless (M.null propParts) (evalStateT process initState)
 
-    liftIO $ do -- putStrLn "All parts are done"
+    liftIO $ do -- All parts are done
                 mapM_ killThread workers
                 atomically (writeTVar doneTVar True)
   where
@@ -161,9 +176,12 @@ listener intermediateChan resChan propParts workers doneTVar = do
       where
         alterer :: Maybe PropResult -> PropResult
         alterer m = case m of
-           Nothing -> Property name (propCodeMap M.! name) (statusFromPart partRes,[partRes])
+           Nothing -> Property name (propCodeMap M.! name)
+                               (statusFromPart partRes,[partRes])
            Just (Property name' code (status,parts)) ->
-                      Property name' code (statusFromPart partRes `max` status,partRes:parts)
+                      Property name' code
+                               (statusFromPart partRes `max` status
+                               ,partRes:parts)
 
 -- | A worker. Reads the channel of parts to process, and writes to
 -- the result channel. Skips doing the rest of the particles if one
@@ -185,8 +203,9 @@ worker partChan resChan = forever $ do
             if stop then return (Particle particleDesc (Failure,Nothing)) else do
                 resvar <- liftIO newEmptyMVar
 
-                let filename = propName </>
-                               intercalate "_" [proofMethodFile partMethod,particleDesc]
+                let dirname  = (z_encode ? escape) propName
+                    filename = intercalate "_" [proofMethodFile partMethod
+                                               ,particleDesc]
                                ++ ".tptp"
 
                 length tptp `seq`
@@ -196,8 +215,8 @@ worker partChan resChan = forever $ do
                 case store of
                    Nothing  -> return ()
                    Just dir -> liftIO $ do
-                       createDirectoryIfMissing True (dir ++ propName)
-                       writeFile (dir ++ filename) tptp
+                       createDirectoryIfMissing True (dir </> dirname)
+                       writeFile (dir </> dirname </> filename) tptp
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)
                 provedElsewhere <- unnecessary <$> lift (propStatus propName)
@@ -226,4 +245,43 @@ runProvers filename str res = do
                       _         -> return (r,Just (proverName p))
     go []     = return (Failure,Nothing)
 
+escape :: String -> String
+escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
+
+escapes :: Map Char String
+escapes = M.fromList $ map (uncurry (flip (,)))
+    [ ("za",'@')
+    , ("z1",'(')
+    , ("z2",')')
+    , ("zB",'}')
+    , ("zC",'%')
+    , ("zG",'>')
+    , ("zH",'#')
+    , ("zL",'<')
+    , ("zR",'{')
+    , ("zT",'^')
+    , ("zV",'\\')
+    , ("z_",'\'')
+    , ("zb",'!')
+    , ("zc",':')
+    , ("zd",'$')
+    , ("zh",'-')
+    , ("zi",'|')
+    , ("zl",']')
+    , ("zm",',')
+    , ("zn",'&')
+    , ("zo",'.')
+    , ("zp",'+')
+    , ("zq",'?')
+    , ("zr",'[')
+    , ("zs",'*')
+    , ("zt",'~')
+    , ("zv",'/')
+
+    , ("zz",'z')
+
+    , ("_equals_",'=')
+
+    , ("_",' ')
+    ]
 

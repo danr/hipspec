@@ -6,6 +6,7 @@ import System.Console.CmdArgs
 data Params = Params
     { files               :: [FilePath]
     , output              :: Maybe FilePath
+    , z_encode_filenames  :: Bool
     , warnings            :: Bool
 
     , processes           :: Int
@@ -37,6 +38,7 @@ defParams = Params
     { files               = []      &= args   &= typFile
     , warnings            = False   &= help "Show warnings from translation"
     , output              = Nothing &= name "o" &= opt "proving/" &= typDir &= help "Save tptp files in a directory (default proving/)"
+    , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "p" &= help "Prover processes (default 2)"
