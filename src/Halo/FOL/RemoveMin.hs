@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveFunctor #-}
-module Halo.FOL.RemoveMin(removeMins) where
+module Halo.FOL.RemoveMin(removeMins,removeMinsSubthy) where
 
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
+
+import Halo.Subtheory
 
 import Data.Maybe
 import Control.Applicative
@@ -93,4 +95,7 @@ mapCl _ (Comment s)    = pure (Comment s)
 
 removeMins :: [Clause q v] -> [Clause q v]
 removeMins = mapMaybe (mapCl (rmToMaybe . rmMin))
+
+removeMinsSubthy :: Subtheory -> Subtheory
+removeMinsSubthy s = s { formulae = mapMaybe (rmToMaybe . rmMin) (formulae s) }
 
