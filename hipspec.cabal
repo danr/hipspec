@@ -30,6 +30,7 @@ Library
         Halo.FOL.Internals.Internals
         Halo.FOL.Linearise
         Halo.FOL.Operations
+        Halo.FOL.RemoveMin
         Halo.FOL.Rename
         Halo.FOL.Style
         Halo.FreeTyCons
