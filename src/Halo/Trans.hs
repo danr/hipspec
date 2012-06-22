@@ -95,18 +95,6 @@ trDecl f e = do
     e' :: CoreExpr
     (_ty,as,e') = collectTyAndValBinders e
 
-    mk_ptr :: HaloConf -> Subtheory
-    mk_ptr HaloConf{use_min} = Subtheory
-        { provides    = Pointer f
-        , depends     = []
-        , description = "Pointer axiom to " ++ idToStr f
-        , formulae    = let as' = map qvar as
-                        in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
-                                              ===> apps (ptr f) as' === fun f as'
-                            ]
-
-        }
-
 -- | Translate a case expression
 trCase :: CoreExpr -> HaloM [Formula']
 trCase e = case e of
@@ -131,7 +119,7 @@ trCase e = case e of
                     tr_scrut <- trExpr scrutinee
                     let constr = min' lhs : tr_constr
                     qvars <- asks quant
-                    return [ forall' qvars $ constr ===> min' tr_scrut | use_min ]
+                    return [forall' qvars $ constr ===> min' tr_scrut]
 
         -- Add a bottom case
         alts' <- addBottomCase alts_wo_bottom
@@ -168,8 +156,7 @@ trCase e = case e of
             Just tr_constr -> do
                 lhs <- trLhs
                 rhs <- trExpr e
-                return [forall' quant $
-                          [ min' lhs | use_min ] ++ tr_constr ===> lhs === rhs]
+                return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
 
 trLhs :: HaloM Term'
 trLhs = do

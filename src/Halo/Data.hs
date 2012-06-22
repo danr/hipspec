@@ -36,8 +36,8 @@ mkProjDiscrim HaloConf{..} ty_cons =
    [
      -- Projections
      let projections =
-           [ forall' names $ [ min' unproj | use_min ]
-                             ===> proj i data_c unproj === qvar (names !! i)
+           [ forall' names $ min' unproj ==>
+                                 proj i data_c unproj === qvar (names !! i)
            | c <- cons
            , let data_c          = dataConWorkId c
                  (_,_,ty_args,_) = dataConSig c
@@ -51,8 +51,7 @@ mkProjDiscrim HaloConf{..} ty_cons =
 
          discrims =
            [ forall' (names ++ uneq_names) $
-                     ([min' lhs | use_min ] ++ [ min' rhs | need_min && use_min ])
-                     ===> lhs =/= rhs
+                     min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
            | let allcons = map ((,) True) cons
                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
                                      | unr_and_bad ]
@@ -95,15 +94,18 @@ mkCF HaloConf{..} ty_cons = do
         , depends     = []
         , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
         , formulae    = concat $
-            [ forall' [x] (cf (qvar x) ==> min' (qvar x)) | use_min ] :
-            [ (forall' vars ([ min' kxbar | use_min ] ++ map cf xbar
-                             ===> cf kxbar) :)
-            $ guard (arity > 0) >>
-              [ forall' vars $ cf kxbar ==> ands (map cf xbar)
-              , forall' vars $ [ min' kxbar | use_min ] ++ [ neg (cf kxbar) ]
-                            ===> ors [ ands (neg (cf x)
-                                            : [ min' x | use_min ]) | x <- xbar ]
-              ]
+            [ forall' [x] (cf (qvar x) ==> min' (qvar x)) ] :
+
+            [
+                (forall' vars (min' kxbar: map cf xbar ===> cf kxbar) :)
+
+              $ guard (arity > 0) >>
+
+                [ forall' vars $ cf kxbar ==> ands (map cf xbar)
+
+                , forall' vars $ min' kxbar : [ neg (cf kxbar) ] ===>
+                                     ors [ ands [neg (cf x),min' x] | x <- xbar ]
+                ]
             | c <- cons
             , let data_c          = dataConWorkId c
                   (_,_,ty_args,_) = dataConSig c
@@ -126,8 +128,8 @@ axiomsBadUNR HaloConf{..} =
               [ cf (constant UNR)
               , neg (cf (constant BAD))
               , constant UNR =/= constant BAD
-              ] ++
-              [ min' (constant BAD) | use_min ]
+              , min' (constant BAD)
+              ]
          }
     , Subtheory
          { provides    = PrimConApps
@@ -165,13 +167,13 @@ mkConPtrs halo_conf ty_cons = do
 
 
 mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
-mkPtr HaloConf{use_min,ext_eq} f as = Subtheory
+mkPtr HaloConf{ext_eq} f as = Subtheory
     { provides    = Pointer f
     , depends     = [ ExtensionalEquality | ext_eq ]
     , description = "Pointer axiom to " ++ show f
     , formulae    = let as' = map qvar as
-                    in  [ forall' as $ [ min' (apps (ptr f) as') | use_min ]
-                                          ===> apps (ptr f) as' === fun f as'
+                    in  [ forall' as $ min' (apps (ptr f) as') ==>
+                                           apps (ptr f) as' === fun f as'
                         ]
 
     }
