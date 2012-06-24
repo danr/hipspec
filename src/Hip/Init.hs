@@ -66,7 +66,10 @@ processFile Params{..} file = do
 
         theory = Theory (map removeMinsSubthy subtheories)
 
-    return (theory,halt_env,inconsistentProp:mapMaybe trProperty core_props,anns)
+        props = (consistency ? (inconsistentProp:))
+              $ mapMaybe trProperty core_props
+
+    return (theory,halt_env,props,anns)
 
 
 

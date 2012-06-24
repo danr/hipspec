@@ -73,7 +73,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
                         [ lem | Subtheory lem@Lemma{} _ _ _ <- subtheories ]
                     subs  = trim (deps ++ lemma_deps) subtheories
                     pcls' = [ fmap (\cls -> linTPTP
-                                     (strStyle cnf)
+                                     (strStyle comments (not fof))
                                      (renameClauses
                                          (concatMap toClauses subs ++ cls))
                                       ++ "\n"
