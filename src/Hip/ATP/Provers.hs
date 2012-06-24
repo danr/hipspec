@@ -1,20 +1,31 @@
 module Hip.ATP.Provers where
 
 import Hip.ATP.Results
+
+import Data.Maybe
 import Data.List
 import Data.List.Split
 
-data ProverName = E | Vampire | Vampire64 | Prover9 | SPASS | Equinox | Z3
+data ProverName
+    = E
+    | Eproof
+    | Equinox
+    | Prover9
+    | SPASS
+    | Vampire
+    | Vampire64
+    | Z3
   deriving (Eq,Ord)
 
 instance Show ProverName where
-    show Z3        = "z3"
     show E         = "eprover"
-    show Vampire   = "vampire"
-    show Vampire64 = "vampire (64)"
+    show Eproof    = "eproof"
+    show Equinox   = "equinox"
     show Prover9   = "prover9"
     show SPASS     = "spass"
-    show Equinox   = "equinox"
+    show Vampire   = "vampire"
+    show Vampire64 = "vampire (64)"
+    show Z3        = "z3"
 
 data Prover = Prover
     { proverName          :: ProverName
@@ -73,14 +84,14 @@ statusSZS =
 allProvers :: [Prover]
 allProvers =
     [eprover
+    ,eproof
     ,eprover_win
-    ,eproof,
-    ,z3
+    ,equinox
+    ,prover9
+    ,spass
     ,vampire
     ,vampire64
-    ,prover9
-    ,spass,
-    ,equinox]
+    ,z3]
 
 proversFromString :: String -> [Prover]
 proversFromString str = filter ((`elem` str) . proverShort) allProvers
@@ -103,10 +114,13 @@ eprover_win = eprover
 eproof :: Prover
 eproof = template
     { proverName          = Eproof
-    , proverCmd           = "eproof"
-    , proverArgs          = \_ _ -> words "-tAuto -xAuto --tptp3-format"
+    -- , proverCmd           = "eproof"
+    -- , proverArgs          = \s _ -> words "-tAuto -xAuto --tptp3-format" ++ [s]
+    , proverCmd           = "timeout"
+    , proverArgs          = \s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
     , proverShort         = 'f'
     , proverParseLemmas   = Just eproofLemmaParser
+    , proverSuppressErrs  = True
     }
 
 z3 :: Prover
@@ -156,7 +170,7 @@ spass = template
     }
 
 equinox :: Prover
-equinox = Prover
+equinox = template
     { proverName          = Equinox
     , proverCmd           = "equinox"
     , proverCannotStdin   = True
@@ -169,6 +183,6 @@ eproofLemmaParser :: String -> [String]
 eproofLemmaParser = mapMaybe parseLemma . lines
 
 parseLemma :: String -> Maybe String
-parseLemma s = do
-    let [_,l] splitOn "Lemma{" s
-    return $ takeWhile (/= '}') l
+parseLemma s = case splitOn "Lemma{" s of
+    [_,l] -> Just (takeWhile (/= '}') l)
+    _     -> Nothing

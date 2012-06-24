@@ -37,7 +37,14 @@ avgList xs = sum xs `div` genericLength xs
 
 flattenProverResults :: [ProverResult] -> ProverResult
 flattenProverResults xs
-    | all success xs = Success (avgList (map successTime xs))
+    | all success xs = Success
+                           { successTime   = avgList (map successTime xs)
+                           , successLemmas = fmap (nub . concat) . sequence
+                                           $ map successLemmas xs
+                             -- ^ If any of the results were run without
+                             --   knowing of lemmas, don't report anything about
+                             --   lemmas. Otherwise: nub all used lemmas.
+                           }
     | otherwise      = fromMaybe Failure (listToMaybe (filter unknown xs))
 
 instance Eq ProverResult where
@@ -50,12 +57,16 @@ instance Show ProverResult where
 
 -- Status (result) for an entire property or a proof part ------------------------------
 
-data Status = None | Theorem
-  deriving (Eq,Ord,Show,Enum,Bounded)
+-- Remove this data type in favour of only ProverResult?
+
+data Status
+    = None
+    | Theorem { statusLemmas :: Maybe [String] }
+  deriving (Eq,Ord,Show)
 
 statusFromResults :: [ProverResult] -> Status
 statusFromResults [] = None
-statusFromResults res
-    | all success res = Theorem
-    | otherwise = None
+statusFromResults xs = case flattenProverResults xs of
+    Success time lemmas -> Theorem lemmas
+    _                   -> None
 

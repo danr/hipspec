@@ -43,9 +43,13 @@ statusFromPart :: PartResult -> Status
 statusFromPart (Part _ (map (fst . particleMatter) -> res))
     = statusFromResults res
 
-plainProof :: PropResult -> Bool
-plainProof = any (\p -> partMethod p == Plain && statusFromPart p /= None)
-           . snd . propMatter
+plainProof :: PropResult -> Either () (Maybe [String])
+plainProof res = case fmap statusFromPart . find plain_success . snd . propMatter
+                    $ res of
+    Just (Theorem lemmas) -> Right lemmas
+    Nothing               -> Left ()
+  where
+    plain_success p = partMethod p == Plain && statusFromPart p /= None
 
 data Env = Env
     { propStatuses    :: MVar (Map PropName Status)
@@ -172,16 +176,16 @@ listener intermediateChan resChan propParts workers doneTVar = do
   where
     updateResults :: PropName -> PartResult -> Map PropName String
                   -> Map PropName PropResult -> Map PropName PropResult
-    updateResults name partRes propCodeMap= M.alter (Just . alterer) name
+    updateResults name partRes propCodeMap = M.alter (Just . alterer) name
       where
         alterer :: Maybe PropResult -> PropResult
         alterer m = case m of
-           Nothing -> Property name (propCodeMap M.! name)
-                               (statusFromPart partRes,[partRes])
+           Nothing ->
+               Property name (propCodeMap M.! name)
+                        (statusFromPart partRes ,[partRes])
            Just (Property name' code (status,parts)) ->
-                      Property name' code
-                               (statusFromPart partRes `max` status
-                               ,partRes:parts)
+               Property name' code
+                        (statusFromPart partRes `max` status,partRes:parts)
 
 -- | A worker. Reads the channel of parts to process, and writes to
 -- the result channel. Skips doing the rest of the particles if one
@@ -194,8 +198,8 @@ worker partChan resChan = forever $ do
 
     env@(Env{..}) <- ask
 
-    let unnecessary Theorem       = True
-        unnecessary _             = False
+    let unnecessary Theorem{} = True
+        unnecessary _         = False
 
         processParticle :: ParticleIn -> StateT Bool ProveM ParticleResult
         processParticle (Particle particleDesc tptp) = do
@@ -203,20 +207,20 @@ worker partChan resChan = forever $ do
             if stop then return (Particle particleDesc (Failure,Nothing)) else do
                 resvar <- liftIO newEmptyMVar
 
-                let dirname  = (z_encode ? escape) propName
-                    filename = intercalate "_" [proofMethodFile partMethod
-                                               ,particleDesc]
-                               ++ ".tptp"
+                let almost_filename = proofMethodFile partMethod ++ "_" ++
+                                      particleDesc ++ ".tptp"
+                filename <- case store of
+                    Nothing  -> return almost_filename
+                    Just dir -> liftIO $ do
+                        let dirname  = (z_encode ? escape) propName
+                            filename = dir </> dirname </> almost_filename
+                        createDirectoryIfMissing True (dir </> dirname)
+                        writeFile filename tptp
+                        return filename
 
                 length tptp `seq`
                     (void . liftIO . forkIO
                           . runProveM env . runProvers filename tptp $ resvar)
-
-                case store of
-                    Nothing  -> return ()
-                    Just dir -> liftIO $ do
-                        createDirectoryIfMissing True (dir </> dirname)
-                        writeFile (dir </> dirname </> filename) tptp
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)
                 provedElsewhere <- unnecessary <$> lift (propStatus propName)

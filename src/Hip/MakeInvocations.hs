@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards #-}
 module Hip.MakeInvocations where
 
 import Hip.ATP.Invoke
@@ -27,24 +27,25 @@ import Control.Monad
 import UniqSupply
 
 data InvokeResult
-    = ByInduction
-    | ByPlain
+    = ByInduction { invokeLemmas :: Maybe [String] }
+    | ByPlain     { invokeLemmas :: Maybe [String] }
     | NoProof
   deriving (Eq,Ord,Show)
 
 toInvokeResult :: PropResult -> InvokeResult
 toInvokeResult p
-    | plainProof p               = ByPlain
-    | fst (propMatter p) /= None = ByInduction
-    | otherwise                  = NoProof
+    | Right lemmas <- plainProof p    = ByPlain lemmas
+    | let status = fst (propMatter p)
+    , status /= None                  = ByInduction (statusLemmas status)
+    | otherwise                       = NoProof
 
 partitionInvRes :: [(a,InvokeResult)] -> ([a],[a],[a])
-partitionInvRes ((x,ir):xs) =
-    let (a,b,c) = partitionInvRes xs
-    in case ir of ByInduction -> (x:a,b,c)
-                  ByPlain     -> (a,x:b,c)
-                  NoProof     -> (a,b,x:c)
-partitionInvRes [] = ([],[],[])
+partitionInvRes []          = ([],[],[])
+partitionInvRes ((x,ir):xs) = case ir of
+    ByInduction{} -> (x:a,b,c)
+    ByPlain{}     -> (a,x:b,c)
+    NoProof       -> (a,b,x:c)
+  where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: HaloEnv -> Params -> [Prop] -> Theory -> [Prop]
@@ -101,14 +102,25 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
         let green | propOops original = Red
                   | otherwise         = Green
 
-        case invRes of
-            ByInduction -> putStrLn $ bold $ colour green
-                                    $ "Proved " ++ prop_name
-            ByPlain     -> putStrLn $ colour green $ "Proved " ++ prop_name
-                                                      ++ " without induction"
-            NoProof     -> putStrLn $ "Failed to prove " ++ prop_name
+        putStrLn $ viewInvRes green prop_name invRes
 
         return (original,invRes)
+
+viewInvRes green prop_name res = case res of
+    ByInduction lemmas ->
+        bold_green ("Proved " ++ prop_name) ++ view_lemmas lemmas
+    ByPlain lemmas ->
+        colour green ("Proved " ++ prop_name ++ " without induction")
+         ++ view_lemmas lemmas
+    NoProof -> "Failed to prove " ++ prop_name
+  where
+    bold_green = bold . colour green
+
+    view_lemmas mx = case mx of
+        Nothing  -> ""
+        Just []  -> ", using no lemmas"
+        Just [x] -> ", using " ++ x
+        Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
 
 parLoop :: HaloEnv -> Params -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
 parLoop halo_env params thy props lemmas = do

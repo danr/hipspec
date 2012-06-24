@@ -14,15 +14,25 @@ import Control.Monad
 import System.Process
 import System.IO
 import System.CPUTime
+import System.Directory
 
 runProver :: FilePath -> Prover -> String -> Int -> IO ProverResult
 runProver filename (Prover{..}) inputStr timelimit = do
 --  putStrLn $ "Running prover " ++ show proverName
+
+    -- Check that file exists (is running with --output) if prover
+    -- cannot read from stdin
+    when proverCannotStdin $ do
+        exists <- doesFileExist filename
+        unless exists $ hPutStrLn stderr $
+            "*** " ++ filename ++ " using " ++  show proverName ++
+            " must read its input from a file, run with --output ***"
+
     (Just inh, Just outh, Just errh, pid) <-
-       createProcess (proc proverCmd (proverArgs timelimit))
-                     { std_in  = CreatePipe
-                     , std_out = CreatePipe
-                     , std_err = CreatePipe }
+         createProcess (proc proverCmd (proverArgs filename timelimit))
+                       { std_in  = CreatePipe
+                       , std_out = CreatePipe
+                       , std_err = CreatePipe }
 
 --  putStrLn "Reading output..."
     -- fork off a thread to start consuming the output
@@ -35,14 +45,16 @@ runProver filename (Prover{..}) inputStr timelimit = do
     unless proverSuppressErrs $ void $ forkIO $ do
         err <- hGetContents errh
         n   <- evaluate (length err)
-        when (n > 0) $ do
-            hPutStrLn stderr $ "*** " ++ filename ++ " using "
-                            ++ show proverName ++ " stderr: ***"
-            hPutStrLn stderr err
+        when (n > 0) $ hPutStrLn stderr $
+            "*** " ++ filename ++ " using " ++ show proverName ++ " stderr: ***"
+            ++ "\n" ++ err
 
 --  putStrLn "Write and flush input"
     -- now write and flush any input
-    when (not (null inputStr)) $ do hPutStr inh inputStr; hFlush inh
+    unless (null inputStr || proverCannotStdin) $ do
+        hPutStr inh inputStr
+        hFlush inh
+
     hClose inh -- done with stdin
 
 --  putStrLn "Waiting for result..."
@@ -81,7 +93,7 @@ runProver filename (Prover{..}) inputStr timelimit = do
 
     return $ case proverParseLemmas of
         Just lemma_parser -> case result of
-            Success{} -> result { successLemmas = Just (lemma_parser output)
+            Success{} -> result { successLemmas = Just (lemma_parser output) }
             _         -> result
         Nothing -> result
 
