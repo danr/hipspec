@@ -77,7 +77,7 @@ toClauses (Subtheory{..}) =
     (map (namedClause name cltype) formulae)
   where
     name   = case provides of
-                 Lemma s _ -> s
+                 Lemma s _ -> "Lemma{" ++ s ++ "}"
                  _         -> "x"
 
     cltype = case provides of
