@@ -2,33 +2,56 @@ module Hip.ATP.Provers where
 
 import Hip.ATP.Results
 import Data.List
+import Data.List.Split
 
 data ProverName = E | Vampire | Vampire64 | Prover9 | SPASS | Equinox | Z3
   deriving (Eq,Ord)
 
 instance Show ProverName where
-  show Z3        = "z3"
-  show E         = "eprover"
-  show Vampire   = "vampire"
-  show Vampire64 = "vampire (64)"
-  show Prover9   = "prover9"
-  show SPASS     = "spass"
-  show Equinox   = "equinox"
+    show Z3        = "z3"
+    show E         = "eprover"
+    show Vampire   = "vampire"
+    show Vampire64 = "vampire (64)"
+    show Prover9   = "prover9"
+    show SPASS     = "spass"
+    show Equinox   = "equinox"
 
-data Prover = Prover { proverName          :: ProverName
-                     -- ^ Name of the prover in the prover datatype
-                     , proverCmd           :: String
-                     -- ^ system command to createProcess
-                     , proverArgs          :: Int -> [String]
-                     -- ^ given timeout in secs, args to createProcess
-                     , proverProcessOutput :: String -> Integer -> ProverResult
-                     -- ^ processes the output and time and gives a result
-                     , proverShort         :: Char
-                     -- ^ short char for command line options
-                     , proverSuppressErrs  :: Bool
-                     -- ^ should we ignore standard error from this prover?
-                     }
+data Prover = Prover
+    { proverName          :: ProverName
+    -- ^ Name of the prover in the prover datatype
+    , proverCmd           :: String
+    -- ^ system command to createProcess
+    , proverCannotStdin   :: Bool
+    -- ^ this prover cannot read from stdin, so instead read from file
+    , proverArgs          :: String -> Int -> [String]
+    -- ^ given file name (if proverCannotStdin)
+    --   and timeout in secs, args to createProcess
+    , proverProcessOutput :: String -> Integer -> ProverResult
+    -- ^ processes the output and time and gives a result
+    , proverShort         :: Char
+    -- ^ short char for command line options
+    , proverSuppressErrs  :: Bool
+    -- ^ should we ignore standard error from this prover?
+    , proverParseLemmas   :: Maybe (String -> [String])
+    -- ^ this prover's method of parsing lemmas
+    }
 
+-- | A template for most provers:
+--      * Can read from stdin
+--      * Uses SZS status reporting
+--      * Only raises errors upon real errors
+--      * Cannot parse lemmas
+template :: Prover
+template = Prover
+    { proverName          = error "stdProver: Fill in your prover's name"
+    , proverCmd           = error "stdProver: Fill in your prover's cmd"
+    , proverCannotStdin   = False
+    , proverArgs          = error "stdProver: Fill in your prover's args"
+    , proverProcessOutput = searchOutput statusSZS
+    , proverShort         = error "stdProver: Fill in your prover's short"
+    , proverSuppressErrs  = False
+    , proverParseLemmas   = Nothing
+    }
 
 -- Should really use something more efficient than isInfixOf
 searchOutput :: [(String,time -> ProverResult)] -> String -> time -> ProverResult
@@ -39,23 +62,35 @@ searchOutput ((s,r):xs) output time
 
 
 statusSZS :: [(String,Integer -> ProverResult)]
-statusSZS = [("Theorem",Success),("Unsatisfiable",Success)
-            ,("CounterSatisfiable",const Failure),("Timeout",const Failure)]
+statusSZS =
+    [("Theorem",mkSuccess)
+    ,("Unsatisfiable",mkSuccess)
+    ,("CounterSatisfiable",const Failure)
+    ,("Satisfiable",const Failure)
+    ,("Timeout",const Failure)
+    ]
 
 allProvers :: [Prover]
-allProvers = [vampire,vampire64,prover9,spass,eprover,eprover_win,equinox,z3]
+allProvers =
+    [eprover
+    ,eprover_win
+    ,eproof,
+    ,z3
+    ,vampire
+    ,vampire64
+    ,prover9
+    ,spass,
+    ,equinox]
 
 proversFromString :: String -> [Prover]
 proversFromString str = filter ((`elem` str) . proverShort) allProvers
 
 eprover :: Prover
-eprover = Prover
+eprover = template
     { proverName          = E
     , proverCmd           = "eprover"
-    , proverArgs          = \_ -> words "-tAuto -xAuto --tptp3-format -s"
-    , proverProcessOutput = searchOutput statusSZS
+    , proverArgs          = \_ _ -> words "-tAuto -xAuto --tptp3-format -s"
     , proverShort         = 'e'
-    , proverSuppressErrs  = False
     }
 
 eprover_win :: Prover
@@ -65,24 +100,29 @@ eprover_win = eprover
     , proverSuppressErrs  = True
     }
 
+eproof :: Prover
+eproof = template
+    { proverName          = Eproof
+    , proverCmd           = "eproof"
+    , proverArgs          = \_ _ -> words "-tAuto -xAuto --tptp3-format"
+    , proverShort         = 'f'
+    , proverParseLemmas   = Just eproofLemmaParser
+    }
+
 z3 :: Prover
-z3 = Prover
+z3 = template
     { proverName          = Z3
     , proverCmd           = "z3"
-    , proverArgs          = \_ -> words "-tptp -nw /dev/stdin"
-    , proverProcessOutput = searchOutput statusSZS
+    , proverArgs          = \_ _ -> words "-tptp -nw /dev/stdin"
     , proverShort         = 'z'
-    , proverSuppressErrs  = False
     }
 
 vampire :: Prover
-vampire = Prover
+vampire = template
     { proverName          = Vampire
     , proverCmd           = "vampire_lin32"
-    , proverArgs          = \t -> words ("--proof tptp --mode casc -t " ++ show t)
-    , proverProcessOutput = searchOutput statusSZS
+    , proverArgs          = \_ t -> words ("--proof tptp --mode casc -t " ++ show t)
     , proverShort         = 'v'
-    , proverSuppressErrs  = False
     }
 
 vampire64 :: Prover
@@ -93,31 +133,42 @@ vampire64 = vampire
     }
 
 prover9 :: Prover
-prover9 = Prover
+prover9 = template
     { proverName          = Prover9
     , proverCmd           = "prover9script"
-    , proverArgs          = \t -> [show t]
-    , proverProcessOutput = searchOutput [("THEOREM PROVED",Success),("SEARCH FAILED",const Failure)]
+    , proverArgs          = \_ t -> [show t]
+    , proverProcessOutput = searchOutput
+                                [("THEOREM PROVED",mkSuccess)
+                                ,("SEARCH FAILED",const Failure)]
     , proverShort         = 'p'
-    , proverSuppressErrs  = False
     }
 
 spass :: Prover
-spass = Prover
+spass = template
     { proverName          = SPASS
     , proverCmd           = "SPASS"
-    , proverArgs          = \t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
-    , proverProcessOutput = searchOutput [("Proof found.",Success),("Completion found.",const Failure),("Ran out of time.",const Failure)]
+    , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
+    , proverProcessOutput = searchOutput
+                                [("Proof found.",mkSuccess)
+                                ,("Completion found.",const Failure)
+                                ,("Ran out of time.",const Failure)]
     , proverShort         = 's'
-    , proverSuppressErrs  = False
     }
 
 equinox :: Prover
 equinox = Prover
     { proverName          = Equinox
     , proverCmd           = "equinox"
-    , proverArgs          = \_ -> words ("--tstp --split /dev/stdin")
-    , proverProcessOutput = searchOutput statusSZS
+    , proverCannotStdin   = True
+    , proverArgs          = \s _ -> words ("--tstp --split " ++ s)
     , proverShort         = 'x'
-    , proverSuppressErrs  = False
     }
+
+-- | The parser eproof uses to parse TSTP lemmas
+eproofLemmaParser :: String -> [String]
+eproofLemmaParser = mapMaybe parseLemma . lines
+
+parseLemma :: String -> Maybe String
+parseLemma s = do
+    let [_,l] splitOn "Lemma{" s
+    return $ takeWhile (/= '}') l

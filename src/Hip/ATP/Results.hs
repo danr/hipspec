@@ -7,12 +7,22 @@ import Data.Function
 
 -- Result from a prover invocation --------------------------------------------
 
-data ProverResult = Success { successTime :: Integer }
-                  -- ^ Success: Theorem or Countersatisfiable
-                  | Failure
-                  -- ^ Failure: Satisfiable etc, and timeouts or skipped
-                  | Unknown String
-                  -- ^ Unreckognized output. For debugging
+data ProverResult
+    = Success
+         { successTime :: Integer
+         -- ^ Time in milliseconds
+         , successLemmas :: Maybe [String]
+         -- ^ Just lemmas used if prover is capable of producing a proof
+         }
+    -- ^ Success: Theorem/Unsatisfiable
+    | Failure
+    -- ^ Failure: Timeout/Satisfiable
+    | Unknown String
+    -- ^ Unrecognised output. For debugging
+
+-- | Make a Success result, but register nothing about lemmas
+mkSuccess :: Integer -> ProverResult
+mkSuccess time = Success time Nothing
 
 success :: ProverResult -> Bool
 success Success{} = True

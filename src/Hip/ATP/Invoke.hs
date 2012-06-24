@@ -213,10 +213,10 @@ worker partChan resChan = forever $ do
                           . runProveM env . runProvers filename tptp $ resvar)
 
                 case store of
-                   Nothing  -> return ()
-                   Just dir -> liftIO $ do
-                       createDirectoryIfMissing True (dir </> dirname)
-                       writeFile (dir </> dirname </> filename) tptp
+                    Nothing  -> return ()
+                    Just dir -> liftIO $ do
+                        createDirectoryIfMissing True (dir </> dirname)
+                        writeFile (dir </> dirname </> filename) tptp
 
                 (res,maybeProver) <- liftIO (takeMVar resvar)
                 provedElsewhere <- unnecessary <$> lift (propStatus propName)
