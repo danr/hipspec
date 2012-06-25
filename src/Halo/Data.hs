@@ -84,8 +84,8 @@ mkProjDiscrim HaloConf{..} ty_cons =
    ]
 
 -- | Make axioms about CF
-mkCF :: HaloConf -> [TyCon] -> [Subtheory]
-mkCF HaloConf{..} ty_cons = do
+mkCF :: [TyCon] -> [Subtheory]
+mkCF ty_cons = do
     ty_con <- ty_cons
     let DataTyCon cons _ = algTyConRhs ty_con
 
@@ -118,8 +118,8 @@ mkCF HaloConf{..} ty_cons = do
   where
     x = head varNames
 
-axiomsBadUNR :: HaloConf -> [Subtheory]
-axiomsBadUNR HaloConf{..} =
+axiomsBadUNR :: [Subtheory]
+axiomsBadUNR =
     [ Subtheory
          { provides    = PrimConAxioms
          , depends     = [ PrimConApps ]

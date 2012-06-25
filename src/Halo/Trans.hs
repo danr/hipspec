@@ -31,7 +31,6 @@ import Control.Monad.Error
 import Data.List
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
---   TODO: Register used function pointers
 translate :: HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
 translate env ty_cons binds =
   let tr_funs :: [Subtheory]
@@ -43,8 +42,8 @@ translate env ty_cons binds =
   in  (concat
           [mkProjDiscrim halo_conf ty_cons
           ,mkConPtrs     halo_conf ty_cons
-          ,mkCF          halo_conf ty_cons
-          ,axiomsBadUNR  halo_conf
+          ,mkCF          ty_cons
+          ,axiomsBadUNR
           ,[extEq]
           ,tr_funs]
       ,msgs ++ showArityMap (arities env))
@@ -61,7 +60,7 @@ trDecl f e = do
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
 
-    let fun_deps = uniqSetToList (exprFreeIds e)
+    let fun_deps = uniqSetToList (exprFreeIds e `delOneFromUniqSet` f)
 
         data_deps = freeTyCons e
 
@@ -97,66 +96,66 @@ trDecl f e = do
 
 -- | Translate a case expression
 trCase :: CoreExpr -> HaloM [Formula']
-trCase e = case e of
-    Case scrutinee scrut_var _ty alts_unsubst -> do
+trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
 
-        write $ "Case on " ++ showExpr scrutinee
+    write $ "Case on " ++ showExpr scrutinee
 
-        -- Substitute the scrutinee var to the scrutinee expression
-        let subst_alt (c,bs,e_alt) = (c,bs,substExpr (text "trCase") s e_alt)
-              where  s = extendIdSubst emptySubst scrut_var scrutinee
+    -- Substitute the scrutinee var to the scrutinee expression
+    let subst_alt (c,bs,e_alt) = (c,bs,substExpr (text "trCase") s e_alt)
+          where  s = extendIdSubst emptySubst scrut_var scrutinee
 
-            alts_wo_bottom = map subst_alt alts_unsubst
+        alts_wo_bottom = map subst_alt alts_unsubst
 
-        HaloConf{..} <- asks conf
+    HaloConf{..} <- asks conf
 
-        min_formula <- do
-            m_tr_constr <- trConstraints
-            case m_tr_constr of
-                Nothing -> return []
-                Just tr_constr -> do
-                    lhs <- trLhs
-                    tr_scrut <- trExpr scrutinee
-                    let constr = min' lhs : tr_constr
-                    qvars <- asks quant
-                    return [forall' qvars $ constr ===> min' tr_scrut]
-
-        -- Add a bottom case
-        alts' <- addBottomCase alts_wo_bottom
-
-        -- If there is a default case, translate it separately
-        (alts,def_formula) <- case alts' of
-
-             (DEFAULT,[],def_expr):alts -> do
-
-                 -- Collect the negative patterns
-                 neg_constrs <- mapM (invertAlt scrutinee) alts
-
-                 -- Translate the default formula which happens on the negative
-                 -- constraints
-                 def_formula' <- local (\env -> env { constr = neg_constrs ++ constr env })
-                                       (trCase def_expr)
-
-                 return (alts,def_formula')
-
-             alts -> return (alts,[])
-
-        -- Translate the alternatives that are not deafult
-        -- (mutually recursive with this function)
-        alt_formulae <- concatMapM (trAlt scrutinee) alts
-
-        return (min_formula ++ alt_formulae ++ def_formula)
-    _ -> do
-        HaloEnv{current_fun,quant} <- ask
-        HaloConf{..} <- asks conf
-        write $ "At the end of " ++ idToStr current_fun ++ "'s branch: " ++ showExpr e
+    min_formula <- do
         m_tr_constr <- trConstraints
         case m_tr_constr of
             Nothing -> return []
             Just tr_constr -> do
                 lhs <- trLhs
-                rhs <- trExpr e
-                return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
+                tr_scrut <- trExpr scrutinee
+                let constr = min' lhs : tr_constr
+                qvars <- asks quant
+                return [forall' qvars $ constr ===> min' tr_scrut]
+
+    -- Add a bottom case
+    alts' <- addBottomCase alts_wo_bottom
+
+    -- If there is a default case, translate it separately
+    (alts,def_formula) <- case alts' of
+
+         (DEFAULT,[],def_expr):alts -> do
+
+             -- Collect the negative patterns
+             neg_constrs <- mapM (invertAlt scrutinee) alts
+
+             -- Translate the default formula which happens on the negative
+             -- constraints
+             def_formula' <- local (\env -> env { constr = neg_constrs ++ constr env })
+                                   (trCase def_expr)
+
+             return (alts,def_formula')
+
+         alts -> return (alts,[])
+
+    -- Translate the alternatives that are not deafult
+    -- (mutually recursive with this function)
+    alt_formulae <- concatMapM (trAlt scrutinee) alts
+
+    return (min_formula ++ alt_formulae ++ def_formula)
+
+trCase e = do
+
+    HaloEnv{current_fun,quant} <- ask
+    write $ "At the end of " ++ idToStr current_fun ++ "'s branch: " ++ showExpr e
+    m_tr_constr <- trConstraints
+    case m_tr_constr of
+        Nothing -> return []
+        Just tr_constr -> do
+            lhs <- trLhs
+            rhs <- trExpr e
+            return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
 
 trLhs :: HaloM Term'
 trLhs = do
@@ -166,14 +165,14 @@ trLhs = do
 invertAlt :: CoreExpr -> CoreAlt -> HaloM Constraint
 invertAlt scrut_exp (cons,_,_) = case cons of
     DataAlt data_con -> return (Inequality scrut_exp data_con)
-    DEFAULT          -> throwError "invertAlt on DEFAULT"
-    _                -> throwError "invertAlt on LitAlt (literals not supported)"
+    DEFAULT -> throwError "invertAlt: on DEFAULT, internal error"
+    _       -> throwError "invertAlt: on LitAlt, literals not supported (yet)"
 
 trAlt :: CoreExpr -> CoreAlt -> HaloM [Formula']
 trAlt scrut_exp alt@(cons,_,_) = case cons of
     DataAlt data_con -> trCon data_con scrut_exp alt
     DEFAULT -> throwError "trAlt: on DEFAULT, internal error"
-    _       -> throwError "trAlt: on LitAlt, literals not supported yet!"
+    _       -> throwError "trAlt: on LitAlt, literals not supported (yet)"
 
 trCon :: DataCon -> CoreExpr -> CoreAlt -> HaloM [Formula']
 trCon data_con scrut_exp (cons,bound,e) = do

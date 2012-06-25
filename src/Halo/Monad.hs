@@ -29,47 +29,48 @@ import Data.List (delete,union)
 import Control.Monad.RWS
 import Control.Monad.Error
 
--- Map associating each function/CAF with its arity
+-- | Map associating each function/CAF with its arity
 type ArityMap = Map Name Int
 
+-- | Debug the arity map
 showArityMap :: ArityMap -> [String]
 showArityMap m =
     [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v
     | (k,v) <- M.toList m ]
 
--- The Environment
-data HaloEnv
-    = HaloEnv { arities     :: ArityMap
-              -- ^ Arities of top level definitions
-              , current_fun :: Var
-              -- ^ Current function
-              , args        :: [CoreExpr]
-              -- ^ Arguments to current function
-              , quant       :: [Var]
-              -- ^ Quantified variables
-              , constr      :: [Constraint]
-              -- ^ Constraints
-              , conf        :: HaloConf
-              -- ^ Configuration
-              }
+-- | The Environment
+data HaloEnv = HaloEnv
+    { arities     :: ArityMap
+    -- ^ Arities of top level definitions
+    , current_fun :: Var
+    -- ^ Current function
+    , args        :: [CoreExpr]
+    -- ^ Arguments to current function
+    , quant       :: [Var]
+    -- ^ Quantified variables
+    , constr      :: [Constraint]
+    -- ^ Constraints
+    , conf        :: HaloConf
+    -- ^ Configuration
+    }
 
--- Pushes new quantified variables to the environment
+-- | Pushes new quantified variables to the environment
 pushQuant :: [Var] -> HaloEnv -> HaloEnv
 pushQuant qs env = env { quant = qs `union` quant env }
 
--- Deletes a variable from the quantified list
+-- | Deletes a variable from the quantified list
 delQuant :: Var -> HaloEnv -> HaloEnv
 delQuant v env = env { quant = delete v (quant env) }
 
--- Pushes a new constraint to an environment
+-- | Pushes a new constraint to an environment
 pushConstraint :: Constraint -> HaloEnv -> HaloEnv
 pushConstraint c = pushConstraints [c]
 
--- Pushes many new constraints to an environment
+-- | Pushes many new constraints to an environment
 pushConstraints :: [Constraint] -> HaloEnv -> HaloEnv
 pushConstraints cs env = env { constr = cs ++ constr env }
 
--- Extends the arities
+-- | Extends the arities
 extendArities :: ArityMap -> HaloEnv -> HaloEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
@@ -128,6 +129,7 @@ capturePtrs m = do
         Just vs -> return (res,varSetElems vs)
         Nothing -> nested_err
 
+-- | Register a pointer as used. Must be run inside capturePtrs
 usePtr :: Var -> HaloM ()
 usePtr v = do
     write $ "Registering " ++ show v ++ " as a used pointer"
@@ -141,6 +143,7 @@ usePtr v = do
 cleanUpFailedCapture :: HaloM ()
 cleanUpFailedCapture = put Nothing
 
+-- | Substitute the entire context, i.e. arguments and constraints
 substContext :: Subst -> HaloEnv -> HaloEnv
 substContext s env = env
     { args = map (substExpr (text "substContext:args") s) (args env)
