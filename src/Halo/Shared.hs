@@ -6,6 +6,12 @@ import Outputable
 import PprCore
 import CoreSyn
 
+-- | Makes Rec or NonRec depending on input list length is 1 or not
+mkCoreBind :: [(Var,CoreExpr)] -> CoreBind
+mkCoreBind [(f,e)] = NonRec f e
+mkCoreBind fses    = Rec fses
+
+-- | Shows something outputable
 showOutputable :: Outputable a => a -> String
 showOutputable = showSDoc . ppr
 
@@ -24,7 +30,6 @@ showExpr = showSDoc . pprCoreExpr
 exprArity :: CoreExpr -> Int
 exprArity e = length as
   where (_,as,_) = collectTyAndValBinders e
-
 
 -- | Removes the type arguments
 trimTyArgs :: [CoreArg] -> [CoreArg]
