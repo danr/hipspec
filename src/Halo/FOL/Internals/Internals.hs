@@ -20,6 +20,7 @@ import Data.Data
 data Term q v
     = Fun v [Term q v]
     | Ctor v [Term q v]
+    | Skolem v
     | App (Term q v) (Term q v)
     | Proj Int v (Term q v)
     | Ptr v
@@ -41,10 +42,12 @@ data Formula q v
     | MinRec (Term q v)
   deriving (Eq,Ord,Show,Data,Typeable)
 
-data ClType = Axiom | Lemma | Hypothesis | Definition
-            | Conjecture | NegatedConjecture | Question
+data ClType
+    = Axiom | Lemma | Hypothesis | Definition
+    | Conjecture | NegatedConjecture | Question
   deriving (Eq,Ord,Show,Data,Typeable)
 
-data Clause q v = Clause String ClType (Formula q v)
-                | Comment String
+data Clause q v
+    = Clause String ClType (Formula q v)
+    | Comment String
   deriving (Eq,Ord,Show,Data,Typeable)

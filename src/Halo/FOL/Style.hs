@@ -9,6 +9,8 @@ data Style q v = Style
     -- ^ Pretty printing functions and variables
     , linCtor     :: v -> SDoc
     -- ^ Pretty printing constructors
+    , linSkolem   :: v -> SDoc
+    -- ^ Pretty printing Skolemised variables
     , linQVar     :: q -> SDoc
     -- ^ Quantified variables
     , linApp      :: SDoc
@@ -33,17 +35,23 @@ data Style q v = Style
 
 strStyle :: Bool -> Bool -> Style String String
 strStyle comments cnf = Style
-    { linFun  = text
-    , linCtor = text
-    , linQVar = text
-    , linApp  = text "app"
-    , linMin  = text "min"
-    , linMinRec  = text "minrec"
-    , linCF   = text "cf"
-    , linProj = \i n -> text ("p_" ++ show i ++ "_" ++ n)
-      -- Possible collision here...
-    , linPtr  = text . ("ptr" ++)
-    , linCNF  = cnf
-    , linConstant = text . show
+    { linFun      = text . quote . ("f_" ++)
+    , linCtor     = text . quote . ("c_" ++)
+    , linSkolem   = text . quote . ("a_" ++)
+    , linQVar     = text
+    , linApp      = text "app"
+    , linMin      = text "min"
+    , linMinRec   = text "minrec"
+    , linCF       = text "cf"
+    , linProj     = \i n -> text ("p_" ++ show i ++ "_" ++ n)
+    , linPtr      = text . quote . ("ptr_" ++)
+    , linCNF      = cnf
+    , linConstant = text . quote . ("c_" ++) . show
     , linComments = comments
     }
+  where
+    quote s@(x:xs)
+        | x `notElem` ('_'++['a'..'z]) || any requiresQuote xs = "'" ++ c:s ++ "'"
+        | otherwise = s
+
+    requiresQuote = (`notElem` ('_':['0'..'9']++['a'..'z']++['A'..'Z']))

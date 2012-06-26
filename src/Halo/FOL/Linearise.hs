@@ -96,6 +96,7 @@ linTm st tm = case tm of
     Fun a tms   -> linFun st a <> parens (csv (map (linTm st) tms))
     Ctor a []   -> linCtor st a
     Ctor a tms  -> linCtor st a <> parens (csv (map (linTm st) tms))
+    Skolem a    -> linSkolem st a
     App t1 t2   -> linApp st <> parens (csv (map (linTm st) [t1,t2]))
     Proj i c t  -> linProj st i c <> parens (linTm st t)
     Ptr a       -> linPtr st a

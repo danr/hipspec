@@ -48,11 +48,17 @@ data HaloEnv = HaloEnv
     -- ^ Arguments to current function
     , quant       :: [Var]
     -- ^ Quantified variables
+    , skolems     :: [Var]
+    -- ^ Skolemised variables
     , constr      :: [Constraint]
     -- ^ Constraints
     , conf        :: HaloConf
     -- ^ Configuration
     }
+
+-- | Pushes new quantified variables to the environment
+addSkolem :: Var -> HaloEnv -> HaloEnv
+addSkolem v env = env { skolems = v:skolems env }
 
 -- | Pushes new quantified variables to the environment
 pushQuant :: [Var] -> HaloEnv -> HaloEnv
@@ -83,23 +89,24 @@ lookupArity v = do
 -- | Make the environment
 mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
 mkEnv conf@HaloConf{..} ty_cons program =
-  let -- Remove the unnecessary SCC information
-      binds :: [(Var,CoreExpr)]
-      binds = flattenBinds program
+    let -- Remove the unnecessary SCC information
+        binds :: [(Var,CoreExpr)]
+        binds = flattenBinds program
 
-      -- Arity of each function (Arities from other modules are also needed)
-      arities :: ArityMap
-      arities = M.fromList $ [ (v,exprArity e) | (v,e) <- binds ]
-                             ++ dataArities ty_cons
+        -- Arity of each function (Arities from other modules are also needed)
+        arities :: ArityMap
+        arities = M.fromList $ [ (v,exprArity e) | (v,e) <- binds ]
+                               ++ dataArities ty_cons
 
-  in HaloEnv
-         { arities     = arities
-         , current_fun = error "initEnv: current_fun"
-         , args        = []
-         , quant       = []
-         , constr      = noConstraints
-         , conf        = conf
-         }
+    in  HaloEnv
+            { arities     = arities
+            , current_fun = error "initEnv: current_fun"
+            , args        = []
+            , quant       = []
+            , skolems     = []
+            , constr      = noConstraints
+            , conf        = conf
+            }
 
 -- | The translation monad
 --

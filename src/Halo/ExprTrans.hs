@@ -31,10 +31,12 @@ trExpr e = do
                           Just i  -> i > 0
                           Nothing -> False
     case e of
-        Var x | x `elem` errorIds -> return (constant BAD)
-              | x `elem` quant    -> return (qvar x)
-              | isFunction x      -> usePtr x >> return (ptr x)
-              | otherwise         -> return (con x)
+        Var x
+            | x `elem` errorIds -> return (constant BAD)
+            | x `elem` quant    -> return (qvar x)
+            | x `elem` skolems  -> return (skolem x)
+            | isFunction x      -> usePtr x >> return (ptr x)
+            | otherwise         -> return (con x)
         App{} -> do
           write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of

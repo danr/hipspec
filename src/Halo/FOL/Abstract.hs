@@ -1,40 +1,41 @@
 {-# LANGUAGE PatternGuards #-}
 -- (c) Dan Rosén 2012
 module Halo.FOL.Abstract
-       (Term',Formula',Clause',StrClause
+    ( Term', Formula', Clause', StrClause
 
-       ,apply,con
+    , apply, con
 
-       ,fun,fun0
-       ,ctor,ctor0
+    , fun, fun0
+    , ctor, ctor0
 
-       ,constant
-       ,app,apps
-       ,proj
-       ,qvar
-       ,ptr
+    , constant
+    , app, apps
+    , proj
+    , qvar
+    , skolem
+    , ptr
 
-       ,isLiteral
-       ,simpleCNF
+    , isLiteral
+    , simpleCNF
 
-       ,(===),(=/=)
-       ,(==>),(===>)
-       ,(/\),ands
-       ,(\/),ors
-       ,neg
-       ,forall',exists'
+    , (===), (=/=)
+    , (==>), (===>)
+    , (/\), ands
+    , (\/), ors
+    , neg
+    , forall', exists'
 
-       ,min',minrec
-       ,cf
+    , min', minrec
+    , cf
 
-       ,Formula
-       ,Term
-       ,ClType(..)
-       ,Clause
-       ,clause
-       ,comment
-       ,namedClause
-       ) where
+    , Formula
+    , Term
+    , ClType(..)
+    , Clause
+    , clause
+    , comment
+    , namedClause
+    ) where
 
 import Halo.FOL.Internals.Internals
 import Halo.PrimCon
@@ -97,6 +98,9 @@ proj = Proj
 
 qvar :: q -> Term q v
 qvar = QVar
+
+skolem :: v -> Term q v
+skolem = Skolem
 
 ptr :: v -> Term q v
 ptr = Ptr

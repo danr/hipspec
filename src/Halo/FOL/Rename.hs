@@ -110,7 +110,7 @@ varSuggest var = candidates
 
 toTPTPid :: String -> String
 toTPTPid s | Just x <- M.lookup s prelude = x
-           | otherwise                    = escape (lower s)
+           | otherwise                    = escape s -- (lower s)
 
 escape :: String -> String
 escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
@@ -124,76 +124,9 @@ protectedWiredIn = S.fromList ["app","min","minrec","cf","bad","unr"]
 escapes :: Map Char String
 escapes = M.fromList
     [ ('\'',"prime")
-    , ('!' ,"bang")
-    , ('#' ,"hash")
-    , ('$' ,"dollar")
-    , ('%' ,"pc")
-    , ('&' ,"amp")
-    , ('*' ,"star")
-    , ('+' ,"plus")
-    , ('.' ,"_")
-    , ('/' ,"slash")
-    , ('<' ,"less")
-    , ('=' ,"equals")
-    , ('>' ,"greater")
-    , ('?' ,"qmark")
-    , ('\\',"bslash")
-    , ('^' ,"hat")
-    , ('|' ,"pipe")
-    , (':' ,"colon")
-    , ('-' ,"minus")
-    , ('~' ,"tilde")
-    , ('@' ,"at")
-
-    , ('{' ,"rb")
-    , ('}' ,"lb")
-    , ('[' ,"rbr")
-    , (']' ,"lbr")
-    , ('(' ,"rp")
-    , (')' ,"lp")
-    , (',' ,"comma")
     ]
 
 prelude :: Map String String
 prelude = M.fromList
-   [ ("[]","nil")
-   , (":","cons")
-   , ("()","unit")
-   , ("(,)","tup")
-   , ("(,,)","triple")
-   , ("(,,,)","quad")
-   , ("(,,,,)","quint")
-
-   , ("++","append")
-   , ("!!","index")
-
-   , ("+","add")
-   , ("-","sub")
-   , ("/","div")
-   , ("*","mul")
-   , ("^","pow")
-   , ("**","fpow")
-   , ("^^","ipow")
-
-   , (".","comp")
-   , ("$","apply")
-
-   , ("&&","and")
-   , ("||","or")
-
-   , ("==","eq")
-   , ("/=","ne")
-
-   , (">","gt")
-   , ("<","lt")
-   , (">=","ge")
-   , ("<=","le")
-
-   , (">>=","bind")
-   , ("=<<","mapply")
-   , (">>","then")
-   , ("<<","after")
-
-   , ("<$>","fmap")
-   , ("<*>","ap")
+   [
    ]

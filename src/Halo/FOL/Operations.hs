@@ -10,41 +10,46 @@ import Data.Maybe
 
 replaceVarsTm :: (v -> u) -> Term q v -> Term q u
 replaceVarsTm k = go
-  where go tm = case tm of
-             Fun v as   -> Fun (k v) (map go as)
-             Ctor v as  -> Ctor (k v) (map go as)
-             App t1 t2  -> App (go t1) (go t2)
-             Proj i v a -> Proj i (k v) (go a)
-             Ptr v      -> Ptr (k v)
-             QVar q     -> QVar q
-             Constant c -> Constant c
+  where
+    go tm = case tm of
+        Fun v as   -> Fun (k v) (map go as)
+        Ctor v as  -> Ctor (k v) (map go as)
+        Skolem v   -> Skolem (k v)
+        App t1 t2  -> App (go t1) (go t2)
+        Proj i v a -> Proj i (k v) (go a)
+        Ptr v      -> Ptr (k v)
+        QVar q     -> QVar q
+        Constant c -> Constant c
 
 replaceQVarsTm :: (q -> r) -> Term q v -> Term r v
 replaceQVarsTm k = go
-  where go tm = case tm of
-             Fun v as   -> Fun v (map go as)
-             Ctor v as  -> Ctor v (map go as)
-             App t1 t2  -> App (go t1) (go t2)
-             Proj i v a -> Proj i v (go a)
-             Ptr v      -> Ptr v
-             QVar q     -> QVar (k q)
-             Constant c -> Constant c
+  where
+    go tm = case tm of
+        Fun v as   -> Fun v (map go as)
+        Ctor v as  -> Ctor v (map go as)
+        Skolem v   -> Skolem v
+        App t1 t2  -> App (go t1) (go t2)
+        Proj i v a -> Proj i v (go a)
+        Ptr v      -> Ptr v
+        QVar q     -> QVar (k q)
+        Constant c -> Constant c
 
 formulaMapTerms :: (Term q v -> Term r u) -> (q -> r)
                 -> Formula q v -> Formula r u
 formulaMapTerms tm qv = go
-  where go f = case f of
-             Equal t1 t2   -> Equal (tm t1) (tm t2)
-             Unequal t1 t2 -> Unequal (tm t1) (tm t2)
-             And fs        -> And (map go fs)
-             Or fs         -> Or (map go fs)
-             Implies f1 f2 -> Implies (go f1) (go f2)
-             Neg f'        -> Neg (go f')
-             Forall qs f'  -> Forall (map qv qs) (go f')
-             Exists qs f'  -> Exists (map qv qs) (go f')
-             CF t          -> CF (tm t)
-             Min t         -> Min (tm t)
-             MinRec t      -> MinRec (tm t)
+  where
+    go f = case f of
+        Equal t1 t2   -> Equal (tm t1) (tm t2)
+        Unequal t1 t2 -> Unequal (tm t1) (tm t2)
+        And fs        -> And (map go fs)
+        Or fs         -> Or (map go fs)
+        Implies f1 f2 -> Implies (go f1) (go f2)
+        Neg f'        -> Neg (go f')
+        Forall qs f'  -> Forall (map qv qs) (go f')
+        Exists qs f'  -> Exists (map qv qs) (go f')
+        CF t          -> CF (tm t)
+        Min t         -> Min (tm t)
+        MinRec t      -> MinRec (tm t)
 
 clauseMapTerms :: (Term q v -> Term r u) -> (q -> r)
                -> Clause q v -> Clause r u
@@ -58,6 +63,7 @@ allSymbols = nubSorted . mapMaybe get . universeBi
     get :: Term q v -> Maybe v
     get (Fun v _)    = Just v
     get (Ctor v _)   = Just v
+    get (Skolem v)   = Just v
     get (Proj _ v _) = Just v
     get (Ptr v)      = Just v
     get _            = Nothing
