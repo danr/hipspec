@@ -14,11 +14,11 @@ import Halo.FOL.Style
 
 -- | Linearise a set of clauses to a String
 linTPTP :: Style q v -> [Clause q v] -> String
-linTPTP st = showSDoc . linClauses st
+linTPTP st = (++ "\n") . showSDoc . linClauses st
 
 -- | Linearise a set of clauses
 linClauses :: Style q v -> [Clause q v] -> SDoc
-linClauses st cls = vcat (map (linClause st) cls) <> blankLine
+linClauses st cls = vcat (map (linClause st) cls)
 
 -- | Linearises a clause
 --   This function also transforms formulae to CNF, which might indeed
