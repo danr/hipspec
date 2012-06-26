@@ -157,9 +157,7 @@ ghcStyle = Style
 trIndPart :: Prop -> IndPart DataCon Var Type -> HaloM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
-    let skolem_arities = M.fromList [ (idName sk,0) | (sk,_) <- skolem ]
-
-        trPred :: [Term DataCon Var] -> HaloM (String,Formula')
+    let trPred :: [Term DataCon Var] -> HaloM (String,Formula')
         trPred tms = do
             phi <- (===) <$> trExpr lhs <*> trExpr rhs
             return (showExpr lhs ++ "=" ++ showExpr rhs,phi)
@@ -174,6 +172,8 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
         trHyp (map fst -> qs,tms) = local (pushQuant qs)
              (second (forall' qs) <$> trPred tms)
 
+        skolem_arities = M.fromList [ (sk,0) | (sk,_) <- skolem ]
+
     local (extendArities skolem_arities) $ do
         (comm_hyp,tr_hyp)     <- mapAndUnzipM (fmap (second (clause Hypothesis))
                                               . trHyp) hyps
@@ -185,8 +185,3 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
                     ++ "\n" ++ P.render (linPart ghcStyle ind_part))
             :tr_concl
             :tr_hyp
-
-
-
-
-
