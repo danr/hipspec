@@ -27,7 +27,7 @@ import Control.Monad.Error
 trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
     HaloEnv{..} <- ask
-    let isFunction x = case M.lookup (idName x) arities of
+    let isFunction x = case M.lookup x arities of
                           Just i  -> i > 0
                           Nothing -> False
     case e of
@@ -41,7 +41,7 @@ trExpr e = do
             (Var f,es)
                | null es -> trExpr (Var f)
                | f `elem` errorIds -> return (constant BAD)
-               | Just i <- M.lookup (idName f) arities -> do
+               | Just i <- M.lookup f arities -> do
                    write $ idToStr f ++ " has arity " ++ show i
                    if i > length es
                        then do usePtr f

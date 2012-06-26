@@ -9,7 +9,7 @@ module Halo.Monad where
 import CoreSubst
 import CoreSyn
 import Id
-import Name
+import Name hiding (varName)
 import Outputable
 import TyCon
 import Unique
@@ -30,12 +30,12 @@ import Control.Monad.RWS
 import Control.Monad.Error
 
 -- | Map associating each function/CAF with its arity
-type ArityMap = Map Name Int
+type ArityMap = Map Var Int
 
 -- | Debug the arity map
 showArityMap :: ArityMap -> [String]
 showArityMap m =
-    [ showSDoc (ppr k) ++ "(" ++ show (getUnique k) ++ "):" ++ show v
+    [ show k ++ "(" ++ show (getUnique k) ++ "):" ++ show v
     | (k,v) <- M.toList m ]
 
 -- | The Environment
@@ -74,6 +74,12 @@ pushConstraints cs env = env { constr = cs ++ constr env }
 extendArities :: ArityMap -> HaloEnv -> HaloEnv
 extendArities am env = env { arities = am `M.union` arities env }
 
+-- | Lookup the arity for a function
+lookupArity :: Var -> HaloM (Maybe Int)
+lookupArity v = do
+    m <- asks arities
+    return $ M.lookup v m
+
 -- | Make the environment
 mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
 mkEnv conf@HaloConf{..} ty_cons program =
@@ -83,7 +89,7 @@ mkEnv conf@HaloConf{..} ty_cons program =
 
       -- Arity of each function (Arities from other modules are also needed)
       arities :: ArityMap
-      arities = M.fromList $ [ (idName v,exprArity e) | (v,e) <- binds ]
+      arities = M.fromList $ [ (v,exprArity e) | (v,e) <- binds ]
                              ++ dataArities ty_cons
 
   in HaloEnv

@@ -5,6 +5,7 @@ import Name
 import Outputable
 import PprCore
 import CoreSyn
+import CoreSubst
 
 -- | Makes Rec or NonRec depending on input list length is 1 or not
 mkCoreBind :: [(Var,CoreExpr)] -> CoreBind
@@ -38,3 +39,14 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg Type{} = True
     isTyArg _      = False
 
+-- | @subst e x y@ substitutes as e[y/x]
+subst :: CoreExpr -> Var -> Var -> CoreExpr
+subst e x y = substExpr (text "halo") s e
+  where
+    s = extendIdSubst emptySubst x (Var y)
+
+-- | Substitute a list
+substList :: CoreExpr -> [(Var,Var)] -> CoreExpr
+substList e xs = substExpr (text "halo") s e
+  where
+    s = extendIdSubstList emptySubst [ (x,Var y) | (x,y) <- xs ]

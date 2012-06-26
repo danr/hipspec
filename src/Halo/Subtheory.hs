@@ -27,20 +27,20 @@ data Content
     | Function Var
     -- ^ A definition of a function
     | Pointer Var
-    -- ^ The pointer to a definition
+    -- ^ The pointer to a function definition or constructor
     | Lemma String [Var]
     -- ^ [hipspec only] Lemma with a name, regarding a group of definitions
   deriving (Eq,Ord)
 
 instance Show Content where
-  show c = case c of
-      Function v    -> "Function " ++ show v
-      Pointer v     -> "Pointer " ++ show v
-      Data tc       -> "Data " ++ showOutputable tc
-      CrashFree tc  -> "CrashFree " ++ showOutputable tc
-      PrimConAxioms -> "PrimConAxioms"
-      Typing tc     -> "Typing " ++ showOutputable tc
-      Lemma s vs    -> "Lemma " ++ s ++ " (" ++ unwords (map show vs) ++ ")"
+    show c = case c of
+        Function v    -> "Function " ++ show v
+        Pointer v     -> "Pointer " ++ show v
+        Data tc       -> "Data " ++ showOutputable tc
+        CrashFree tc  -> "CrashFree " ++ showOutputable tc
+        PrimConAxioms -> "PrimConAxioms"
+        Typing tc     -> "Typing " ++ showOutputable tc
+        Lemma s vs    -> "Lemma " ++ s ++ " (" ++ unwords (map show vs) ++ ")"
 
 -- | A subtheory
 --

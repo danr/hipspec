@@ -21,12 +21,12 @@ import Halo.Subtheory
 import Data.List
 import Control.Monad.Reader
 
-dataArities :: [TyCon] -> [(Name,Int)]
+dataArities :: [TyCon] -> [(Var,Int)]
 dataArities ty_cons =
-    [ (con_name,arity)
+    [ (con_id,arity)
     | DataTyCon cons _ <- map algTyConRhs ty_cons
     , c <- cons
-    , let con_name        = idName (dataConWorkId c)
+    , let con_id          = dataConWorkId c
           (_,_,ty_args,_) = dataConSig c
           arity           = length ty_args
     ]
@@ -159,24 +159,25 @@ mkConPtrs halo_conf ty_cons = do
     let data_c          = dataConWorkId c
         (_,_,ty_args,_) = dataConSig c
         arity           = length ty_args
-        vars            = take arity varNames
 
     guard (arity > 0)
 
-    return $ (mkPtr halo_conf data_c vars) { depends = [Data ty_con] }
+    return $ (mkPtr halo_conf data_c arity) { depends = [Data ty_con] }
 
 
-mkPtr :: HaloConf -> Var -> [Var] -> Subtheory
-mkPtr HaloConf{ext_eq} f as = Subtheory
+mkPtr :: HaloConf -> Var -> Int -> Subtheory
+mkPtr HaloConf{ext_eq} f arity = Subtheory
     { provides    = Pointer f
     , depends     = [ ExtensionalEquality | ext_eq ]
     , description = "Pointer axiom to " ++ show f
-    , formulae    = let as' = map qvar as
-                    in  [ forall' as $ min' (apps (ptr f) as') ==>
-                                           apps (ptr f) as' === fun f as'
-                        ]
+    , formulae    =
+        [forall' as $ min' (apps (ptr f) as') ==> apps (ptr f) as' === fun f as']
 
     }
+  where
+    as  = take arity varNames
+    as' = map qvar as
+
 
 extEq :: Subtheory
 extEq = Subtheory

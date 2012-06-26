@@ -29,24 +29,30 @@ import Control.Monad.Reader
 import Control.Monad.Error
 
 import Data.List
+import Data.Map (toList)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 translate :: HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
 translate env ty_cons binds =
-  let tr_funs :: [Subtheory]
-      msgs :: [String]
-      (tr_funs,msgs) = runHaloM env (concatMapM trBind binds)
+    let tr_funs :: [Subtheory]
+        msgs :: [String]
+        (tr_funs,msgs) = runHaloM env (concatMapM trBind binds)
 
-      halo_conf = conf env
+        halo_conf = conf env
 
-  in  (concat
-          [mkProjDiscrim halo_conf ty_cons
-          ,mkConPtrs     halo_conf ty_cons
-          ,mkCF          ty_cons
-          ,axiomsBadUNR
-          ,[extEq]
-          ,tr_funs]
-      ,msgs ++ showArityMap (arities env))
+        tr_pointers :: [Subtheory]
+        tr_pointers = map (uncurry (mkPtr halo_conf))
+                          (toList (arities env))
+
+    in  (concat
+            [mkProjDiscrim halo_conf ty_cons
+            ,mkConPtrs     halo_conf ty_cons
+            ,mkCF          ty_cons
+            ,axiomsBadUNR
+            ,[extEq]
+            ,tr_pointers
+            ,tr_funs]
+        ,msgs ++ showArityMap (arities env))
 
 -- | Translate a group of mutally defined binders
 trBind :: CoreBind -> HaloM [Subtheory]
@@ -73,11 +79,8 @@ trDecl f e = do
                               cleanUpFailedCapture
                               return (error err,[])
 
-    halo_conf <- asks conf
-
     return
-        [ mkPtr halo_conf f as
-        , Subtheory
+        [Subtheory
               { provides    = Function f
               , depends     = map Function fun_deps
                            ++ map Pointer used_ptrs
