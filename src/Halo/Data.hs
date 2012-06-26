@@ -36,15 +36,15 @@ mkProjDiscrim HaloConf{..} ty_cons =
    [
      -- Projections
      let projections =
-           [ forall' names $ min' unproj ==>
-                                 proj i data_c unproj === qvar (names !! i)
+           [ forall' xs $ [min' kxs,min' xi] ===> proj i k kxs === xi
            | c <- cons
-           , let data_c          = dataConWorkId c
+           , let k               = dataConWorkId c
                  (_,_,ty_args,_) = dataConSig c
                  arity           = length ty_args
-                 names           = take arity varNames
-                 unproj          = apply data_c (map qvar names)
+                 xs              = take arity varNames
+                 kxs             = apply k (map qvar xs)
            , i <- [0..arity-1]
+           , let xi              = qvar (xs !! i)
            ]
 
      -- Discriminations
