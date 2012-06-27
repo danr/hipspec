@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,ViewPatterns #-}
+{-# LANGUAGE NamedFieldPuns,ViewPatterns #-}
 module Main where
 
 import Hip.Init
@@ -15,7 +15,7 @@ import System.FilePath
 main :: IO ()
 main = do
 
-    params@Params{..} <- cmdArgs defParams
+    Params{files} <- fmap sanitizeParams (cmdArgs defParams)
 
     when (null files) $ do
         putStrLn "No input files. Run with --help to see possible flags."
@@ -26,9 +26,8 @@ main = do
         when (file /= head files) $ putStrLn ""
         when (length files > 1)   $ putStrLn $ file ++ ":"
 
-        (theory,halt_env,props,_) <- processFile params file
+        (theory,halt_env,props,_,params) <- processFile file
 
         (unproved,proved) <- parLoop halt_env params theory props []
 
         printInfo unproved proved
-

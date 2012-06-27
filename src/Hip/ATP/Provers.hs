@@ -114,13 +114,15 @@ eprover_win = eprover
 eproof :: Prover
 eproof = template
     { proverName          = Eproof
-    -- , proverCmd           = "eproof"
-    -- , proverArgs          = \s _ -> words "-tAuto -xAuto --tptp3-format" ++ [s]
+ -- , proverCmd           = "eproof"
+ -- , proverArgs          = \s _ -> words "-tAuto -xAuto --tptp3-format" ++ [s]
+ -- UGLY: eproof does not like to be terminated by us, so I use `timeout'
     , proverCmd           = "timeout"
     , proverArgs          = \s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
     , proverShort         = 'f'
     , proverParseLemmas   = Just eproofLemmaParser
     , proverSuppressErrs  = True
+    , proverCannotStdin   = True
     }
 
 z3 :: Prover

@@ -171,7 +171,7 @@ hipSpec :: FilePath -> [Symbol] -> Int -> IO ()
 hipSpec file ctxt depth = do
     hSetBuffering stdout NoBuffering
 
-    params@Params{..} <- cmdArgs defParams
+    (theory,halt_env,props,anns,params@Params{..}) <- processFile file
 
     (theory,halt_env,props,anns) <- processFile params file
 

@@ -9,6 +9,7 @@
 module Hip.Params where
 
 import System.Console.CmdArgs
+import Hip.ATP.Provers
 
 data Params = Params
     { files               :: [FilePath]
@@ -43,11 +44,24 @@ data Params = Params
     }
   deriving (Show,Data,Typeable)
 
+-- | If you are using a theorem prover that cannot stdin,
+--   then put on output and z-encoding of filenames
+sanitizeParams :: Params -> Params
+sanitizeParams params
+    | any proverCannotStdin (proversFromString (provers params))
+        = params
+            { z_encode_filenames = True
+            , output = if output params == Nothing
+                           then Just "proving"
+                           else output params
+            }
+    | otherwise = params
+
 defParams :: Params
 defParams = Params
     { files               = []      &= args   &= typFile
     , warnings            = False   &= help "Show warnings from translation"
-    , output              = Nothing &= name "o" &= opt "proving/" &= typDir &= help "Save tptp files in a directory (default proving/)"
+    , output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
