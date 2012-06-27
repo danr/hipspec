@@ -94,18 +94,12 @@ mkCF ty_cons = do
         , depends     = []
         , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
         , formulae    = concat $
-            [ forall' [x] (cf (qvar x) ==> min' (qvar x)) ] :
-
             [
-                (forall' vars (min' kxbar: map cf xbar ===> cf kxbar) :)
+                [ forall' vars $ map cf xbar ===> cf kxbar ] ++
 
-              $ guard (arity > 0) >>
+                [ forall' vars $ [cf kxbar,min' kxbar] ===> ands (map cf xbar)
+                | arity > 0]
 
-                [ forall' vars $ cf kxbar ==> ands (map cf xbar)
-
-                , forall' vars $ min' kxbar : [ neg (cf kxbar) ] ===>
-                                     ors [ ands [neg (cf x),min' x] | x <- xbar ]
-                ]
             | c <- cons
             , let data_c          = dataConWorkId c
                   (_,_,ty_args,_) = dataConSig c
@@ -128,7 +122,6 @@ axiomsBadUNR =
               [ cf (constant UNR)
               , neg (cf (constant BAD))
               , constant UNR =/= constant BAD
-              , min' (constant BAD)
               ]
          }
     , Subtheory
@@ -171,8 +164,9 @@ mkPtr HaloConf{ext_eq} f arity = Subtheory
     , depends     = [ ExtensionalEquality | ext_eq ]
     , description = "Pointer axiom to " ++ show f
     , formulae    =
-        [forall' as $ min' (apps (ptr f) as') ==> apps (ptr f) as' === fun f as']
-
+        let lhs = apps (ptr f) as'
+            rhs = fun f as'
+        in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
     }
   where
     as  = take arity varNames
