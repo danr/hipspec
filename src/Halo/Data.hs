@@ -47,7 +47,7 @@ mkProjDiscrims hc ty_cons =
 
 mkProjDiscrim :: HaloConf -> TyCon -> [DataCon] -> Subtheory
 mkProjDiscrim HaloConf{..} ty_con cons
-    | ty_con == boolTyCon = Subtheory
+    | ty_con == boolTyCon && disjoint_booleans = Subtheory
         { provides    = Data ty_con
         , depends     = [ CrashFree ty_con | use_cf ]
         , description = showSDoc (pprSourceTyCon ty_con)
