@@ -6,10 +6,11 @@ module Halo.Data where
 import DataCon
 import Id
 import Name
-import TyCon
-import SrcLoc
 import Outputable
+import SrcLoc
+import TyCon
 import Type
+import TysWiredIn
 import Unique
 
 import Halo.FOL.Abstract
@@ -21,6 +22,12 @@ import Halo.Subtheory
 import Data.List
 import Control.Monad.Reader
 
+true,false,unr,bad :: Term'
+true  = con trueDataConId
+false = con falseDataConId
+unr   = constant UNR
+bad   = constant BAD
+
 dataArities :: [TyCon] -> [(Var,Int)]
 dataArities ty_cons =
     [ (con_id,arity)
@@ -31,57 +38,67 @@ dataArities ty_cons =
           arity           = length ty_args
     ]
 
-mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory]
-mkProjDiscrim HaloConf{..} ty_cons =
-   [
-     -- Projections
-     let projections =
-           [ forall' xs $ [min' kxs,min' xi] ===> proj i k kxs === xi
-           | c <- cons
-           , let k               = dataConWorkId c
-                 (_,_,ty_args,_) = dataConSig c
-                 arity           = length ty_args
-                 xs              = take arity varNames
-                 kxs             = apply k (map qvar xs)
-           , i <- [0..arity-1]
-           , let xi              = qvar (xs !! i)
-           ]
-
-     -- Discriminations
-
-         discrims =
-           [ forall' (names ++ uneq_names) $
-                     min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
-           | let allcons = map ((,) True) cons
-                           ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
-                                     | unr_and_bad ]
-           , (c,unequals) <- zip cons (drop 1 $ tails allcons)
-           , (need_min,uneq_c) <- unequals
-           , let data_c          = dataConWorkId c
-                 (_,_,ty_args,_) = dataConSig c
-                 arity           = length ty_args
-
-                 uneq_data_c          = dataConWorkId uneq_c
-                 (_,_,uneq_ty_args,_) = dataConSig uneq_c
-                 uneq_arity           = length uneq_ty_args
-
-                 names      = take arity varNames
-                 uneq_names = take uneq_arity (drop arity varNames)
-
-                 lhs    = apply data_c (map qvar names)
-                 rhs    = apply uneq_data_c (map qvar uneq_names)
-           ]
-
-     in Subtheory { provides    = Data ty_con
-                  , depends     = [ CrashFree ty_con | use_cf ]
-                  -- ^ I think we might want to make this depend on
-                  --   datatypes this is defined in terms of
-                  , description = showSDoc (pprSourceTyCon ty_con)
-                  , formulae    = projections ++ discrims }
-
+mkProjDiscrims :: HaloConf -> [TyCon] -> [Subtheory]
+mkProjDiscrims hc ty_cons =
+   [ mkProjDiscrim hc ty_con cons
    | ty_con <- ty_cons
    , let DataTyCon cons _ = algTyConRhs ty_con
    ]
+
+mkProjDiscrim :: HaloConf -> TyCon -> [DataCon] -> Subtheory
+mkProjDiscrim HaloConf{..} ty_con cons
+    | ty_con == boolTyCon = Subtheory
+        { provides    = Data ty_con
+        , depends     = [ CrashFree ty_con | use_cf ]
+        , description = showSDoc (pprSourceTyCon ty_con)
+        , formulae    =
+            [ true =/= false ] ++
+            [ tf =/= ub | tf <- [true,false], ub <- [unr,bad], unr_and_bad ]
+        }
+    | otherwise = Subtheory
+        { provides    = Data ty_con
+        , depends     = [ CrashFree ty_con | use_cf ]
+        , description = showSDoc (pprSourceTyCon ty_con)
+        , formulae    = projections ++ discrims
+        }
+  where
+    -- Projections
+    projections =
+        [ forall' xs $ [min' kxs,min' xi] ===> proj i k kxs === xi
+        | c <- cons
+        , let k               = dataConWorkId c
+              (_,_,ty_args,_) = dataConSig c
+              arity           = length ty_args
+              xs              = take arity varNames
+              kxs             = apply k (map qvar xs)
+        , i <- [0..arity-1]
+        , let xi              = qvar (xs !! i)
+        ]
+
+    -- Discrimination
+    discrims =
+        [ forall' (names ++ uneq_names) $
+                  min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
+        | let allcons = map ((,) True) cons
+                        ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
+                                  | unr_and_bad ]
+        , (c,unequals) <- zip cons (drop 1 $ tails allcons)
+        , (need_min,uneq_c) <- unequals
+        , let data_c          = dataConWorkId c
+              (_,_,ty_args,_) = dataConSig c
+              arity           = length ty_args
+
+              uneq_data_c          = dataConWorkId uneq_c
+              (_,_,uneq_ty_args,_) = dataConSig uneq_c
+              uneq_arity           = length uneq_ty_args
+
+              names      = take arity varNames
+              uneq_names = take uneq_arity (drop arity varNames)
+
+              lhs    = apply data_c (map qvar names)
+              rhs    = apply uneq_data_c (map qvar uneq_names)
+        ]
+
 
 -- | Make axioms about CF
 mkCF :: [TyCon] -> [Subtheory]
@@ -119,9 +136,9 @@ axiomsBadUNR =
          , depends     = [ PrimConApps ]
          , description = "Axioms for BAD and UNR"
          , formulae    =
-              [ cf (constant UNR)
-              , neg (cf (constant BAD))
-              , constant UNR =/= constant BAD
+              [ cf unr
+              , neg (cf bad)
+              , unr =/= bad
               ]
          }
     , Subtheory
@@ -129,8 +146,8 @@ axiomsBadUNR =
          , depends     = []
          , description = "App on BAD and UNR"
          , formulae    =
-              [ forall' [x] $ app (constant BAD) x' === constant BAD
-              , forall' [x] $ app (constant UNR) x' === constant UNR
+              [ forall' [x] $ app bad x' === bad
+              , forall' [x] $ app unr x' === unr
               ]
          }
          -- ^ Any file that uses app, but not necessarily on a pointer,
