@@ -239,8 +239,8 @@ mapTyCon f t = mkTyConApp (mkTyCon (f (tyConString tc))) (map (mapTyCon f) ts)
 
 
 
-laws :: Int -> [Symbol] -> t -> (Term Symbol -> Bool) -> (Term Symbol -> Bool) -> IO ()
-laws depth ctx0 cond p p' = do
+laws :: Bool -> Int -> [Symbol] -> t -> (Term Symbol -> Bool) -> (Term Symbol -> Bool) -> IO ()
+laws allow_eta_red depth ctx0 cond p p' = do
   hSetBuffering stdout NoBuffering
   let ctx = zipWith relabel [0..] (ctx0 ++ undefinedSyms ctx0)
   putStrLn "== API =="
@@ -253,7 +253,7 @@ laws depth ctx0 cond p p' = do
   putSignature [ Var elt | elt <- ctx, typ elt == TVar && not (isUndefined elt) ]
   seeds <- genSeeds
   putStrLn "== classes =="
-  cs <- tests p (take 1) depth ctx seeds
+  cs <- tests allow_eta_red p (take 1) depth ctx seeds
   -- error "oops"
   let eqs cond = map head
                $ partitionBy equationOrder
@@ -283,10 +283,14 @@ laws depth ctx0 cond p p' = do
          printf "*** missing term: %s = ???\n"
                 (show (mapVars (\s -> if s `elem` commonVars then s else s { name = "_" ++ name s }) x))
 
-test :: (Term Symbol -> Bool) -> Int -> Context -> [(StdGen, Int)] -> (TypeRep -> [Term Symbol]) -> IO [[Term Symbol]]
-test p depth ctx seeds base = do
+test :: Bool -> (Term Symbol -> Bool) -> Int -> Context -> [(StdGen, Int)] -> (TypeRep -> [Term Symbol]) -> IO [[Term Symbol]]
+test allow_eta_red p depth ctx seeds base = do
   printf "Depth %d: " depth
-  let ts = filter (not . null) [ filter p (terms ctx base ty) | ty <- allTypes ctx {- , funTypes [ty] == [] -} ]
+  let ts = filter (not . null)
+               [ filter p (terms ctx base ty)
+               | ty <- allTypes ctx
+               , allow_eta_red || funTypes [ty] == []
+               ]
   printf "%d terms, " (length (concat ts))
   let evals = [ toValue . eval (memoSym ctx ctxFun) | (ctxFun, toValue) <- map useSeed seeds ]
       tree = map (T.test evals) ts
@@ -311,22 +315,22 @@ memoSym ctx f = (arr !) . label
 --   return (n, cs)
 -- --  if cs0 == cs1 then return (n, cs) else tests (d+1) ctx vals n
 
-tests :: (Term Symbol -> Bool) -> ([Term Symbol] -> [Term Symbol]) -> Int -> Context -> [(StdGen, Int)] -> IO [[Term Symbol]]
-tests p f 0 _ _ = return []
-tests p f d ctx vals = do
-  cs0 <- tests p f (d-1) ctx vals
+tests :: Bool -> (Term Symbol -> Bool) -> ([Term Symbol] -> [Term Symbol]) -> Int -> Context -> [(StdGen, Int)] -> IO [[Term Symbol]]
+tests allow_eta_red p f 0 _ _ = return []
+tests allow_eta_red p f d ctx vals = do
+  cs0 <- tests allow_eta_red p f (d-1) ctx vals
   let reps = concatMap f cs0
       base ty = [ t | t <- reps, termType t `eqTypeRep` ty ]
-  test p d ctx vals base
+  test allow_eta_red p d ctx vals base
 
 traceM :: Monad m => String -> m ()
 traceM str = trace str (return ())
 
-congruenceCheck :: Int -> Context -> (Term Symbol -> Bool) -> IO ()
-congruenceCheck d ctx0 p = do
+congruenceCheck :: Bool -> Int -> Context -> (Term Symbol -> Bool) -> IO ()
+congruenceCheck allow_eta_red d ctx0 p = do
   let ctx = zipWith relabel [0..] (ctx0 ++ undefinedSyms ctx0)
   seeds <- genSeeds
-  terms <- fmap (sort . map sort) (tests p id d (zipWith relabel [0..] ctx) seeds)
+  terms <- fmap (sort . map sort) (tests allow_eta_red p id d (zipWith relabel [0..] ctx) seeds)
   -- Check: for all f and x, rep (f $$ x) == rep(rep f $$ rep x).
   let reps = Map.unions [ Map.fromList (zip ts (repeat t)) | ts@(t:_) <- terms ]
       rep x = Map.findWithDefault undefined x reps
@@ -344,15 +348,15 @@ congruenceCheck d ctx0 p = do
               error "not a congruence relation"
 
 -- For Hipspec
-packLaws :: Int -> [Symbol] -> t -> (Term Symbol -> Bool) -> (Term Symbol -> Bool)
+packLaws :: Bool -> Int -> [Symbol] -> t -> (Term Symbol -> Bool) -> (Term Symbol -> Bool)
          -> IO ([[Term Symbol]],[(Term Symbol,Term Symbol)])
-packLaws depth ctx0 cond p p' = do
+packLaws allow_eta_red depth ctx0 cond p p' = do
 
   let ctx = zipWith relabel [0..] (ctx0 ++ undefinedSyms ctx0)
 
   seeds <- genSeeds
 
-  classes <- tests p (take 1) depth ctx seeds
+  classes <- tests allow_eta_red p (take 1) depth ctx seeds
 
   let eqs :: Condition -> [(Term Symbol,Term Symbol)]
       eqs cond = map head

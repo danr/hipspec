@@ -162,8 +162,8 @@ hipSpec file ctxt depth = do
                           then sort . concatMap uniqueCartesian
                           else concatMap ((\(x:xs) -> zip (repeat x) xs) . sort)
 
-    (quickSpecClasses,prunedEqs) <- packLaws depth ctxt True
-                                             (const True) (const True)
+    (quickSpecClasses,prunedEqs) <-
+        packLaws allow_eta_red depth ctxt True (const True) (const True)
 
     let univ    = concat quickSpecClasses
 
@@ -184,6 +184,3 @@ hipSpec file ctxt depth = do
     unless dont_print_unproved $
        putStrLn $ "Unproved from QuickSpec: "
                ++ intercalate ", " (map (showEq . propQSTerms) qsunproved)
-
-
-
