@@ -173,8 +173,6 @@ hipSpec file ctxt depth = do
 
     (theory,halt_env,props,anns,params@Params{..}) <- processFile file
 
-    (theory,halt_env,props,anns) <- processFile params file
-
     let eq_order eq = (assoc_important && not (eqIsAssoc eq),equationOrder eq)
 
         classToEqs :: [[Term Symbol]] -> [(Term Symbol,Term Symbol)]
