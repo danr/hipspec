@@ -32,6 +32,7 @@ data Params = Params
     , quadratic           :: Bool
     , interesting_cands   :: Bool
     , allow_eta_red       :: Bool
+    , assoc_important     :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -68,6 +69,7 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
     , allow_eta_red       = False   &= name "e" &= help "Allow eta-reduced terms"
+    , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
 
     , inddepth            = 1       &= groupname "\nStructural induction"
                                     &= help "Maximum depth                   (default 1)"

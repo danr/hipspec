@@ -146,6 +146,25 @@ deep halt_env params@Params{..} theory ctxt depth univ init_eqs =
        let (_,(_,cc)) = doPrune (const True) ctxt depth [cand] [] ps
        in  evalCC cc (uncurry canDerive new)
 
+-- Associativity is too good to overlook! -------------------------------------
+
+-- If term is a function applied to two terms, Just return them
+unbin :: Term a -> Maybe (a,Term a,Term a)
+unbin (App (App (Const f) x) y) = Just (f,x,y)
+unbin _ = Nothing
+
+-- True if equation is an associativity equation
+eqIsAssoc :: (Term Symbol,Term Symbol) -> Bool
+eqIsAssoc
+    (unbin -> Just (f0,Var x0,unbin -> Just (g0,Var y0,Var z0))
+    ,unbin -> Just (f1,unbin -> Just (g1,Var x1,Var y1),Var z1)
+    )
+  | f0 == f1 && g0 == g1 && f0 == g0
+  , x0 == x1 && y0 == y1 && z0 == z1
+  , x0 /= y0 && y0 /= z0
+    = True
+eqIsAssoc _ = False
+
 -- Main library ---------------------------------------------------------------
 
 hipSpec :: FilePath -> [Symbol] -> Int -> IO ()
@@ -156,8 +175,10 @@ hipSpec file ctxt depth = do
 
     (theory,halt_env,props,anns) <- processFile params file
 
-    let classToEqs :: [[Term Symbol]] -> [(Term Symbol,Term Symbol)]
-        classToEqs = sortBy (comparing (equationOrder . (swap_repr ? swap)))
+    let eq_order eq = (assoc_important && not (eqIsAssoc eq),equationOrder eq)
+
+        classToEqs :: [[Term Symbol]] -> [(Term Symbol,Term Symbol)]
+        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swap)))
                    . if quadratic
                           then sort . concatMap uniqueCartesian
                           else concatMap ((\(x:xs) -> zip (repeat x) xs) . sort)
