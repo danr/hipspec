@@ -78,7 +78,7 @@ mkProjDiscrim HaloConf{..} ty_con cons
     -- Discrimination
     discrims =
         [ forall' (names ++ uneq_names) $
-                  ((if or_discr then ors else ands) 
+                  ((if or_discr then ors else ands)
                    (min' lhs : [ min' rhs | need_min ])) ==> lhs =/= rhs
         | let allcons = map ((,) True) cons
                         ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
@@ -113,21 +113,15 @@ mkCF ty_cons = do
         , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
         , formulae    = concat $
             [
-                [ forall' vars $ (min' kxbar:map cf xbar) ===> cf kxbar ] ++
+                [ cf kxbar | arity == 0] ++
 
-                [ forall' vars $ [cf kxbar] ===> ands (map cf xbar) 
-                  -- Perhaps also add: 
-                  -- min(K xs) /\ not (cf (K xs)) ==> BigOr_i (min(x_i) /\ not (cf (x_i)) 
-                  -- Maybe OK, we are only nervous about negative cf making interesting elements
-                  -- because all positive cf's are min and hence maybe we might get infinite models 
-                  -- through the backdoor.
-                | arity > 0] ++
+                [ forall' vars $ [cf kxbar] ===> ands (map cf xbar) | arity > 0] ++
 
+                -- min(K xs) /\ not (cf (K xs)) ==> BigOr_i (min(x_i) /\ not (cf (x_i))
                 [ forall' vars $ min' kxbar : [ neg (cf kxbar) ] ===>
-                                     ors [ ands [neg (cf x),min' x] | x <- xbar ] 
+                                     ors [ ands [neg (cf x),min' x] | x <- xbar ]
                 | arity > 0 ]
 
-                
             | c <- cons
             , let data_c          = dataConWorkId c
                   (_,_,ty_args,_) = dataConSig c
@@ -152,8 +146,8 @@ axiomsBadUNR =
               , unr =/= bad
               , forall' [x] $ [ x' =/= unr, cf x'] ===> min' x'
               ]
-         }         
-         
+         }
+
     , Subtheory
          { provides    = PrimConApps
          , depends     = []
