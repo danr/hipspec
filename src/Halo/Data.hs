@@ -112,9 +112,14 @@ mkCF ty_cons = do
         , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
         , formulae    = concat $
             [
-                [ forall' vars $ map cf xbar ===> cf kxbar ] ++
+                [ forall' vars $ (min' kxbar:map cf xbar) ===> cf kxbar ] ++
 
-                [ forall' vars $ [cf kxbar,min' kxbar] ===> ands (map cf xbar)
+                [ forall' vars $ [cf kxbar] ===> ands (map cf xbar) 
+                  -- Perhaps also add: 
+                  -- min(K xs) /\ not (cf (K xs)) ==> BigOr_i (min(x_i) /\ not (cf (x_i)) 
+                  -- Maybe OK, we are only nervous about negative cf making interesting elements
+                  -- because all positive cf's are min and hence maybe we might get infinite models 
+                  -- through the backdoor.
                 | arity > 0]
 
             | c <- cons
@@ -139,8 +144,10 @@ axiomsBadUNR =
               [ cf unr
               , neg (cf bad)
               , unr =/= bad
+              , forall' [x] $ [ x' =/= unr, cf x'] ===> min' x'
               ]
-         }
+         }         
+         
     , Subtheory
          { provides    = PrimConApps
          , depends     = []
@@ -148,6 +155,7 @@ axiomsBadUNR =
          , formulae    =
               [ forall' [x] $ app bad x' === bad
               , forall' [x] $ app unr x' === unr
+              , forall' [f,x] $ min' (app f' x') ==> min' f'
               ]
          }
          -- ^ Any file that uses app, but not necessarily on a pointer,
@@ -156,8 +164,9 @@ axiomsBadUNR =
          --   [contracts only]
     ]
   where
-    x = head varNames
-    x' = qvar x
+    vs@[f,g,x] = take 3 varNames
+    [f',g',x'] = map qvar vs
+
 
 -- | Make pointers to constructors
 mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory]
