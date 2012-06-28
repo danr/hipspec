@@ -13,6 +13,8 @@ data HaloConf = HaloConf
     -- ^ Make function pointer axioms depend on extensional equality
     , disjoint_booleans :: Bool
     -- ^ Always add true /= false even though they might not be min
+    , or_discr          :: Bool
+    -- ^ Use Or instead of And in the assumptions of discrimination axioms
     }
   deriving (Eq,Ord,Show)
 

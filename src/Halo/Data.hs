@@ -78,7 +78,8 @@ mkProjDiscrim HaloConf{..} ty_con cons
     -- Discrimination
     discrims =
         [ forall' (names ++ uneq_names) $
-                  min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
+                  ((if or_discr then ors else ands) 
+                   (min' lhs : [ min' rhs | need_min ])) ==> lhs =/= rhs
         | let allcons = map ((,) True) cons
                         ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
                                   | unr_and_bad ]
@@ -120,8 +121,13 @@ mkCF ty_cons = do
                   -- Maybe OK, we are only nervous about negative cf making interesting elements
                   -- because all positive cf's are min and hence maybe we might get infinite models 
                   -- through the backdoor.
-                | arity > 0]
+                | arity > 0] ++
 
+                [ forall' vars $ min' kxbar : [ neg (cf kxbar) ] ===>
+                                     ors [ ands [neg (cf x),min' x] | x <- xbar ] 
+                | arity > 0 ]
+
+                
             | c <- cons
             , let data_c          = dataConWorkId c
                   (_,_,ty_args,_) = dataConSig c
