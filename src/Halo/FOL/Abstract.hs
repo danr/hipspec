@@ -24,7 +24,7 @@ module Halo.FOL.Abstract
        ,neg
        ,forall',exists'
 
-       ,min'
+       ,min',minrec
        ,cf
 
        ,Formula
@@ -168,6 +168,9 @@ exists' as f = Exists as f
 min' :: Term q v -> Formula q v
 min' = Min
 
+minrec :: Term q v -> Formula q v
+minrec = MinRec
+
 cf :: Term q v -> Formula q v
 cf = CF
 
@@ -186,6 +189,7 @@ isLiteral f = case f of
     Exists{}    -> False
     CF{}        -> True
     Min{}       -> True
+    MinRec{}    -> True
 
 -- | Can this formula be written simply in CNF?
 simpleCNF :: Formula q v -> Maybe [Literal q v]

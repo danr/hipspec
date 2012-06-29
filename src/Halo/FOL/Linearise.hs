@@ -70,6 +70,7 @@ linForm st par form = case form of
     Forall qs f   -> par (linQuant st bang qs f)
     Exists qs f   -> par (linQuant st questmark qs f)
     Min tm        -> linMin st <> parens (linTm st tm)
+    MinRec tm     -> linMinRec st <> parens (linTm st tm)
     CF tm         -> linCF st <> parens (linTm st tm)
 
 -- | Linearise the equality operations: ==, !=
@@ -149,4 +150,3 @@ bang = char '!'
 
 questmark :: SDoc
 questmark = char '?'
-

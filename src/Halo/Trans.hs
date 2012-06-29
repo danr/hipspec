@@ -46,6 +46,7 @@ translate env ty_cons binds =
     in  (concat
             [mkProjDiscrim halo_conf ty_cons
             ,mkConPtrs     halo_conf ty_cons
+            ,[extEq,appOnMin]
             ,tr_pointers
             ,tr_funs]
         ,msgs ++ showArityMap (arities env))

@@ -21,6 +21,8 @@ data Content s
     | ExtensionalEquality
     -- ^ Extensional equality, (f @ x = g @ x) => f = g
     --   Toggled by a flag in HaloConf
+    | AppOnMin
+    -- ^ Min of an app is min of the function pointer
     | Specific s
     -- ^ User specific content
   deriving (Eq,Ord)

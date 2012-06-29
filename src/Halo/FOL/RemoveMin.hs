@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
+
+-- Removes all Min _AND_ MinRec
+
 module Halo.FOL.RemoveMin(removeMins,removeMinsSubthy) where
 
 import Halo.FOL.Internals.Internals
@@ -58,6 +61,7 @@ collapse p x q y c xs
 rmMin :: Formula q v -> Rm (Formula q v)
 rmMin f = case f of
     Min{}       -> Top
+    MinRec{}    -> Top
 
     And fs -> collapse isBot Bot rmTop Top (Pure . ands) (map rmMin fs)
     Or fs  -> collapse isTop Top rmBot Bot (Pure . ors)  (map rmMin fs)

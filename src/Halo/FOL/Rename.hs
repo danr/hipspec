@@ -119,7 +119,7 @@ lower :: String -> String
 lower = map toLower
 
 protectedWiredIn :: Set String
-protectedWiredIn = S.fromList ["app","min","cf","bad","unr"]
+protectedWiredIn = S.fromList ["app","min","minrec","cf","bad","unr"]
 
 escapes :: Map Char String
 escapes = M.fromList
@@ -197,4 +197,3 @@ prelude = M.fromList
    , ("<$>","fmap")
    , ("<*>","ap")
    ]
-
