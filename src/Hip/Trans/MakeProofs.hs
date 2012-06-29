@@ -55,14 +55,22 @@ runMakerM env us mm =
 
 trLemma :: Prop -> HaloM HipSpecSubtheory
 trLemma lemma@Prop{..} = do
-    (tr_lem,ptrs) <- capturePtrs $ equals lemma
+    (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
         { provides    = Specific (Lemma propRepr)
         , depends     = map Function propFunDeps ++ map Pointer ptrs
         , description = "Lemma " ++ propRepr
                         ++ "\ndependencies: " ++ unwords (map idToStr propFunDeps)
-        , formulae    = [tr_lem]
+        , formulae    = tr_lem
         }
+  where
+    vars = map fst propVars
+
+    equals :: HaloM [Formula']
+    equals = local (pushQuant vars) $ do
+        lhs <- trExpr proplhs
+        rhs <- trExpr proprhs
+        return [ forall' vars $ min' side ==> lhs === rhs | side <- [lhs,rhs] ]
 
 -- | Takes a theory, and prepares the invocations
 --   for a property and adds the lemmas
@@ -76,12 +84,6 @@ theoryToInvocations params@(Params{..}) theory prop lemmas = do
         , propMatter = parts
         }
 
-equals :: Prop -> HaloM Formula'
-equals Prop{..} = local (pushQuant (map fst propVars)) $ do
-    let vars = map fst propVars
-    lhs <- trExpr proplhs
-    rhs <- trExpr proprhs
-    return (forall' vars (lhs === rhs))
 
 prove :: Params -> Theory -> Prop -> MakerM [Part]
 prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..} =
@@ -96,10 +98,17 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
     plainProof :: MakerM Part
     plainProof = do
-        (equality,ptrs) <- lift $ capturePtrs $ equals prop
+        (neg_conj,ptrs) <- lift (capturePtrs unequals)
         let particle = Particle "plain" [comment "Proof by definitional equality"
-                                        ,clause Conjecture equality]
+                                        ,clause NegatedConjecture neg_conj]
         return (mkPart Plain ptrs [particle])
+      where
+        unequals :: HaloM Formula'
+        unequals = do
+            let vars = propVars
+            lhs <- trExpr proplhs
+            rhs <- trExpr proprhs
+            return $ minrec lhs /\ minrec rhs /\ lhs =/= rhs
 
 -- Induction ------------------------------------------------------------------
 
@@ -154,34 +163,43 @@ ghcStyle = Style
     , lint = P.text . showSDoc . ppr
     }
 
+data Loc = Hyp | Concl
+
 trIndPart :: Prop -> IndPart DataCon Var Type -> HaloM [Clause']
 trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
-    let trPred :: [Term DataCon Var] -> HaloM (String,Formula')
-        trPred tms = do
-            phi <- (===) <$> trExpr lhs <*> trExpr rhs
-            return (showExpr lhs ++ "=" ++ showExpr rhs,phi)
+    let trPred :: Loc -> [Term DataCon Var] -> HaloM (String,Formula')
+        trPred loc tms = do
+            lhs <- trExpr proplhs'
+            rhs <- trExpr proprhs'
+            let phi = case loc of
+                    Hyp   -> min' lhs \/ min' rhs ==> lhs === rhs
+                    Concl -> minrec rhs /\ minrec lhs /\ rhs =/= lhs
+            return (showExpr proplhs' ++ "=" ++ showExpr proprhs',phi)
           where
             s = extendIdSubstList emptySubst
                    [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
-            lhs = substExpr (text "trPred") s proplhs
-            rhs = substExpr (text "trPred") s proprhs
+            proplhs' = substExpr (text "trPred") s proplhs
+            proprhs' = substExpr (text "trPred") s proprhs
 
         trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
         trHyp (map fst -> qs,tms) = local (pushQuant qs)
-             (second (forall' qs) <$> trPred tms)
+             (second (forall' qs) <$> trPred Hyp tms)
 
         skolem_arities = M.fromList [ (sk,0) | (sk,_) <- skolem ]
 
     local (extendArities skolem_arities) $ do
-        (comm_hyp,tr_hyp)     <- mapAndUnzipM (fmap (second (clause Hypothesis))
-                                              . trHyp) hyps
-        (comm_concl,tr_concl) <- second (clause NegatedConjecture . neg)
-                                    <$> trPred concl
+
+        (str_hyp,tr_hyp) <- mapAndUnzipM
+            (fmap (second (clause Hypothesis)) . trHyp) hyps
+
+        (str_concl,tr_concl) <-
+            second (clause NegatedConjecture) <$> trPred Concl concl
+
         return $
             comment (  "Proof by structural induction\n"
-                    ++ unlines comm_hyp ++ "|-\n" ++ comm_concl
+                    ++ unlines str_hyp ++ "|-\n" ++ str_concl
                     ++ "\n" ++ P.render (linPart ghcStyle ind_part))
             :tr_concl
             :tr_hyp

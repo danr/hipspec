@@ -9,6 +9,7 @@
 module Hip.Params where
 
 import System.Console.CmdArgs
+import Hip.ATP.Provers
 
 data Params = Params
     { files               :: [FilePath]
@@ -26,6 +27,7 @@ data Params = Params
     , fof                 :: Bool
     , comments            :: Bool
     , dont_print_unproved :: Bool
+    , min                 :: Bool
 
     , swap_repr           :: Bool
     , prepend_pruned      :: Bool
@@ -43,11 +45,24 @@ data Params = Params
     }
   deriving (Show,Data,Typeable)
 
+-- | If you are using a theorem prover that cannot stdin,
+--   then put on output and z-encoding of filenames
+sanitizeParams :: Params -> Params
+sanitizeParams params
+    | any proverCannotStdin (proversFromString (provers params))
+        = params
+            { z_encode_filenames = True
+            , output = if output params == Nothing
+                           then Just "proving"
+                           else output params
+            }
+    | otherwise = params
+
 defParams :: Params
 defParams = Params
     { files               = []      &= args   &= typFile
     , warnings            = False   &= help "Show warnings from translation"
-    , output              = Nothing &= name "o" &= opt "proving/" &= typDir &= help "Save tptp files in a directory (default proving/)"
+    , output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
@@ -56,12 +71,13 @@ defParams = Params
                                     &= name "N" &= help "Prover processes (default 2)"
     , batchsize           = 2       &= name "b" &= help "Equations to process simultaneously (default 2)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
-    , provers             = "e"     &= name "p" &= help "Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
-    , methods             = "pi"    &= name "m" &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
+    , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
+    , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , dont_print_unproved = False   &= name "d" &= help "Don't print unproved conjectures from QuickSpec"
+    , min                 = False   &= name "m" &= help "Use min and minrec translation"
 
     , swap_repr           = False   &= groupname "\nEquation ordering"
                                     &= name "s" &= help "Swap equations with their representative"

@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Hip.Trans.Theory where
 
 import Halo.Subtheory
@@ -7,7 +8,12 @@ import Var
 import Type
 import TysWiredIn
 import TyCon
+import DataCon
+import Outputable
+import Halo.FOL.Abstract hiding (Lemma)
 import qualified Halo.FOL.Abstract as A
+
+import Halo.Data (f,f',x,x',varNames)
 
 import qualified Test.QuickSpec.Term as QST
 
@@ -22,6 +28,11 @@ data HipSpecExtras
     -- ^ [hipspec only] Recursive min for a data type
   deriving
     (Eq,Ord)
+
+makeDataDepend :: HipSpecSubtheory -> HipSpecSubtheory
+makeDataDepend s@(Subtheory{..}) = case provides of
+    Data ty_con -> s { depends = Specific (MinRec ty_con) : depends }
+    _           -> s
 
 mkMinRec :: [TyCon] -> [HipSpecSubtheory]
 mkMinRec ty_cons =
@@ -39,8 +50,8 @@ mkMinRec ty_cons =
               ]
 
       in  Subtheory
-              { provides    = MinRec ty_con
-              , depends     = [PrimMinRec]
+              { provides    = Specific (MinRec ty_con)
+              , depends     = [Specific PrimMinRec]
               , description = "minrec for " ++ showSDoc (pprSourceTyCon ty_con)
               , formulae    = minrec_formulae
               }
@@ -50,7 +61,7 @@ mkMinRec ty_cons =
     ]
       ++
     [ Subtheory
-         { provides    = PrimMinRec
+         { provides    = Specific PrimMinRec
          , depends     = []
          , description = "minrec implies min, and minrec on app"
          , formulae    =

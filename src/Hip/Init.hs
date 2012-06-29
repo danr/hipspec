@@ -10,7 +10,6 @@ import Hip.Trans.Theory
 
 import Halo.Conf
 import Halo.Entry
-import Halo.FOL.RemoveMin
 import Halo.Lift
 import Halo.Monad
 import Halo.Trans
@@ -24,8 +23,13 @@ import GHC
 import HscTypes
 import UniqSupply
 
-processFile :: Params -> FilePath -> IO (Theory,HaloEnv,[Prop],ANNs)
-processFile Params{..} file = do
+import System.Console.CmdArgs hiding (summary)
+
+processFile :: FilePath -> IO (Theory,HaloEnv,[Prop],ANNs,Params)
+processFile file = do
+
+    params@Params{..} <- sanitizeParams <$> cmdArgs defParams
+
     let ds_conf = DesugarConf
                       { debug_float_out = False
                       , core2core_pass  = True
@@ -53,7 +57,8 @@ processFile Params{..} file = do
 
         halt_conf :: HaloConf
         halt_conf = sanitizeConf $ HaloConf
-                        { use_min      = False
+                        { use_min      = min
+                        , use_minrec   = min
                         , use_cf       = False
                         , unr_and_bad  = False
                         , ext_eq       = True
@@ -61,15 +66,17 @@ processFile Params{..} file = do
 
         halt_env = mkEnv halt_conf ty_cons_with_builtins core_defns
 
-        (subtheories,_msgs_trans)
+        (subtheories_wo_min,_msgs_trans)
             = translate halt_env ty_cons_with_builtins core_defns
 
-        theory = Theory (map removeMinsSubthy subtheories)
+        subtheories
+            | min       = map makeDataDepend subtheories_wo_min
+                       ++ mkMinRec ty_cons_with_builtins
+            | otherwise = subtheories_wo_min
+
+        theory = Theory subtheories
 
         props = (consistency ? (inconsistentProp:))
               $ mapMaybe trProperty core_props
 
-    return (theory,halt_env,props,anns)
-
-
-
+    return (theory,halt_env,props,anns,params)

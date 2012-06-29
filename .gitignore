@@ -21,6 +21,9 @@ dist
 *blg
 *toc
 *pdf
+*aux
+*log
+*out
 
 # TPTP
 *\.tptp

@@ -7,12 +7,21 @@ import Data.Function
 
 -- Result from a prover invocation --------------------------------------------
 
-data ProverResult = Success { successTime :: Integer }
-                  -- ^ Success: Theorem or Countersatisfiable
-                  | Failure
-                  -- ^ Failure: Satisfiable etc, and timeouts or skipped
-                  | Unknown String
-                  -- ^ Unreckognized output. For debugging
+data ProverResult
+    = Success
+         { successTime :: Integer
+         -- ^ Time in milliseconds
+         , successLemmas :: Maybe [String]
+         -- ^ Just lemmas used if prover is capable of producing a proof
+         }
+    | Failure
+    -- ^ Failure: Timeout/Satisfiable
+    | Unknown String
+    -- ^ Unrecognised output. For debugging
+
+-- | Make a Success result, but register nothing about lemmas
+mkSuccess :: Integer -> ProverResult
+mkSuccess time = Success time Nothing
 
 success :: ProverResult -> Bool
 success Success{} = True
@@ -27,7 +36,14 @@ avgList xs = sum xs `div` genericLength xs
 
 flattenProverResults :: [ProverResult] -> ProverResult
 flattenProverResults xs
-    | all success xs = Success (avgList (map successTime xs))
+    | all success xs = Success
+                           { successTime   = avgList (map successTime xs)
+                           , successLemmas = fmap (nub . concat) . sequence
+                                           $ map successLemmas xs
+                             -- ^ If any of the results were run without
+                             --   knowing of lemmas, don't report anything about
+                             --   lemmas. Otherwise: nub all used lemmas.
+                           }
     | otherwise      = fromMaybe Failure (listToMaybe (filter unknown xs))
 
 instance Eq ProverResult where
@@ -40,12 +56,15 @@ instance Show ProverResult where
 
 -- Status (result) for an entire property or a proof part ------------------------------
 
-data Status = None | Theorem
-  deriving (Eq,Ord,Show,Enum,Bounded)
+-- Remove this data type in favour of only ProverResult?
+
+data Status
+    = None
+    | Theorem { statusLemmas :: Maybe [String] }
+  deriving (Eq,Ord,Show)
 
 statusFromResults :: [ProverResult] -> Status
 statusFromResults [] = None
-statusFromResults res
-    | all success res = Theorem
-    | otherwise = None
-
+statusFromResults xs = case flattenProverResults xs of
+    Success time lemmas -> Theorem lemmas
+    _                   -> None
