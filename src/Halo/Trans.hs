@@ -48,6 +48,7 @@ translate env ty_cons binds =
             [mkProjDiscrim halo_conf ty_cons
             ,mkConPtrs     halo_conf ty_cons
             ,mkCF          ty_cons
+            ,mkMinRec      ty_cons
             ,axiomsBadUNR
             ,[extEq]
             ,tr_pointers
@@ -209,4 +210,3 @@ trConstr (Inequality e data_con) = do
                     [ proj i (dataConWorkId data_con) lhs
                     | i <- [0..dataConSourceArity data_con-1] ]
     return $ lhs =/= rhs
-

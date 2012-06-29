@@ -14,10 +14,16 @@ import Data.Function
 data Content
     = ExtensionalEquality
     -- ^ Extensional equality, (f @ x = g @ x) => f = g, has a flag in HaloConf
+    | AppOnMin
+    -- ^ Min of an app is min of the function pointer
     | PrimConAxioms
     -- ^ [contracts only] Axioms about UNR and BAD
     | PrimConApps
     -- ^ [contracts only] App on UNR and BAD
+    | PrimMinRec
+    -- ^ [hipspec only] Base theory about minrec
+    | MinRec TyCon
+    -- ^ [hipspec only] Recursive min for a data type
     | Data TyCon
     -- ^ Discrimination and projection axioms for a data type
     | CrashFree TyCon

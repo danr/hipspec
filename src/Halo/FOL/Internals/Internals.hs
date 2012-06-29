@@ -38,6 +38,7 @@ data Formula q v
     | Exists [q] (Formula q v)
     | CF (Term q v)
     | Min (Term q v)
+    | MinRec (Term q v)
   deriving (Eq,Ord,Show,Data,Typeable)
 
 data ClType = Axiom | Lemma | Hypothesis | Definition

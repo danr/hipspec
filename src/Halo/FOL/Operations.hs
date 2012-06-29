@@ -44,6 +44,7 @@ formulaMapTerms tm qv = go
              Exists qs f'  -> Exists (map qv qs) (go f')
              CF t          -> CF (tm t)
              Min t         -> Min (tm t)
+             MinRec t      -> MinRec (tm t)
 
 clauseMapTerms :: (Term q v -> Term r u) -> (q -> r)
                -> Clause q v -> Clause r u

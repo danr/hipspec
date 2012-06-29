@@ -5,6 +5,8 @@ module Halo.Conf where
 data HaloConf = HaloConf
     { use_min     :: Bool
     -- ^ Use min translation
+    , use_minrec  :: Bool
+    -- ^ Use minrec translation (hipspec)
     , use_cf      :: Bool
     -- ^ Translate CF
     , unr_and_bad :: Bool

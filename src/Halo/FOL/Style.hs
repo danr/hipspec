@@ -5,25 +5,27 @@ import Outputable
 import Halo.PrimCon
 
 data Style q v = Style
-    { linFun   :: v -> SDoc
+    { linFun      :: v -> SDoc
     -- ^ Pretty printing functions and variables
-    , linCtor   :: v -> SDoc
+    , linCtor     :: v -> SDoc
     -- ^ Pretty printing constructors
-    , linQVar  :: q -> SDoc
+    , linQVar     :: q -> SDoc
     -- ^ Quantified variables
-    , linApp   :: SDoc
+    , linApp      :: SDoc
     -- ^ The app/@ symbol
-    , linMin   :: SDoc
+    , linMin      :: SDoc
     -- ^ The min symbol
-    , linCF    :: SDoc
+    , linMinRec   :: SDoc
+    -- ^ The minrec symbol
+    , linCF       :: SDoc
     -- ^ The CF symbol
-    , linProj  :: Int -> v -> SDoc
+    , linProj     :: Int -> v -> SDoc
     -- ^ Projections
-    , linPtr   :: v -> SDoc
+    , linPtr      :: v -> SDoc
     -- ^ Pointers
     , linConstant :: PrimCon -> SDoc
     -- ^ Constants
-    , linCNF   :: Bool
+    , linCNF      :: Bool
     -- ^ Write things in cnf if possible
     , linComments :: Bool
     -- ^ Print comments
@@ -36,6 +38,7 @@ strStyle comments cnf = Style
     , linQVar = text
     , linApp  = text "app"
     , linMin  = text "min"
+    , linMinRec  = text "minrec"
     , linCF   = text "cf"
     , linProj = \i n -> text ("p_" ++ show i ++ "_" ++ n)
       -- Possible collision here...
@@ -44,4 +47,3 @@ strStyle comments cnf = Style
     , linConstant = text . show
     , linComments = comments
     }
-
