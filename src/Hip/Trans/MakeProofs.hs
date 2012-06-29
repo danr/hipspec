@@ -53,11 +53,11 @@ runMakerM env us mm =
     let ((hm,(us',_)),msg) = runHaloM env (runStateT mm (us,M.empty))
     in  ((hm,msg),us')
 
-trLemma :: Prop -> HaloM Subtheory
+trLemma :: Prop -> HaloM HipSpecSubtheory
 trLemma lemma@Prop{..} = do
     (tr_lem,ptrs) <- capturePtrs $ equals lemma
     return $ Subtheory
-        { provides    = Lemma propRepr propFunDeps
+        { provides    = Specific (Lemma propRepr)
         , depends     = map Function propFunDeps ++ map Pointer ptrs
         , description = "Lemma " ++ propRepr
                         ++ "\ndependencies: " ++ unwords (map idToStr propFunDeps)

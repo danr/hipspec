@@ -6,10 +6,32 @@ import CoreSyn
 import Var
 import Type
 import TysWiredIn
+import TyCon
+import qualified Halo.FOL.Abstract as A
 
 import qualified Test.QuickSpec.Term as QST
 
-data Theory = Theory { subthys :: [Subtheory] }
+data HipSpecExtras
+    = Lemma String
+    -- ^ Lemma with a name
+    | Typing TyCon
+    -- ^ Type predicates for a data type (not yet implemented)
+  deriving
+    (Eq,Ord)
+
+instance Show HipSpecExtras where
+    show (Lemma s)   = "Lemma " ++ s
+    show (Typing tc) = "Typing predicate"
+
+instance Clausifiable HipSpecExtras where
+    mkClause (Lemma s) = A.namedClause ("Lemma{" ++ s ++ "}") A.Lemma
+    mkClause _         = A.clause A.Axiom
+
+type HipSpecContent = Content HipSpecExtras
+
+type HipSpecSubtheory = Subtheory HipSpecExtras
+
+data Theory = Theory { subthys :: [HipSpecSubtheory] }
 
 data Prop = Prop
     { proplhs     :: CoreExpr

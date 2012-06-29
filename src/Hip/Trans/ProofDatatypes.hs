@@ -6,6 +6,8 @@ import Data.List
 
 import Var
 
+import Hip.Trans.Theory (HipSpecContent,HipSpecSubtheory)
+
 import Halo.Subtheory
 import Halo.FOL.Abstract
 
@@ -24,7 +26,7 @@ proofMethodFile pt = case pt of
     Induction vs -> intercalate "_" (map show vs)
 
 type Property  = PropertyMatter [Part]
-type Part      = PartMatter     ([Content],[Subtheory],[Particle])
+type Part      = PartMatter     ([HipSpecContent],[HipSpecSubtheory],[Particle])
 type Particle  = ParticleMatter [Clause']
 
 data PropertyMatter m = Property
@@ -61,6 +63,5 @@ data ParticleMatter m = Particle
     }
   deriving (Eq,Ord,Show,Functor)
 
-extendPart :: [Subtheory] -> Part -> Part
+extendPart :: [HipSpecSubtheory] -> Part -> Part
 extendPart st' (Part n (vs,st,p)) = Part n (vs,st++st',p)
-

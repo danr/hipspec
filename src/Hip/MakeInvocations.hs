@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards,ViewPatterns #-}
 module Hip.MakeInvocations where
 
 import Hip.ATP.Invoke
@@ -70,7 +70,9 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
         properties' =
             [ PD.Property n c $
               [ let lemma_deps =
-                        [ lem | Subtheory lem@Lemma{} _ _ _ <- subtheories ]
+                        [ lem
+                        | (provides -> lem@(Specific Lemma{})) <- subtheories
+                        ]
                     subs  = trim (deps ++ lemma_deps) subtheories
                     pcls' = [ fmap (\cls -> linTPTP
                                      (strStyle comments (not fof))
@@ -152,4 +154,3 @@ printInfo unproved proved = do
 
     unless (null mistakes) $ putStrLn $ bold $ colour Red $
         "Proved " ++ show (length mistakes) ++ " oops: " ++ pr True mistakes
-
