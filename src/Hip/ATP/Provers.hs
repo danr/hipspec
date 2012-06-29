@@ -3,6 +3,7 @@ module Hip.ATP.Provers where
 import Hip.ATP.Results
 
 import Data.Maybe
+import Data.Char
 import Data.List
 import Data.List.Split
 
@@ -10,22 +11,21 @@ data ProverName
     = E
     | Eproof
     | Equinox
-    | Prover9
+    | Paradox
     | SPASS
     | Vampire
-    | Vampire64
     | Z3
-  deriving (Eq,Ord)
+    | ParadoxAnd Prover
 
 instance Show ProverName where
-    show E         = "eprover"
-    show Eproof    = "eproof"
-    show Equinox   = "equinox"
-    show Prover9   = "prover9"
-    show SPASS     = "spass"
-    show Vampire   = "vampire"
-    show Vampire64 = "vampire (64)"
-    show Z3        = "z3"
+    show E              = "eprover"
+    show Eproof         = "eproof"
+    show Equinox        = "equinox"
+    show Paradox        = "paradox"
+    show (ParadoxAnd p) = "paradox and " ++ show (proverName p)
+    show SPASS          = "spass"
+    show Vampire        = "vampire"
+    show Z3             = "z3"
 
 data Prover = Prover
     { proverName          :: ProverName
@@ -81,16 +81,26 @@ statusSZS =
     ,("Timeout",const Failure)
     ]
 
+mkParadoxAnd :: Prover -> Prover
+mkParadoxAnd p = template
+    { proverName          = ParadoxAnd p
+    , proverShort         = toUpper (proverShort p)
+    , proverCannotStdin   = True
+    }
+  -- ^ mkParadoxAnd is deeply magical, see Hip.ATP.RunProver
+
 allProvers :: [Prover]
-allProvers =
+allProvers = baseProvers ++ map mkParadoxAnd baseProvers
+
+baseProvers :: [Prover]
+baseProvers =
     [eprover
     ,eproof
     ,eprover_win
     ,equinox
-    ,prover9
+    ,paradox
     ,spass
     ,vampire
-    ,vampire64
     ,z3]
 
 proversFromString :: String -> [Prover]
@@ -107,7 +117,7 @@ eprover = template
 eprover_win :: Prover
 eprover_win = eprover
     { proverCmd           = "eprover.exe"
-    , proverShort         = 'E'
+    , proverShort         = 'w'
     , proverSuppressErrs  = True
     }
 
@@ -133,30 +143,22 @@ z3 = template
     , proverShort         = 'z'
     }
 
+paradox :: Prover
+paradox = template
+    { proverName          = Paradox
+    , proverCmd           = "paradox"
+    , proverArgs          = \s _ -> s : words "--no-progress --tstp"
+    , proverShort         = 'p'
+    , proverCannotStdin   = True
+    }
+
+
 vampire :: Prover
 vampire = template
     { proverName          = Vampire
     , proverCmd           = "vampire_lin32"
     , proverArgs          = \_ t -> words ("--proof tptp --mode casc -t " ++ show t)
     , proverShort         = 'v'
-    }
-
-vampire64 :: Prover
-vampire64 = vampire
-    { proverName          = Vampire64
-    , proverCmd           = "vampire_lin64"
-    , proverShort         = 'V'
-    }
-
-prover9 :: Prover
-prover9 = template
-    { proverName          = Prover9
-    , proverCmd           = "prover9script"
-    , proverArgs          = \_ t -> [show t]
-    , proverProcessOutput = searchOutput
-                                [("THEOREM PROVED",mkSuccess)
-                                ,("SEARCH FAILED",const Failure)]
-    , proverShort         = 'p'
     }
 
 spass :: Prover

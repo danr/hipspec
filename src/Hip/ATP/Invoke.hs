@@ -242,11 +242,15 @@ runProvers filename str res = do
     Env{..} <- ask
     liftIO . putMVar res =<< go provers
   where
-    go (p:ps) = do t <- asks timeout
-                   r <- liftIO $ runProver filename p str t
-                   case r of
-                      Failure   -> go ps
-                      _         -> return (r,Just (proverName p))
+    go (p:ps) = do
+        t <- asks timeout
+        -- liftIO $ putStrLn $ "Invoking prover " ++ show (proverName p)
+        --                  ++ " on " ++ filename
+        r <- liftIO $ runProver filename p str t
+        -- liftIO $ putStrLn $ "Prover " ++ show (proverName p) ++ " finished"
+        case r of
+           Failure   -> go ps
+           _         -> return (r,Just (proverName p))
     go []     = return (Failure,Nothing)
 
 escape :: String -> String
@@ -288,4 +292,3 @@ escapes = M.fromList $ map (uncurry (flip (,)))
 
     , ("_",' ')
     ]
-

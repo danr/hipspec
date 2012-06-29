@@ -71,8 +71,8 @@ defParams = Params
                                     &= name "N" &= help "Prover processes (default 2)"
     , batchsize           = 2       &= name "b" &= help "Equations to process simultaneously (default 2)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
-    , provers             = "e"     &= name "p" &= help "Provers to use (e)prover (v)ampire (V)ampire 64-bit (s)pass equino(x) (z)3 (default e)"
-    , methods             = "pi"    &= name "m" &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
+    , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
+    , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"

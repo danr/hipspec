@@ -14,7 +14,6 @@ data ProverResult
          , successLemmas :: Maybe [String]
          -- ^ Just lemmas used if prover is capable of producing a proof
          }
-    -- ^ Success: Theorem/Unsatisfiable
     | Failure
     -- ^ Failure: Timeout/Satisfiable
     | Unknown String
@@ -69,4 +68,3 @@ statusFromResults [] = None
 statusFromResults xs = case flattenProverResults xs of
     Success time lemmas -> Theorem lemmas
     _                   -> None
-
