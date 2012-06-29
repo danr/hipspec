@@ -16,8 +16,53 @@ data HipSpecExtras
     -- ^ Lemma with a name
     | Typing TyCon
     -- ^ Type predicates for a data type (not yet implemented)
+    | PrimMinRec
+    -- ^ [hipspec only] Base theory about minrec
+    | MinRec TyCon
+    -- ^ [hipspec only] Recursive min for a data type
   deriving
     (Eq,Ord)
+
+mkMinRec :: [TyCon] -> [HipSpecSubtheory]
+mkMinRec ty_cons =
+    [ let minrec_formulae =
+              [ forall' xs $ minrec kxs ==> min' xi
+              | c <- cons
+              , let k               = dataConWorkId c
+                    (_,_,ty_args,_) = dataConSig c
+                    arity           = length ty_args
+                    xs              = take arity varNames
+                    kxs             = apply k (map qvar xs)
+              , i <- [0..arity-1]
+              -- ^ vacuous if arity == 0
+              , let xi              = qvar (xs !! i)
+              ]
+
+      in  Subtheory
+              { provides    = MinRec ty_con
+              , depends     = [PrimMinRec]
+              , description = "minrec for " ++ showSDoc (pprSourceTyCon ty_con)
+              , formulae    = minrec_formulae
+              }
+
+    | ty_con <- ty_cons
+    , let DataTyCon cons _ = algTyConRhs ty_con
+    ]
+      ++
+    [ Subtheory
+         { provides    = PrimMinRec
+         , depends     = []
+         , description = "minrec implies min, and minrec on app"
+         , formulae    =
+                [ forall' [x]   $ minrec x' ==> min' x'
+                , forall' [f,x] $ minrec (app f' x') ==> min' f'
+                , forall' [f,x] $ minrec (app f' x') ==> min' x'
+                ]
+         }
+    ]
+
+-- Make datatypes depend on MinRec (or vice versa, or something)
+-- [ MinRec ty_con | use_minrec ]
 
 instance Show HipSpecExtras where
     show (Lemma s)   = "Lemma " ++ s
