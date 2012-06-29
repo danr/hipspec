@@ -97,7 +97,7 @@ defParams = Params
     , db_anns             = False   &= groupname "\nDebugging"
                                     &= help "Debug ANN pragmas"
     }
-    &= summary ("\nHipSpec v0.2.1 Dan Rosén danr@student.gu.se" ++
+    &= summary ("\nHipSpec v0.3 Dan Rosén danr@student.gu.se" ++
                 "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++
                 "\n             and Koen Claessen koen@chalmers.se")
     &= program "hipspec"
