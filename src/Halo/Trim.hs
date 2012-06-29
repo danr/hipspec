@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
 {-
 
    Trims away unnecessary function definitions from the theory.
@@ -21,9 +21,9 @@ import Data.List
 
 -- | Given a set of variables corresponding to top level definitions,
 --   removes all function definitions that are not interesting.
-trimFuns :: HaloConf -> [Var] -> [Subtheory] -> [Subtheory]
+trimFuns :: (Ord s,Show s) => HaloConf -> [Var] -> [Subtheory s] -> [Subtheory s]
 trimFuns HaloConf{use_cf} vars grand_theory = trim important grand_theory
-  where important = [ PrimConAxioms | use_cf ] ++
+  where important =
             [ Function v
             | Subtheory (Function v) _ _ _ <- grand_theory
             , v `elem` vars
@@ -38,29 +38,26 @@ trimFuns HaloConf{use_cf} vars grand_theory = trim important grand_theory
 --   subtheory.
 --
 --   We have keys as Content, and nodes are their corresponding Subtheories.
-trim :: [Content] -> [Subtheory] -> [Subtheory]
+trim :: forall s . (Show s,Ord s) => [Content s] -> [Subtheory s] -> [Subtheory s]
 trim important grand_theory =
-    let gr :: [(Subtheory,Content,[Content])]
+    let gr :: [(Subtheory s,Content s,[Content s])]
         gr = [ (subthy,provides subthy,depends subthy)
              | subthy <- grand_theory
              ]
 
         g          :: Graph
-        fromVertex :: Vertex -> (Subtheory,Content,[Content])
-        toVertex   :: Content -> Maybe Vertex
+        fromVertex :: Vertex -> (Subtheory s,Content s,[Content s])
+        toVertex   :: Content s -> Maybe Vertex
         (g,fromVertex,toVertex) = graphFromEdges gr
 
-        err :: Content -> Vertex
+        err :: Content s -> Vertex
         err subthy = error $ "Halo.Trim.trim: Trying to find dependencies of "
                             ++ show subthy ++ " which could not be found!"
 
         forest :: Forest Vertex
         forest = dfs g (map (\v -> fromMaybe (err v) (toVertex v)) important)
 
-        subtheory :: (Subtheory,Content,[Content]) -> Subtheory
+        subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
         subtheory (s,_,_) = s
 
     in  sort $ map (subtheory . fromVertex) (concatMap flatten forest)
-
-
-

@@ -31,7 +31,7 @@ dataArities ty_cons =
           arity           = length ty_args
     ]
 
-mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory]
+mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory s]
 mkProjDiscrim HaloConf{..} ty_cons =
    [
      -- Projections
@@ -73,9 +73,7 @@ mkProjDiscrim HaloConf{..} ty_cons =
            ]
 
      in Subtheory { provides    = Data ty_con
-                  , depends     = [ CrashFree ty_con | use_cf ]
-                  -- ^ I think we might want to make this depend on
-                  --   datatypes this is defined in terms of
+                  , depends     = []
                   , description = showSDoc (pprSourceTyCon ty_con)
                   , formulae    = projections ++ discrims }
 
@@ -83,74 +81,8 @@ mkProjDiscrim HaloConf{..} ty_cons =
    , let DataTyCon cons _ = algTyConRhs ty_con
    ]
 
--- | Make axioms about CF
-mkCF :: [TyCon] -> [Subtheory]
-mkCF ty_cons = do
-    ty_con <- ty_cons
-    let DataTyCon cons _ = algTyConRhs ty_con
-
-    return $ Subtheory
-        { provides    = CrashFree ty_con
-        , depends     = []
-        , description = "CF " ++ showSDoc (pprSourceTyCon ty_con)
-        , formulae    = concat $
-            [ forall' [x] (cf (qvar x) ==> min' (qvar x)) ] :
-
-            [
-                (forall' vars (min' kxbar: map cf xbar ===> cf kxbar) :)
-
-              $ guard (arity > 0) >>
-
-                [ forall' vars $ cf kxbar ==> ands (map cf xbar)
-
-                , forall' vars $ min' kxbar : [ neg (cf kxbar) ] ===>
-                                     ors [ ands [neg (cf x),min' x] | x <- xbar ]
-                ]
-            | c <- cons
-            , let data_c          = dataConWorkId c
-                  (_,_,ty_args,_) = dataConSig c
-                  arity           = length ty_args
-                  vars            = take arity varNames
-                  xbar            = map qvar vars
-                  kxbar           = fun data_c xbar
-            ]
-        }
-  where
-    x = head varNames
-
-axiomsBadUNR :: [Subtheory]
-axiomsBadUNR =
-    [ Subtheory
-         { provides    = PrimConAxioms
-         , depends     = [ PrimConApps ]
-         , description = "Axioms for BAD and UNR"
-         , formulae    =
-              [ cf (constant UNR)
-              , neg (cf (constant BAD))
-              , constant UNR =/= constant BAD
-              , min' (constant BAD)
-              ]
-         }
-    , Subtheory
-         { provides    = PrimConApps
-         , depends     = []
-         , description = "App on BAD and UNR"
-         , formulae    =
-              [ forall' [x] $ app (constant BAD) x' === constant BAD
-              , forall' [x] $ app (constant UNR) x' === constant UNR
-              ]
-         }
-         -- ^ Any file that uses app, but not necessarily on a pointer,
-         --   remind you, it could be app on a quantified variable,
-         --   should have PrimConApps as a dependency.
-         --   [contracts only]
-    ]
-  where
-    x = head varNames
-    x' = qvar x
-
 -- | Make pointers to constructors
-mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory]
+mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory s]
 mkConPtrs halo_conf ty_cons = do
     ty_con <- ty_cons
     let DataTyCon cons _ = algTyConRhs ty_con
@@ -164,8 +96,7 @@ mkConPtrs halo_conf ty_cons = do
 
     return $ (mkPtr halo_conf data_c arity) { depends = [Data ty_con] }
 
-
-mkPtr :: HaloConf -> Var -> Int -> Subtheory
+mkPtr :: HaloConf -> Var -> Int -> Subtheory s
 mkPtr HaloConf{ext_eq} f arity = Subtheory
     { provides    = Pointer f
     , depends     = [ ExtensionalEquality | ext_eq ]
@@ -178,8 +109,7 @@ mkPtr HaloConf{ext_eq} f arity = Subtheory
     as  = take arity varNames
     as' = map qvar as
 
-
-extEq :: Subtheory
+extEq :: Subtheory s
 extEq = Subtheory
     { provides    = ExtensionalEquality
     , depends     = []

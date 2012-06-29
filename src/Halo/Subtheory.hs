@@ -11,36 +11,27 @@ import TyCon
 
 import Data.Function
 
-data Content
-    = ExtensionalEquality
-    -- ^ Extensional equality, (f @ x = g @ x) => f = g, has a flag in HaloConf
-    | PrimConAxioms
-    -- ^ [contracts only] Axioms about UNR and BAD
-    | PrimConApps
-    -- ^ [contracts only] App on UNR and BAD
-    | Data TyCon
+data Content s
+    = Data TyCon
     -- ^ Discrimination and projection axioms for a data type
-    | CrashFree TyCon
-    -- ^ [contracts only] CF predicates for a data type
-    | Typing TyCon
-    -- ^ [hipspec only] Type predicates for a data type
     | Function Var
     -- ^ A definition of a function
     | Pointer Var
     -- ^ The pointer to a function definition or constructor
-    | Lemma String [Var]
-    -- ^ [hipspec only] Lemma with a name, regarding a group of definitions
+    | ExtensionalEquality
+    -- ^ Extensional equality, (f @ x = g @ x) => f = g
+    --   Toggled by a flag in HaloConf
+    | Specific s
+    -- ^ User specific content
   deriving (Eq,Ord)
 
-instance Show Content where
+instance Show s => Show (Content s) where
     show c = case c of
-        Function v    -> "Function " ++ show v
-        Pointer v     -> "Pointer " ++ show v
-        Data tc       -> "Data " ++ showOutputable tc
-        CrashFree tc  -> "CrashFree " ++ showOutputable tc
-        PrimConAxioms -> "PrimConAxioms"
-        Typing tc     -> "Typing " ++ showOutputable tc
-        Lemma s vs    -> "Lemma " ++ s ++ " (" ++ unwords (map show vs) ++ ")"
+        Function v          -> "Function " ++ show v
+        Pointer v           -> "Pointer " ++ show v
+        Data tc             -> "Data " ++ showOutputable tc
+        ExtensionalEquality -> "Extensional equality"
+        Specific s          -> "Specific: " ++ show s
 
 -- | A subtheory
 --
@@ -51,10 +42,10 @@ instance Show Content where
 --
 --   There is an optional description which is translated to a TPTP
 --   comment for debug output.
-data Subtheory = Subtheory
-    { provides    :: Content
+data Subtheory s = Subtheory
+    { provides    :: Content s
     -- ^ Content defined
-    , depends     :: [Content]
+    , depends     :: [Content s]
     -- ^ Content depending upon
     , description :: String
     -- ^ Commentary
@@ -62,25 +53,26 @@ data Subtheory = Subtheory
     -- ^ Formulae in this sub theory
     }
 
-instance Show Subtheory where
-  show subthy = "Subtheory { content=" ++ show (provides subthy) ++ "}"
+instance Show s => Show (Subtheory s) where
+    show subthy = "Subtheory { content=" ++ show (provides subthy) ++ "}"
 
-instance Eq Subtheory where
-  (==) = (==) `on` provides
+instance Eq s => Eq (Subtheory s) where
+    (==) = (==) `on` provides
 
-instance Ord Subtheory where
-  compare = compare `on` provides
+instance Ord s => Ord (Subtheory s) where
+    compare = compare `on` provides
 
-toClauses :: Subtheory -> [Clause']
-toClauses (Subtheory{..}) =
-    (description /= "" ? (comment description:))
-    (map (namedClause name cltype) formulae)
+class Clausifiable s where
+    mkClause :: s -> Formula' -> Clause'
+
+instance Clausifiable s => Clausifiable (Content s) where
+    mkClause (Specific s) = mkClause s
+    mkClause Function{}   = clause A.Definition
+    mkClause _            = clause A.Axiom
+
+toClauses :: Clausifiable s => Subtheory s -> [Clause']
+toClauses (Subtheory{..}) = commentary ++ map (mkClause provides) formulae
   where
-    name   = case provides of
-                 Lemma s _ -> "Lemma{" ++ s ++ "}"
-                 _         -> "x"
-
-    cltype = case provides of
-                 Lemma{}    -> A.Lemma
-                 Function{} -> A.Definition
-                 _          -> A.Axiom
+    commentary
+        | description /= "" = [comment description]
+        | otherwise         = []

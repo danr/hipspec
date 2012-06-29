@@ -96,6 +96,5 @@ mapCl _ (Comment s)    = pure (Comment s)
 removeMins :: [Clause q v] -> [Clause q v]
 removeMins = mapMaybe (mapCl (rmToMaybe . rmMin))
 
-removeMinsSubthy :: Subtheory -> Subtheory
+removeMinsSubthy :: Subtheory s -> Subtheory s
 removeMinsSubthy s = s { formulae = mapMaybe (rmToMaybe . rmMin) (formulae s) }
-

@@ -1,5 +1,5 @@
 -- (c) Dan Rosén 2012
-{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns, ScopedTypeVariables #-}
 module Halo.Trans(translate) where
 
 import CoreSubst
@@ -32,36 +32,32 @@ import Data.List
 import Data.Map (toList)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
-translate :: HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory],[String])
+translate :: forall s . HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory s],[String])
 translate env ty_cons binds =
-    let tr_funs :: [Subtheory]
-        msgs :: [String]
+    let tr_funs :: [Subtheory s]
+        msgs    :: [String]
         (tr_funs,msgs) = runHaloM env (concatMapM trBind binds)
 
         halo_conf = conf env
 
-        tr_pointers :: [Subtheory]
-        tr_pointers = map (uncurry (mkPtr halo_conf))
-                          (toList (arities env))
+        tr_pointers :: [Subtheory s]
+        tr_pointers = map (uncurry (mkPtr halo_conf)) (toList (arities env))
 
     in  (concat
             [mkProjDiscrim halo_conf ty_cons
             ,mkConPtrs     halo_conf ty_cons
-            ,mkCF          ty_cons
-            ,axiomsBadUNR
-            ,[extEq]
             ,tr_pointers
             ,tr_funs]
         ,msgs ++ showArityMap (arities env))
 
 -- | Translate a group of mutally defined binders
-trBind :: CoreBind -> HaloM [Subtheory]
+trBind :: CoreBind -> HaloM [Subtheory s]
 trBind bind = concatMapM (uncurry trDecl) (flattenBinds [bind])
 
 -- | Translate a CoreDecl, given the mutual group it was defined in
 --
 --   Generates a small subtheory for it including its pointer axiom
-trDecl :: Var -> CoreExpr -> HaloM [Subtheory]
+trDecl :: Var -> CoreExpr -> HaloM [Subtheory s]
 trDecl f e = do
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
@@ -209,4 +205,3 @@ trConstr (Inequality e data_con) = do
                     [ proj i (dataConWorkId data_con) lhs
                     | i <- [0..dataConSourceArity data_con-1] ]
     return $ lhs =/= rhs
-
