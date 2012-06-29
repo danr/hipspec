@@ -27,6 +27,7 @@ data Params = Params
     , fof                 :: Bool
     , comments            :: Bool
     , dont_print_unproved :: Bool
+    , min                 :: Bool
 
     , swap_repr           :: Bool
     , prepend_pruned      :: Bool
@@ -76,6 +77,7 @@ defParams = Params
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , dont_print_unproved = False   &= name "d" &= help "Don't print unproved conjectures from QuickSpec"
+    , min                 = False   &= name "m" &= help "Use min and minrec translation"
 
     , swap_repr           = False   &= groupname "\nEquation ordering"
                                     &= name "s" &= help "Swap equations with their representative"

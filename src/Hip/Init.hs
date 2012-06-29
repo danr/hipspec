@@ -10,7 +10,6 @@ import Hip.Trans.Theory
 
 import Halo.Conf
 import Halo.Entry
-import Halo.FOL.RemoveMin
 import Halo.Lift
 import Halo.Monad
 import Halo.Trans
@@ -58,7 +57,8 @@ processFile file = do
 
         halt_conf :: HaloConf
         halt_conf = sanitizeConf $ HaloConf
-                        { use_min      = False
+                        { use_min      = min
+                        , use_minrec   = min
                         , use_cf       = False
                         , unr_and_bad  = False
                         , ext_eq       = True
@@ -69,7 +69,7 @@ processFile file = do
         (subtheories,_msgs_trans)
             = translate halt_env ty_cons_with_builtins core_defns
 
-        theory = Theory (map removeMinsSubthy subtheories)
+        theory = Theory subtheories
 
         props = (consistency ? (inconsistentProp:))
               $ mapMaybe trProperty core_props

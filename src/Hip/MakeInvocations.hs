@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns #-}
 module Hip.MakeInvocations where
 
 import Hip.ATP.Invoke
@@ -16,6 +16,7 @@ import Halo.Trim
 import Halo.Util
 
 import Halo.FOL.Linearise
+import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
 import Halo.FOL.Style
 
@@ -72,8 +73,12 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
             [ PD.Property n c $
               [ let lemma_deps =
                         [ lem | Subtheory lem@Lemma{} _ _ _ <- subtheories ]
-                    subs  = trim (deps ++ lemma_deps) subtheories
-                    pcls' = [ fmap (\cls -> linTPTP
+                    min_remover
+                        | min       = id
+                        | otherwise = removeMins
+                    subs  = (not min ? map removeMinsSubthy)
+                          $ trim (deps ++ lemma_deps) subtheories
+                    pcls' = [ fmap (\(min_remover -> cls) -> linTPTP
                                      (strStyle comments (not fof))
                                      (renameClauses
                                          (concatMap toClauses subs ++ cls))
@@ -164,4 +169,3 @@ printInfo unproved proved = do
 
     unless (null mistakes) $ putStrLn $ bold $ colour Red $
         "Proved " ++ show (length mistakes) ++ " oops: " ++ pr True mistakes
-
