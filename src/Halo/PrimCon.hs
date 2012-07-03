@@ -44,4 +44,3 @@ primCon c = mkDataCon
     (error $ "primCon: repr type constructor (TyCon) on" ++ show c)
     []    -- stupid theta types
     (DCIds Nothing (primId c))
-

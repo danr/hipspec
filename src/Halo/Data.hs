@@ -6,10 +6,11 @@ module Halo.Data where
 import DataCon
 import Id
 import Name
-import TyCon
-import SrcLoc
 import Outputable
+import SrcLoc
+import TyCon
 import Type
+import TysWiredIn
 import Unique
 
 import Halo.FOL.Abstract
@@ -20,6 +21,12 @@ import Halo.Subtheory
 
 import Data.List
 import Control.Monad.Reader
+
+true,false,unr,bad :: Term'
+true  = con trueDataConId
+false = con falseDataConId
+unr   = constant UNR
+bad   = constant BAD
 
 dataArities :: [TyCon] -> [(Var,Int)]
 dataArities ty_cons =
@@ -103,8 +110,9 @@ mkPtr HaloConf{ext_eq} f arity = Subtheory
     , depends     = [ ExtensionalEquality | ext_eq ]
     , description = "Pointer axiom to " ++ show f
     , formulae    =
-        [forall' as $ min' (apps (ptr f) as') ==> apps (ptr f) as' === fun f as']
-
+        let lhs = apps (ptr f) as'
+            rhs = fun f as'
+        in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
     }
   where
     as  = take arity varNames
