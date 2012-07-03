@@ -19,16 +19,6 @@ import Data.Graph
 import Data.Tree
 import Data.List
 
--- | Given a set of variables corresponding to top level definitions,
---   removes all function definitions that are not interesting.
-trimFuns :: (Ord s,Show s) => HaloConf -> [Var] -> [Subtheory s] -> [Subtheory s]
-trimFuns HaloConf{use_cf} vars grand_theory = trim important grand_theory
-  where important =
-            [ Function v
-            | Subtheory (Function v) _ _ _ <- grand_theory
-            , v `elem` vars
-            ]
-
 -- | Trim down a grand theory, from the recursive dependencies from a set
 --   of interesting subtheories.
 --
@@ -54,8 +44,11 @@ trim important grand_theory =
         err subthy = error $ "Halo.Trim.trim: Trying to find dependencies of "
                             ++ show subthy ++ " which could not be found!"
 
+        findVertex :: Content s -> Vertex
+        findVertex v = fromMaybe (err v) (toVertex v)
+
         forest :: Forest Vertex
-        forest = dfs g (map (\v -> fromMaybe (err v) (toVertex v)) important)
+        forest = dfs g (map findVertex important)
 
         subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
         subtheory (s,_,_) = s
