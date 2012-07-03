@@ -107,7 +107,7 @@ mkConPtrs halo_conf ty_cons = do
 mkPtr :: HaloConf -> Var -> Int -> Subtheory s
 mkPtr HaloConf{ext_eq} f arity = Subtheory
     { provides    = Pointer f
-    , depends     = [ ExtensionalEquality | ext_eq ]
+    , depends     = AppOnMin : [ ExtensionalEquality | ext_eq ]
     , description = "Pointer axiom to " ++ show f
     , formulae    =
         let lhs = apps (ptr f) as'
