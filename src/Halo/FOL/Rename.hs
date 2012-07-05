@@ -32,10 +32,9 @@ renameClauses clauses =
         clauses' = map (renameQVar suggest) (map renameFuns clauses)
           where
             suggest :: Var -> [String]
-            suggest v = [ case s of
+            suggest v = [ case escape qvarEscapes s of
                             x:xs | isAlpha x -> toUpper x:xs
-                                 | otherwise -> 'Q':s
-                            []   -> 'Q':show i
+                            [] -> 'Q':show i
                         | s <- varSuggest v
                         | i <- [(0 :: Int)..]
                         ]
@@ -110,23 +109,59 @@ varSuggest var = candidates
 
 toTPTPid :: String -> String
 toTPTPid s | Just x <- M.lookup s prelude = x
-           | otherwise                    = escape s -- (lower s)
+           | otherwise                    = escape (M.singleton '\'' "prime") s
 
-escape :: String -> String
-escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
+escape :: Map Char String -> String -> String
+escape m = concatMap (\c -> fromMaybe [c] (M.lookup c m))
 
 lower :: String -> String
 lower = map toLower
 
 protectedWiredIn :: Set String
-protectedWiredIn = S.fromList ["app","min","minrec","cf","bad","unr"]
+protectedWiredIn = S.fromList ["app","min","$min","minrec","cf"]
 
-escapes :: Map Char String
-escapes = M.fromList
+qvarEscapes :: Map Char String
+qvarEscapes = M.fromList
     [ ('\'',"prime")
+    , ('!' ,"bang")
+    , ('#' ,"hash")
+    , ('$' ,"dollar")
+    , ('%' ,"pc")
+    , ('&' ,"amp")
+    , ('*' ,"star")
+    , ('+' ,"plus")
+    , ('.' ,"_")
+    , ('/' ,"slash")
+    , ('<' ,"less")
+    , ('=' ,"equals")
+    , ('>' ,"greater")
+    , ('?' ,"qmark")
+    , ('\\',"bslash")
+    , ('^' ,"hat")
+    , ('|' ,"pipe")
+    , (':' ,"colon")
+    , ('-' ,"minus")
+    , ('~' ,"tilde")
+    , ('@' ,"at")
+
+    , ('{' ,"rb")
+    , ('}' ,"lb")
+    , ('[' ,"rbr")
+    , (']' ,"lbr")
+    , ('(' ,"rp")
+    , (')' ,"lp")
+    , (',' ,"comma")
     ]
 
 prelude :: Map String String
 prelude = M.fromList
-   [
+   [ ("[]","Nil")
+   , (":","Cons")
+   , ("()","Unit")
+   , ("(,)","Tup")
+   , ("(,,)","Trip")
+   , ("(,,,)","Quad")
+   , ("(,,,,)","Quint")
    ]
+
+

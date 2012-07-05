@@ -1,8 +1,10 @@
+{-# LANGUAGE RecordWildCards #-}
 module Halo.FOL.Style where
 
 import Outputable
 
 import Halo.PrimCon
+import Halo.Util
 
 data Style q v = Style
     { linFun      :: v -> SDoc
@@ -33,25 +35,31 @@ data Style q v = Style
     -- ^ Print comments
     }
 
-strStyle :: Bool -> Bool -> Style String String
-strStyle comments cnf = Style
+data StyleConf = StyleConf
+    { style_cnf        :: Bool
+    , style_dollar_min :: Bool
+    , style_comments   :: Bool
+    }
+
+strStyle :: StyleConf -> Style String String
+strStyle StyleConf{..} = Style
     { linFun      = text . quote . ("f_" ++)
     , linCtor     = text . quote . ("c_" ++)
     , linSkolem   = text . quote . ("a_" ++)
-    , linQVar     = text
+    , linQVar     = text . (\s@(_:xs) -> if any requiresQuote xs then quote s else s)
     , linApp      = text "app"
-    , linMin      = text "min"
+    , linMin      = text ((style_dollar_min ? ('$':)) "min")
     , linMinRec   = text "minrec"
     , linCF       = text "cf"
-    , linProj     = \i n -> text ("p_" ++ show i ++ "_" ++ n)
+    , linProj     = \i n -> text (quote ("p_" ++ show i ++ "_" ++ n))
     , linPtr      = text . quote . ("ptr_" ++)
-    , linCNF      = cnf
+    , linCNF      = style_cnf
     , linConstant = text . quote . ("c_" ++) . show
-    , linComments = comments
+    , linComments = style_comments
     }
   where
     quote s@(x:xs)
-        | x `notElem` ('_'++['a'..'z]) || any requiresQuote xs = "'" ++ c:s ++ "'"
+        | x `notElem` ('_':['a'..'z']) || any requiresQuote xs = "'" ++ s ++ "'"
         | otherwise = s
 
     requiresQuote = (`notElem` ('_':['0'..'9']++['a'..'z']++['A'..'Z']))
