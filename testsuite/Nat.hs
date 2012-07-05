@@ -30,15 +30,12 @@ _   * m = Z
 prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
 prop_mul_comm x y z = x * y =:= y * x
 
-main = hipSpec "Nat.hs" conf 3
-  where conf = describe "Nats"
-               [ var "x" natType
-               , var "y" natType
-               , var "z" natType
-               , con "Z" Z
-               , con "S" S
-               , con "+" (+)
-               , con "*" (*)
+main = hipSpec "Nat.hs" conf
+  where conf = [ vars ["x", "y", "z"] natType
+               , fun0 "Z" Z
+               , fun1 "S" S
+               , fun2 "+" (+)
+               , fun2 "*" (*)
                ]
            where natType = (error "Nat type" :: Nat)
 
@@ -59,8 +56,4 @@ arbSized s = do
 instance CoArbitrary Nat where
   coarbitrary Z     = variant 0
   coarbitrary (S x) = variant (-1) . coarbitrary x
-
-instance Classify Nat where
-  type Value Nat = Nat
-  evaluate = return
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
-module Hip.HipSpec (hipSpec, module Test.QuickSpec.Term) where
+module Hip.HipSpec (hipSpec, module Test.QuickSpec) where
 
+import Test.QuickSpec
 import Test.QuickSpec.Term hiding (depth)
 import qualified Test.QuickSpec.Term as T
 import Test.QuickSpec.Main
