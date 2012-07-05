@@ -53,10 +53,7 @@ executable          hipspec
         process                       >= 1.0.1.1,
         stm                           >= 2.0,
         directory                     >= 1.0,
-        split                         >= 0.1,
-
-        -- QuickSpec
-        quickspec                     >= 1.0
+        split                         >= 0.1
 
 library
     ghc-options:    -threaded -O2 -rtsopts -package ghc
@@ -114,6 +111,9 @@ library
         mtl                           >= 2.0,
         containers                    >= 0.3,
 
+        -- Prelude
+        QuickCheck                    >= 2.5,
+
         -- Command-line Arguments
         cmdargs                       >= 0.9,
 
@@ -127,14 +127,12 @@ library
         safe                          >= 0.3,
         pretty                        >= 1.0,
 
-        -- QuickSpec
-        QuickCheck                    >= 2.0,
-        random                        >= 1.0,
-        array                         >= 0.4,
-        parallel                      >= 3.0,
-
         -- Running Theorem Provers
         process                       >= 1.0.1.1,
         stm                           >= 2.0,
         directory                     >= 1.0,
-        split                         >= 0.1
+        split                         >= 0.1,
+
+        -- QuickSpec
+        quickspec                     >= 1.0
+
