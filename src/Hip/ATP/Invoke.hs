@@ -152,17 +152,24 @@ listener intermediateChan resChan propParts workers doneTVar = do
             -- decrement propName parts
             modify (first (M.adjust pred propName))
 
-            left <- gets ((M.! propName) . fst)
+            maybe_in_map <- gets (M.lookup propName *** M.lookup propName)
 
---          liftIO $ putStrLn $ propName ++ " parts left: " ++ show left
+            case maybe_in_map of
+                (Just left,Just res)
+                    | left == 0 -> do
+                        liftIO $ atomically $ writeTChan resChan res
+                        modify (M.delete propName *** M.delete propName)
 
-            -- all parts are done, write on res chan and remove from the state
-            when (left == 0) $ do
+                    | otherwise -> return ()
 
-                liftIO . atomically . writeTChan resChan =<<
-                     gets ((M.! propName) . snd)
+                (Nothing,Nothing) ->
+                    liftIO $ putStrLn $ "Warning! " ++ propName
+                            ++ " appeared more than once!"
 
-                modify (M.delete propName *** M.delete propName)
+                _ ->
+                    liftIO $ putStrLn $ "Warning! " ++ propName
+                            ++ " has caused an internal inconsistency"
+                            ++ " (info exists in one map but not in the other)"
 
             -- are we finished?
             done <- gets (M.null . fst)
