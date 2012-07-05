@@ -1,5 +1,4 @@
-
-{-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances, ScopedTypeVariables #-}
 module Main where
 
 import Prelude hiding ((>>=),(++),fmap,id,(.))
@@ -47,43 +46,38 @@ f . g = \x -> f (g x)
 id :: a -> a
 id x = x
 
-main = hipSpec "ListMonad.hs" conf 3
+main = hipSpec "ListMonad.hs" conf
   where
-    conf = describe "List Monad"
-                [ var "x"        (undefined :: Int)
-                , var "y"        (undefined :: Int)
-                , var "z"        (undefined :: Int)
-                , var "xs"       (undefined :: [Int])
-                , var "ys"       (undefined :: [Int])
-                , var "zs"       (undefined :: [Int])
-                , var "xss"      (undefined :: [[Int]])
-                , var "yss"      (undefined :: [[Int]])
-                , var "zss"      (undefined :: [[Int]])
-                , var "f"        (undefined :: Int     -> Int)
-                , var "g"        (undefined :: Int     -> Int)
-                , var "h"        (undefined :: Int     -> Int)
-                , var "k"        (undefined :: Int     -> [Int])
-                , var "i"        (undefined :: [Int]   -> Int)
-                , var "j"        (undefined :: [Int]   -> [[Int]])
-                , var "r"        (undefined :: [[Int]] -> [Int])
-                , var "t"        (undefined :: Int     -> [[Int]])
-                , con "id"       (id        :: [Int] -> [Int])
-                , con "id"       (id        :: Int   -> Int)
-               -- , con "."        ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
-               -- , con "."        ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
-                , con "[]"       ([]        :: [Int])
-                , con "[]"       ([]        :: [[Int]])
-                , con "point"    (point     :: Int   -> [Int])
-                , con "point"    (point     :: [Int] -> [[Int]])
-                , con ":"        ((:)       :: Int   -> [Int]   -> [Int])
-                , con ":"        ((:)       :: [Int] -> [[Int]] -> [[Int]])
-                , con "++"       ((++)      :: [Int]   -> [Int]   -> [Int])
-                , con "++"       ((++)      :: [[Int]] -> [[Int]] -> [[Int]])
-                , con "join"     (join      :: [[Int]] -> [Int])
-                , con "join"     (join      :: [[[Int]]] -> [[Int]])
-                , con ">>="      ((>>=)     :: [Int] -> (Int -> [Int]) -> [Int])
-                , con ">>="      ((>>=)     :: [Int] -> (Int -> [[Int]]) -> [[Int]])
-                , con "fmap"     (fmap      :: (Int -> Int) -> [Int] -> [Int])
-                , con "fmap"     (fmap      :: (Int -> [Int]) -> [Int] -> [[Int]])
-                ]
+    conf = [ vars ["x","y","z"]       (undefined :: Int)
+           , vars ["xs","ys","zs"]    (undefined :: [Int])
+           , vars ["xss","yss","zss"] (undefined :: [[Int]])
+           , vars ["f","g","h"]       (undefined :: Int -> Int)
+           , vars ["k"]               (undefined :: Int     -> [Int])
+           , vars ["i"]               (undefined :: [Int]   -> Int)
+           , vars ["j"]               (undefined :: [Int]   -> [[Int]])
+           , vars ["r"]               (undefined :: [[Int]] -> [Int])
+           , vars ["t"]               (undefined :: Int     -> [[Int]])
+           , blind0 "id"              (id        :: [Int] -> [Int])
+           , blind0 "id"              (id        :: Int   -> Int)
+           , blind2 "."               ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
+           , blind2 "."               ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
+           , fun0 "[]"                ([]        :: [Int])
+           , fun0 "[]"                ([]        :: [[Int]])
+           , blind0 "point"           (point     :: Int   -> [Int])
+           , fun1 "point"             (point     :: Int   -> [Int])
+           , fun2 ":"                 ((:)       :: Int   -> [Int]   -> [Int])
+           , fun2 ":"                 ((:)       :: [Int] -> [[Int]] -> [[Int]])
+           , fun2 "++"                ((++)      :: [Int]   -> [Int]   -> [Int])
+           , fun2 "++"                ((++)      :: [[Int]] -> [[Int]] -> [[Int]])
+           , fun1 "join"              (join      :: [[Int]] -> [Int])
+           , fun1 "join"              (join      :: [[[Int]]] -> [[Int]])
+           , fun2 ">>="               ((>>=)     :: [Int] -> (Int -> [Int]) -> [Int])
+           , fun2 ">>="               ((>>=)     :: [Int] -> (Int -> [[Int]]) -> [[Int]])
+           , fun2 "fmap"              (fmap      :: (Int -> Int) -> [Int] -> [Int])
+           , fun2 "fmap"              (fmap      :: (Int -> [Int]) -> [Int] -> [[Int]])
+           , observer2 $ (($) :: (Int -> Int) -> (Int -> Int))
+           , observer2 $ (($) :: ([Int] -> Int) -> ([Int] -> Int))
+           , observer2 $ (($) :: (Int -> [Int]) -> (Int -> [Int]))
+           , observer2 $ (($) :: ([Int] -> [Int]) -> ([Int] -> [Int]))
+           ]
 
