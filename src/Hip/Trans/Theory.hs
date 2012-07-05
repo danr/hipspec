@@ -2,6 +2,7 @@
 module Hip.Trans.Theory where
 
 import Halo.Subtheory
+import Hip.Trans.Property
 
 import CoreSyn
 import Var
@@ -14,8 +15,6 @@ import Halo.FOL.Abstract hiding (Lemma)
 import qualified Halo.FOL.Abstract as A
 
 import Halo.Data (f,f',x,x',varNames)
-
-import qualified Test.QuickSpec.Term as QST
 
 data HipSpecExtras
     = Lemma String
@@ -88,27 +87,3 @@ type HipSpecContent = Content HipSpecExtras
 type HipSpecSubtheory = Subtheory HipSpecExtras
 
 data Theory = Theory { subthys :: [HipSpecSubtheory] }
-
-data Prop = Prop
-    { proplhs     :: CoreExpr
-    , proprhs     :: CoreExpr
-    , propVars    :: [(Var,Type)]
-    , propName    :: String
-    , propRepr    :: String
-    , propQSTerms :: (QST.Term QST.Symbol,QST.Term QST.Symbol)
-    , propFunDeps :: [Var]
-    , propOops    :: Bool
-    -- ^ It's an error if this property was provable
-    }
-
-inconsistentProp :: Prop
-inconsistentProp = Prop
-    { proplhs     = Var trueDataConId
-    , proprhs     = Var falseDataConId
-    , propVars    = []
-    , propName    = "inconsistencyCheck"
-    , propRepr    = "inconsistecy check: this should never be provable"
-    , propQSTerms = error "propQSTerms: inconsistentProp"
-    , propFunDeps = []
-    , propOops    = True
-    }

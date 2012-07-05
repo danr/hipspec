@@ -5,7 +5,8 @@ module Hip.Trans.MakeProofs where
 import Hip.Induction
 import Hip.Induction.Linearise
 import Hip.Trans.ProofDatatypes
-import Hip.Trans.Theory as Thy
+import Hip.Trans.Theory
+import Hip.Trans.Property as Prop
 import Hip.Trans.Types
 import Hip.Params
 
@@ -79,7 +80,7 @@ theoryToInvocations params@(Params{..}) theory prop lemmas = do
     tr_lemmas <- lift $ mapM trLemma lemmas
     parts <- map (extendPart tr_lemmas) <$> prove params theory prop
     return $ Property
-        { propName   = Thy.propName prop
+        { propName   = Prop.propName prop
         , propCode   = propRepr prop
         , propMatter = parts
         }

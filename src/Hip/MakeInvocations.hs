@@ -8,6 +8,7 @@ import Hip.Params
 import Hip.Trans.MakeProofs
 import Hip.Trans.ProofDatatypes (propMatter)
 import Hip.Trans.Theory
+import Hip.Trans.Property
 import qualified Hip.Trans.ProofDatatypes as PD
 
 import Halo.Monad

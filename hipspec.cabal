@@ -53,7 +53,10 @@ executable          hipspec
         process                       >= 1.0.1.1,
         stm                           >= 2.0,
         directory                     >= 1.0,
-        split                         >= 0.1
+        split                         >= 0.1,
+
+        -- QuickSpec
+        quickspec                     >= 1.0
 
 library
     ghc-options:    -threaded -O2 -rtsopts -package ghc
@@ -62,7 +65,6 @@ library
     exposed-modules:
         Hip.HipSpec
         Hip.Prelude
-        Test.QuickSpec
 
     other-modules:
         Halo.Case
@@ -105,13 +107,6 @@ library
         Hip.Trans.SrcRep
         Hip.Trans.Theory
         Hip.Trans.Types
-        Test.QuickSpec.CatchExceptions
-        Test.QuickSpec.CongruenceClosure
-        Test.QuickSpec.Equations
-        Test.QuickSpec.Term
-        Test.QuickSpec.TestTree
-        Test.QuickSpec.UnionFind
-        Test.QuickSpec.Utils
 
     build-depends:
         -- Shared

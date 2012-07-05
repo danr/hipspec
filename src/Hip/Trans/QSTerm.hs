@@ -9,9 +9,13 @@ module Hip.Trans.QSTerm where
 
 import Test.QuickSpec.Term
 import qualified Test.QuickSpec.Term as T
+import Test.QuickSpec.Utils.Typed
+import Test.QuickSpec.Equation
+import qualified Test.QuickSpec.Utils.Typeable as Ty
 
 import Hip.Annotations
 import Hip.Trans.Theory
+import Hip.Trans.Property
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -32,14 +36,13 @@ import Var
 
 import Control.Monad
 
-type Equation = (Term Symbol,Term Symbol)
 
-typeRepToType :: ANNs -> TypeRep -> Type
+typeRepToType :: ANNs -> Ty.TypeRep -> Type
 typeRepToType (_,strToTyCon) = go
   where
-    go :: TypeRep -> Type
-    go t | [(ta,tb)] <- funTypes [t]   = go ta `GhcType.mkFunTy` go tb
-    go t = let (ty_con,ts) = Typeable.splitTyConApp t
+    go :: Ty.TypeRep -> Type
+    go t | Just (ta,tb) <- splitArrow t   = go ta `GhcType.mkFunTy` go tb
+    go t = let (ty_con,ts) = Ty.splitTyConApp t
                _tr r = tyConName ty_con ++ " ~> " ++ showSDoc (pprSourceTyCon r)
            in  fromMaybe a
                 (fmap (\r -> {- trace (tr r) -} r `GhcType.mkTyConApp` map go ts)
@@ -50,7 +53,7 @@ typeRepToType (_,strToTyCon) = go
                                 (mkOccName tvName "a")
                                 wiredInSrcSpan) anyKind
 
-termToExpr :: ANNs -> Map Symbol Var -> Term Symbol -> CoreExpr
+termToExpr :: ANNs -> Map Symbol Var -> Term -> CoreExpr
 termToExpr anns var_rename_map = go
   where
     go t = case t of
@@ -66,7 +69,7 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
                    ++ " to Core representation!"
 
 -- So far only works on arguments with monomorphic, non-exponential types
-termsToProp :: ANNs -> Term Symbol -> Term Symbol -> Prop
+termsToProp :: ANNs -> Term -> Term -> Prop
 termsToProp anns e1 e2 = Prop
     { proplhs  = termToExpr anns var_rename_map e1
     , proprhs  = termToExpr anns var_rename_map e2
@@ -74,23 +77,23 @@ termsToProp anns e1 e2 = Prop
                  | (x,v) <- var_rename ]
     , propName = repr
     , propRepr = repr
-    , propQSTerms = (e1,e2)
+    , propQSTerms = e1 :=: e2
     , propFunDeps = [ v
-                    | c <- nub (constants e1 ++ constants e2)
+                    | c <- nub (funs e1 ++ funs e2)
                     , let (v,is_function_not_constructor) = lookupSym anns c
                     , is_function_not_constructor
                     ]
     , propOops    = False
     }
   where
-    repr           = showEq (e1,e2)
+    repr           = show (e1 :=: e2)
     var_rename     = [ (x,v)
                      | x <- nub (vars e1 ++ vars e2)
                      | v <- varNames ]
     var_rename_map = M.fromList var_rename
 
-showEq :: Equation -> String
-showEq (e1,e2) = show e1 ++ " = " ++ show e2
+eqToProp :: ANNs -> Equation -> Prop
+eqToProp anns (t :=: u) = termsToProp anns t u
 
 csv :: [String] -> String
 csv = intercalate ", "

@@ -1,8 +1,9 @@
 module Hip.Trans.Property where
 
-import Hip.Trans.Theory
 import Hip.Trans.SrcRep
+import Test.QuickSpec.Equation
 
+import Type
 import CoreSyn
 import Var
 import TysWiredIn
@@ -13,6 +14,29 @@ import Halo.Shared
 
 import Control.Arrow (second)
 
+data Prop = Prop
+    { proplhs     :: CoreExpr
+    , proprhs     :: CoreExpr
+    , propVars    :: [(Var,Type)]
+    , propName    :: String
+    , propRepr    :: String
+    , propQSTerms :: Equation
+    , propFunDeps :: [Var]
+    , propOops    :: Bool
+    -- ^ It's an error if this property was provable
+    }
+
+inconsistentProp :: Prop
+inconsistentProp = Prop
+    { proplhs     = Var trueDataConId
+    , proprhs     = Var falseDataConId
+    , propVars    = []
+    , propName    = "inconsistencyCheck"
+    , propRepr    = "inconsistecy check: this should never be provable"
+    , propQSTerms = error "propQSTerms: inconsistentProp"
+    , propFunDeps = []
+    , propOops    = True
+    }
 trProperty :: CoreBind -> Maybe Prop
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
