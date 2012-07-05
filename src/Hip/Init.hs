@@ -57,12 +57,13 @@ processFile file = do
 
         halt_conf :: HaloConf
         halt_conf = sanitizeConf $ HaloConf
-                        { use_min      = min
-                        , use_minrec   = min
-                        , use_cf       = False
-                        , unr_and_bad  = False
-                        , ext_eq       = True
-                        }
+            { use_min           = min
+            , use_minrec        = min
+            , unr_and_bad       = False
+            , ext_eq            = True
+            , disjoint_booleans = True
+            , or_discr          = False
+            }
 
         halt_env = mkEnv halt_conf ty_cons_with_builtins core_defns
 
