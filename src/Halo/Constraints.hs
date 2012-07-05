@@ -7,13 +7,16 @@ import Outputable
 
 import Halo.Shared
 
+import Data.List
+
 -- Constraints from case expressions to results, under a substitution
 data Constraint = Equality   CoreExpr DataCon [CoreExpr]
                 | Inequality CoreExpr DataCon
 
 instance Show Constraint where
-  show (Equality   e _dc _bs) = showExpr e ++ " == fix constraint show instance" -- ++ show p
-  show (Inequality e _dc)     = showExpr e ++ " /= fix constraint show instance" -- ++ show p
+  show (Equality   e dc bs) = showExpr e ++ " = " ++ showOutputable dc
+                                ++ "(" ++ intercalate "," (map showOutputable bs) ++ ")"
+  show (Inequality e dc)    = showExpr e ++ " != " ++ showOutputable dc
 
 -- | Substitute in the constraints
 substConstr :: Subst -> Constraint -> Constraint
@@ -25,7 +28,6 @@ substConstr s c = case c of
 -- | The empty constraints
 noConstraints :: [Constraint]
 noConstraints = []
-
 
 conflict :: [Constraint] -> Bool
 conflict cs =
@@ -39,6 +41,7 @@ conflict cs =
           | Equality e1 con_x _ <- cs
           , Equality e2 con_y _ <- cs
           ]
+    -- Remove if it says C1 = C2
     -- What we would want is if we have
     -- Equality (C1(..)) C2, and C1/=C2
   where
@@ -47,4 +50,3 @@ conflict cs =
     cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
                                             cheapExprEq e1' e2'
     cheapExprEq _ _ = False
-
