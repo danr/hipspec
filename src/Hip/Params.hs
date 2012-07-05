@@ -33,7 +33,6 @@ data Params = Params
     , prepend_pruned      :: Bool
     , quadratic           :: Bool
     , interesting_cands   :: Bool
-    , allow_eta_red       :: Bool
     , assoc_important     :: Bool
 
     , inddepth            :: Int
@@ -84,7 +83,6 @@ defParams = Params
     , prepend_pruned      = False   &= name "r" &= help "Add nice pruned equations from in front"
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
-    , allow_eta_red       = False   &= name "e" &= help "Allow eta-reduced terms"
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
 
     , inddepth            = 1       &= groupname "\nStructural induction"
