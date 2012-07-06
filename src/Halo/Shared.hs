@@ -45,8 +45,20 @@ subst e x y = substExpr (text "halo") s e
   where
     s = extendIdSubst emptySubst x (Var y)
 
+-- | Substitute an expression
+substExp :: CoreExpr -> Var -> CoreExpr -> CoreExpr
+substExp e x e' = substExpr (text "halo") s e
+  where
+    s = extendIdSubst emptySubst x e'
+
 -- | Substitute a list
 substList :: CoreExpr -> [(Var,Var)] -> CoreExpr
 substList e xs = substExpr (text "halo") s e
   where
     s = extendIdSubstList emptySubst [ (x,Var y) | (x,y) <- xs ]
+
+-- | Substitute an expression list
+substExprList :: CoreExpr -> [(Var,CoreExpr)] -> CoreExpr
+substExprList e xs = substExpr (text "halo") s e
+  where
+    s = extendIdSubstList emptySubst xs
