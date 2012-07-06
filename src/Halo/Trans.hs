@@ -190,10 +190,14 @@ trCon data_con scrut_exp (cons,bound,e) = do
 trConstraints :: HaloM (Maybe [Formula'])
 trConstraints = do
     HaloEnv{constr} <- ask
-    write $ "Constraints: " ++ concatMap ("\n    " ++) (map show constr)
+    let write_cs hdr cs = write $ hdr ++ concatMap ("\n    " ++) (map show cs)
+    write_cs "Constraints: " constr
     if conflict constr
         then write "  Conflict!" >> return Nothing
-        else Just <$> mapM trConstr constr
+        else do
+            let not_redundant = rmRedundantConstraints constr
+            write_cs "Not redundant: " not_redundant
+            Just <$> mapM trConstr not_redundant
 
 trConstr :: Constraint -> HaloM Formula'
 trConstr (Equality e data_con bs) = do
