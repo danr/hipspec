@@ -33,6 +33,7 @@ instance Show s => Show (Content s) where
         Pointer v           -> "Pointer " ++ show v
         Data tc             -> "Data " ++ showOutputable tc
         ExtensionalEquality -> "Extensional equality"
+        AppOnMin            -> "App on min"
         Specific s          -> "Specific: " ++ show s
 
 -- | A subtheory
@@ -56,7 +57,8 @@ data Subtheory s = Subtheory
     }
 
 instance Show s => Show (Subtheory s) where
-    show subthy = "Subtheory { content=" ++ show (provides subthy) ++ "}"
+    show subthy = "Subtheory { content=" ++ show (provides subthy)
+                          ++ ", depends=" ++ show (depends subthy) ++ "}"
 
 instance Eq s => Eq (Subtheory s) where
     (==) = (==) `on` provides
