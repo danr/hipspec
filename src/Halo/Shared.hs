@@ -36,8 +36,9 @@ exprArity e = length as
 trimTyArgs :: [CoreArg] -> [CoreArg]
 trimTyArgs = filter (not . isTyArg)
   where
-    isTyArg Type{} = True
-    isTyArg _      = False
+    isTyArg Type{}     = True
+    isTyArg Coercion{} = True
+    isTyArg _          = False
 
 -- | @subst e x y@ substitutes as e[y/x]
 subst :: CoreExpr -> Var -> Var -> CoreExpr

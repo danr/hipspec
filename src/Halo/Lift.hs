@@ -102,7 +102,8 @@ liftExpr e = case e of
     Var x          -> return (Var x)
     Lit i          -> return (Lit i)
     App e1 e2      -> App <$> liftExpr e1 <*> liftExpr e2
-    Lam _ _        -> err "lambdas should be lift before using liftLetCase"
+    Lam y e'       -> local (second (++ [y])) (Lam y <$> liftExpr e')
+                   -- err "lambdas should be lift before using liftLetCase"
     Let bind in_e  -> liftInnerLet bind in_e
     Case s sv t as -> liftInnerCase s sv t as
     Cast e_cast c  -> Cast <$> liftExpr e_cast <*> pure c
