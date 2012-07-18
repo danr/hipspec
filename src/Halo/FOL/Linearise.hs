@@ -79,7 +79,7 @@ linEqOp st op t1 t2 = linTm st t1 <+> op <+> linTm st t2
 
 -- | Linearise binary operations: &, |, =>
 linBinOp :: Style q v -> SDoc -> [Formula q v] -> SDoc
-linBinOp st op fs = cat (punctuate (fluff op) (map (linForm st parens) fs))
+linBinOp st op fs = cat (punctuate' (fluff op) (map (linForm st parens) fs))
 
 -- | Linearise quantifiers: ! [..] :, ? [..] :
 --   op list should _not_ be empty
@@ -132,7 +132,7 @@ fluff :: SDoc -> SDoc
 fluff d = space <> d <> space
 
 csv :: [SDoc] -> SDoc
-csv = cat . punctuate comma
+csv = cat . punctuate' comma
 
 unequals :: SDoc
 unequals = text "!="
@@ -151,3 +151,8 @@ bang = char '!'
 
 questmark :: SDoc
 questmark = char '?'
+
+punctuate' :: SDoc -> [SDoc] -> [SDoc]
+punctuate' _ []     = []
+punctuate' p (d:ds) = d : map (p <>) ds
+
