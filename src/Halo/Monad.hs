@@ -9,7 +9,6 @@ module Halo.Monad where
 import CoreSubst
 import CoreSyn
 import Id
-import Name hiding (varName)
 import Outputable
 import TyCon
 import Unique
@@ -56,9 +55,13 @@ data HaloEnv = HaloEnv
     -- ^ Configuration
     }
 
--- | Pushes new quantified variables to the environment
+-- | Registers a variable as a skolem variable
 addSkolem :: Var -> HaloEnv -> HaloEnv
 addSkolem v env = env { skolems = v:skolems env }
+
+-- | Registers many skolem variables
+addSkolems :: [Var] -> HaloEnv -> HaloEnv
+addSkolems vs env = env { skolems = vs ++ skolems env }
 
 -- | Pushes new quantified variables to the environment
 pushQuant :: [Var] -> HaloEnv -> HaloEnv
