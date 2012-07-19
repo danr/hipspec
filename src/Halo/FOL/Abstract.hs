@@ -30,11 +30,14 @@ module Halo.FOL.Abstract
 
     , Formula
     , Term
-    , ClType(..)
+    , ClType
     , Clause
     , clause
     , comment
     , namedClause
+
+    , axiom, lemma, hypothesis, definition
+    , conjecture, negatedConjecture, question
     ) where
 
 import Halo.FOL.Internals.Internals
@@ -202,3 +205,27 @@ simpleCNF (Implies f1 f2)            = simpleCNF (neg f1 \/ f2)
 simpleCNF (Or fs) | all isLiteral fs = Just fs
 simpleCNF f       | isLiteral f      = Just [f]
 simpleCNF _                          = Nothing
+
+-- Clause types
+
+axiom :: ClType
+axiom = Axiom
+
+lemma :: ClType
+lemma = Lemma
+
+hypothesis :: ClType
+hypothesis = Hypothesis
+
+definition :: ClType
+definition = Definition
+
+conjecture :: ClType
+conjecture = Conjecture
+
+negatedConjecture :: ClType
+negatedConjecture = NegatedConjecture
+
+question :: ClType
+question = Question
+

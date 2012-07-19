@@ -1,10 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Halo.Subtheory where
 
-import Halo.Util
 import Halo.Shared
-import Halo.FOL.Abstract hiding (Lemma)
-import qualified Halo.FOL.Abstract as A
+import Halo.FOL.Abstract
 
 import Var
 import TyCon
@@ -71,8 +69,8 @@ class Clausifiable s where
 
 instance Clausifiable s => Clausifiable (Content s) where
     mkClause (Specific s) = mkClause s
-    mkClause Function{}   = clause A.Definition
-    mkClause _            = clause A.Axiom
+    mkClause Function{}   = clause definition
+    mkClause _            = clause axiom
 
 toClauses :: Clausifiable s => Subtheory s -> [Clause']
 toClauses (Subtheory{..}) = commentary ++ map (mkClause provides) formulae
