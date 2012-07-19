@@ -9,6 +9,7 @@ module Halo.Util
 
     -- * Boolean inspection
     , (?)
+    , ifM
 
     -- * Monadic concatenative combinators
     , concatMapM
@@ -67,6 +68,12 @@ infixr 1 ?
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
 False ? _ = id
+
+-- | Monadic if
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM mb t f = do
+    b <- mb
+    if b then t else f
 
 -- | Pair up a list with its previous and next elements
 --
