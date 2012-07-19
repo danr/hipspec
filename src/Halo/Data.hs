@@ -105,13 +105,13 @@ mkConPtrs halo_conf ty_cons = do
     return $ (mkPtr halo_conf data_c arity) { depends = [Data ty_con] }
 
 mkPtr :: HaloConf -> Var -> Int -> Subtheory s
-mkPtr HaloConf{ext_eq} f arity = Subtheory
-    { provides    = Pointer f
+mkPtr HaloConf{ext_eq} h arity = Subtheory
+    { provides    = Pointer h
     , depends     = AppOnMin : [ ExtensionalEquality | ext_eq ]
-    , description = "Pointer axiom to " ++ show f
+    , description = "Pointer axiom to " ++ show h
     , formulae    =
-        let lhs = apps (ptr f) as'
-            rhs = fun f as'
+        let lhs = apps (ptr h) as'
+            rhs = fun h as'
         in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
     }
   where

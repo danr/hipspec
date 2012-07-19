@@ -3,7 +3,6 @@ module Halo.ExprTrans where
 
 import CoreSyn
 import FastString
-import Id
 import Literal
 import MkCore
 

@@ -72,7 +72,7 @@ laxConstrEq _ _ = False
 redundant :: Constraint -> Bool
 redundant c = case c of
     -- C1 /= C2 is redundant information, if C1 really is a constructor
-    Inequality (collectArgs -> (Var x,xs)) con
+    Inequality (collectArgs -> (Var x,_xs)) con
         -> dataConName con /= varName x
             && not (isVarName (varName x)) && isDataConName (varName x)
             -- ^ this check is needed or OccName.isDataCon blows up
