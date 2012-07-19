@@ -63,3 +63,12 @@ substExprList :: CoreExpr -> [(Var,CoreExpr)] -> CoreExpr
 substExprList e xs = substExpr (text "halo") s e
   where
     s = extendIdSubstList emptySubst xs
+
+-- | Simple application to get rid of some lambdas
+(@@) :: CoreExpr -> CoreExpr -> CoreExpr
+Lam x e @@ e2 = substExp e x e2
+e1      @@ e2 = App e1 e2
+
+-- | Apply many expressions to an expression
+foldApps :: CoreExpr -> [CoreExpr] -> CoreExpr
+foldApps = foldl App

@@ -179,7 +179,7 @@ trCon data_con scrut_exp (cons,bound,e) = do
     HaloEnv{quant} <- ask
     case scrut_exp of
         Var x | x `elem` quant -> do
-            let tr_pat = foldl App (Var (dataConWorkId data_con)) (map Var bound)
+            let tr_pat = foldApps (Var (dataConWorkId data_con)) (map Var bound)
                 s = extendIdSubst emptySubst x (tr_pat)
                 e' = substExpr (text "trAlt") s e
             local (substContext s . pushQuant bound . delQuant x) (trCase e')
