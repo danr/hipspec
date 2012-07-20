@@ -25,6 +25,10 @@ data Content s
     -- ^ User specific content
   deriving (Eq,Ord)
 
+mapFunctionContent :: (Var -> Var) -> Content s -> Content s
+mapFunctionContent f (Function v) = Function (f v)
+mapFuncitonContent _ c            = c
+
 instance Show s => Show (Content s) where
     show c = case c of
         Function v          -> "Function " ++ show v
