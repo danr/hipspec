@@ -7,19 +7,28 @@ import CoreFVs
 import VarSet
 import Id
 
+import Control.Monad
+
+import Data.Maybe
+
 import Data.Set (Set)
 import qualified Data.Set as S
 
 -- | For all used constructors in expressions and patterns,
 --   return the TyCons they originate from
+--
+--   Note: cannot run isDataConWorkId on things that aren't isId,
+--         then we get a panic from idDetails.
 freeTyCons :: CoreExpr -> [TyCon]
 freeTyCons e =
-    let as_exprs = map idDataCon . varSetElems
-                 . exprSomeFreeVars isDataConWorkId $ e
+    let safeIdDataCon c = guard (isId c) >> isDataConId_maybe c
+
+        as_exprs = mapMaybe safeIdDataCon . varSetElems
+                 . exprSomeFreeVars (\v -> isId v && isDataConWorkId v) $ e
 
         in_patterns = S.toList (patCons e)
 
-    in  map (dataConTyCon) (as_exprs ++ in_patterns)
+    in  map dataConTyCon (as_exprs ++ in_patterns)
 
 -- | Returs the constructors used in patterns
 patCons :: CoreExpr -> Set DataCon
