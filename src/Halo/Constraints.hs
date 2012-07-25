@@ -6,6 +6,7 @@ import CoreSyn
 import DataCon
 import Outputable
 import Var
+import Id
 import Name hiding (varName)
 
 import Halo.Shared
@@ -72,10 +73,10 @@ laxConstrEq _ _ = False
 redundant :: Constraint -> Bool
 redundant c = case c of
     -- C1 /= C2 is redundant information, if C1 really is a constructor
-    Inequality (collectArgs -> (Var x,_xs)) con
-        -> dataConName con /= varName x
-            && not (isVarName (varName x)) && isDataConName (varName x)
-            -- ^ this check is needed or OccName.isDataCon blows up
+    Inequality (collectArgs -> (Var x,_xs)) c2
+        -> case isDataConId_maybe x of
+               Just c1 -> c1 /= c2
+               _       -> False
     -- C1 == C1 is redundant information,
     -- but what to do if it has arguments?
     Equality (collectArgs -> (Var x,[])) con []
