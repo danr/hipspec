@@ -34,7 +34,7 @@ renameClauses clauses =
             suggest :: Var -> [String]
             suggest v = [ case escape qvarEscapes s of
                             x:xs | isAlpha x -> toUpper x:xs
-                            [] -> 'Q':show i
+                            _ -> 'Q':show i
                         | s <- varSuggest v
                         | i <- [(0 :: Int)..]
                         ]

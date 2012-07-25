@@ -1,9 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Halo.FOL.Style where
 
-import Outputable
+import Outputable hiding (quote)
 
-import Halo.PrimCon
 import Halo.Util
 
 data Style q v = Style
@@ -58,5 +57,6 @@ strStyle StyleConf{..} = Style
     quote s@(x:xs)
         | x `notElem` ('_':['a'..'z']) || any requiresQuote xs = "'" ++ s ++ "'"
         | otherwise = s
+    quote "" = "''"
 
     requiresQuote = (`notElem` ('_':['0'..'9']++['a'..'z']++['A'..'Z']))

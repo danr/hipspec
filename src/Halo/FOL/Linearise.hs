@@ -7,7 +7,6 @@ import Outputable
 import Data.List
 
 import Halo.Util
-import Halo.PrimCon
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
 import Halo.FOL.Style

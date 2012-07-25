@@ -16,7 +16,7 @@ import Halo.Util
 import Halo.Shared
 import Halo.Monad
 import Halo.Conf
-import Halo.Data
+import Halo.Data hiding (f,x)
 import Halo.ExprTrans
 import Halo.Constraints
 import Halo.Case
@@ -28,7 +28,6 @@ import Halo.FOL.Abstract
 import Control.Monad.Reader
 import Control.Monad.Error
 
-import Data.List
 import Data.Map (toList)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
@@ -67,12 +66,12 @@ trDecl f e = do
 
         data_deps = freeTyCons e
 
-        translate = local (\env -> env { current_fun = f
-                                       , args = map Var as ++ args env
-                                       , quant = as ++ quant env})
-                          (trCase e')
+        tr_e = local (\env -> env { current_fun = f
+                                  , args = map Var as ++ args env
+                                  , quant = as ++ quant env})
+                     (trCase e')
 
-    (fun_tr,used_ptrs) <- capturePtrs translate `catchError` \err -> do
+    (fun_tr,used_ptrs) <- capturePtrs tr_e `catchError` \err -> do
                               cleanUpFailedCapture
                               return (error err,[])
 
@@ -174,7 +173,7 @@ trAlt scrut_exp alt@(cons,_,_) = case cons of
     _       -> throwError "trAlt: on LitAlt, literals not supported (yet)"
 
 trCon :: DataCon -> CoreExpr -> CoreAlt -> HaloM [Formula']
-trCon data_con scrut_exp (cons,bound,e) = do
+trCon data_con scrut_exp (_cons,bound,e) = do
     HaloEnv{quant} <- ask
     case scrut_exp of
         Var x | x `elem` quant -> do

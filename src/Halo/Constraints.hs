@@ -7,7 +7,6 @@ import DataCon
 import Outputable
 import Var
 import Id
-import Name hiding (varName)
 
 import Halo.Shared
 

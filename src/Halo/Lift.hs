@@ -96,22 +96,21 @@ liftAlt (con,bound,e) = do
     e_lifted <- local (second (++ bound)) (liftCase e)
     return (con,bound,e_lifted)
 
--- | Translate an expression, i.e. not case statements. Substitutions
--- are followed.
+-- | Lift an expression
 liftExpr :: CoreExpr -> LiftM CoreExpr
 liftExpr e = case e of
-    Var x          -> return (Var x)
-    Lit i          -> return (Lit i)
-    App e1 e2      -> App <$> liftExpr e1 <*> liftExpr e2
+    Var _          -> return e
+    Lit _          -> return e
+    Type _         -> return e
+    Coercion _     -> return e
+
     Lam y e'       -> liftInnerLambda y e'
     Let bind in_e  -> liftInnerLet bind in_e
     Case s sv t as -> liftInnerCase s sv t as
+
+    App e1 e2      -> App <$> liftExpr e1 <*> liftExpr e2
     Cast e_cast c  -> Cast <$> liftExpr e_cast <*> pure c
     Tick t e_tick  -> Tick t <$> liftExpr e_tick
-    Type t         -> return (Type t)
-    Coercion c     -> return (Coercion c)
-  where
-    err s = error $ "liftExpr: " ++ s ++ " (" ++ showExpr e ++ ")"
 
 mkLiftedName :: Type -> String -> LiftM Var
 mkLiftedName ty lbl = do
@@ -170,11 +169,11 @@ liftInnerLet b in_e = do
     dbgMsg $ "Experimental let: " ++ showExpr (Let b in_e)
     case b of
         NonRec v e -> do
-            (lifted_bind,subst) <- liftInnerDecl v e
+            (lifted_bind,subst_pair) <- liftInnerDecl v e
 
             tell [uncurry NonRec lifted_bind]
 
-            liftExpr (substExprList in_e [subst])
+            liftExpr (substExprList in_e [subst_pair])
 
         Rec binds -> do
             (lifted_binds,subst_list) <- mapAndUnzipM (uncurry liftInnerDecl) binds

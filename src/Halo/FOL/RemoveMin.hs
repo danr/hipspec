@@ -12,7 +12,7 @@ import Halo.Subtheory
 import Data.Maybe
 import Control.Applicative
 
-data Rm a = Pure { getPure :: a } | Top | Bot
+data Rm a = Pure a | Top | Bot
   deriving (Show,Eq,Ord,Functor)
 
 isTop :: Rm a -> Bool
@@ -68,15 +68,15 @@ rmMin f = case f of
 
     Implies f1 f2 -> case (rmMin f1,rmMin f2) of
         (Top,f2') -> f2'
-        (Bot,f2') -> Top
-        (f1',Top) -> Top
+        (Bot,_f2) -> Top
+        (_f1,Top) -> Top
         (f1',Bot) -> fmap neg f1'
         (Pure f1',Pure f2') -> Pure (Implies f1' f2')
 
-    Neg f' -> case rmMin f' of
+    Neg f1 -> case rmMin f1 of
         Top     -> Bot
         Bot     -> Top
-        Pure f' -> Pure (neg f')
+        Pure f2 -> Pure (neg f2)
 
     Forall qs f' -> fmap (Forall qs) (rmMin f')
     Exists qs f' -> fmap (Exists qs) (rmMin f')

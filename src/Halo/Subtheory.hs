@@ -27,7 +27,7 @@ data Content s
 
 mapFunctionContent :: (Var -> Var) -> Content s -> Content s
 mapFunctionContent f (Function v) = Function (f v)
-mapFuncitonContent _ c            = c
+mapFunctionContent _ c            = c
 
 instance Show s => Show (Content s) where
     show c = case c of

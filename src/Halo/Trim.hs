@@ -9,10 +9,6 @@
 module Halo.Trim where
 
 import Halo.Subtheory
-import Halo.Util
-import Halo.Conf
-
-import Var
 
 import Data.Maybe
 import Data.Graph
