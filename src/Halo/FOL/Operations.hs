@@ -19,7 +19,6 @@ replaceVarsTm k = go
         Proj i v a -> Proj i (k v) (go a)
         Ptr v      -> Ptr (k v)
         QVar q     -> QVar q
-        Constant c -> Constant c
 
 replaceQVarsTm :: (q -> r) -> Term q v -> Term r v
 replaceQVarsTm k = go
@@ -32,7 +31,6 @@ replaceQVarsTm k = go
         Proj i v a -> Proj i v (go a)
         Ptr v      -> Ptr v
         QVar q     -> QVar (k q)
-        Constant c -> Constant c
 
 formulaMapTerms :: (Term q v -> Term r u) -> (q -> r)
                 -> Formula q v -> Formula r u

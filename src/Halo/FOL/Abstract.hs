@@ -8,7 +8,6 @@ module Halo.FOL.Abstract
     , fun, fun0
     , ctor, ctor0
 
-    , constant
     , app, apps
     , proj
     , qvar
@@ -41,7 +40,6 @@ module Halo.FOL.Abstract
     ) where
 
 import Halo.FOL.Internals.Internals
-import Halo.PrimCon
 
 import Var
 import Id
@@ -65,11 +63,8 @@ namedClause = Clause
 --   it is a data constructor or a function, and make a term accordingly.
 apply :: Var -> [Term q Var] -> Term q Var
 apply x as
-    | Just c <- lookup x primCons = apps (Constant c) as
     | isConLikeId x               = Ctor x as
     | otherwise                   = Fun x as
-  where
-    primCons = [(primId c,c) | c <- [minBound..maxBound]]
 
 -- | Make a term of this primitive constant, constructor or CAF.
 con :: Var -> Term q Var
@@ -86,9 +81,6 @@ ctor = Ctor
 
 ctor0 :: v -> Term q v
 ctor0 a = Ctor a []
-
-constant :: PrimCon -> Term q v
-constant = Constant
 
 app :: Term q v -> Term q v -> Term q v
 app = App

@@ -10,7 +10,6 @@ import Outputable
 import SrcLoc
 import TyCon
 import Type
-import TysWiredIn
 import Unique
 
 import Halo.FOL.Abstract
@@ -21,12 +20,6 @@ import Halo.Subtheory
 
 import Data.List
 import Control.Monad.Reader
-
-true,false,unr,bad :: Term'
-true  = con trueDataConId
-false = con falseDataConId
-unr   = constant UNR
-bad   = constant BAD
 
 dataArities :: [TyCon] -> [(Var,Int)]
 dataArities ty_cons =

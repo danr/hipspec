@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable,ScopedTypeVariables #-}
 module Halo.FOL.Internals.Internals where
 
-import Halo.PrimCon
 import Data.Data
 
 -- Only files under Halo.FOL should use this module!
@@ -25,7 +24,6 @@ data Term q v
     | Proj Int v (Term q v)
     | Ptr v
     | QVar q
-    | Constant PrimCon
   deriving (Eq,Ord,Show,Data,Typeable)
 
 data Formula q v

@@ -27,8 +27,6 @@ data Style q v = Style
     -- ^ Projections
     , linPtr      :: v -> SDoc
     -- ^ Pointers
-    , linConstant :: PrimCon -> SDoc
-    -- ^ Constants
     , linCNF      :: Bool
     -- ^ Write things in cnf if possible
     , linComments :: Bool
@@ -54,7 +52,6 @@ strStyle StyleConf{..} = Style
     , linProj     = \i n -> text (quote ("p_" ++ show i ++ "_" ++ n))
     , linPtr      = text . quote . ("ptr_" ++)
     , linCNF      = style_cnf
-    , linConstant = text . quote . ("c_" ++) . show
     , linComments = style_comments
     }
   where

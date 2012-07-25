@@ -8,19 +8,23 @@ import Name
 import SrcLoc
 import Unique
 import Data.Data
+import TysWiredIn
 
-data PrimCon = BAD | UNR | Bottom
-  deriving (Eq,Ord,Enum,Bounded,Data,Typeable)
+import Halo.FOL.Abstract
 
-instance Show PrimCon where
-  show BAD = "bad"
-  show UNR = "unr"
-  show Bottom = "bottom"
+data PrimCon = BAD | UNR deriving (Show,Eq,Ord,Enum,Bounded,Data,Typeable)
+
+true,false,unr,bad :: Term'
+true  = con trueDataConId
+false = con falseDataConId
+unr   = con (primId UNR)
+bad   = con (primId BAD)
 
 primName :: PrimCon -> Name
-primName c = mkInternalName (mkUnique 'j' (fromEnum c))
-                                (mkOccName dataName (show c))
-                                wiredInSrcSpan
+primName c = mkInternalName
+    (mkUnique 'j' (fromEnum c))
+    (mkOccName dataName (show c))
+    wiredInSrcSpan
 
 primId :: PrimCon -> Id
 primId c = mkVanillaGlobal (primName c) ty_err

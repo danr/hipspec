@@ -44,28 +44,27 @@ addBottomCase alts = do
     -- but right now not unr_bad means nothing
     -- and the code below is how you would do it for only bottom
 
-    if unr_bad
-        then do let bottom | unr_bad   = UNR
-                           | otherwise = Bottom
+    if unr_bad then do
+            let bottomCon = primCon UNR
+                bottomVar = primExpr UNR
 
-                    bottomCon = primCon bottom
-                    bottomVar = primExpr bottom
+                -- _|_ -> _|_
+                -- Breaks the core structure by having a new data constructor
+                bottomAlt :: CoreAlt
+                bottomAlt = (DataAlt bottomCon, [], bottomVar)
 
-                     -- _|_ -> _|_
-                    -- Breaks the core structure by having a new data constructor
-                    bottomAlt :: CoreAlt
-                    bottomAlt = (DataAlt bottomCon, [], bottomVar)
+                -- DEFAULT -> _|_
+                defaultBottomAlt :: CoreAlt
+                defaultBottomAlt = (DEFAULT, [], bottomVar)
 
-                    -- DEFAULT -> _|_
-                    defaultBottomAlt :: CoreAlt
-                    defaultBottomAlt = (DEFAULT, [], bottomVar)
+                extraAlt :: [CoreAlt]
+                extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
+                         | otherwise = []
 
-                    extraAlt :: [CoreAlt]
-                    extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
-                             | otherwise = []
-                -- Case expressions have an invariant that the default case is always first.
-                return $ case findDefault alts of
-                     (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
-                     (as,Nothing)  -> defaultBottomAlt:extraAlt++as
+            -- Case expressions have the invariant that the default case is always first.
+            return $ case findDefault alts of
+                 (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
+                 (as,Nothing)  -> defaultBottomAlt:extraAlt++as
 
-        else return alts
+        else
+            return alts

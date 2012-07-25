@@ -31,7 +31,7 @@ trExpr e = do
                           Nothing -> False
     case e of
         Var x
-            | x `elem` errorIds -> return (constant BAD)
+            | x `elem` errorIds -> return bad
             | x `elem` quant    -> return (qvar x)
             | x `elem` skolems  -> return (skolem x)
             | isFunction x      -> usePtr x >> return (ptr x)
@@ -41,7 +41,7 @@ trExpr e = do
           case second trimTyArgs (collectArgs e) of
             (Var f,es)
                | null es -> trExpr (Var f)
-               | f `elem` errorIds -> return (constant BAD)
+               | f `elem` errorIds -> return bad
                | Just i <- M.lookup f arities -> do
                    write $ idToStr f ++ " has arity " ++ show i
                    if i > length es
@@ -56,7 +56,7 @@ trExpr e = do
                  apps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
           write $ "String, " ++ unpackFS s ++ " coerced to bad"
-          return $ constant BAD
+          return bad
         Cast e' _ -> do
           write $ "Ignoring cast: " ++ showExpr e
           trExpr e'
