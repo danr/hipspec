@@ -1,7 +1,7 @@
 module Halo.Lift(caseLetLift) where
 
 import CoreFVs
-import CoreSubst
+import CoreUtils
 import CoreSyn
 import Id
 import Name
@@ -68,6 +68,7 @@ liftCoreBind b = case b of
 liftDecl :: Var -> CoreExpr -> LiftM CoreExpr
 liftDecl f e = do
     dbgMsg $ "Lifting " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
+    dbgMsg $ "    rhs:" ++ showExpr e
     args_ <- asks args
     e_lifted <- local (const (f,args_++as)) (liftCase e_stripped)
     return (mkCoreLams (args_ ++ as) e_lifted)
@@ -102,8 +103,7 @@ liftExpr e = case e of
     Var x          -> return (Var x)
     Lit i          -> return (Lit i)
     App e1 e2      -> App <$> liftExpr e1 <*> liftExpr e2
-    Lam y e'       -> local (second (++ [y])) (Lam y <$> liftExpr e')
-                   -- err "lambdas should be lift before using liftLetCase"
+    Lam y e'       -> liftInnerLambda y e'
     Let bind in_e  -> liftInnerLet bind in_e
     Case s sv t as -> liftInnerCase s sv t as
     Cast e_cast c  -> Cast <$> liftExpr e_cast <*> pure c
@@ -118,17 +118,36 @@ mkLiftedName ty lbl = do
     i <- liftUnique
     fun_var <- asks fun
     let fun_desc = showSDoc . ppr . localiseName . Var.varName $ fun_var
-        name = mkSystemName i (mkOccName OccName.varName (fun_desc ++ lbl))
+        name = mkSystemName i (mkOccName OccName.varName (fun_desc ++ "_" ++ lbl))
         var' = mkLocalId name ty
     return var'
 
--- | Translate an inner case expression
+-- | Lift inner lambda expression
+liftInnerLambda :: Var -> CoreExpr -> LiftM CoreExpr
+liftInnerLambda x e = do
+
+    let fv_set   = exprFreeVars e
+
+    lam_args <- filter (`elemVarSet` fv_set) <$> asks args
+
+    let lam_args_x = lam_args ++ [x]
+
+    new_fun <- mkLiftedName (mkPiTypes lam_args_x (exprType e)) "lam"
+
+    dbgMsg $ "Lift lambda: " ++ showExpr (Lam x e) ++ " new name: " ++ show new_fun
+
+    lifted_lam <- local (const (new_fun,lam_args_x))
+                        (liftCoreBind (NonRec new_fun e))
+
+    tell [lifted_lam]
+
+    return $ mkVarApps (Var new_fun) lam_args
+
+-- | Lift an inner case expression
 liftInnerCase :: CoreExpr -> Var -> Type -> [CoreAlt] -> LiftM CoreExpr
 liftInnerCase scrutinee scrut_var ty alts = do
 
     let e = Case scrutinee scrut_var ty alts
-
-    dbgMsg $ "Lift case: " ++ showExpr e
 
     arg_vars <- asks args
 
@@ -137,17 +156,15 @@ liftInnerCase scrutinee scrut_var ty alts = do
 
     new_fun <- mkLiftedName (mkPiTypes case_args ty) "case"
 
+    dbgMsg $ "Lift case: " ++ showExpr e ++ " new name: " ++ show new_fun
+
     lifted_case <- local (const (new_fun,case_args))
                          (liftCoreBind (NonRec new_fun e))
     tell [lifted_case]
 
     return $ mkVarApps (Var new_fun) case_args
 
--- | Substitute everything in the list
-substFromList :: [(Var,CoreExpr)] -> CoreExpr -> CoreExpr
-substFromList = substExpr (text "subst") . extendIdSubstList emptySubst
-
--- | Translate a let expression
+-- | Lift a let expression
 liftInnerLet :: CoreBind -> CoreExpr -> LiftM CoreExpr
 liftInnerLet b in_e = do
     dbgMsg $ "Experimental let: " ++ showExpr (Let b in_e)
@@ -157,14 +174,14 @@ liftInnerLet b in_e = do
 
             tell [uncurry NonRec lifted_bind]
 
-            liftExpr (substFromList [subst] in_e)
+            liftExpr (substExprList in_e [subst])
 
         Rec binds -> do
             (lifted_binds,subst_list) <- mapAndUnzipM (uncurry liftInnerDecl) binds
 
             tell [Rec lifted_binds]
 
-            liftExpr (substFromList subst_list in_e)
+            liftExpr (substExprList in_e subst_list)
 
 -- | Returns the substitution
 liftInnerDecl :: Var -> CoreExpr -> LiftM ((Var,CoreExpr),(Var,CoreExpr))
@@ -178,11 +195,11 @@ liftInnerDecl v e = do
     new_v <- mkLiftedName (mkPiTypes arg_vars (varType v))
                           (idToStr v ++ "let")
 
-    let subst = (v,mkVarApps (Var new_v) let_args)
+    let subst_v = mkVarApps (Var new_v) let_args
 
     lifted_e <- local (second (const let_args))
-                      (liftDecl new_v (substFromList [subst] e))
+                      (liftDecl new_v (substExp e v subst_v))
 
-    return ((new_v,lifted_e),subst)
+    return ((new_v,lifted_e),(v,subst_v))
 
 

@@ -101,8 +101,7 @@ trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
     write $ "Case on " ++ showExpr scrutinee
 
     -- Substitute the scrutinee var to the scrutinee expression
-    let subst_alt (c,bs,e_alt) = (c,bs,substExpr (text "trCase") s e_alt)
-          where  s = extendIdSubst emptySubst scrut_var scrutinee
+    let subst_alt (c,bs,e_alt) = (c,bs,substExp e_alt scrut_var scrutinee)
 
         alts_wo_bottom = map subst_alt alts_unsubst
 
