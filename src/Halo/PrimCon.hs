@@ -3,12 +3,17 @@ module Halo.PrimCon where
 
 import CoreSyn
 import DataCon
-import Id
-import Name
-import SrcLoc
-import Unique
 import Data.Data
+import FastString
+import Id
+import MkId
+import Module (Module)
+import Name
+import PrelNames
+import TypeRep
+import TysPrim
 import TysWiredIn
+import Unique
 
 import Halo.FOL.Abstract
 
@@ -20,31 +25,53 @@ false = con falseDataConId
 unr   = con (primId UNR)
 bad   = con (primId BAD)
 
+-- | Copied from TysWiredIn since it is not exported
+mkWiredInDataConName :: BuiltInSyntax -> Module -> FastString -> Unique
+                     -> DataCon -> Name
+mkWiredInDataConName built_in modu fs unique datacon = mkWiredInName
+    modu
+    (mkDataOccFS fs)
+    unique
+    (ADataCon datacon) -- Relevant DataCon
+    built_in
+
 primName :: PrimCon -> Name
-primName c = mkInternalName
+primName c = mkWiredInDataConName
+    BuiltInSyntax
+    gHC_TYPES
+    (fsLit (show c))
     (mkUnique 'j' (fromEnum c))
-    (mkOccName dataName (show c))
-    wiredInSrcSpan
+    (primCon c)
 
 primId :: PrimCon -> Id
-primId c = mkVanillaGlobal (primName c) ty_err
-  where ty_err = error $ "primId: type on " ++ show c
+primId = dataConWorkId . primCon
 
 primExpr :: PrimCon -> CoreExpr
 primExpr = Var . primId
 
 primCon :: PrimCon -> DataCon
-primCon c = mkDataCon
-    (primName c)
-    False -- infix
-    []    -- strictness
-    []    -- records
-    []    -- univ.q. ty vars
-    []    -- ext.q. ty vars
-    []    -- gadt equalities
-    []    -- theta types
-    []    -- argument types
-    (error $ "primCon: result type (Type) on " ++ show c)
-    (error $ "primCon: repr type constructor (TyCon) on" ++ show c)
-    []    -- stupid theta types
-    (DCIds Nothing (primId c))
+primCon c = data_con
+  where
+    data_con = mkDataCon
+        dc_name  -- name (from primName)
+        False    -- infix
+        []       -- strictness
+        []       -- records
+        []       -- univ.q. ty vars
+        []       -- ext.q. ty vars
+        []       -- gadt equalities
+        []       -- theta types
+        []       -- argument types
+        anyTy    -- result type
+        anyTyCon -- representation type constructor
+        []       -- stupid theta types
+        (mkDataConIds bogus_wrap_name wrk_name data_con)
+
+    dc_name  = primName c
+    wrk_key  = getUnique dc_name
+
+    wrk_occ  = mkDataConWorkerOcc (nameOccName dc_name)
+    wrk_name = mkWiredInName (nameModule dc_name) wrk_occ wrk_key
+			     (AnId (dataConWorkId data_con)) UserSyntax
+
+    bogus_wrap_name = error $ "primCon: Wired-in data wrapper id for " ++ show c
