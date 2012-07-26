@@ -7,11 +7,10 @@ import Literal
 import MkCore
 
 import Halo.FOL.Abstract
-import Halo.Util
 import Halo.Monad
 import Halo.PrimCon
-
 import Halo.Shared
+import Halo.Util
 
 import qualified Data.Map as M
 import Data.List (intercalate)
@@ -23,19 +22,26 @@ import Control.Monad.Error
 --
 --   This function registers used function pointers as a side-effect.
 --   To capture them, run `capturePtrs', see Halo.Monad
+--
+--   trExpr looks at the following entries of HaloEnv
+--
+--       * skolems
+--       * arities
+--
 trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
     HaloEnv{..} <- ask
-    let isFunction x = case M.lookup x arities of
+    let isPAP x = case M.lookup x arities of
                           Just i  -> i > 0
                           Nothing -> False
+        isQuant x = x `M.notMember` arities
     case e of
         Var x
             | x `elem` errorIds -> return bad
-            | x `elem` quant    -> return (qvar x)
             | x `elem` skolems  -> return (skolem x)
-            | isFunction x      -> usePtr x >> return (ptr x)
-            | otherwise         -> return (con x)
+            | isPAP x           -> usePtr x >> return (ptr x)
+            | isQuant x         -> return (qvar x)
+            | otherwise         -> return (con x) -- con or caf
         App{} -> do
           write $ "App on " ++ showExpr e
           case second trimTyArgs (collectArgs e) of

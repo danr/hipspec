@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 -- Translating data types
 
-module Halo.BackgroundTheory ( backgroundTheory , dataArities ) where
+module Halo.BackgroundTheory ( backgroundTheory ) where
 
 import DataCon
 import Id
@@ -25,16 +25,6 @@ backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
 backgroundTheory halo_conf ty_cons
     = extEq : appOnMin
     : concatMap (\k -> k halo_conf ty_cons) [mkProjDiscrim,mkConPtrs]
-
-dataArities :: [TyCon] -> [(Var,Int)]
-dataArities ty_cons =
-    [ (con_id,arity)
-    | DataTyCon cons _ <- map algTyConRhs ty_cons
-    , c <- cons
-    , let con_id          = dataConWorkId c
-          (_,_,ty_args,_) = dataConSig c
-          arity           = length ty_args
-    ]
 
 mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory s]
 mkProjDiscrim HaloConf{..} ty_cons =

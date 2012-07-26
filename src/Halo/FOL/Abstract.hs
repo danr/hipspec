@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts #-}
 -- (c) Dan Rosén 2012
 module Halo.FOL.Abstract
     ( Term', Formula', Clause', StrClause
@@ -23,6 +23,7 @@ module Halo.FOL.Abstract
     , (\/), ors
     , neg
     , forall', exists'
+    , foralls
 
     , min', minrec
     , cf
@@ -39,10 +40,14 @@ module Halo.FOL.Abstract
     , conjecture, negatedConjecture, question
     ) where
 
-import Halo.FOL.Internals.Internals
-
 import Var
 import Id
+
+import Halo.FOL.Internals.Internals
+import Halo.FOL.Operations
+
+import Control.Applicative ((<*>))
+import Data.Data
 
 type Term'    = Term    Var Var
 type Formula' = Formula Var Var
@@ -63,8 +68,8 @@ namedClause = Clause
 --   it is a data constructor or a function, and make a term accordingly.
 apply :: Var -> [Term q Var] -> Term q Var
 apply x as
-    | isConLikeId x               = Ctor x as
-    | otherwise                   = Fun x as
+    | isId x && isConLikeId x = Ctor x as
+    | otherwise               = Fun x as
 
 -- | Make a term of this primitive constant, constructor or CAF.
 con :: Var -> Term q Var
@@ -163,6 +168,9 @@ forall' as f = Forall as f
 exists' :: [q] -> Formula q v -> Formula q v
 exists' [] f = f
 exists' as f = Exists as f
+
+foralls :: (Data (Formula q v),Data q,Data v,Ord q) => Formula q v -> Formula q v
+foralls = flip forall' <*> allQuant
 
 min' :: Term q v -> Formula q v
 min' = Min

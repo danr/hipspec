@@ -27,7 +27,7 @@ import Halo.FOL.Abstract
 import Control.Monad.Reader
 import Control.Monad.Error
 
-import Data.Map (toList)
+import Data.Map (toList,notMember)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
 trBinds :: [CoreBind] -> HaloM [Subtheory s]
@@ -56,10 +56,8 @@ trDecl f e = do
 
         data_deps = freeTyCons e
 
-        tr_e = local (\env -> env { current_fun = f
-                                  , args = map Var as ++ args env
-                                  , quant = as ++ quant env})
-                     (trCase e')
+        tr_e = (`local` trCase e') $ \env -> env
+                    { current_fun = f, args = map Var as ++ args env }
 
     (fun_tr,used_ptrs) <- capturePtrs tr_e `catchError` \err -> do
                               cleanUpFailedCapture
@@ -102,8 +100,7 @@ trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
                 lhs <- trLhs
                 tr_scrut <- trExpr scrutinee
                 let constr = min' lhs : tr_constr
-                qvars <- asks quant
-                return [forall' qvars $ constr ===> min' tr_scrut]
+                return [foralls $ constr ===> min' tr_scrut]
 
     -- Add a bottom case
     alts' <- addBottomCase alts_wo_bottom
@@ -133,7 +130,7 @@ trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
 
 trCase e = do
 
-    HaloEnv{current_fun,quant} <- ask
+    HaloEnv{current_fun} <- ask
     write $ "At the end of " ++ idToStr current_fun ++ "'s branch: " ++ showExpr e
     m_tr_constr <- trConstraints
     case m_tr_constr of
@@ -141,7 +138,7 @@ trCase e = do
         Just tr_constr -> do
             lhs <- trLhs
             rhs <- trExpr e
-            return [forall' quant $ min' lhs : tr_constr ===> lhs === rhs]
+            return [foralls $ min' lhs : tr_constr ===> lhs === rhs]
 
 trLhs :: HaloM Term'
 trLhs = do
@@ -162,15 +159,15 @@ trAlt scrut_exp alt@(cons,_,_) = case cons of
 
 trCon :: DataCon -> CoreExpr -> CoreAlt -> HaloM [Formula']
 trCon data_con scrut_exp (_cons,bound,e) = do
-    HaloEnv{quant} <- ask
+    HaloEnv{arities} <- ask
+    let isQuant x = x `notMember` arities
     case scrut_exp of
-        Var x | x `elem` quant -> do
+        Var x | isQuant x -> do
             let tr_pat = foldApps (Var (dataConWorkId data_con)) (map Var bound)
                 s = extendIdSubst emptySubst x (tr_pat)
                 e' = substExpr (text "trAlt") s e
-            local (substContext s . pushQuant bound . delQuant x) (trCase e')
-        _ -> local (pushConstraint (Equality scrut_exp data_con (map Var bound))
-                   . pushQuant bound)
+            local (substContext s) (trCase e')
+        _ -> local (pushConstraint . Equality scrut_exp data_con . map Var $ bound)
                    (trCase e)
 
 trConstraints :: HaloM (Maybe [Formula'])
