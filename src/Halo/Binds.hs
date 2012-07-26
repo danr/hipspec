@@ -1,6 +1,6 @@
 -- (c) Dan Rosén 2012
-{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns, ScopedTypeVariables #-}
-module Halo.Trans(translate) where
+{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
+module Halo.Binds ( trBinds ) where
 
 import CoreSubst
 import CoreSyn
@@ -10,18 +10,17 @@ import PprCore
 import DataCon
 import Id
 import Outputable
-import TyCon
 
-import Halo.Util
-import Halo.Shared
-import Halo.Monad
-import Halo.Conf
-import Halo.Data hiding (f,x)
-import Halo.ExprTrans
-import Halo.Constraints
 import Halo.Case
-import Halo.Subtheory
+import Halo.Conf
+import Halo.Constraints
+import Halo.ExprTrans
 import Halo.FreeTyCons
+import Halo.Monad
+import Halo.Pointer
+import Halo.Shared
+import Halo.Subtheory
+import Halo.Util
 
 import Halo.FOL.Abstract
 
@@ -31,33 +30,24 @@ import Control.Monad.Error
 import Data.Map (toList)
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it
-translate :: forall s . HaloEnv -> [TyCon] -> [CoreBind] -> ([Subtheory s],[String])
-translate env ty_cons binds =
-    let tr_funs :: [Subtheory s]
-        msgs    :: [String]
-        (tr_funs,msgs) = runHaloM env (concatMapM trBind binds)
+trBinds :: [CoreBind] -> HaloM [Subtheory s]
+trBinds binds = do
+    HaloEnv{..} <- ask
 
-        halo_conf = conf env
+    let tr_pointers = map (uncurry (mkPtr conf)) (toList arities)
 
-        tr_pointers :: [Subtheory s]
-        tr_pointers = map (uncurry (mkPtr halo_conf)) (toList (arities env))
+    tr_funs <- concatMapM trBind binds
 
-    in  (concat
-            [mkProjDiscrim halo_conf ty_cons
-            ,mkConPtrs     halo_conf ty_cons
-            ,[extEq,appOnMin]
-            ,tr_pointers
-            ,tr_funs]
-        ,msgs ++ showArityMap (arities env))
+    return (tr_funs ++ tr_pointers)
 
 -- | Translate a group of mutally defined binders
 trBind :: CoreBind -> HaloM [Subtheory s]
-trBind bind = concatMapM (uncurry trDecl) (flattenBinds [bind])
+trBind bind = mapM (uncurry trDecl) (flattenBinds [bind])
 
 -- | Translate a CoreDecl, given the mutual group it was defined in
 --
 --   Generates a small subtheory for it including its pointer axiom
-trDecl :: Var -> CoreExpr -> HaloM [Subtheory s]
+trDecl :: Var -> CoreExpr -> HaloM (Subtheory s)
 trDecl f e = do
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
@@ -75,18 +65,16 @@ trDecl f e = do
                               cleanUpFailedCapture
                               return (error err,[])
 
-    return
-        [Subtheory
-              { provides    = Function f
-              , depends     = map Function fun_deps
-                           ++ map Pointer used_ptrs
-                           ++ map Data data_deps
-              , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
-                              ++ "\nDependencies: "
-                              ++ unwords (map idToStr fun_deps)
-              , formulae    = fun_tr
-              }
-        ]
+    return $ Subtheory
+        { provides    = Function f
+        , depends     = map Function fun_deps
+                     ++ map Pointer used_ptrs
+                     ++ map Data data_deps
+        , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
+                        ++ "\nDependencies: "
+                        ++ unwords (map idToStr fun_deps)
+        , formulae    = fun_tr
+        }
   where
     -- Collect the arguments and the body expression
     as :: [Var]

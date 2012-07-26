@@ -17,7 +17,7 @@ import VarSet
 import Halo.Util
 import Halo.Conf
 import Halo.Constraints
-import Halo.Data
+import Halo.BackgroundTheory
 import Halo.Shared
 
 import qualified Data.Map as M

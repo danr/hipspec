@@ -1,25 +1,30 @@
-{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 -- Translating data types
 
-module Halo.Data where
+module Halo.BackgroundTheory ( backgroundTheory , dataArities ) where
 
 import DataCon
 import Id
-import Name
 import Outputable
-import SrcLoc
 import TyCon
 import Type
-import Unique
 
 import Halo.FOL.Abstract
 
-import Halo.PrimCon
 import Halo.Conf
+import Halo.Names
+import Halo.Pointer
+import Halo.PrimCon
 import Halo.Subtheory
 
-import Data.List
 import Control.Monad.Reader
+import Data.List
+
+-- | Makes the background theory with these settings and data types
+backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
+backgroundTheory halo_conf ty_cons
+    = extEq : appOnMin
+    : concatMap (\k -> k halo_conf ty_cons) [mkProjDiscrim,mkConPtrs]
 
 dataArities :: [TyCon] -> [(Var,Int)]
 dataArities ty_cons =
@@ -52,8 +57,7 @@ mkProjDiscrim HaloConf{..} ty_cons =
             [ forall' (names ++ uneq_names) $
                       min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
             | let allcons = map ((,) True) cons
-                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR]
-                                      | unr_and_bad ]
+                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR] ]
             , (c,unequals) <- zip cons (drop 1 $ tails allcons)
             , (need_min,uneq_c) <- unequals
             , let data_c          = dataConWorkId c
@@ -97,20 +101,6 @@ mkConPtrs halo_conf ty_cons = do
 
     return $ (mkPtr halo_conf data_c arity) { depends = [Data ty_con] }
 
-mkPtr :: HaloConf -> Var -> Int -> Subtheory s
-mkPtr HaloConf{ext_eq} h arity = Subtheory
-    { provides    = Pointer h
-    , depends     = AppOnMin : [ ExtensionalEquality | ext_eq ]
-    , description = "Pointer axiom to " ++ show h
-    , formulae    =
-        let lhs = apps (ptr h) as'
-            rhs = fun h as'
-        in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
-    }
-  where
-    as  = take arity varNames
-    as' = map qvar as
-
 appOnMin :: Subtheory s
 appOnMin = Subtheory
     { provides    = AppOnMin
@@ -127,19 +117,4 @@ extEq = Subtheory
     , formulae    = return $
          forall' [f,g] (forall' [x] (app f' x' === app g' x') ==> f' === g')
     }
-  where
 
--- | A bunch of variable names to quantify over
-varNames :: [Var]
-f,g,x :: Var
-f:g:x:varNames =
-    [ mkVanillaGlobal
-        (mkInternalName (mkUnique 'z' i) (mkOccName varName n) wiredInSrcSpan)
-        (error "varNames: type")
-    | i <- [0..]
-    | n <- ["f","g","x"] ++ ([1..] >>= flip replicateM "xyzwvu")
-    ]
-
--- the same as terms
-f',g',x' :: Term'
-[f',g',x'] = map qvar [f,g,x]

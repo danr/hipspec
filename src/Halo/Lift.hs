@@ -1,4 +1,4 @@
-module Halo.Lift(caseLetLift) where
+module Halo.Lift ( caseLetLift ) where
 
 import CoreFVs
 import CoreUtils
