@@ -40,6 +40,8 @@ module Halo.FOL.Abstract
 
     , axiom, lemma, hypothesis, definition
     , conjecture, negatedConjecture, question
+
+    , axioms, definitions
     ) where
 
 import Var
@@ -246,4 +248,12 @@ negatedConjecture = NegatedConjecture
 
 question :: ClType
 question = Question
+
+-- Making many clauses
+
+axioms :: [Formula q v] -> [Clause q v]
+axioms = map (clause axiom)
+
+definitions :: [Formula q v] -> [Clause q v]
+definitions = map (clause definition)
 
