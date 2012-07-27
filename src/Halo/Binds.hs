@@ -1,11 +1,14 @@
 -- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
-module Halo.Binds ( trBinds, BindPart(..), BindParts, BindMap ) where
+module Halo.Binds
+    ( trBinds
+    , BindPart(..), BindParts, BindMap, minRhs
+    , trBindPart
+    , trConstraints
+    ) where
 
 import CoreSubst
 import CoreSyn
-import CoreFVs
-import UniqSet
 import PprCore
 import DataCon
 import Id
@@ -62,6 +65,10 @@ type BindMap s = Map Var (BindParts s)
 data Rhs
     = Min { rhsExpr :: CoreExpr }
     | Rhs { rhsExpr :: CoreExpr }
+
+minRhs :: Rhs -> Bool
+minRhs Min{} = True
+minRhs _     = False
 
 -- | Make a bind part given the rhs
 bindPart :: Eq s => Rhs -> HaloM (BindPart s)
@@ -229,14 +236,13 @@ trConstr (Inequality e data_con) = do
 
 -- | Non-pointer dependencies of an expression
 exprDeps :: Eq s => CoreExpr -> [Content s]
-exprDeps = (++) <$> (map Function . uniqSetToList . exprFreeIds)
-                <*> (map Data . freeTyCons)
+exprDeps = (++) <$> (map Function . exprFVs) <*> (map Data . freeTyCons)
 
 -- | Non-pointer dependencies of a constraint
 constraintDeps :: Eq s => Constraint -> [Content s]
 constraintDeps c = case c of
-    Equality e dc es -> unions (exprDeps e:dataConDeps dc:map exprDeps es)
-    Inequality e dc  -> exprDeps e `union` dataConDeps dc
+    Equality e dc _es -> exprDeps e `union` dataConDeps dc
+    Inequality e dc   -> exprDeps e `union` dataConDeps dc
   where
     dataConDeps :: DataCon -> [Content s]
     dataConDeps = return . Data . dataConTyCon
@@ -247,10 +253,16 @@ bindPartDeps BindPart{..} =
     unions ( exprDeps (rhsExpr bind_rhs)
            : args_dcs
            : map constraintDeps bind_constrs )
-      \\ (Function bind_fun:bound)
+      \\ (Function bind_fun:bound ++ constr_bound)
   where
     -- Don't regard arguments as a dependency
     (bound,args_dcs) = partition isFunction (unions $ map exprDeps bind_args)
+
+    -- Variables bound in constraints from casing on non-var scrutinees
+    constr_bound = unions (map constr_bind bind_constrs)
+      where
+        constr_bind (Equality _ _ es) = unions (map exprDeps es)
+        constr_bind _                 = []
 
     isFunction Function{} = True
     isFunction _          = False
