@@ -1,3 +1,8 @@
+{-
+
+    Shared functions operating on GHC stuff
+
+-}
 module Halo.Shared where
 
 import Id
@@ -6,6 +11,9 @@ import Outputable
 import PprCore
 import CoreSyn
 import CoreSubst
+
+import qualified Data.Map as M
+import Data.Maybe
 
 -- | Makes Rec or NonRec depending on input list length is 1 or not
 mkCoreBind :: [(Var,CoreExpr)] -> CoreBind
@@ -72,3 +80,15 @@ e1      @@ e2 = App e1 e2
 -- | Apply many expressions to an expression
 foldApps :: CoreExpr -> [CoreExpr] -> CoreExpr
 foldApps = foldl App
+
+-- | Attempts to find the rhs of a variable in a binding list
+--   You can let bind this to get a thunk specialised for a set of binds
+lookupBind :: [CoreBind] -> Var -> CoreExpr
+lookupBind bs =
+    let bs_map = M.fromList (flattenBinds bs)
+    in \v ->
+        let err = error $ "lookup_bind: lost binding for " ++ show v
+        in fromMaybe err (M.lookup v bs_map)
+
+
+

@@ -1,3 +1,8 @@
+{-
+
+    Common utilites not related to GHC internals
+
+-}
 module Halo.Util
     (
     -- * Convenience reexports
@@ -48,7 +53,8 @@ import Data.Ord      (comparing)
 infixr 9 .:
 
 -- | Function composition deluxe
---   (f .: g) = \x y -> f (g x y)
+--
+--   @(f .: g) = \x y -> f (g x y)@
 (.:) :: (b -> c) -> (a -> a' -> b) -> a -> a' -> c
 (.:) = (.) . (.)
 
