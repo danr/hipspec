@@ -7,6 +7,7 @@ import DataCon
 import Outputable
 import TyCon
 import Type
+import TysPrim
 
 import Halo.FOL.Abstract
 
@@ -22,7 +23,7 @@ import Data.List
 -- | Makes the background theory with these settings and data types
 backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
 backgroundTheory halo_conf ty_cons
-    = extEq : appOnMin
+    = extEq : appOnMin : dummyAny
     : concatMap (\k -> k halo_conf ty_cons) [mkProjDiscrim,mkConPtrs]
 
 mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory s]
@@ -107,3 +108,5 @@ extEq = Subtheory
          forall' [f,g] (forall' [x] (app f' x' === app g' x') ==> f' === g')
     }
 
+dummyAny :: Subtheory s
+dummyAny = mkDummySubtheory (Data anyTyCon)

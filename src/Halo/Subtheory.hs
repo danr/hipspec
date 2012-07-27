@@ -29,6 +29,15 @@ mapFunctionContent :: (Var -> Var) -> Content s -> Content s
 mapFunctionContent f (Function v) = Function (f v)
 mapFunctionContent _ c            = c
 
+pointers :: [Var] -> [Content s]
+pointers = map Pointer
+
+functions :: [Var] -> [Content s]
+functions = map Function
+
+datas :: [TyCon] -> [Content s]
+datas = map Data
+
 instance Show s => Show (Content s) where
     show c = case c of
         Function v          -> "Function " ++ show v
@@ -82,3 +91,11 @@ toClauses (Subtheory{..}) = commentary ++ map (mkClause provides) formulae
     commentary
         | description /= "" = [comment description]
         | otherwise         = []
+
+mkDummySubtheory :: Content s -> Subtheory s
+mkDummySubtheory c = Subtheory
+    { provides    = c
+    , depends     = []
+    , description = ""
+    , formulae    = []
+    }
