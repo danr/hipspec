@@ -14,8 +14,9 @@ module Halo.FOL.Abstract
     , skolem
     , ptr
 
-    , isLiteral
+    , isAtomic
     , simpleCNF
+    , splitFormula, splitFormulae
 
     , (===), (=/=)
     , (==>), (===>)
@@ -35,6 +36,7 @@ module Halo.FOL.Abstract
     , clause
     , comment
     , namedClause
+    , clauseSplit
 
     , axiom, lemma, hypothesis, definition
     , conjecture, negatedConjecture, question
@@ -63,6 +65,9 @@ clause = Clause "x"
 
 namedClause :: String -> ClType -> Formula q v -> Clause q v
 namedClause = Clause
+
+clauseSplit :: ClType -> Formula q v -> [Clause q v]
+clauseSplit cl_type = map (clause cl_type) . splitFormula
 
 -- | Figure out if this var is one of the primitive constants, or if
 --   it is a data constructor or a function, and make a term accordingly.
@@ -181,17 +186,17 @@ minrec = MinRec
 cf :: Term q v -> Formula q v
 cf = CF
 
-type Literal q v = Formula q v
+type Atomic q v = Formula q v
 
-isLiteral :: Formula q v -> Bool
-isLiteral f = case f of
+isAtomic :: Formula q v -> Bool
+isAtomic f = case f of
     Equal{}     -> True
     Unequal{}   -> True
     Or{}        -> False
     And{}       -> False
     Implies{}   -> False
     (Neg Neg{}) -> False
-    (Neg x)     -> isLiteral x
+    (Neg x)     -> isAtomic x
     Forall{}    -> False
     Exists{}    -> False
     CF{}        -> True
@@ -199,12 +204,25 @@ isLiteral f = case f of
     MinRec{}    -> True
 
 -- | Can this formula be written simply in CNF?
-simpleCNF :: Formula q v -> Maybe [Literal q v]
-simpleCNF (Forall _ f)               = simpleCNF f
-simpleCNF (Implies f1 f2)            = simpleCNF (neg f1 \/ f2)
-simpleCNF (Or fs) | all isLiteral fs = Just fs
-simpleCNF f       | isLiteral f      = Just [f]
-simpleCNF _                          = Nothing
+simpleCNF :: Formula q v -> Maybe [Atomic q v]
+simpleCNF (Forall _ f)              = simpleCNF f
+simpleCNF (Implies f1 f2)           = simpleCNF (neg f1 \/ f2)
+simpleCNF (Or fs) | all isAtomic fs = Just fs
+simpleCNF f       | isAtomic f      = Just [f]
+simpleCNF _                         = Nothing
+
+-- | Split the conjuncts of a formula over many formulae,
+--   distributing any foralls over them
+splitFormula :: Formula q v -> [Formula q v]
+splitFormula (Forall vs fs) = map (forall' vs) (splitFormula fs)
+splitFormula (And fs)       = concatMap splitFormula fs
+splitFormula f              = [f]
+
+-- | Split conjuncts in many formulae at once
+splitFormulae :: [Formula q v] -> [Formula q v]
+splitFormulae = concatMap splitFormula
+
+
 
 -- Clause types
 

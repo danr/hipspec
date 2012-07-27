@@ -65,7 +65,7 @@ linForm st par form = case form of
     And fs        -> par (linBinOp st ampersand fs)
     Or  fs        -> par (linBinOp st pipe fs)
     Implies f1 f2 -> par (linBinOp st darrow [f1,f2])
-    Neg f         -> (not (isLiteral f) ? par) (tilde <> linForm st parens f)
+    Neg f         -> (not (isAtomic f) ? par) (tilde <> linForm st parens f)
     Forall qs f   -> par (linQuant st bang qs f)
     Exists qs f   -> par (linQuant st questmark qs f)
     Min tm        -> linMin st <> parens (linTm st tm)
