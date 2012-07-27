@@ -4,7 +4,6 @@
 module Halo.BackgroundTheory ( backgroundTheory ) where
 
 import DataCon
-import Id
 import Outputable
 import TyCon
 import Type

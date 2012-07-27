@@ -1,6 +1,6 @@
 -- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
-module Halo.Binds ( trBinds ) where
+module Halo.Binds ( trBinds, BindPart(..), BindParts, BindMap ) where
 
 import CoreSubst
 import CoreSyn

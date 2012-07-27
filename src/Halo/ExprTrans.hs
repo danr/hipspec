@@ -13,7 +13,6 @@ import Halo.Shared
 import Halo.Util
 
 import qualified Data.Map as M
-import Data.List (intercalate)
 
 import Control.Monad.Reader
 import Control.Monad.Error
@@ -42,24 +41,18 @@ trExpr e = do
             | isPAP x           -> usePtr x >> return (ptr x)
             | isQuant x         -> return (qvar x)
             | otherwise         -> return (con x) -- con or caf
-        App{} -> do
-          write $ "App on " ++ showExpr e
-          case second trimTyArgs (collectArgs e) of
+        App{} -> case second trimTyArgs (collectArgs e) of
             (Var f,es)
-               | null es -> trExpr (Var f)
-               | f `elem` errorIds -> return bad
-               | Just i <- M.lookup f arities -> do
-                   write $ idToStr f ++ " has arity " ++ show i
-                   if i > length es
-                       then do usePtr f
-                               apps (ptr f) <$> mapM trExpr es
-                       else do let (es_inner,es_after) = splitAt i es
-                               inner <- apply f <$> mapM trExpr es_inner
-                               apps inner <$> mapM trExpr es_after
-            (f,es) -> do
-                 write $ "Collected to " ++ showExpr f
-                             ++ " on " ++ intercalate "," (map showExpr es)
-                 apps <$> trExpr f <*> mapM trExpr es
+                 | null es -> trExpr (Var f)
+                 | f `elem` errorIds -> return bad
+                 | Just i <- M.lookup f arities -> do
+                     if i > length es
+                         then do usePtr f
+                                 apps (ptr f) <$> mapM trExpr es
+                         else do let (es_inner,es_after) = splitAt i es
+                                 inner <- apply f <$> mapM trExpr es_inner
+                                 apps inner <$> mapM trExpr es_after
+            (f,es) -> apps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
           write $ "String, " ++ unpackFS s ++ " coerced to bad"
           return bad
@@ -68,9 +61,9 @@ trExpr e = do
           trExpr e'
         Case{}     -> intErr "case"
         Let{}      -> intErr "let"
+        Lam{}      -> intErr "lambdas"
         Lit{}      -> trErr "literals"
         Type{}     -> trErr "types"
-        Lam{}      -> trErr "lambdas"
         Coercion{} -> trErr "coercions"
         Tick{}     -> trErr "ticks"
   where
