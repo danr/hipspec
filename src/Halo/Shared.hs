@@ -5,6 +5,8 @@
 -}
 module Halo.Shared where
 
+import CoreFVs
+import UniqSet
 import Id
 import Name
 import Outputable
@@ -90,5 +92,8 @@ lookupBind bs =
         let err = error $ "lookup_bind: lost binding for " ++ show v
         in fromMaybe err (M.lookup v bs_map)
 
+-- | Free variables in an expression
+exprFVs :: CoreExpr -> [Var]
+exprFVs = uniqSetToList . exprFreeIds
 
 
