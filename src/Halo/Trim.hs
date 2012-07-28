@@ -24,8 +24,10 @@ import Data.List
 --   subtheory.
 --
 --   We have keys as Content, and nodes are their corresponding Subtheories.
-trim :: forall s . (Show s,Ord s) => [Content s] -> [Subtheory s] -> [Subtheory s]
-trim important grand_theory =
+--
+--   You can memo-thunk this function with the same grand_theory.
+trim :: forall s . (Show s,Ord s) => [Subtheory s] -> [Content s] -> [Subtheory s]
+trim grand_theory =
     let gr :: [(Subtheory s,Content s,[Content s])]
         gr = [ (subthy,provides subthy,depends subthy)
              | subthy <- grand_theory
@@ -43,10 +45,11 @@ trim important grand_theory =
         findVertex :: Content s -> Vertex
         findVertex v = fromMaybe (err v) (toVertex v)
 
-        forest :: Forest Vertex
-        forest = dfs g (map findVertex important)
-
         subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
         subtheory (s,_,_) = s
 
-    in  sort $ map (subtheory . fromVertex) (concatMap flatten forest)
+    in  \important ->
+            let forest :: Forest Vertex
+                forest = dfs g (map findVertex important)
+
+            in  sort $ map (subtheory . fromVertex) (concatMap flatten forest)
