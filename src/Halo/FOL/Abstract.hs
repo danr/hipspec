@@ -51,7 +51,7 @@ import Halo.FOL.Internals.Internals
 import Halo.FOL.Operations
 
 import Control.Applicative ((<*>))
-import Data.Data
+import Data.Generics.Geniplate
 
 type Term'    = Term    Var Var
 type Formula' = Formula Var Var
@@ -176,7 +176,10 @@ exists' :: [q] -> Formula q v -> Formula q v
 exists' [] f = f
 exists' as f = Exists as f
 
-foralls :: (Data (Formula q v),Data q,Data v,Ord q) => Formula q v -> Formula q v
+foralls :: (UniverseBi (Formula q v) (Formula q v)
+           ,UniverseBi (Formula q v) (Term q v)
+           ,Ord q)
+        => Formula q v -> Formula q v
 foralls = flip forall' <*> allQuant
 
 min' :: Term q v -> Formula q v
@@ -225,7 +228,6 @@ splitFormulae :: [Formula q v] -> [Formula q v]
 splitFormulae = concatMap splitFormula
 
 
-
 -- Clause types
 
 axiom :: ClType
@@ -256,4 +258,3 @@ axioms = map (clause axiom)
 
 definitions :: [Formula q v] -> [Clause q v]
 definitions = map (clause definition)
-

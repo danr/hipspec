@@ -1,16 +1,12 @@
-module Halo.FOL.MinAsNotUnr(minAsNotUnr) where
-
-import Var
+module Halo.FOL.MinAsNotUnr ( minAsNotUnr ) where
 
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
 import Halo.PrimCon
 
-import Data.Generics.Uniplate.Data
-import Data.Data
+import Data.Generics.Geniplate
 
-minAsNotUnr :: Data (f Var Var) => f Var Var -> f Var Var
+minAsNotUnr :: Clause' -> Clause'
 minAsNotUnr = transformBi $ \f -> case f of
     Min tm -> tm =/= unr
     e      -> e
-

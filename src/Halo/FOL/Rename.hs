@@ -20,7 +20,7 @@ import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import Data.Data
+import Data.Generics.Geniplate
 import Data.Char
 import Data.Maybe
 
@@ -42,7 +42,7 @@ renameClauses clauses =
      in  clauses'
 
 data WrappedClause'
-  = forall q . (Data q,Data (Clause q Var)) => WrapClause (Clause q Var)
+  = forall q . (UniverseBi (Clause q Var) (Term q Var)) => WrapClause (Clause q Var)
 
 mkFunRenamer :: [WrappedClause'] -> Clause q Var -> Clause q String
 mkFunRenamer clauses =
@@ -61,7 +61,9 @@ mkFunRenamer clauses =
 
     in  clauseMapTerms (replaceVarsTm replace) id
 
-renameQVar :: forall q . (Data q,Ord q)
+renameQVar :: forall q . (UniverseBi (Clause q String) (Term q String)
+                         ,UniverseBi (Clause q String) (Formula q String)
+                         ,Ord q)
             => (q -> [String])
             -> Clause q String -> Clause String String
 renameQVar suggest cl =
@@ -163,5 +165,3 @@ prelude = M.fromList
    , ("(,,,)","Quad")
    , ("(,,,,)","Quint")
    ]
-
-

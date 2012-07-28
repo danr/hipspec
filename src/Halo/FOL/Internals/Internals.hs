@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveDataTypeable,ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes, MultiParamTypeClasses #-}
 module Halo.FOL.Internals.Internals where
 
-import Data.Data
+import Data.Generics.Geniplate
 
 -- Only files under Halo.FOL should use this module!
 
@@ -24,7 +24,7 @@ data Term q v
     | Proj Int v (Term q v)
     | Ptr v
     | QVar q
-  deriving (Eq,Ord,Show,Data,Typeable)
+  deriving (Eq,Ord,Show)
 
 data Formula q v
     = Equal (Term q v) (Term q v)
@@ -38,14 +38,26 @@ data Formula q v
     | CF (Term q v)
     | Min (Term q v)
     | MinRec (Term q v)
-  deriving (Eq,Ord,Show,Data,Typeable)
+  deriving (Eq,Ord,Show)
 
 data ClType
     = Axiom | Lemma | Hypothesis | Definition
     | Conjecture | NegatedConjecture | Question
-  deriving (Eq,Ord,Show,Data,Typeable)
+  deriving (Eq,Ord,Show)
 
 data Clause q v
     = Clause String ClType (Formula q v)
     | Comment String
-  deriving (Eq,Ord,Show,Data,Typeable)
+  deriving (Eq,Ord,Show)
+
+instanceTransformBi [t| forall q v . (Term q v    ,Term q v    ) |]
+instanceTransformBi [t| forall q v . (Term q v    ,Formula q v ) |]
+instanceTransformBi [t| forall q v . (Formula q v ,Formula q v ) |]
+instanceTransformBi [t| forall q v . (Term q v    ,Clause q v  ) |]
+instanceTransformBi [t| forall q v . (Formula q v ,Clause q v  ) |]
+
+instanceUniverseBi [t| forall q v . (Term q v   ,Term q v   ) |]
+instanceUniverseBi [t| forall q v . (Formula q v,Term q v   ) |]
+instanceUniverseBi [t| forall q v . (Formula q v,Formula q v) |]
+instanceUniverseBi [t| forall q v . (Clause q v ,Term q v   ) |]
+instanceUniverseBi [t| forall q v . (Clause q v ,Formula q v) |]

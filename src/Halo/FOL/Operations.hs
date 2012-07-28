@@ -1,12 +1,12 @@
-{-# LANGUAGE PatternGuards,ScopedTypeVariables #-}
+{-# LANGUAGE PatternGuards,ScopedTypeVariables,FlexibleContexts #-}
 module Halo.FOL.Operations where
 
 import Halo.FOL.Internals.Internals
-import Halo.Util (nubSorted)
 
-import Data.Generics.Uniplate.Data
-import Data.Data
-import Data.Maybe
+import Data.Generics.Geniplate
+
+import qualified Data.Set as S
+import Data.Set (Set)
 
 replaceVarsTm :: (v -> u) -> Term q v -> Term q u
 replaceVarsTm k = go
@@ -55,30 +55,34 @@ clauseMapTerms tm qv cl = case cl of
     Clause c s f -> Clause c s (formulaMapTerms tm qv f)
     Comment s    -> Comment s
 
-allSymbols :: forall f q v . (Data (f q v),Data q,Data v,Ord v) => f q v -> [v]
-allSymbols = nubSorted . mapMaybe get . universeBi
+allSymbols :: forall f q v . (UniverseBi (f q v) (Term q v),Ord v)
+           => f q v -> [v]
+allSymbols = S.toList . S.unions . map get . universeBi
   where
-    get :: Term q v -> Maybe v
-    get (Fun v _)    = Just v
-    get (Ctor v _)   = Just v
-    get (Skolem v)   = Just v
-    get (Proj _ v _) = Just v
-    get (Ptr v)      = Just v
-    get _            = Nothing
+    get :: Term q v -> Set v
+    get (Fun v _)    = S.singleton v
+    get (Ctor v _)   = S.singleton v
+    get (Skolem v)   = S.singleton v
+    get (Proj _ v _) = S.singleton v
+    get (Ptr v)      = S.singleton v
+    get _            = S.empty
 
-allQuant :: forall f q v . (Data (f q v),Data q,Data v,Ord q) => f q v -> [q]
-allQuant phi = nubSorted (mapMaybe getTm (universeBi phi)
-                    ++ concatMap getFm (universeBi phi))
+allQuant :: forall f q v . (UniverseBi (f q v) (Formula q v)
+                           ,UniverseBi (f q v) (Term q v)
+                           ,Ord q)
+         => f q v -> [q]
+allQuant phi = S.toList . S.unions $
+    map getTm (universeBi phi) ++ map getFm (universeBi phi)
   where
-    getTm :: Term q v -> Maybe q
-    getTm (QVar v) = Just v
-    getTm _        = Nothing
+    getTm :: Term q v -> Set q
+    getTm (QVar v) = S.singleton v
+    getTm _        = S.empty
 
-    getFm :: Formula q v -> [q]
-    getFm (Forall qs _) = qs
-    getFm _             = []
+    getFm :: Formula q v -> Set q
+    getFm (Forall qs _) = S.fromList qs
+    getFm _             = S.empty
 
-substVars :: forall f q v . (Data (f q v),Data q,Data v,Eq v)
+substVars :: forall f q v . (TransformBi (Term q v) (f q v),Eq v)
           => v -> v -> f q v -> f q v
 substVars old new = rewriteBi s
   where
@@ -89,10 +93,16 @@ substVars old new = rewriteBi s
     s (Ptr v)      | v == old = Just (Ptr new)
     s _                       = Nothing
 
-substQVar :: forall f q v . (Data (f q v),Data q,Data v,Eq q)
-         => q -> q -> f q v -> f q v
+substQVar :: forall f q v . (TransformBi (Term q v) (f q v),Eq q)
+          => q -> q -> f q v -> f q v
 substQVar old new = rewriteBi s
   where
     s :: Term q v -> Maybe (Term q v)
     s (QVar v) | v == old = Just (QVar new)
     s _                   = Nothing
+
+rewriteBi :: forall s t . (TransformBi s s,TransformBi s t) => (s -> Maybe s) -> t -> t
+rewriteBi f = transformBi g
+  where
+    g :: s -> s
+    g x = maybe x (rewriteBi f) (f x)
