@@ -1,9 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 module Halo.FOL.Style where
 
-import Outputable hiding (quote)
+import Outputable hiding (quote,underscore)
 
 import Halo.Util
+import Data.Char
 
 data Style q v = Style
     { linFun      :: v -> SDoc
@@ -40,23 +41,37 @@ data StyleConf = StyleConf
 
 strStyle :: StyleConf -> Style String String
 strStyle StyleConf{..} = Style
-    { linFun      = text . quote . ("f_" ++)
-    , linCtor     = text . quote . ("c_" ++)
-    , linSkolem   = text . quote . ("a_" ++)
-    , linQVar     = text . (\s@(_:xs) -> if any requiresQuote xs then quote s else s)
+    { linFun      = text . maybe_quote . ("f_" ++)
+    , linCtor     = text . maybe_quote . ("c_" ++)
+    , linSkolem   = text . maybe_quote . ("a_" ++)
+    , linQVar     = text . (\s@(_:xs) -> if str_needs_quotes xs then quote s else s)
     , linApp      = text "app"
     , linMin      = text ((style_dollar_min ? ('$':)) "min")
     , linMinRec   = text "minrec"
     , linCF       = text "cf"
-    , linProj     = \i n -> text (quote ("p_" ++ show i ++ "_" ++ n))
-    , linPtr      = text . quote . ("ptr_" ++)
+    , linProj     = \i n -> text (maybe_quote ("p_" ++ show i ++ "_" ++ n))
+    , linPtr      = text . maybe_quote . ("ptr_" ++)
     , linCNF      = style_cnf
     , linComments = style_comments
     }
   where
-    quote s@(x:xs)
-        | x `notElem` ('_':['a'..'z']) || any requiresQuote xs = "'" ++ s ++ "'"
-        | otherwise = s
-    quote "" = "''"
+    quote s = "'" ++ s ++ "'"
 
-    requiresQuote = (`notElem` ('_':['0'..'9']++['a'..'z']++['A'..'Z']))
+    maybe_quote s@(x:xs)
+        | init_char_needs_quotes x || str_needs_quotes xs = "'" ++ s ++ "'"
+        | otherwise = s
+    maybe_quote "" = "''"
+
+    str_needs_quotes = any char_needs_quotes
+
+    init_char_needs_quotes c =
+        let x = ord c
+        in  not (underscore x || lowercase x)
+
+    char_needs_quotes c =
+        let x = ord c
+        in  not (underscore x || lowercase x || uppercase x)
+
+    underscore x = x == 95
+    lowercase  x = x >= 97 && x <= 122
+    uppercase  x = x >= 65 && x <= 90
