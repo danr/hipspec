@@ -1,8 +1,13 @@
 -- Linearises (pretty prints) our FOL representation into TPTP
 {-# LANGUAGE RecordWildCards, PatternGuards #-}
-module Halo.FOL.Linearise ( linStrStyleTPTP, StyleConf(..) ) where
+module Halo.FOL.Linearise
+    ( linStrStyleTPTP
+    , linVarStyleTPTP
+    , StyleConf(..)
+    ) where
 
-import Outputable hiding (quote,underscore)
+import Outputable hiding (quote)
+import Var
 
 import Data.Char
 import Data.List
@@ -14,6 +19,10 @@ import Halo.FOL.Abstract
 -- | Linearise string clauses with strStyle
 linStrStyleTPTP :: StyleConf -> [StrClause] -> String
 linStrStyleTPTP = linTPTP . strStyle
+
+-- | Linearise string clauses with strStyle
+linVarStyleTPTP :: StyleConf -> [Clause'] -> String
+linVarStyleTPTP = linTPTP . varStyle
 
 -- | Linearise a set of clauses to a String
 linTPTP :: Style q v -> [Clause q v] -> String
@@ -213,6 +222,22 @@ strStyle StyleConf{..} = Style
     , linCF       = text "cf"
     , linProj     = \i n -> text (quoteEscape ("p_" ++ show i ++ "_" ++ n))
     , linPtr      = text . quoteEscape . ("ptr_" ++)
+    , linCNF      = style_cnf
+    , linComments = style_comments
+    }
+
+varStyle :: StyleConf -> Style Var Var
+varStyle StyleConf{..} = Style
+    { linFun      = (char 'f' <>) . ppr . varUnique
+    , linCtor     = (char 'c' <>) . ppr . varUnique
+    , linSkolem   = (text "sk" <>) . ppr . varUnique
+    , linQVar     = (char 'Q' <>) . ppr . varUnique
+    , linApp      = text "app"
+    , linMin      = text ((style_dollar_min ? ('$':)) "min")
+    , linMinRec   = text "minrec"
+    , linCF       = text "cf"
+    , linProj     = \i n -> char 's' <> ppr (varUnique n) <> underscore <> ppr i
+    , linPtr      = (char 'p' <>) . ppr . varUnique
     , linCNF      = style_cnf
     , linComments = style_comments
     }
