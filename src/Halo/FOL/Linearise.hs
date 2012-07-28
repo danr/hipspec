@@ -1,15 +1,19 @@
 -- Linearises (pretty prints) our FOL representation into TPTP
-{-# LANGUAGE PatternGuards #-}
-module Halo.FOL.Linearise where
+{-# LANGUAGE RecordWildCards, PatternGuards #-}
+module Halo.FOL.Linearise ( linStrStyleTPTP, StyleConf(..) ) where
 
-import Outputable
+import Outputable hiding (quote,underscore)
 
+import Data.Char
 import Data.List
 
 import Halo.Util
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
-import Halo.FOL.Style
+
+-- | Linearise string clauses with strStyle
+linStrStyleTPTP :: StyleConf -> [StrClause] -> String
+linStrStyleTPTP = linTPTP . strStyle
 
 -- | Linearise a set of clauses to a String
 linTPTP :: Style q v -> [Clause q v] -> String
@@ -39,7 +43,7 @@ linClause st (Clause cl_name cl_type cl_formula)
 -- | Linearise a clause entry fof/cnf, plus axiom name, and its formula
 linClEntry :: SDoc -> String -> ClType -> SDoc -> SDoc
 linClEntry fof cl_name cl_type content =
-    hang (hcat [fof,lparen,text (escape cl_name)
+    hang (hcat [fof,lparen,text (quoteEscape cl_name)
                ,comma,space,linClType cl_type,comma])
          4 (content <> rparen <> dot)
 
@@ -103,26 +107,35 @@ linTm st tm = case tm of
 
 -- | Encloses a string in 'single quotes' if it is not a valid tptp
 --   identifier without it.
-escape :: String -> String
-escape s = case escape' s of
-    s' | all lowerNumeric s' -> s'
-       | otherwise           -> "'" ++ s' ++ "'"
-  where
-    -- Replace all ' to _
-    escape' :: String -> String
-    escape' = map escapeChar
+quoteEscape :: String -> String
+quoteEscape s
+    | needsQuote s = quote s
+    | otherwise    = s
 
-    -- Replace a ' to _
-    escapeChar '\'' = '_'
-    escapeChar x    = x
+quoteEscapeQvar :: String -> String
+quoteEscapeQvar s
+    | not (all isAlphaNumeric s) = quote s
+    | otherwise                  = s
 
--- | Char is lowercase
-lowercase :: Char -> Bool
-lowercase n = 'a' <= n && n <= 'z'
+quote :: String -> String
+quote s = "'" ++ s ++ "'"
+
+-- | Does this need quote?
+needsQuote :: String -> Bool
+needsQuote (x:xs) = not (isLowerNumeric x && all isAlphaNumeric xs)
+needsQuote []     = True
+
+-- | Char is underscore
+isUnderscore :: Char -> Bool
+isUnderscore c = c == '_'
 
 -- | Char is lowercase or numeric or _
-lowerNumeric :: Char -> Bool
-lowerNumeric n = lowercase n || '0' <= n && n <= '9' || n == '_'
+isLowerNumeric :: Char -> Bool
+isLowerNumeric c = isLower c || isDigit c || isUnderscore c
+
+-- | Char is alpha or numeric or _
+isAlphaNumeric :: Char -> Bool
+isAlphaNumeric c = isAlphaNum c || isUnderscore c
 
 -- Utilities
 
@@ -154,3 +167,52 @@ punctuate' :: SDoc -> [SDoc] -> [SDoc]
 punctuate' _ []     = []
 punctuate' p (d:ds) = d : map (p <>) ds
 
+
+data Style q v = Style
+    { linFun      :: v -> SDoc
+    -- ^ Pretty printing functions and variables
+    , linCtor     :: v -> SDoc
+    -- ^ Pretty printing constructors
+    , linSkolem   :: v -> SDoc
+    -- ^ Pretty printing Skolemised variables
+    , linQVar     :: q -> SDoc
+    -- ^ Quantified variables
+    , linApp      :: SDoc
+    -- ^ The app/@ symbol
+    , linMin      :: SDoc
+    -- ^ The min symbol
+    , linMinRec   :: SDoc
+    -- ^ The minrec symbol
+    , linCF       :: SDoc
+    -- ^ The CF symbol
+    , linProj     :: Int -> v -> SDoc
+    -- ^ Projections
+    , linPtr      :: v -> SDoc
+    -- ^ Pointers
+    , linCNF      :: Bool
+    -- ^ Write things in cnf if possible
+    , linComments :: Bool
+    -- ^ Print comments
+    }
+
+data StyleConf = StyleConf
+    { style_cnf        :: Bool
+    , style_dollar_min :: Bool
+    , style_comments   :: Bool
+    }
+
+strStyle :: StyleConf -> Style String String
+strStyle StyleConf{..} = Style
+    { linFun      = text . quoteEscape . ("f_" ++)
+    , linCtor     = text . quoteEscape . ("c_" ++)
+    , linSkolem   = text . quoteEscape . ("a_" ++)
+    , linQVar     = text . quoteEscapeQvar
+    , linApp      = text "app"
+    , linMin      = text ((style_dollar_min ? ('$':)) "min")
+    , linMinRec   = text "minrec"
+    , linCF       = text "cf"
+    , linProj     = \i n -> text (quoteEscape ("p_" ++ show i ++ "_" ++ n))
+    , linPtr      = text . quoteEscape . ("ptr_" ++)
+    , linCNF      = style_cnf
+    , linComments = style_comments
+    }
