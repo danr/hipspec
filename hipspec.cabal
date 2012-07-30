@@ -40,14 +40,16 @@ executable          hipspec
         cmdargs                       >= 0.9,
 
         -- Halo
-        uniplate                      >= 1.6,
+        geniplate                     >= 0.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,
         filepath                      >= 1.0,
+        dlist                         >= 0.5,
 
         -- Structural Induction
         safe                          >= 0.3,
         pretty                        >= 1.0,
+        uniplate                      >= 1.6,
 
         -- Running Theorem Provers
         process                       >= 1.0.1.1,
@@ -67,23 +69,25 @@ library
         Halo.Case
         Halo.Conf
         Halo.Constraints
-        Halo.Data
+        Halo.BackgroundTheory
+        Halo.Pointer
+        Halo.Names
         Halo.Entry
         Halo.ExprTrans
         Halo.FOL.Abstract
         Halo.FOL.Internals.Internals
         Halo.FOL.Linearise
+        Halo.FOL.Dump
         Halo.FOL.Operations
         Halo.FOL.RemoveMin
         Halo.FOL.Rename
-        Halo.FOL.Style
         Halo.FreeTyCons
         Halo.Lift
         Halo.Monad
         Halo.PrimCon
         Halo.Shared
         Halo.Subtheory
-        Halo.Trans
+        Halo.Binds
         Halo.Trim
         Halo.Util
         Hip.Annotations
@@ -118,14 +122,16 @@ library
         cmdargs                       >= 0.9,
 
         -- Halo
-        uniplate                      >= 1.6,
+        geniplate                     >= 0.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,
         filepath                      >= 1.0,
+        dlist                         >= 0.5,
 
         -- Structural Induction
         safe                          >= 0.3,
         pretty                        >= 1.0,
+        uniplate                      >= 1.6,
 
         -- Running Theorem Provers
         process                       >= 1.0.1.1,

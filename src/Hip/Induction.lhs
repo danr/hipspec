@@ -5,6 +5,9 @@
 
  
   The heart of HipSpec
+
+
+  TODO: Rewrite this using Geniplate
  
  
 > {-# LANGUAGE PatternGuards, DeriveDataTypeable, ParallelListComp,

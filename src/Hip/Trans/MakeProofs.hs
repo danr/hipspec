@@ -10,7 +10,7 @@ import Hip.Trans.Property as Prop
 import Hip.Trans.Types
 import Hip.Params
 
-import Halo.FOL.Abstract hiding (Term,Lemma)
+import Halo.FOL.Abstract hiding (Term)
 import Halo.ExprTrans
 import Halo.Monad
 import Halo.Util
@@ -23,6 +23,7 @@ import Data.Maybe (mapMaybe)
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Error
 
 import qualified CoreSyn as C
 import CoreSyn (CoreExpr)
@@ -50,9 +51,11 @@ getVar v i = do
             return v'
 
 runMakerM :: HaloEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
-runMakerM env us mm =
-    let ((hm,(us',_)),msg) = runHaloM env (runStateT mm (us,M.empty))
-    in  ((hm,msg),us')
+runMakerM env us mm
+    = case runHaloMsafe env (runStateT mm (us,M.empty)) of
+        (Right ((hm,(us',_))),msg) -> ((hm,msg),us')
+        (Left err,_msg)
+            -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
 trLemma :: Prop -> HaloM HipSpecSubtheory
 trLemma lemma@Prop{..} = do
@@ -65,13 +68,11 @@ trLemma lemma@Prop{..} = do
         , formulae    = tr_lem
         }
   where
-    vars = map fst propVars
-
     equals :: HaloM [Formula']
-    equals = local (pushQuant vars) $ do
+    equals = do
         lhs <- trExpr proplhs
         rhs <- trExpr proprhs
-        return [ forall' vars $ min' side ==> lhs === rhs | side <- [lhs,rhs] ]
+        return [ foralls $ min' side ==> lhs === rhs | side <- [lhs,rhs] ]
 
 -- | Takes a theory, and prepares the invocations
 --   for a property and adds the lemmas
@@ -88,9 +89,12 @@ theoryToInvocations params@(Params{..}) theory prop lemmas = do
 
 prove :: Params -> Theory -> Prop -> MakerM [Part]
 prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..} =
-    sequence $ [ plainProof | 'p' `elem` methods ]
+    (sequence $ [ plainProof | 'p' `elem` methods ]
             ++ (do guard ('i' `elem` methods)
-                   mapMaybe induction inductionCoords)
+                   mapMaybe induction inductionCoords))
+      `catchError` \err -> do
+          lift $ cleanUpFailedCapture
+          return []
 
   where
     mkPart :: ProofMethod -> [Var] -> [Particle] -> Part
@@ -101,12 +105,11 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
     plainProof = do
         (neg_conj,ptrs) <- lift (capturePtrs unequals)
         let particle = Particle "plain" [comment "Proof by definitional equality"
-                                        ,clause NegatedConjecture neg_conj]
+                                        ,clause negatedConjecture neg_conj]
         return (mkPart Plain ptrs [particle])
       where
         unequals :: HaloM Formula'
-        unequals = do
-            let vars = propVars
+        unequals = local (addSkolems $ map fst propVars) $ do
             lhs <- trExpr proplhs
             rhs <- trExpr proprhs
             return $ minrec lhs /\ minrec rhs /\ lhs =/= rhs
@@ -185,18 +188,17 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
             proprhs' = substExpr (text "trPred") s proprhs
 
         trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
-        trHyp (map fst -> qs,tms) = local (pushQuant qs)
-             (second (forall' qs) <$> trPred Hyp tms)
+        trHyp (map fst -> qs,tms) = second foralls <$> trPred Hyp tms
 
-        skolem_arities = M.fromList [ (sk,0) | (sk,_) <- skolem ]
+        skolem_vars = map fst skolem
 
-    local (extendArities skolem_arities) $ do
+    local (addSkolems skolem_vars) $ do
 
         (str_hyp,tr_hyp) <- mapAndUnzipM
-            (fmap (second (clause Hypothesis)) . trHyp) hyps
+            (fmap (second (clause hypothesis)) . trHyp) hyps
 
         (str_concl,tr_concl) <-
-            second (clause NegatedConjecture) <$> trPred Concl concl
+            second (clause negatedConjecture) <$> trPred Concl concl
 
         return $
             comment (  "Proof by structural induction\n"

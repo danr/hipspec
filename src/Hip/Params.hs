@@ -22,6 +22,7 @@ data Params = Params
     , timeout             :: Int
     , provers             :: String
     , methods             :: String
+    , readable_tptp       :: Bool
     , consistency         :: Bool
     , isolate             :: Bool
     , fof                 :: Bool
@@ -72,6 +73,7 @@ defParams = Params
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
     , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
     , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
+    , readable_tptp       = False   &= name "R" &= help "Disable quicker generation of TPTP with variable names from Uniques. Uses cnf and $min and writes no comments."
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"

@@ -16,10 +16,11 @@ import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
 
+import Halo.FOL.Abstract
+import Halo.FOL.Dump
 import Halo.FOL.Linearise
 import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
-import Halo.FOL.Style
 
 import Data.List
 import Data.Maybe
@@ -63,31 +64,33 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
                   , z_encode        = z_encode_filenames
                   }
 
-    us <- mkSplitUniqSupply '&'
+    us <- mkSplitUniqSupply 'c'
 
     let ((properties,_msgs),_us) = runMakerM halo_env us
                                  . mapM (\prop -> theoryToInvocations
                                                       params thy prop lemmas)
                                  $ props
 
+        style_conf = StyleConf
+             { style_comments   = comments
+             , style_cnf        = not fof
+             , style_dollar_min = False
+             }
+
+        toTPTP :: [Clause'] -> [HipSpecSubtheory] -> String
+        toTPTP extra_clauses
+            = (if readable_tptp then linStrStyleTPTP style_conf . renameClauses
+                    else dumpTPTP)
+            . (not min ? removeMins)
+            . (++ extra_clauses)
+            . concatMap toClauses
+
         properties' =
             [ PD.Property n c $
               [ let lemma_deps =
-                        [ lem
-                        | (provides -> lem@(Specific Lemma{})) <- subtheories
-                        ]
-                    min_remover
-                        | min       = id
-                        | otherwise = removeMins
-                    subs  = (not min ? map removeMinsSubthy)
-                          $ trim (deps ++ lemma_deps) subtheories
-                    pcls' = [ fmap (\(min_remover -> cls) -> linTPTP
-                                     (strStyle comments (not fof))
-                                     (renameClauses
-                                         (concatMap toClauses subs ++ cls))
-                                      ++ "\n"
-                                   ) pcl
-                            | pcl <- pcls ]
+                        [ lem | (provides -> lem@(Specific Lemma{})) <- subtheories ]
+                    subs = trim subtheories (deps ++ lemma_deps)
+                    pcls' = [ fmap (`toTPTP` subs) pcl | pcl <- pcls ]
                 in  PD.Part m pcls'
               | PD.Part m (deps,subtheories,pcls) <- parts
               ]

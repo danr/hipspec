@@ -8,11 +8,12 @@ import Hip.Trans.Property
 import Hip.Trans.SrcRep
 import Hip.Trans.Theory
 
+import Halo.BackgroundTheory
+import Halo.Binds
 import Halo.Conf
 import Halo.Entry
 import Halo.Lift
 import Halo.Monad
-import Halo.Trans
 import Halo.Util
 
 import Data.List
@@ -55,8 +56,8 @@ processFile file = do
         ty_cons_with_builtins :: [TyCon]
         ty_cons_with_builtins = builtins ++ ty_cons
 
-        halt_conf :: HaloConf
-        halt_conf = sanitizeConf $ HaloConf
+        halo_conf :: HaloConf
+        halo_conf = sanitizeConf $ HaloConf
             { use_min           = min
             , use_minrec        = min
             , unr_and_bad       = False
@@ -65,10 +66,13 @@ processFile file = do
             , or_discr          = False
             }
 
-        halt_env = mkEnv halt_conf ty_cons_with_builtins core_defns
+        halo_env = mkEnv halo_conf ty_cons_with_builtins core_defns
 
-        (subtheories_wo_min,_msgs_trans)
-            = translate halt_env ty_cons_with_builtins core_defns
+        binds_thy = case runHaloMsafe halo_env (trBinds core_defns) of
+                            (Left err,_msg)    -> error $ "Hip.Init, halo says: " ++ err
+                            (Right (m,_),_msg) -> m
+
+        subtheories_wo_min = binds_thy ++ backgroundTheory halo_conf ty_cons_with_builtins
 
         subtheories
             | min       = map makeDataDepend subtheories_wo_min
@@ -80,4 +84,4 @@ processFile file = do
         props = (consistency ? (inconsistentProp:))
               $ mapMaybe trProperty core_props
 
-    return (theory,halt_env,props,anns,params)
+    return (theory,halo_env,props,anns,params)

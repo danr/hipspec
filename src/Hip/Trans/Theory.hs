@@ -1,7 +1,15 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.Trans.Theory where
+module Hip.Trans.Theory
+    ( HipSpecExtras(..)
+    , makeDataDepend
+    , mkMinRec
+    , HipSpecContent
+    , HipSpecSubtheory
+    , Theory(..)
+    ) where
 
 import Halo.Subtheory
+import Halo.Trim
 import Hip.Trans.Property
 
 import CoreSyn
@@ -11,10 +19,9 @@ import TysWiredIn
 import TyCon
 import DataCon
 import Outputable
-import Halo.FOL.Abstract hiding (Lemma)
-import qualified Halo.FOL.Abstract as A
+import Halo.FOL.Abstract
 
-import Halo.Data (f,f',x,x',varNames)
+import Halo.Names (f,f',x,x',varNames)
 
 data HipSpecExtras
     = Lemma String
@@ -79,11 +86,14 @@ instance Show HipSpecExtras where
     show (Typing tc) = "Typing predicate"
 
 instance Clausifiable HipSpecExtras where
-    mkClause (Lemma s) = A.namedClause ("Lemma{" ++ s ++ "}") A.Lemma
-    mkClause _         = A.clause A.Axiom
+    mkClause (Lemma s) = namedClause ("Lemma{" ++ s ++ "}") lemma
+    mkClause _         = clause axiom
 
 type HipSpecContent = Content HipSpecExtras
 
 type HipSpecSubtheory = Subtheory HipSpecExtras
+
+-- I once had the idea to put a specialised trimmer here, but I got
+-- confused what to do about the lemmas
 
 data Theory = Theory { subthys :: [HipSpecSubtheory] }

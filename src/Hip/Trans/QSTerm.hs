@@ -102,7 +102,7 @@ csv = intercalate ", "
 varNames :: [Var]
 varNames =
    [ mkLocalId
-       (mkInternalName (mkUnique '!' i) (mkOccName Name.varName n) wiredInSrcSpan)
+       (mkInternalName (mkUnique 'w' i) (mkOccName Name.varName n) wiredInSrcSpan)
        (error "QSTerm.varNames: type")
    | i <- [0..]
    | n <- [1..] >>= flip replicateM "xyzwvu"
