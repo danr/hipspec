@@ -2,11 +2,12 @@ module Halo.FOL.MinAsNotUnr ( minAsNotUnr ) where
 
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
+import Halo.FOL.Operations
 import Halo.PrimCon
 
 import Data.Generics.Geniplate
 
 minAsNotUnr :: Clause' -> Clause'
-minAsNotUnr = transformBi $ \f -> case f of
+minAsNotUnr = clauseMapFormula $ transformBi $ \f -> case f of
     Min tm -> tm =/= unr
     e      -> e

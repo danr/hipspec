@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards,ScopedTypeVariables,FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Halo.FOL.Operations where
 
 import Halo.FOL.Internals.Internals
@@ -55,8 +55,13 @@ clauseMapTerms tm qv cl = case cl of
     Clause c s f -> Clause c s (formulaMapTerms tm qv f)
     Comment s    -> Comment s
 
-allSymbols :: forall f q v . (UniverseBi (f q v) (Term q v),Ord v)
-           => f q v -> [v]
+clauseMapFormula :: (Formula q v -> Formula r u)
+                 -> Clause q v -> Clause r u
+clauseMapFormula k cl = case cl of
+    Clause c s f -> Clause c s (k f)
+    Comment s    -> Comment s
+
+allSymbols :: forall q v . Ord v => Formula q v -> [v]
 allSymbols = S.toList . S.unions . map get . universeBi
   where
     get :: Term q v -> Set v
@@ -67,10 +72,11 @@ allSymbols = S.toList . S.unions . map get . universeBi
     get (Ptr v)      = S.singleton v
     get _            = S.empty
 
-allQuant :: forall f q v . (UniverseBi (f q v) (Formula q v)
-                           ,UniverseBi (f q v) (Term q v)
-                           ,Ord q)
-         => f q v -> [q]
+allSymbols' :: Ord v => Clause q v -> [v]
+allSymbols' (Clause _ _ f) = allSymbols f
+allSymbols' (Comment _)    = []
+
+allQuant :: forall q v . Ord q => Formula q v -> [q]
 allQuant phi = S.toList . S.unions $
     map getTm (universeBi phi) ++ map getFm (universeBi phi)
   where
@@ -82,8 +88,11 @@ allQuant phi = S.toList . S.unions $
     getFm (Forall qs _) = S.fromList qs
     getFm _             = S.empty
 
-substVars :: forall f q v . (TransformBi (Term q v) (f q v),Eq v)
-          => v -> v -> f q v -> f q v
+allQuant' :: Ord q => Clause q v -> [q]
+allQuant' (Clause _ _ f) = allQuant f
+allQuant' (Comment _ )   = []
+
+substVars :: forall q v . Eq v => v -> v -> Formula q v -> Formula q v
 substVars old new = rewriteBi s
   where
     s :: Term q v -> Maybe (Term q v)
@@ -93,8 +102,7 @@ substVars old new = rewriteBi s
     s (Ptr v)      | v == old = Just (Ptr new)
     s _                       = Nothing
 
-substQVar :: forall f q v . (TransformBi (Term q v) (f q v),Eq q)
-          => q -> q -> f q v -> f q v
+substQVar :: forall q v . Eq q => q -> q -> Formula q v -> Formula q v
 substQVar old new = rewriteBi s
   where
     s :: Term q v -> Maybe (Term q v)

@@ -20,7 +20,6 @@ import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import Data.Generics.Geniplate
 import Data.Char
 import Data.Maybe
 
@@ -41,13 +40,12 @@ renameClauses clauses =
 
      in  clauses'
 
-data WrappedClause'
-  = forall q . (UniverseBi (Clause q Var) (Term q Var)) => WrapClause (Clause q Var)
+data WrappedClause' = forall q . WrapClause (Clause q Var)
 
 mkFunRenamer :: [WrappedClause'] -> Clause q Var -> Clause q String
 mkFunRenamer clauses =
     let symbols :: [Var]
-        symbols = nubSorted $ concatMap (\(WrapClause cl) -> allSymbols cl) clauses
+        symbols = nubSorted $ concatMap (\(WrapClause cl) -> allSymbols' cl) clauses
 
         rep_map :: Map Var String
         rep_map = B.toMap (foldr (allot varSuggest protectedWiredIn)
@@ -61,17 +59,13 @@ mkFunRenamer clauses =
 
     in  clauseMapTerms (replaceVarsTm replace) id
 
-renameQVar :: forall q . (UniverseBi (Clause q String) (Term q String)
-                         ,UniverseBi (Clause q String) (Formula q String)
-                         ,Ord q)
-            => (q -> [String])
-            -> Clause q String -> Clause String String
+renameQVar :: forall q . Ord q => (q -> [String]) -> Clause q String -> Clause String String
 renameQVar suggest cl =
     let symbols :: Set String
-        symbols = S.fromList (allSymbols cl)
+        symbols = S.fromList (allSymbols' cl)
 
         quants :: [q]
-        quants = allQuant cl
+        quants = allQuant' cl
 
         rep_map :: Map q String
         rep_map = B.toMap (foldr (allot suggest (symbols `S.union` protectedWiredIn))

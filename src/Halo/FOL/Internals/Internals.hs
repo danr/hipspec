@@ -50,14 +50,12 @@ data Clause q v
     | Comment String
   deriving (Eq,Ord,Show)
 
+-- These are defined here to avoid orphan instances
+
 instanceTransformBi [t| forall q v . (Term q v    ,Term q v    ) |]
 instanceTransformBi [t| forall q v . (Term q v    ,Formula q v ) |]
 instanceTransformBi [t| forall q v . (Formula q v ,Formula q v ) |]
-instanceTransformBi [t| forall q v . (Term q v    ,Clause q v  ) |]
-instanceTransformBi [t| forall q v . (Formula q v ,Clause q v  ) |]
 
 instanceUniverseBi [t| forall q v . (Term q v   ,Term q v   ) |]
 instanceUniverseBi [t| forall q v . (Formula q v,Term q v   ) |]
 instanceUniverseBi [t| forall q v . (Formula q v,Formula q v) |]
-instanceUniverseBi [t| forall q v . (Clause q v ,Term q v   ) |]
-instanceUniverseBi [t| forall q v . (Clause q v ,Formula q v) |]
