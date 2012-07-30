@@ -47,7 +47,7 @@ mkProjDiscrim HaloConf{..} ty_cons =
             [ forall' (names ++ uneq_names) $
                       min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
             | let allcons = map ((,) True) cons
-                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR] ]
+                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR] | unr_and_bad ]
             , (c,unequals) <- zip cons (drop 1 $ tails allcons)
             , (need_min,uneq_c) <- unequals
             , let data_c          = dataConWorkId c
