@@ -38,14 +38,19 @@ functions = map Function
 datas :: [TyCon] -> [Content s]
 datas = map Data
 
+baseContentShow :: Content s -> String
+baseContentShow c = case c of
+    Function v          -> "(Function " ++ show v ++ ")"
+    Pointer v           -> "(Pointer " ++ show v ++ ")"
+    Data tc             -> "(Data " ++ showOutputable tc ++ ")"
+    ExtensionalEquality -> "(Extensional equality)"
+    AppOnMin            -> "(App on min)"
+    Specific _          -> "(Unknow Specific)"
+
 instance Show s => Show (Content s) where
     show c = case c of
-        Function v          -> "Function " ++ show v
-        Pointer v           -> "Pointer " ++ show v
-        Data tc             -> "Data " ++ showOutputable tc
-        ExtensionalEquality -> "Extensional equality"
-        AppOnMin            -> "App on min"
-        Specific s          -> "Specific: " ++ show s
+        Specific s -> "(Specific " ++ show s ++ ")"
+        _          -> baseContentShow c
 
 -- | A subtheory
 --

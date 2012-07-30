@@ -1,5 +1,5 @@
 -- (c) Dan Rosén 2012
-{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns, ExplicitForAll #-}
 module Halo.Binds
     ( trBinds
     , BindPart(..), BindParts, BindMap, minRhs
@@ -31,6 +31,8 @@ import Control.Monad.Error
 
 import qualified Data.Map as M
 import Data.Map (Map)
+import qualified Data.Set as S
+import Data.Set (Set)
 import Data.List
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it,
@@ -71,7 +73,7 @@ minRhs Min{} = True
 minRhs _     = False
 
 -- | Make a bind part given the rhs
-bindPart :: Eq s => Rhs -> HaloM (BindPart s)
+bindPart :: Ord s => Rhs -> HaloM (BindPart s)
 bindPart rhs = do
     HaloEnv{current_fun,args,constr} <- ask
     let bind_part = BindPart
@@ -94,19 +96,22 @@ trBindPart BindPart{..} = do
     return $ foralls (min' lhs : tr_constr ===> consequent)
 
 -- | Make a subtheory for bind parts that regard the same function
-trBindParts :: (Ord s,Show s) => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
+trBindParts :: Ord s => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
 trBindParts f e parts = do
 
     -- Capturing of pointers when translating all expressions in the bind parts
     (tr_formulae,used_ptrs) <- capturePtrs (mapM trBindPart parts)
 
-    let deps = nubSorted (concatMap bind_deps parts) ++ map Pointer used_ptrs
+    -- We could get this information from the bind_deps, but this is more efficient
+    let deps = map Function (delete f (exprFVs e))
+            ++ map Data (freeTyCons e)
+            ++ map Pointer used_ptrs
 
     return $ Subtheory
         { provides    = Function f
         , depends     = deps
         , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
-                     ++ "\nDependencies: " ++ unwords (map show deps)
+                     ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
         , formulae    = tr_formulae
         }
 
@@ -124,7 +129,7 @@ trBind f e = err_handler $ do
              ,M.empty)
 
 -- | Translate a CoreDecl to bind parts
-trDecl :: Eq s => Var -> CoreExpr -> HaloM (BindParts s)
+trDecl :: Ord s => Var -> CoreExpr -> HaloM (BindParts s)
 trDecl f e = do
     let as :: [Var]
         e' :: CoreExpr
@@ -143,7 +148,7 @@ trDecl f e = do
     return $ filter (not . conflict . bind_constrs) bind_parts
 
 -- | Translate a case expression
-trCase :: Eq s => CoreExpr -> HaloM (BindParts s)
+trCase :: Ord s => CoreExpr -> HaloM (BindParts s)
 trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
 
     write $ "Case on " ++ showExpr scrutinee
@@ -192,14 +197,14 @@ invertAlt scrut_exp (cons,_,_) = case cons of
     _       -> throwError "invertAlt: on LitAlt, literals not supported (yet)"
 
 -- | Translate a case alternative
-trAlt :: Eq s => CoreExpr -> CoreAlt -> HaloM (BindParts s)
+trAlt :: Ord s => CoreExpr -> CoreAlt -> HaloM (BindParts s)
 trAlt scrut_exp alt@(cons,_,_) = case cons of
     DataAlt data_con -> trCon data_con scrut_exp alt
     DEFAULT -> throwError "trAlt: on DEFAULT, internal error"
     _       -> throwError "trAlt: on LitAlt, literals not supported (yet)"
 
 -- | Translate a data con alternative from a case
-trCon :: Eq s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
+trCon :: Ord s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
 trCon data_con scrut_exp (_cons,bound,e) = do
     HaloEnv{arities} <- ask
     let isQuant x = x `M.notMember` arities
@@ -238,39 +243,36 @@ trConstr (Inequality e data_con) = do
     return $ lhs =/= rhs
 
 -- | Non-pointer dependencies of an expression
-exprDeps :: Eq s => CoreExpr -> [Content s]
-exprDeps = (++) <$> (map Function . exprFVs) <*> (map Data . freeTyCons)
+exprDeps :: Ord s => CoreExpr -> Set (Content s)
+exprDeps = S.fromList
+         . ((++) <$> (map Function . exprFVs) <*> (map Data . freeTyCons))
 
 -- | Non-pointer dependencies of a constraint
-constraintDeps :: Eq s => Constraint -> [Content s]
+constraintDeps :: Ord s => Constraint -> Set (Content s)
 constraintDeps c = case c of
-    Equality e dc _es -> exprDeps e `union` dataConDeps dc
-    Inequality e dc   -> exprDeps e `union` dataConDeps dc
+    Equality e dc _es -> S.insert (dcContent dc) (exprDeps e)
+    Inequality e dc   -> S.insert (dcContent dc) (exprDeps e)
   where
-    dataConDeps :: DataCon -> [Content s]
-    dataConDeps = return . Data . dataConTyCon
+    dcContent :: DataCon -> Content s
+    dcContent = Data . dataConTyCon
 
 -- | Calculates the non-pointer dependencies of a bind part
-bindPartDeps :: Eq s => BindPart s -> [Content s]
-bindPartDeps BindPart{..} =
-    unions ( exprDeps (rhsExpr bind_rhs)
-           : args_dcs
-           : map constraintDeps bind_constrs )
-      \\ (Function bind_fun:bound ++ constr_bound)
+bindPartDeps :: Ord s => BindPart s -> [Content s]
+bindPartDeps BindPart{..} = S.toList $
+    S.unions ( exprDeps (rhsExpr bind_rhs)
+             : args_dcs
+             : map constraintDeps bind_constrs )
+      S.\\ (S.insert (Function bind_fun) (bound `S.union` constr_bound))
   where
     -- Don't regard arguments as a dependency
-    (bound,args_dcs) = partition isFunction (unions $ map exprDeps bind_args)
+    (bound,args_dcs) = S.partition isFunction (S.unions (map exprDeps bind_args))
 
     -- Variables bound in constraints from casing on non-var scrutinees
-    constr_bound = unions (map constr_bind bind_constrs)
+    constr_bound = S.unions (map constr_bind bind_constrs)
       where
-        constr_bind (Equality _ _ es) = unions (map exprDeps es)
-        constr_bind _                 = []
+        constr_bind (Equality _ _ es) = S.unions (map exprDeps es)
+        constr_bind _                 = S.empty
 
     isFunction Function{} = True
     isFunction _          = False
-
--- | Unions a list of lists
-unions :: Eq s => [[Content s]] -> [Content s]
-unions = foldr union []
 
