@@ -49,6 +49,8 @@ data HaloEnv = HaloEnv
     -- ^ Skolemised variables
     , constr      :: [Constraint]
     -- ^ Constraints
+    , min_set     :: [CoreExpr]
+    -- ^ Current min-set (of cased scrutinees) when translating a bind
     , conf        :: HaloConf
     -- ^ Configuration
     }
@@ -79,6 +81,10 @@ lookupArity v = do
     m <- asks arities
     return $ M.lookup v m
 
+-- | Extend the min expressions set
+extendMinSet :: CoreExpr -> HaloEnv -> HaloEnv
+extendMinSet e env = env { min_set = e : min_set env }
+
 -- | Make the environment
 mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
 mkEnv conf@HaloConf{..} ty_cons program =
@@ -108,6 +114,7 @@ mkEnv conf@HaloConf{..} ty_cons program =
             , args        = []
             , skolems     = []
             , constr      = noConstraints
+            , min_set     = []
             , conf        = conf
             }
 
@@ -159,11 +166,12 @@ usePtr v = do
 cleanUpFailedCapture :: HaloM ()
 cleanUpFailedCapture = put Nothing
 
--- | Substitute the entire context, i.e. arguments and constraints
+-- | Substitute the entire context, i.e. arguments and constraints, and min_set
 substContext :: Subst -> HaloEnv -> HaloEnv
 substContext s env = env
-    { args = map (substExpr (text "substContext:args") s) (args env)
-    , constr = map (substConstr s) (constr env)
+    { args    = map (substExpr (text "substContext:args") s) (args env)
+    , constr  = map (substConstr s) (constr env)
+    , min_set = map (substExpr (text "substContext:min_set") s) (min_set env)
     }
 
 -- | Write a debug message

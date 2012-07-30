@@ -55,6 +55,8 @@ data BindPart s = BindPart
     , bind_rhs     :: Rhs
     , bind_constrs :: [Constraint]
     , bind_deps    :: [Content s]
+    , bind_mins    :: [CoreExpr]
+    -- ^ Unused when rhs = min
     }
 
 -- | Many bind parts
@@ -72,20 +74,22 @@ minRhs :: Rhs -> Bool
 minRhs Min{} = True
 minRhs _     = False
 
--- | Make a bind part given the rhs
+-- | Make a bind part given the rhs, with a given min set
 bindPart :: Ord s => Rhs -> HaloM (BindPart s)
 bindPart rhs = do
-    HaloEnv{current_fun,args,constr} <- ask
+    HaloEnv{current_fun,args,constr,min_set} <- ask
     let bind_part = BindPart
             { bind_fun     = current_fun
             , bind_args    = args
             , bind_rhs     = rhs
             , bind_constrs = constr
+            , bind_mins    = min_set
             , bind_deps    = bindPartDeps bind_part
             }
     return bind_part
 
--- | Translate a bind part to formulae. Does not capture used pointers
+-- | Translate a bind part to formulae. Does not capture used pointers,
+--   doesn't look at min set of binds.
 trBindPart :: BindPart s -> HaloM Formula'
 trBindPart BindPart{..} = do
     tr_constr <- trConstraints bind_constrs
@@ -164,28 +168,31 @@ trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
     -- Add a bottom case
     alts' <- addBottomCase alts_wo_bottom
 
-    -- If there is a default case, translate it separately
-    (alts,def_part) <- case alts' of
+    -- Everything happens under this scrutinee
+    local (extendMinSet scrutinee) $ do
 
-         (DEFAULT,[],def_expr):alts -> do
+         -- If there is a default case, translate it separately
+         (alts,def_part) <- case alts' of
 
-             -- Collect the negative patterns
-             neg_constrs <- mapM (invertAlt scrutinee) alts
+              (DEFAULT,[],def_expr):alts -> do
 
-             -- Translate the default formula which happens on the negative
-             -- constraints
-             def_part' <- local (\env -> env { constr = neg_constrs ++ constr env })
-                                   (trCase def_expr)
+                  -- Collect the negative patterns
+                  neg_constrs <- mapM (invertAlt scrutinee) alts
 
-             return (alts,def_part')
+                  -- Translate the default formula which happens on the negative
+                  -- constraints
+                  def_part' <- local (\env -> env { constr = neg_constrs ++ constr env })
+                                        (trCase def_expr)
 
-         alts -> return (alts,[])
+                  return (alts,def_part')
 
-    -- Translate the alternatives that are not deafult
-    -- (mutually recursive with this function)
-    alt_parts <- concatMapM (trAlt scrutinee) alts
+              alts -> return (alts,[])
 
-    return (min_part : alt_parts ++ def_part)
+         -- Translate the alternatives that are not deafult
+         -- (mutually recursive with this function)
+         alt_parts <- concatMapM (trAlt scrutinee) alts
+
+         return (min_part : alt_parts ++ def_part)
 
 trCase e = return <$> bindPart (Rhs e)
 
@@ -258,14 +265,17 @@ constraintDeps c = case c of
 
 -- | Calculates the non-pointer dependencies of a bind part
 bindPartDeps :: Ord s => BindPart s -> [Content s]
-bindPartDeps BindPart{..} = S.toList $
-    S.unions ( exprDeps (rhsExpr bind_rhs)
-             : args_dcs
-             : map constraintDeps bind_constrs )
-      S.\\ (S.insert (Function bind_fun) (bound `S.union` constr_bound))
+bindPartDeps BindPart{..}
+    = S.toList $ S.delete (Function bind_fun) (free S.\\ bound)
   where
+    free = S.unions $ [ args_dcs, exprDeps (rhsExpr bind_rhs) ]
+                   ++ map exprDeps bind_mins
+                   ++ map constraintDeps bind_constrs
+
+    bound = args_bound `S.union` constr_bound
+
     -- Don't regard arguments as a dependency
-    (bound,args_dcs) = S.partition isFunction (S.unions (map exprDeps bind_args))
+    (args_bound,args_dcs) = S.partition isFunction (S.unions (map exprDeps bind_args))
 
     -- Variables bound in constraints from casing on non-var scrutinees
     constr_bound = S.unions (map constr_bind bind_constrs)
