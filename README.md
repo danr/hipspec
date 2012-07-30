@@ -10,13 +10,19 @@ for first order logic with equality.
 Exprimental version
 ===================
 
-The `master` branch of this repository is still experimental. The old
-version is in the `src-exts` branch.
+The `master` branch of this repository is still (somewhat)
+experimental, in particular when using finite types and type synonyms.
+The old version is in the `src-exts` branch.
 
 Installation instructions
 =========================
 
-First, you need to pull `halt`, the Haskell to Logic Translator:
+Make sure you have `quickspec` installed. It isn't yet on hackage,
+so the easiest way is to get it from github:
+
+    git clone https://github.com/nick8325/quickspec
+
+Then, you need to pull `halt`, the Haskell to Logic Translator:
 
     git submodule update --init
 
@@ -85,25 +91,26 @@ of generated terms. Example:
 The configuration explains what variables and constants QuickSpec
 should use when generating terms.
 
-  * Make variables with `var`, a string representation and something
-    of the type of the variable.
+  * Make variables with `vars`, then string representations and
+    something of the type of the variable.
 
-  * Make constants with `con`, a string representation, and the
-    Haskell function or constructor you want this to constant to be
-    interpreted as.
+  * Use `fun0`, `fun1`, `fun2`, and so on, and a string representation,
+    for Haskell functions and constructors.
 
 We continue the example above:
 
     main = hipSpec "Trees.hs" conf 3
-      where conf = describe "Trees" [ var "t" (undefined :: Tree Int)
-                                    , var "x" (undefined :: Int)
-                                    , con "Leaf" Leaf
-                                    , con "Fork" Fork
-                                    , con "mirror" mirror ]
+      where
+        conf = [ vars ["t","u"] (undefined :: Tree Int)
+               , vars ["x","y"] (undefined :: Int)
+               , fun0 "Leaf" Leaf
+               , fun0 "Fork" Fork
+               , fun1 "mirror" mirror
+               ]
 
 For polymorphic functions, just enter some concrete and rich data type
-as `Int`. Now, annotate the functions you use with ANN pragmas. These
-need exactly the same string representation as used above.
+as `Int`.
+Now, annotate the functions you use with ANN pragmas. These need exactly the same string representation as used above.
 
     {-# ANN Leaf "Leaf" #-}
     {-# ANN Fork "Fork" #-}

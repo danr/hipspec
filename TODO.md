@@ -7,19 +7,25 @@ TODO
 
   * Perform eta-expansion of properties.
 
-  * Make a switch to ignore eta-reduced properties from QuickSpec.
+  * Add infinite domain axioms.
 
-  * Either enforce a default branch or add infinite domain axioms.
+  * Besides E-proof, Vampire also print which axioms were used to
+    prove a lemma. This is not supported.
 
-  * Print which axioms were used to prove a lemma.
-    E-proof and other provers supports the TSTP format.
+  * Use `TcGblRdrEnv` to get rid of the `ANN` pragmas. SPJ wrote down
+    this list of useful functions:
 
-Bugs
-====
+         Linker.getHValue :: HscEnv -> Name -> IO HValue
 
-  * There seems to be some bug when the theorem provers report
-    CounterSatisfiable. At one occasion I think a problem got
-    registered as theorem when it actually was counter-satisfiable.
-    Regardless, Satisfiable is interesting information for instance
-    in conjuction with `oops`.
+         Look at TcSplice.runMeta
+
+         Convert.thRdrName
+
+         RdrName.lookupGlobalRdrEnv
+              String -->  Name
+         This Name is the Name of the Id in the CoreBinds.
+
+         Behave like ghc –c, called “OneShot” mode.
+
+
 
