@@ -27,6 +27,8 @@ import Control.Monad.Error
 --       * skolems
 --       * arities
 --
+--   If a variable is not a skolem variable, and not in arities, it is
+--   deemed as quantified.
 trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
     HaloEnv{..} <- ask
