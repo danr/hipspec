@@ -99,9 +99,6 @@ trBindParts f e parts = do
 
     -- Capturing of pointers when translating all expressions in the bind parts
     (tr_formulae,used_ptrs) <- capturePtrs (mapM trBindPart parts)
-        `catchError` \err -> do
-            cleanUpFailedCapture
-            return (error err,[])
 
     let deps = nubSorted (concatMap bind_deps parts) ++ map Pointer used_ptrs
 
@@ -115,10 +112,16 @@ trBindParts f e parts = do
 
 -- | Translate a Var / CoreExpr pair flattened from a CoreBind
 trBind :: (Ord s,Show s) => Var -> CoreExpr -> HaloM (Subtheory s,BindMap s)
-trBind f e = do
+trBind f e = err_handler $ do
     bind_parts <- trDecl f e
     subthy <- trBindParts f e bind_parts
     return (subthy,M.singleton f bind_parts)
+  where
+    err_handler m = m `catchError` \err -> do
+      cleanUpFailedCapture
+      return ((mkDummySubtheory (Function f))
+              { formulae = error $ "trBind, " ++ show f ++ " yielded " ++ err }
+             ,M.empty)
 
 -- | Translate a CoreDecl to bind parts
 trDecl :: Eq s => Var -> CoreExpr -> HaloM (BindParts s)
