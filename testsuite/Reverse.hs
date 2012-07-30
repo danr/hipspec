@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE  DeriveDataTypeable #-}
 module Main where
 
 import Prelude hiding (reverse,(++))

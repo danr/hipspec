@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, TypeFamilies, CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
 import Prelude hiding ((+),(*),even,odd,sum,id)

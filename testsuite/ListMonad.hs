@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, DeriveDataTypeable, FlexibleContexts, FlexibleInstances, TypeSynonymInstances, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
 import Prelude hiding ((>>=),(++),fmap,id,(.))
@@ -75,9 +75,5 @@ main = hipSpec "ListMonad.hs" conf
            , fun2 ">>="               ((>>=)     :: [Int] -> (Int -> [[Int]]) -> [[Int]])
            , fun2 "fmap"              (fmap      :: (Int -> Int) -> [Int] -> [Int])
            , fun2 "fmap"              (fmap      :: (Int -> [Int]) -> [Int] -> [[Int]])
-           , observer2 $ (flip ($) :: Int -> (Int -> Int) -> Int)
-           , observer2 $ (flip ($) :: [Int] -> ([Int] -> Int) -> Int)
-           , observer2 $ (flip ($) :: Int -> (Int -> [Int]) -> [Int])
-           , observer2 $ (flip ($) :: [Int] -> ([Int] -> [Int]) -> [Int])
            ]
 
