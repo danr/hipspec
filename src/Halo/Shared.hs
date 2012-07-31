@@ -1,6 +1,6 @@
 {-
 
-    Shared functions operating on GHC stuff
+    Shared functions operating on GHC
 
 -}
 module Halo.Shared where

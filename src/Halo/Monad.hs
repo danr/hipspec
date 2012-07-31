@@ -4,6 +4,60 @@
         FlexibleContexts,
         RecordWildCards
   #-}
+{-
+
+    The Halo Monad. Keeps track of:
+
+        * Arities of top level functions
+
+            This is needed to determine if app:s and pointers need to
+            be introduced when translating expressions.
+
+        * Skolemised variables
+
+            Add skolemised variables with `addSkolem' and `addSkolems'.
+
+        * Configuration
+
+            A copy of the HaloConf.
+
+        * Function pointers used
+
+            Capture this with capturePtrs. If you catch an error
+            inside this, use cleanUpFailedCapture.
+
+            (With reordering the monad stack maybe the cleanup could
+            get removed.)
+
+        * Debug messages
+
+        * Errors
+
+            Some things are unsupported for now, like literals.
+            Trying to translate these throws an error.
+            In Halo.Binds, these make the program crash if you
+            ever try to translate that particular subtheory.
+
+    Things only needed in Halo.Binds:
+
+        * The current function
+
+            With some restructuring this could be removed.
+
+        * The arguments to the current function
+
+            Arguments are CoreExpr because they get substituted when
+            casing upon.
+
+        * Constraints
+
+            Are also subject to substitution from case expressions.
+
+        * Min-set
+
+            Expressions cased on.
+
+-}
 module Halo.Monad where
 
 import CoreSubst

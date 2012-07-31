@@ -1,4 +1,10 @@
-module Halo.FreeTyCons(freeTyCons) where
+{-
+
+    Obtaining the used data types in an expression, both as
+    constructors or in patterns.
+
+-}
+module Halo.FreeTyCons ( freeTyCons ) where
 
 import CoreSyn
 import DataCon

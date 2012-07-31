@@ -1,6 +1,17 @@
 {-# LANGUAGE RecordWildCards #-}
--- Translating data types
+{-
 
+    Background theory:
+
+        * Data type projections and discriminators
+
+        * Pointers to data constructors
+
+        * Min on app
+
+        * Extensional equality
+
+-}
 module Halo.BackgroundTheory ( backgroundTheory ) where
 
 import DataCon

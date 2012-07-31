@@ -1,4 +1,38 @@
 {-# LANGUAGE RecordWildCards #-}
+{-
+
+    A subtheory is something from Haskell that can be translated to
+    FOL if it is necessary. If you know what functions are important
+    for a specific goal, you can trim a grand theory with Halo.Trim.
+
+    The different kinds of subtheories are:
+
+        * Discrimination and projection axioms for a data type
+
+            from Halo.BackgroundTheory
+
+        * Function definition
+
+            from Halo.Binds
+
+        * A pointer definition
+
+            from Halo.Pointer, used in both BackgroundTheory (for
+            constructor pointers), and in Binds (for function pointers)
+
+        * Extensional equality
+
+        * AppOnMin
+
+            Should be min on app: min(app(f,x)) => min(f)
+
+        * Specific
+
+            Something specific to the user of the Halo library.
+            Examples: in Contracts the axiomatisations of crash-freeness,
+            in HipSpec, we make a subtheory for each lemma.
+
+-}
 module Halo.Subtheory where
 
 import Halo.Shared

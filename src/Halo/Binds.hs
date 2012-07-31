@@ -1,5 +1,21 @@
--- (c) Dan Rosén 2012
 {-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns, ExplicitForAll #-}
+{-
+
+    Translating Core Binds, i.e. function definitions
+
+    When casing on a scrutinee, you either:
+
+        * substitute the patterns (when casing on a variable)
+
+        * generate a constraint (see Halo.Constraint)
+
+    To be able to split the definitions into several theorem prover
+    invocations, we also generate `BindParts', that are translated to a
+    single subtheory for each binder, see `trBind'. The example where
+    BindParts is used elsewhere is in the contracts checker in
+    Contracts.Trans.trSplit.
+
+-}
 module Halo.Binds
     ( trBinds
     , BindPart(..), BindParts, BindMap, minRhs
@@ -196,7 +212,9 @@ trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
 
 trCase e = return <$> bindPart (Rhs e)
 
--- | Make a constraint from a case alternative
+-- | Make an inequality constraint from a case alternative, when handling
+--   the DEFAULT case. A constructor like Cons gets a constraint that
+--   looks like x /= Cons(sel_0_Cons(x),sel_1_Cons(x))
 invertAlt :: CoreExpr -> CoreAlt -> HaloM Constraint
 invertAlt scrut_exp (cons,_,_) = case cons of
     DataAlt data_con -> return (Inequality scrut_exp data_con)

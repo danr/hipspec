@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
 {-
 
-   Trims away unnecessary function definitions from the theory.
+   Trims away unnecessary function definitions from a grand theory.
 
    TODO: What about HipSpec's lemmas?
 

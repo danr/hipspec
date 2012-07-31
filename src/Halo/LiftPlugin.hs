@@ -1,3 +1,8 @@
+{-
+
+    An attempt to use the case-let-lifter as a GHC plugin.
+
+-}
 module Halo.LiftPlugin where
 
 import CoreMonad

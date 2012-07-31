@@ -1,4 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-
+
+    The primitives: UNR and BAD
+
+-}
 module Halo.PrimCon where
 
 import CoreSyn

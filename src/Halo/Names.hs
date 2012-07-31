@@ -1,4 +1,9 @@
 {-# LANGUAGE ParallelListComp #-}
+{-
+
+    Variable names that can be quantified over in axioms.
+
+-}
 module Halo.Names ( f,g,x,f',g',x',varNames ) where
 
 import Id

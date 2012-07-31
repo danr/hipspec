@@ -1,4 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-
+
+    Make a pointer subtheory
+
+-}
 module Halo.Pointer where
 
 import Id

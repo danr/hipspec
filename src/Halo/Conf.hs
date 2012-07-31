@@ -1,6 +1,10 @@
+{-
+
+    Translation configuration
+
+-}
 module Halo.Conf where
 
--- Translation configuration
 
 data HaloConf = HaloConf
     { use_min           :: Bool

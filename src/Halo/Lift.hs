@@ -1,3 +1,11 @@
+{-
+
+    Lift inner case-expressions and let-expressions to the top level.
+
+    If there are remaining lambdas from the GHC lambda lifter, we lift
+    these as well.
+
+-}
 module Halo.Lift ( caseLetLift ) where
 
 import CoreFVs

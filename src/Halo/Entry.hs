@@ -1,4 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
+{-
+
+    A main entry point to Halo, called `desugar', even though it can
+    run the GHC core-to-core passes as well.
+
+-}
 module Halo.Entry where
 
 import CoreMonad

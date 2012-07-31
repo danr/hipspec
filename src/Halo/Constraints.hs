@@ -1,4 +1,34 @@
 {-# LANGUAGE ViewPatterns #-}
+{-
+
+    From casing on a non-variable scrutinee, a constraint is
+    generated. These are either equalities or inequalities.
+    Example:
+
+        f x = case e of
+            K u     -> e1
+            BAD     -> BAD
+            DEFAULT -> UNR
+
+    Here, it is assumed that e is more complex than just a variable.
+    The desired (min-less) translation is this:
+
+        forall x u . e = K(u) => f(x) = [[ e1 ]]
+
+        forall x . e = BAD => f(x) = BAD
+
+        forall x . (e /= K(sel_1_K(e)) & e /= BAD) => f(x) = UNR
+
+    So we have get equalities from exact matches, and inequalities
+    from inverting the other patterns in the DEFAULT branch.
+
+    This file also contains some machinery to remove duplicate
+    constraints, remove unnecessary constraints, and alert when
+    constraints conflict. Conditions for these phenomena arise are either
+    casing on a constructor or re-casing on an expression.
+    Luckily, the GHC optimiser removes most occurences like this.
+
+-}
 module Halo.Constraints where
 
 import CoreSubst
