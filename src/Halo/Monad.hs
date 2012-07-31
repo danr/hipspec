@@ -1,7 +1,7 @@
 {-# LANGUAGE
-        NamedFieldPuns,
-        GeneralizedNewtypeDeriving,
         FlexibleContexts,
+        GeneralizedNewtypeDeriving,
+        NamedFieldPuns,
         RecordWildCards
   #-}
 {-

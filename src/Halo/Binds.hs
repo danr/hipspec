@@ -1,4 +1,10 @@
-{-# LANGUAGE ParallelListComp, RecordWildCards, NamedFieldPuns, ExplicitForAll #-}
+{-# LANGUAGE
+        ExplicitForAll,
+        NamedFieldPuns,
+        ParallelListComp,
+        PatternGuards,
+        RecordWildCards
+  #-}
 {-
 
     Translating Core Binds, i.e. function definitions
@@ -153,7 +159,7 @@ trDecl :: Ord s => Var -> CoreExpr -> HaloM (BindParts s)
 trDecl f e = do
     let as :: [Var]
         e' :: CoreExpr
-        (_ty,as,e') = collectTyAndValBinders e
+        (as,e') = collectBindersDeep e
 
         new_env env = env
             { current_fun = f

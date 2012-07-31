@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 {-
 
     Shared functions operating on GHC
@@ -38,10 +39,18 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
 
+collectBindersDeep :: CoreExpr -> ([Var],CoreExpr)
+collectBindersDeep = go
+  where
+    go e = case collectTyAndValBinders e of
+       (_ty,args,e')
+           | Lam _ _ <- e' -> let (r_args,r_e) = go e'
+                              in  (args ++ r_args,r_e)
+           | otherwise     -> (args,e')
+
 -- | The arity of an expression if it is a lambda
 exprArity :: CoreExpr -> Int
-exprArity e = length as
-  where (_,as,_) = collectTyAndValBinders e
+exprArity = length . fst . collectBindersDeep
 
 -- | Removes the type arguments
 trimTyArgs :: [CoreArg] -> [CoreArg]
