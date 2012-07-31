@@ -6,6 +6,7 @@
 module Halo.Shared where
 
 import CoreFVs
+import DataCon
 import UniqSet
 import Id
 import Name
@@ -110,3 +111,6 @@ removeCruft e = case e of
     Coercion co     -> Coercion co
   where
     rmAltCruft (pat,bs,rhs) = (pat,bs,removeCruft rhs)
+
+dcIdArity :: DataCon -> (Id,Int)
+dcIdArity dc = (dataConWorkId dc,dataConRepArity dc)

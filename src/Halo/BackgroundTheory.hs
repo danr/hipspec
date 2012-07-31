@@ -14,7 +14,6 @@
 -}
 module Halo.BackgroundTheory ( backgroundTheory ) where
 
-import DataCon
 import Outputable
 import TyCon
 import Type
@@ -26,82 +25,77 @@ import Halo.Conf
 import Halo.Names
 import Halo.Pointer
 import Halo.PrimCon
+import Halo.Shared
 import Halo.Subtheory
+import Halo.Util
 
-import Control.Monad.Reader
 import Data.List
 
 -- | Makes the background theory with these settings and data types
 backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
 backgroundTheory halo_conf ty_cons
     = extEq : appOnMin : dummyAny
-    : concatMap (\k -> k halo_conf ty_cons) [mkProjDiscrim,mkConPtrs]
+    : tyConSubtheories halo_conf ty_cons
 
-mkProjDiscrim :: HaloConf -> [TyCon] -> [Subtheory s]
-mkProjDiscrim HaloConf{..} ty_cons =
-   [ -- Projections
-     let projections =
-            [ forall' xs $ [min' kxs,min' xi] ===> proj i k kxs === xi
+tyConSubtheories :: HaloConf -> [TyCon] -> [Subtheory s]
+tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
+    [ -- Projections, for each constructor k
+    let projections =
+            [ foralls  $ [min' kxs,min' xi] ===> proj i k kxs === xi
             -- I think maybe this should just be min' kxs ==>
-            | c <- cons
-            , let k               = dataConWorkId c
-                  (_,_,ty_args,_) = dataConSig c
-                  arity           = length ty_args
-                  xs              = take arity varNames
-                  kxs             = apply k (map qvar xs)
+            | dc <- dcs
+            , let (k,arity) = dcIdArity dc
+                  xs        = take arity varNames
+                  kxs       = apply k (map qvar xs)
             , i <- [0..arity-1]
-            , let xi              = qvar (xs !! i)
+            , let xi        = qvar (xs !! i)
             ]
 
-     -- Discriminations
+     -- Discriminations,  for j,k in the same TyCon + unr/bad, make j and k disjoint
 
-         discrims =
-            [ forall' (names ++ uneq_names) $
-                      min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
-            | let allcons = map ((,) True) cons
-                            ++ concat [ map ((,) False) [primCon BAD,primCon UNR] | unr_and_bad ]
-            , (c,unequals) <- zip cons (drop 1 $ tails allcons)
-            , (need_min,uneq_c) <- unequals
-            , let data_c          = dataConWorkId c
-                  (_,_,ty_args,_) = dataConSig c
-                  arity           = length ty_args
+        discrims =
+            [ foralls $ min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
 
-                  uneq_data_c          = dataConWorkId uneq_c
-                  (_,_,uneq_ty_args,_) = dataConSig uneq_c
-                  uneq_arity           = length uneq_ty_args
+            | let tagged_dcs
+                    = [ (True,dc) | dc <- dcs ] ++
+                      [ (False,prim_con)
+                      | unr_and_bad
+                      , prim_con <- [primCon BAD,primCon UNR] ]
 
-                  names      = take arity varNames
-                  uneq_names = take uneq_arity (drop arity varNames)
+            , (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
 
-                  lhs    = apply data_c (map qvar names)
-                  rhs    = apply uneq_data_c (map qvar uneq_names)
+            , (need_min,k_dc) <- ks
+
+            , let (j,j_arity)     = dcIdArity j_dc
+                  (k,k_arity)     = dcIdArity k_dc
+
+                  (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
+
+                  lhs             = apply j (map qvar j_args)
+                  rhs             = apply k (map qvar k_args)
             ]
 
-     in Subtheory
+     -- Pointers, to each non-nullary constructor k
+
+        pointer_subthys =
+            [ (mkPtr halo_conf k arity) { depends = [Data ty_con] }
+            | dc <- dcs
+            , let (k,arity) = dcIdArity dc
+            , arity > 0
+            ]
+
+    in  Subtheory
             { provides    = Data ty_con
             , depends     = []
             , description = showSDoc (pprSourceTyCon ty_con)
             , formulae    = projections ++ discrims
             }
+        : pointer_subthys
 
-   | ty_con <- ty_cons
-   , DataTyCon cons _ <- [algTyConRhs ty_con]
-   ]
-
--- | Make pointers to constructors
-mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory s]
-mkConPtrs halo_conf ty_cons = do
-    ty_con <- ty_cons
-    DataTyCon cons _ <- [algTyConRhs ty_con]
-
-    c <- cons
-    let data_c          = dataConWorkId c
-        (_,_,ty_args,_) = dataConSig c
-        arity           = length ty_args
-
-    guard (arity > 0)
-
-    return $ (mkPtr halo_conf data_c arity) { depends = [Data ty_con] }
+    | ty_con <- ty_cons
+    , isAlgTyCon ty_con
+    , DataTyCon dcs _ <- [algTyConRhs ty_con]
+    ]
 
 appOnMin :: Subtheory s
 appOnMin = Subtheory

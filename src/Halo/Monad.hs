@@ -149,11 +149,13 @@ mkEnv conf@HaloConf{..} ty_cons program =
         data_arities :: [(Var,Int)]
         data_arities =
             [ (primId c,0) | c <- [UNR,BAD], unr_and_bad ] ++
-            [ (con_id,arity)
-            | DataTyCon cons _ <- map algTyConRhs ty_cons
-            , c <- cons
-            , let con_id          = dataConWorkId c
-                  (_,_,ty_args,_) = dataConSig c
+            [ (dc_id,arity)
+            | ty_con <- ty_cons
+            , isAlgTyCon ty_con
+            , DataTyCon dcs _ <- [algTyConRhs ty_con]
+            , dc <- dcs
+            , let dc_id           = dataConWorkId dc
+                  (_,_,ty_args,_) = dataConSig dc
                   arity           = length ty_args
             ]
 
