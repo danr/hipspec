@@ -25,28 +25,21 @@ import Data.Typeable
 import Hip.HipSpec
 import Hip.Prelude
 
-{-# ANN type Nat "Nat" #-}
-{-# ANN Z "Z" #-}
-{-# ANN S "S" #-}
 data Nat = S Nat | Z
   deriving (Eq,Show,Typeable,Ord)
 
-{-# ANN (+) "+" #-}
 (+) :: Nat -> Nat -> Nat
 S n + m = S (n + m)
 _   + m = m
 
-{-# ANN length "length" #-}
 length :: [a] -> Nat
 length []     = Z
 length (_:xs) = S (length xs)
 
-{-# ANN (++) "++" #-}
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
-{-# ANN rotate "rotate" #-}
 rotate :: Nat -> [a] -> [a]
 rotate Z     xs     = xs
 rotate _     []     = []

@@ -12,20 +12,15 @@ TODO
   * Besides E-proof, Vampire also print which axioms were used to
     prove a lemma. This is not supported.
 
-  * Use `TcGblRdrEnv` to get rid of the `ANN` pragmas. SPJ wrote down
-    this list of useful functions:
+  * Run hipspec ghci-like. SPJ wrote down this list of functions:
 
-         Linker.getHValue :: HscEnv -> Name -> IO HValue
+        Linker.getHValue :: HscEnv -> Name -> IO HValue
 
-         Look at TcSplice.runMeta
+        Look at TcSplice.runMeta
 
-         Convert.thRdrName
+        Convert.thRdrName
 
-         RdrName.lookupGlobalRdrEnv
-              String -->  Name
-         This Name is the Name of the Id in the CoreBinds.
-
-         Behave like ghc –c, called “OneShot” mode.
+        Behave like ghc –c, called “OneShot” mode.
 
 
 

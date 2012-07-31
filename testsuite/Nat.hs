@@ -8,21 +8,16 @@ import Data.Typeable
 import Hip.HipSpec
 import Hip.Prelude
 
-{-# ANN type Nat "Nat" #-}
-{-# ANN Z "Z" #-}
-{-# ANN S "S" #-}
 data Nat = Z | S Nat
   deriving (Eq,Ord,Show,Typeable)
 
 infixl 6 +
 infixl 7 *
 
-{-# ANN (+) "+" #-}
 (+) :: Nat -> Nat -> Nat
 S n + m = S (n + m)
 _   + m = m
 
-{-# ANN (*) "*" #-}
 (*) :: Nat -> Nat -> Nat
 S n * m = m + (n * m)
 _   * m = Z
@@ -38,7 +33,6 @@ main = hipSpec "Nat.hs" conf
                , fun2 "*" (*)
                ]
            where natType = (error "Nat type" :: Nat)
-
 
 instance Enum Nat where
   toEnum 0 = Z

@@ -1,5 +1,5 @@
 name:               hipspec
-version:            0.3.0.1
+version:            0.3.1
 license:            BSD3
 author:             Dan Rosén
 maintainer:         danr@student.gu.se
@@ -90,7 +90,6 @@ library
         Halo.Binds
         Halo.Trim
         Halo.Util
-        Hip.Annotations
         Hip.ATP.Invoke
         Hip.ATP.Provers
         Hip.ATP.Results
@@ -101,6 +100,7 @@ library
         Hip.Params
         Hip.Induction
         Hip.Induction.Linearise
+        Hip.StringMarshal
         Hip.Trans.MakeProofs
         Hip.Trans.ProofDatatypes
         Hip.Trans.Property

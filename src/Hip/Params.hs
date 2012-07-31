@@ -41,7 +41,7 @@ data Params = Params
     , indhyps             :: Int
     , indparts            :: Int
 
-    , db_anns             :: Bool
+    , db_str_marsh        :: Bool
     }
   deriving (Show,Data,Typeable)
 
@@ -94,10 +94,10 @@ defParams = Params
     , indparts            = 10      &= help "Maximum parts (bases and steps) (default 10)"
 
 
-    , db_anns             = False   &= groupname "\nDebugging"
-                                    &= help "Debug ANN pragmas"
+    , db_str_marsh        = False   &= groupname "\nDebugging"
+                                    &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
     }
-    &= summary ("\nHipSpec v0.3.0.1 Dan Rosén danr@student.gu.se" ++
+    &= summary ("\nHipSpec v0.3.1 Dan Rosén danr@student.gu.se" ++
                 "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++
                 "\n             and Koen Claessen koen@chalmers.se")
     &= program "hipspec"

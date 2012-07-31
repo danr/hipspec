@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hip.Init where
 
-import Hip.Annotations
 import Hip.BuiltinTypes
 import Hip.Params
+import Hip.StringMarshal
 import Hip.Trans.Property
 import Hip.Trans.SrcRep
 import Hip.Trans.Theory
@@ -26,7 +26,7 @@ import UniqSupply
 
 import System.Console.CmdArgs hiding (summary)
 
-processFile :: FilePath -> IO (Theory,HaloEnv,[Prop],ANNs,Params)
+processFile :: FilePath -> IO (Theory,HaloEnv,[Prop],StrMarsh,Params)
 processFile file = do
 
     params@Params{..} <- sanitizeParams <$> cmdArgs defParams
@@ -36,7 +36,9 @@ processFile file = do
                       , core2core_pass  = True
                       }
 
-    (anns,(modguts,dflags)) <- desugarWith (findANNs db_anns) ds_conf file
+    (modguts,dflags) <- desugar ds_conf file
+
+    str_marsh <- makeStringMarshallings db_str_marsh modguts
 
     let unlifted_program = mg_binds modguts
 
@@ -69,10 +71,11 @@ processFile file = do
         halo_env = mkEnv halo_conf ty_cons_with_builtins core_defns
 
         binds_thy = case runHaloMsafe halo_env (trBinds core_defns) of
-                            (Left err,_msg)    -> error $ "Hip.Init, halo says: " ++ err
-                            (Right (m,_),_msg) -> m
+            (Left err,_msg)    -> error $ "Hip.Init, halo says: " ++ err
+            (Right (m,_),_msg) -> m
 
-        subtheories_wo_min = binds_thy ++ backgroundTheory halo_conf ty_cons_with_builtins
+        subtheories_wo_min = binds_thy ++
+            backgroundTheory halo_conf ty_cons_with_builtins
 
         subtheories
             | min       = map makeDataDepend subtheories_wo_min
@@ -84,4 +87,4 @@ processFile file = do
         props = (consistency ? (inconsistentProp:))
               $ mapMaybe trProperty core_props
 
-    return (theory,halo_env,props,anns,params)
+    return (theory,halo_env,props,str_marsh,params)

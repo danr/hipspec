@@ -8,22 +8,18 @@ import Data.Typeable
 import Hip.HipSpec
 import Hip.Prelude
 
-{-# ANN (++) "++" #-}
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
-{-# ANN reverse "reverse" #-}
 reverse :: [a] -> [a]
 reverse (x:xs) = reverse xs ++ [x]
 reverse []     = []
 
-{-# ANN revacc "revacc" #-}
 revacc :: [a] -> [a] -> [a]
 revacc []     acc = acc
 revacc (x:xs) acc = revacc xs (x:acc)
 
-{-# ANN qreverse "qreverse" #-}
 qreverse :: [a] -> [a]
 qreverse xs = revacc xs []
 

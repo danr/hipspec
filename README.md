@@ -109,20 +109,9 @@ We continue the example above:
                ]
 
 For polymorphic functions, just enter some concrete and rich data type
-as `Int`.
-Now, annotate the functions you use with ANN pragmas. These need exactly the same string representation as used above.
-
-    {-# ANN Leaf "Leaf" #-}
-    {-# ANN Fork "Fork" #-}
-    {-# ANN mirror "mirror" #-}
-
-This needs to be done to translate between QuickSpec's
-`Typeable`-representation and GHC's core representation. Futhermore,
-annotate the types you use:
-
-    {-# ANN type Tree "Tree" #-}
-
-Leave out an annotation for `Int` to make this be an abstract type.
+as `Int`. To be able to translate from QuickSpec's internal representation
+to HipSpec's, the string of functions and data constructors needs to match
+up exactly as they are named in the source code.
 
 Now, we are good to go. Compile this and run:
 

@@ -165,10 +165,9 @@ eqIsAssoc
     ((unbin -> Just (f0,Var x0,unbin -> Just (g0,Var y0,Var z0)))
      :=:
      (unbin -> Just (f1,unbin -> Just (g1,Var x1,Var y1),Var z1)))
-  | f0 == f1 && g0 == g1 && f0 == g0
-  , x0 == x1 && y0 == y1 && z0 == z1
-  , x0 /= y0 && y0 /= z0
-    = True
+  = and [ f0 == f1 , g0 == g1 , f0 == g0
+        , x0 == x1 , y0 == y1 , z0 == z1
+        , x0 /= y0 , y0 /= z0 ]
 eqIsAssoc _ = False
 
 -- Main library ---------------------------------------------------------------
@@ -176,7 +175,7 @@ eqIsAssoc _ = False
 hipSpec :: Signature a => FilePath -> a -> IO ()
 hipSpec file sig0 = do
     let sig = signature sig0
-    (theory,halt_env,props,anns,params@Params{..}) <- processFile file
+    (theory,halt_env,props,str_marsh,params@Params{..}) <- processFile file
     classes <- fmap eraseClasses (generate sig)
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
@@ -193,7 +192,7 @@ hipSpec file sig0 = do
         prunedEqs = prune (maxDepth sig) univ (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
-        qsprops = map (eqToProp anns) eqs
+        qsprops = map (eqToProp str_marsh) eqs
 
     putStrLn "Starting to prove..."
 
@@ -204,5 +203,5 @@ hipSpec file sig0 = do
     printInfo unproved proved
 
     unless dont_print_unproved $
-       putStrLn $ "Unproved from QuickSpec: "
-               ++ intercalate ", " (map (showEquation sig . propQSTerms) qsunproved)
+        putStrLn $ "Unproved from QuickSpec: "
+            ++ intercalate ", " (map (showEquation sig . propQSTerms) qsunproved)
