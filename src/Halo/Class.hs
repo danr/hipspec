@@ -8,6 +8,7 @@ module Halo.Class ( classBinds , dictDeps ) where
 import Class
 import CoreFVs
 import CoreSyn
+import DataCon
 import GHC (dataConType)
 import Id
 import Type
@@ -25,12 +26,13 @@ classBinds ty_cons =
     [ NonRec method_id $
         flip (foldr Lam) (classTyVars cls ++ [v']) $
             Case (Var v') w' (varType v')
-                [(DataAlt dc,xs',Var (xs' !! i))]
+                [(DataAlt dc,ty_vars ++ xs',Var (xs' !! i))]
     | ty_con <- ty_cons
     , Just cls <- [tyConClass_maybe ty_con]
     , DataTyCon [dc] _ <- [algTyConRhs ty_con]
     , let v:w:xs  = varNames
           [v',w'] = map (`setVarType` (snd . splitFunTys . dropForAlls $ dataConType dc)) [v,w]
+          ty_vars = dataConAllTyVars dc
           xs'     = zipWith (\u m -> setVarType u (varType m)) xs (classMethods cls)
     , (i,method_id) <- zip [0..] (classMethods cls)
     ]
