@@ -35,12 +35,12 @@ executable          hipspec
         base                          >= 4    && < 5,
         mtl                           >= 2.0,
         containers                    >= 0.3,
+        geniplate                     >= 0.6,
 
         -- Command-line Arguments
         cmdargs                       >= 0.9,
 
         -- Halo
-        geniplate                     >= 0.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,
         filepath                      >= 1.0,
@@ -49,7 +49,6 @@ executable          hipspec
         -- Structural Induction
         safe                          >= 0.3,
         pretty                        >= 1.0,
-        uniplate                      >= 1.6,
 
         -- Running Theorem Provers
         process                       >= 1.0.1.1,
@@ -100,6 +99,7 @@ library
         Hip.Params
         Hip.Induction
         Hip.Induction.Linearise
+        Hip.Induction.Terms
         Hip.StringMarshal
         Hip.Trans.MakeProofs
         Hip.Trans.ProofDatatypes
@@ -114,6 +114,7 @@ library
         base                          >= 4    && < 5,
         mtl                           >= 2.0,
         containers                    >= 0.3,
+        geniplate                     >= 0.6,
 
         -- Prelude
         QuickCheck                    >= 2.5,
@@ -122,7 +123,6 @@ library
         cmdargs                       >= 0.9,
 
         -- Halo
-        geniplate                     >= 0.6,
         bimap                         >= 0.2,
         ghc-paths                     >= 0.1,
         filepath                      >= 1.0,
@@ -131,7 +131,6 @@ library
         -- Structural Induction
         safe                          >= 0.3,
         pretty                        >= 1.0,
-        uniplate                      >= 1.6,
 
         -- Running Theorem Provers
         process                       >= 1.0.1.1,

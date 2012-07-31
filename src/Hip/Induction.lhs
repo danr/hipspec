@@ -1,49 +1,41 @@
 
-
   Structural Induction
   ====================
-
  
   The heart of HipSpec
-
-
-  TODO: Rewrite this using Geniplate
  
- 
-> {-# LANGUAGE PatternGuards, DeriveDataTypeable, ParallelListComp,
->              ConstraintKinds, ScopedTypeVariables,
->              TypeOperators #-}
+> {-# LANGUAGE
+>       ParallelListComp,
+>       ScopedTypeVariables,
+>       TypeOperators
+>   #-}
 
 > module Hip.Induction
->        (Term(..)   ,TermV
->        ,Hypothesis ,HypothesisV
->        ,IndPart(..),IndPartV
->        ,(:::)
->        ,Arg(..)
->        ,unV
->        ,unVM
->        ,TyEnv
->        ,structuralInduction
->        ) where
+>     ( Term(..)   , TermV
+>     , Hypothesis , HypothesisV
+>     , IndPart(..), IndPartV
+>     , (:::)
+>     , Arg(..)
+>     , unV
+>     , unVM
+>     , TyEnv
+>     , structuralInduction
+>     ) where
 
 > import Control.Arrow hiding ((<+>))
 > import Control.Applicative hiding (empty)
 > import Control.Monad.State
 > import Control.Monad.Identity
 
-> import Data.Generics.Uniplate.Data
 > import Data.Data
 > import Data.List
 > import Data.Maybe
 
 > import Halo.Util (concatFoldM,(.:),nubSortedOn)
 
+> import Hip.Induction.Terms
+
 > import Safe
-
-  Context of Data and Ord
-  -----------------------
-
-> type DataOrds c v = (Data c,Data v,Ord c,Ord v)
 
   Typed variables
   ===============
@@ -55,73 +47,33 @@
 > mdelete :: Eq a => a -> [a ::: b] -> [a ::: b]
 > mdelete x = filter (\(y,_) -> x /= y)
 
-  Predicate
-  =========
-
+  Induction steps data type
+  =========================
+ 
   The abstract predicate P is of some arity, and the arguments are in a list
 
 > type Predicate c v = [Term c v]
+
+> data IndPart c v t = IndPart
+>     { implicit   :: [v ::: t]
+>     , hypotheses :: [Hypothesis c v t]
+>     , conclusion :: Predicate c v
+>     }
+>   deriving(Eq,Ord,Show)
 
   Hypotheses
   ==========
 
 > type Hypothesis c v t = ([v ::: t],Predicate c v)
 
-> quantify :: DataOrds c v => [v ::: t] -> Hypothesis c v t -> Hypothesis c v t
+> quantify :: Ord v => [v ::: t] -> Hypothesis c v t -> Hypothesis c v t
 > quantify xs (ys,hyp) = ([(x,t) | (x,t) <- xs, any (x `varFree`) hyp] ++ ys,hyp)
 
-> tidy :: DataOrds c v => [Hypothesis c v t] -> [Hypothesis c v t]
-> tidy = nubSortedOn (first (map fst))
->      . filter (not . all isAtom . snd)
+> tidy :: (Ord c,Ord v) => [Hypothesis c v t] -> [Hypothesis c v t]
+> tidy = nubSortedOn (first (map fst)) . filter (not . all isAtom . snd)
 >   where
 >     isAtom (Con _ tms) = all isAtom tms
 >     isAtom _           = False
-
-  Induction steps data type
-  =========================
-
-> data IndPart c v t = IndPart { implicit   :: [v ::: t]
->                              , hypotheses :: [Hypothesis c v t]
->                              , conclusion :: Predicate c v
->                              }
->   deriving(Eq,Ord,Show,Data,Typeable)
-
-  Terms
-  =====
-
-> data Term c v = Var { termVarName :: v }
->               | Con { termConName :: c , termArgs :: [Term c v] }
->               | Fun { termFunName :: v , termArgs :: [Term c v] }
-
-                ^ Exponential datatypes yield functions
-
->   deriving (Eq,Ord,Show,Data,Typeable)
-
-  | Does this variable occur in this term?
-
-> varFree :: forall c v . (Data c,Data v,Eq v) => v -> Term c v -> Bool
-> varFree v tm = or $ [ v == v' | Var v'   <- universe tm ]
->                  ++ [ v == v' | Fun v' _ <- universe tm ]
-
-
-
-
-  Substitution
-  ============
-
-  | Substitution on many variables.
-    The rhs of the substitution must be only fresh variables.
-
-> substList :: (Data c,Data v,Eq v) => [(v,Term c v)] -> Term c v -> Term c v
-> substList subs = transformBi $ \ tm ->
->     case tm of
->         Var x | Just tm' <- lookup x subs -> tm'
->         _                                 -> tm
-
-  | Substitution. The rhs of the substitution must be only fresh variables.
-
-> subst :: (Data c,Data v,Eq v) => v -> Term c v -> Term c v -> Term c v
-> subst x t = substList [(x,t)]
 
   Arguments
   =========
@@ -151,9 +103,10 @@
   argument are the arguments to the function. The apparent duplication
   is there because the type is kept entirely abstract in this module.
 
-> data Arg t = Rec t
->            | NonRec t
->            | Exp t [t]
+> data Arg t
+>     = Rec t
+>     | NonRec t
+>     | Exp t [t]
 >   deriving (Eq,Ord,Show)
 
   Get the representation of the argument
@@ -250,10 +203,9 @@
   we are doing induction on an implication. Say we have
 
   @
-    ∀ (x,xs) . γ(xs) ∧ φ(x,xs) → ψ(x,xs)
+    ∀ (x,xs) . φ(x,xs) → ψ(x,xs)
   @
 
-  The γ are properties unrelated to x. These are put away for now.
   We're doing induction on x, it has a constructor C with n
   arguments, let's for simplicitity say that they are all recursive.
   Now, define a temporary P:
@@ -311,33 +263,17 @@
                   → ψ(C x₁ .. xₙ,xs)
   @
 
-  Now, we knew from the start that ∀ xs . γ(xs), se we bring that back:
-
-  @
-    ∀ (x1..xn) xs . γ(xs)
-                  ∧ (∀ xs′ . φ(x₁,xs′))
-                  ∧ ...
-                  ∧ (∀ xs′ . φ(xₙ,xs′))
-                  ∧ (∀ xs′ . ψ(x₁,xs′))
-                  ∧ ...
-                  ∧ (∀ xs′ . ψ(xₙ,xs′))
-                  → ψ(C x₁ .. xₙ,xs)
-  @
-
-  Then it fits our data type perfectly. We have implicitly
-  quantified variables, x1 .. xn and xs, a bunch of hypotheses
-  quantifying new variables, and and induction conclusion.
+  It fits our data type perfectly. We have implicitly quantified
+  variables, x1 .. xn and xs, a bunch of hypotheses quantifying new
+  variables, and and induction conclusion.
 
   | Induction on a constructor, given its arguments as above
 
-> indCon :: forall c v t . DataOrds c v
+> indCon :: forall c v t . (Ord c,Ord v)
 >        => IndPartV c v t -> V v -> c -> [Arg t] -> Fresh (IndPartV c v t)
-> indCon (IndPart x_and_xs gamma_and_phi psi) x con arg_types = do
+> indCon (IndPart x_and_xs phis psi) x con arg_types = do
 >
->    let phis :: [HypothesisV c v t]
->        (phis,gamma) = partition (any (varFree x) . snd) gamma_and_phi
->
->        xs = mdelete x x_and_xs
+>    let xs = mdelete x x_and_xs
 >
 >    xs' <- mapM (uncurry refreshTypedV) xs
 >
@@ -363,7 +299,7 @@
 >        x1xn_typed = map (second argRepr) x1xn_args
 >
 >    return $ IndPart (x1xn_typed ++ xs)
->                     (tidy $ gamma ++ antecedents)
+>                     (tidy antecedents)
 >                     (consequent)
 
   In the commentary about indCon we assumed that all arguments were
@@ -416,7 +352,7 @@
   | This function returns the hypothesis, given a φ(/x),
     i.e a hypothesis waiting for a substiution
 
-> hypothesis :: DataOrds c v
+> hypothesis :: (Ord c,Ord v)
 >            => (TermV c v -> HypothesisV c v t) -> V v -> Arg t
 >            -> Fresh (Maybe (HypothesisV c v t))
 > hypothesis phi_slash xi arg = case arg of
@@ -430,7 +366,7 @@
   | Induction on a variable, given all its constructors and their types
     Returns a number of clauses to be proved, one for each constructor.
 
-> induction :: DataOrds c v
+> induction :: (Ord c,Ord v)
 >           => IndPartV c v t -> V v -> [c ::: [Arg t]] -> Fresh [IndPartV c v t]
 > induction phi x cons = sequence [ indCon phi x con arg_types
 >                                 | (con,arg_types) <- cons ]
@@ -439,7 +375,7 @@
     predicate P, it may just as well be a constructor x : xs, and then
     we can do induction on x and xs (possibly).
 
-> inductionTm :: DataOrds c v
+> inductionTm :: (Ord c,Ord v)
 >             => TyEnv c t -> IndPartV c v t -> TermV c v -> Fresh [IndPartV c v t]
 > inductionTm ty_env part@(IndPart xs _ _) tm = case tm of
 >     Var x -> let ty = lookupJustNote "inductionTm: x not quantified" x xs
@@ -455,7 +391,7 @@
 
   | Induction on the term on the n:th coordinate of the predicate.
 
-> inductionNth :: DataOrds c v
+> inductionNth :: (Ord c,Ord v)
 >              => TyEnv c t -> IndPartV c v t -> Int -> Fresh [IndPartV c v t]
 > inductionNth ty_env phi i = inductionTm ty_env phi (getNthArg i phi)
 
@@ -467,7 +403,7 @@
 
       * which coordinates to do induction on, in order
 
-> structuralInduction :: DataOrds c v
+> structuralInduction :: (Ord c,Ord v)
 >                     => TyEnv c t
 >                     -- ^ Constructor typed environment
 >                     -> [(v,t)]
