@@ -31,6 +31,7 @@ mkProjDiscrim HaloConf{..} ty_cons =
    [ -- Projections
      let projections =
             [ forall' xs $ [min' kxs,min' xi] ===> proj i k kxs === xi
+            -- I think maybe this should just be min' kxs ==>
             | c <- cons
             , let k               = dataConWorkId c
                   (_,_,ty_args,_) = dataConSig c
@@ -73,14 +74,14 @@ mkProjDiscrim HaloConf{..} ty_cons =
             }
 
    | ty_con <- ty_cons
-   , let DataTyCon cons _ = algTyConRhs ty_con
+   , DataTyCon cons _ <- [algTyConRhs ty_con]
    ]
 
 -- | Make pointers to constructors
 mkConPtrs :: HaloConf -> [TyCon] -> [Subtheory s]
 mkConPtrs halo_conf ty_cons = do
     ty_con <- ty_cons
-    let DataTyCon cons _ = algTyConRhs ty_con
+    DataTyCon cons _ <- [algTyConRhs ty_con]
 
     c <- cons
     let data_c          = dataConWorkId c

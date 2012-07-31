@@ -96,4 +96,17 @@ lookupBind bs =
 exprFVs :: CoreExpr -> [Var]
 exprFVs = uniqSetToList . exprFreeIds
 
-
+-- | Removes Cast and Tick
+removeCruft :: CoreExpr -> CoreExpr
+removeCruft e = case e of
+    Var x     -> Var x
+    Lit i     -> Lit i
+    App e1 e2 -> App (removeCruft e1) (removeCruft e2)
+    Lam x e'  -> Lam x (removeCruft e')
+    Case s t w alts -> Case (removeCruft s) t w (map rmAltCruft alts)
+    Cast e' _rm     -> e'
+    Type t          -> Type t
+    Tick _rm e'     -> e'
+    Coercion co     -> Coercion co
+  where
+    rmAltCruft (pat,bs,rhs) = (pat,bs,removeCruft rhs)

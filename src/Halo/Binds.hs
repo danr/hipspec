@@ -215,7 +215,7 @@ trCon :: Ord s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
 trCon data_con scrut_exp (_cons,bound,e) = do
     HaloEnv{arities} <- ask
     let isQuant x = x `M.notMember` arities
-    case scrut_exp of
+    case removeCruft scrut_exp of
         Var x | isQuant x -> do
             let tr_pat = foldApps (Var (dataConWorkId data_con)) (map Var bound)
                 s = extendIdSubst emptySubst x (tr_pat)
