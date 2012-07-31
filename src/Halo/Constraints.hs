@@ -33,6 +33,7 @@ module Halo.Constraints where
 
 import CoreSubst
 import CoreSyn
+import CoreUtils
 import DataCon
 import Outputable
 import Var
@@ -69,12 +70,12 @@ noConstraints = []
 conflict :: [Constraint] -> Bool
 conflict cs = or
     $ -- Conflict if C1(...) /= C1(...)
-        [ cheapExprEq e1 e2 && con_x == con_y
+        [ cheapEqExpr e1 e2 && con_x == con_y
         | Equality   e1 con_x _ <- cs
         , Inequality e2 con_y <- cs
         ]
         -- Conflict if C1(...) = C2(...)
-     ++ [ cheapExprEq e1 e2 && con_x /= con_y
+     ++ [ cheapEqExpr e1 e2 && con_x /= con_y
         | Equality e1 con_x _ <- cs
         , Equality e2 con_y _ <- cs
         ]
@@ -83,20 +84,14 @@ conflict cs = or
         | Inequality (collectArgs -> (Var x,_)) con <- cs
         ]
 
-cheapExprEq :: CoreExpr -> CoreExpr -> Bool
-cheapExprEq (Var x) (Var y) = x == y
-cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
-                                        cheapExprEq e1' e2'
-cheapExprEq _ _ = False
-
 rmRedundantConstraints :: [Constraint] -> [Constraint]
 rmRedundantConstraints = nubBy laxConstrEq . filter (not . redundant)
 
 laxConstrEq :: Constraint -> Constraint -> Bool
 laxConstrEq (Equality e1 con1 as1) (Equality e2 con2 as2)
-    = cheapExprEq e1 e2 && con1 == con2 && and (zipWith cheapExprEq as1 as2)
+    = cheapEqExpr e1 e2 && con1 == con2 && and (zipWith cheapEqExpr as1 as2)
 laxConstrEq (Inequality e1 con1) (Inequality e2 con2)
-    = cheapExprEq e1 e2 && con1 == con2
+    = cheapEqExpr e1 e2 && con1 == con2
 laxConstrEq _ _ = False
 
 redundant :: Constraint -> Bool

@@ -112,5 +112,13 @@ removeCruft e = case e of
   where
     rmAltCruft (pat,bs,rhs) = (pat,bs,removeCruft rhs)
 
+-- Id and Arity of a DataCon
 dcIdArity :: DataCon -> (Id,Int)
 dcIdArity dc = (dataConWorkId dc,dataConRepArity dc)
+
+cheapExprEq :: CoreExpr -> CoreExpr -> Bool
+cheapExprEq (Var x) (Var y) = x == y
+cheapExprEq (Lam x e1) (Lam y e2) = x == y && cheapExprEq e1 e2
+cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
+                                        cheapExprEq e1' e2'
+cheapExprEq _ _ = False

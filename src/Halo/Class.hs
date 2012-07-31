@@ -1,6 +1,6 @@
 {-
 
-    A (failed) attempt to handle class dictionaries
+    An attempt to handle class dictionaries
 
 -}
 module Halo.Class ( classBinds , dictDeps ) where
@@ -23,7 +23,7 @@ import Data.Maybe
 classBinds :: [TyCon] -> [CoreBind]
 classBinds ty_cons =
     [ NonRec method_id $
-        Lam v' $
+        flip (foldr Lam) (classTyVars cls ++ [v']) $
             Case (Var v') w' (varType v')
                 [(DataAlt dc,xs',Var (xs' !! i))]
     | ty_con <- ty_cons
