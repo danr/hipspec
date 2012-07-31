@@ -19,7 +19,7 @@ import Control.Monad
 varNames :: [Var]
 f,g,x :: Var
 f:g:x:varNames =
-    [ mkVanillaGlobal
+    [ mkLocalId
         (mkInternalName (mkUnique 'z' i) (mkOccName varName n) wiredInSrcSpan)
         (error "varNames: type")
     | i <- [0..]
