@@ -203,9 +203,10 @@
   we are doing induction on an implication. Say we have
 
   @
-    ∀ (x,xs) . φ(x,xs) → ψ(x,xs)
+    ∀ (x,xs) . γ(xs) ∧ φ(x,xs) → ψ(x,xs)
   @
 
+  The γ are properties unrelated to x. These are put away for now.
   We're doing induction on x, it has a constructor C with n
   arguments, let's for simplicitity say that they are all recursive.
   Now, define a temporary P:
@@ -263,17 +264,33 @@
                   → ψ(C x₁ .. xₙ,xs)
   @
 
-  It fits our data type perfectly. We have implicitly quantified
-  variables, x1 .. xn and xs, a bunch of hypotheses quantifying new
-  variables, and and induction conclusion.
+  Now, we knew from the start that ∀ xs . γ(xs), se we bring that back:
+
+  @
+    ∀ (x1..xn) xs . γ(xs)
+                  ∧ (∀ xs′ . φ(x₁,xs′))
+                  ∧ ...
+                  ∧ (∀ xs′ . φ(xₙ,xs′))
+                  ∧ (∀ xs′ . ψ(x₁,xs′))
+                  ∧ ...
+                  ∧ (∀ xs′ . ψ(xₙ,xs′))
+                  → ψ(C x₁ .. xₙ,xs)
+  @
+
+  Then it fits our data type perfectly. We have implicitly
+  quantified variables, x1 .. xn and xs, a bunch of hypotheses
+  quantifying new variables, and and induction conclusion.
 
   | Induction on a constructor, given its arguments as above
 
 > indCon :: forall c v t . (Ord c,Ord v)
 >        => IndPartV c v t -> V v -> c -> [Arg t] -> Fresh (IndPartV c v t)
-> indCon (IndPart x_and_xs phis psi) x con arg_types = do
+> indCon (IndPart x_and_xs gamma_and_phi psi) x con arg_types = do
 >
->    let xs = mdelete x x_and_xs
+>    let phis :: [HypothesisV c v t]
+>        (phis,gamma) = partition (any (varFree x) . snd) gamma_and_phi
+>
+>        xs = mdelete x x_and_xs
 >
 >    xs' <- mapM (uncurry refreshTypedV) xs
 >
@@ -299,7 +316,7 @@
 >        x1xn_typed = map (second argRepr) x1xn_args
 >
 >    return $ IndPart (x1xn_typed ++ xs)
->                     (tidy antecedents)
+>                     (tidy $ gamma ++ antecedents)
 >                     (consequent)
 
   In the commentary about indCon we assumed that all arguments were
