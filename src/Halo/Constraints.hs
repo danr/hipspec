@@ -85,6 +85,8 @@ conflict cs = or
         -- Conflict if Equality C1 C2(..), but C1 /= C2
      ++ [ dataConWorkId con /= x
         | Equality (collectArgs -> (Var x,_)) con _ <- cs
+        , isConLikeId x
+        -- ^ only if x is a constructor!
         ]
 
 rmRedundantConstraints :: [Constraint] -> [Constraint]
