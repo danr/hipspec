@@ -7,12 +7,9 @@ programs to first order theories. Induction is applied on the meta
 level, and proof search is carried out by automated theorem provers
 for first order logic with equality.
 
-Exprimental version
-===================
-
-The `master` branch of this repository is still (somewhat)
-experimental, in particular when using finite types and type synonyms.
-The old version is in the `src-exts` branch.
+This version uses HALO to translate from GHC Core to First Order
+Logic.  There is an old version is in the `src-exts` branch, using
+Haskell Source Extensions.
 
 Installation instructions
 =========================

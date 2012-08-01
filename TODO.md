@@ -1,13 +1,7 @@
 TODO
 ====
 
-  * Add type predicates/guards for finite types.
-
-  * Follow type predicates.
-
   * Perform eta-expansion of properties.
-
-  * Add infinite domain axioms.
 
   * Besides E-proof, Vampire also print which axioms were used to
     prove a lemma. This is not supported.

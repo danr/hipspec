@@ -97,7 +97,7 @@ defParams = Params
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
     }
-    &= summary ("\nHipSpec v0.3.1 Dan Rosén danr@student.gu.se" ++
+    &= summary ("\nHipSpec v0.3.2 Dan Rosén danr@student.gu.se" ++
                 "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++
                 "\n             and Koen Claessen koen@chalmers.se")
     &= program "hipspec"
