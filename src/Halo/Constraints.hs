@@ -80,8 +80,12 @@ conflict cs = or
         , Equality e2 con_y _ <- cs
         ]
         -- Conflict if Inequality C1 C2(..), but C1 == C2
-     ++ [ dataConName con == varName x
+     ++ [ dataConWorkId con == x
         | Inequality (collectArgs -> (Var x,_)) con <- cs
+        ]
+        -- Conflict if Equality C1 C2(..), but C1 /= C2
+     ++ [ dataConWorkId con /= x
+        | Equality (collectArgs -> (Var x,_)) con _ <- cs
         ]
 
 rmRedundantConstraints :: [Constraint] -> [Constraint]
@@ -104,5 +108,5 @@ redundant c = case c of
     -- C1 == C1 is redundant information,
     -- but what to do if it has arguments?
     Equality (collectArgs -> (Var x,[])) con []
-        -> dataConName con == varName x
+        -> dataConWorkId con == x
     _ -> False

@@ -128,10 +128,9 @@ trBindParts f e parts = do
     -- Capturing of pointers when translating all expressions in the bind parts
     (tr_formulae,used_ptrs) <- capturePtrs (mapM trBindPart parts)
 
-    -- We could get this information from the bind_deps, but this is more efficient
-    let deps = map Function (delete f (exprFVs e))
-            ++ map Data (freeTyCons e)
-            ++ map Pointer used_ptrs
+    -- We get this information from the bind_deps, in case
+    -- we filter away a branch with conflicting constraints
+    let deps = nub (concatMap bind_deps parts)
 
     return $ Subtheory
         { provides    = Function f
