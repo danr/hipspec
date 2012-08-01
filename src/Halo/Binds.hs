@@ -169,8 +169,14 @@ trDecl f e = do
 
     bind_parts <- local new_env (trCase e')
 
+    let hasConflict bp
+            | conflict (bind_constrs bp) = do
+                write ("Conflict : " ++ show (bind_constrs bp))
+                return False
+            | otherwise                  = return True
+
     -- Remove the conflicting bind parts
-    return $ filter (not . conflict . bind_constrs) bind_parts
+    filterM hasConflict bind_parts
 
 -- | Translate a case expression
 trCase :: Ord s => CoreExpr -> HaloM (BindParts s)
