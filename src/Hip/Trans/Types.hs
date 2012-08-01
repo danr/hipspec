@@ -1,5 +1,5 @@
 {-# LANGUAGE ViewPatterns,PatternGuards #-}
-{-|
+{-
 
     Getting Types from GHC to use with induction
 
@@ -12,8 +12,9 @@
 
 -}
 module Hip.Trans.Types
-       (tyEnv
-       ,finiteType) where
+    ( tyEnv
+    , finiteType
+    ) where
 
 import Hip.Induction
 
@@ -48,7 +49,7 @@ instDataCon data_con args =
        inst_args = dataConInstArgTys data_con args
 
        calc_Arg :: Type -> Arg Type
-       calc_Arg (dropForAlls -> ty)
+       calc_Arg (repType -> ty)
            | Just (ty_con,_) <- splitTyConApp_maybe ty
            , ty_con == parent_ty_con = Rec ty
 
@@ -68,7 +69,8 @@ finiteType ty = finType [] ty
   where
     --
     finType :: [Type] -> Type -> Bool
-    finType visited (dropForAlls -> ty)
+    finType visited (repType -> ty)     -- repType looks through foralls,
+                                        -- synonyms, predicates and newtypes
 
         -- Recursive types are never finite
         | any (eqType ty) visited = False
@@ -96,7 +98,7 @@ finiteType ty = finType [] ty
         -- Raise error if we get some other type
         | otherwise    = error $ "Hip.Trans.Types.finiteType "
                               ++ showSDoc (ppr ty)
-                              ++ " neither forall, alge, fun or type variable!"
+                              ++ " neither forall, alg, fun or type variable!"
       where
         visited' = ty:visited
 
@@ -107,7 +109,7 @@ true = [ boolTy
        , boolTy `mkFunTy` boolTy
        , mkTupleTy UnboxedTuple [boolTy,boolTy]
        , mkTupleTy UnboxedTuple [boolTy,boolTy] `mkFunTy`
-         mkTupleTy UnboxedTuple [unitTy,unitTy,boolTy `mkFunTy` boolTy]
+             mkTupleTy UnboxedTuple [unitTy,unitTy,boolTy `mkFunTy` boolTy]
        ]
 
 -- | Infinite types
@@ -116,7 +118,7 @@ false = [ mkListTy boolTy
         , mkListTy unitTy
         , mkListTy boolTy `mkFunTy` boolTy
         , mkTupleTy UnboxedTuple [boolTy,boolTy] `mkFunTy`
-          mkTupleTy UnboxedTuple [unitTy,mkListTy boolTy,boolTy `mkFunTy` boolTy]
+              mkTupleTy UnboxedTuple [unitTy,mkListTy boolTy,boolTy `mkFunTy` boolTy]
         , mkTyVarTy undefined
         , mkListTy (mkTyVarTy undefined)
         ]
