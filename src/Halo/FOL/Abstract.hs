@@ -28,6 +28,7 @@ module Halo.FOL.Abstract
 
     , min', minrec
     , cf
+    , isType
 
     , Formula
     , Term
@@ -191,6 +192,9 @@ minrec = MinRec
 cf :: Term q v -> Formula q v
 cf = CF
 
+isType :: Term q v -> Term q v -> Formula q v
+isType = IsType
+
 type Atomic q v = Formula q v
 
 isAtomic :: Formula q v -> Bool
@@ -207,6 +211,7 @@ isAtomic f = case f of
     CF{}        -> True
     Min{}       -> True
     MinRec{}    -> True
+    IsType{}    -> True
 
 -- | Can this formula be written simply in CNF?
 simpleCNF :: Formula q v -> Maybe [Atomic q v]

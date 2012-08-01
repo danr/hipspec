@@ -62,6 +62,7 @@ dumpForm par form = case form of
     Min tm        -> text "$min" <> parens (dumpTm tm)
     MinRec tm     -> text "minrec" <> parens (dumpTm tm)
     CF tm         -> text "cf" <> parens (dumpTm tm)
+    IsType t1 t2  -> text "ty" <> parens (dumpTm t1 <> comma <> dumpTm t2)
 
 -- | Dump the equality operations: ==, !=
 dumpEqOp :: DLDoc -> Term' -> Term' -> DLDoc

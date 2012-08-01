@@ -114,7 +114,7 @@ lower :: String -> String
 lower = map toLower
 
 protectedWiredIn :: Set String
-protectedWiredIn = S.fromList ["app","min","$min","minrec","cf"]
+protectedWiredIn = S.fromList ["app","min","$min","minrec","cf","type"]
 
 qvarEscapes :: Map Char String
 qvarEscapes = M.fromList

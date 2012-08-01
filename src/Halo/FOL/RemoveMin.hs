@@ -84,6 +84,7 @@ rmMin f = case f of
     Equal{}     -> Pure f
     Unequal{}   -> Pure f
     CF{}        -> Pure f
+    IsType{}    -> Pure f
 
 rmToMaybe :: Rm a -> Maybe a
 rmToMaybe (Pure a) = Just a

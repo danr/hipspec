@@ -38,6 +38,7 @@ data Formula q v
     | CF (Term q v)
     | Min (Term q v)
     | MinRec (Term q v)
+    | IsType (Term q v) (Term q v)
   deriving (Eq,Ord,Show)
 
 data ClType

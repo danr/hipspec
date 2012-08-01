@@ -48,6 +48,7 @@ formulaMapTerms tm qv = go
         CF t          -> CF (tm t)
         Min t         -> Min (tm t)
         MinRec t      -> MinRec (tm t)
+        IsType t1 t2  -> IsType (tm t1) (tm t2)
 
 clauseMapTerms :: (Term q v -> Term r u) -> (q -> r)
                -> Clause q v -> Clause r u

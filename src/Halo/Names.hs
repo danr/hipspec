@@ -9,6 +9,7 @@ module Halo.Names ( f,g,x,f',g',x',varNames ) where
 import Id
 import Name
 import SrcLoc
+import TysPrim
 import Unique
 
 import Halo.FOL.Abstract
@@ -21,7 +22,7 @@ f,g,x :: Var
 f:g:x:varNames =
     [ mkLocalId
         (mkInternalName (mkUnique 'z' i) (mkOccName varName n) wiredInSrcSpan)
-        (error "varNames: type")
+        anyTy
     | i <- [0..]
     | n <- ["f","g","x"] ++ ([1..] >>= flip replicateM "xyzwvu")
     ]

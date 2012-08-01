@@ -84,6 +84,7 @@ linForm st par form = case form of
     Min tm        -> linMin st <> parens (linTm st tm)
     MinRec tm     -> linMinRec st <> parens (linTm st tm)
     CF tm         -> linCF st <> parens (linTm st tm)
+    IsType t1 t2  -> linIsType st <> parens (csv (map (linTm st) [t1,t2]))
 
 -- | Linearise the equality operations: ==, !=
 linEqOp :: Style q v -> SDoc -> Term q v -> Term q v -> SDoc
@@ -194,6 +195,8 @@ data Style q v = Style
     -- ^ The minrec symbol
     , linCF       :: SDoc
     -- ^ The CF symbol
+    , linIsType       :: SDoc
+    -- ^ The IsType symbol
     , linProj     :: Int -> v -> SDoc
     -- ^ Projections
     , linPtr      :: v -> SDoc
@@ -220,6 +223,7 @@ strStyle StyleConf{..} = Style
     , linMin      = text ((style_dollar_min ? ('$':)) "min")
     , linMinRec   = text "minrec"
     , linCF       = text "cf"
+    , linIsType   = text "type"
     , linProj     = \i n -> text (quoteEscape ("p_" ++ show i ++ "_" ++ n))
     , linPtr      = text . quoteEscape . ("ptr_" ++)
     , linCNF      = style_cnf
@@ -236,6 +240,7 @@ varStyle StyleConf{..} = Style
     , linMin      = text ((style_dollar_min ? ('$':)) "min")
     , linMinRec   = text "minrec"
     , linCF       = text "cf"
+    , linIsType   = text "type"
     , linProj     = \i n -> char 's' <> ppr (varUnique n) <> underscore <> ppr i
     , linPtr      = (char 'p' <>) . ppr . varUnique
     , linCNF      = style_cnf
