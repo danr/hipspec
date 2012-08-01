@@ -36,7 +36,6 @@ import CoreSyn
 import CoreUtils
 import DataCon
 import Outputable
-import Var
 import Id
 
 import Halo.Shared

@@ -134,7 +134,7 @@ trBindParts f e parts = do
 
     return $ Subtheory
         { provides    = Function f
-        , depends     = deps
+        , depends     = deps ++ pointers used_ptrs
         , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
                      ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
         , formulae    = tr_formulae
