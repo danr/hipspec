@@ -23,6 +23,7 @@ import DataCon
 import TyCon hiding (data_con)
 import Outputable
 import TysWiredIn
+import TysPrim
 import BasicTypes
 
 -- | Type environment for structural induction
@@ -63,7 +64,7 @@ instDataCon data_con args =
 --
 --   Examples: (), Bool, Ordering, Either Bool Bool, Maybe (), ...
 --
---   Counterexamples: [()], [Bool], [a], Either a Bool, ...
+--   Counterexamples: [()], [Bool], [a], Either a Bool, m a ...
 finiteType :: Type -> Bool
 finiteType ty = finType [] ty
   where
@@ -94,6 +95,12 @@ finiteType ty = finType [] ty
 
         -- Type variable types are not always finite
         | isTyVarTy ty = False
+
+        -- Something applied to a type variable is not always finite
+        | Just (t1,_) <- splitAppTy_maybe ty = isTyVarTy t1
+
+        -- GHC.Prim.Any is not finite
+        | ty `eqType` anyTy = False
 
         -- Raise error if we get some other type
         | otherwise    = error $ "Hip.Trans.Types.finiteType "

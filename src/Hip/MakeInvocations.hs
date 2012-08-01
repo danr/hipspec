@@ -9,6 +9,7 @@ import Hip.Trans.MakeProofs
 import Hip.Trans.ProofDatatypes (propMatter)
 import Hip.Trans.Theory
 import Hip.Trans.Property
+import Hip.Trans.TypeGuards
 import qualified Hip.Trans.ProofDatatypes as PD
 
 import Halo.Monad
@@ -19,6 +20,7 @@ import Halo.Util
 import Halo.FOL.Abstract
 import Halo.FOL.Dump
 import Halo.FOL.Linearise
+import Halo.FOL.Operations
 import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
 
@@ -81,6 +83,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
         toTPTP extra_clauses
             = (if readable_tptp then linStrStyleTPTP style_conf . renameClauses
                     else dumpTPTP)
+            . map (clauseMapFormula typeGuardFormula)
             . (not min ? removeMins)
             . (++ extra_clauses)
             . concatMap toClauses

@@ -1,12 +1,14 @@
 {-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts #-}
 module Hip.Prelude
     (module Test.QuickCheck
+    ,module Data.Typeable
     ,Prop
     ,(=:=)
     ,proveBool
     ,oops) where
 
 import Test.QuickCheck hiding (Prop)
+import Data.Typeable
 
 infix 1 =:=
 

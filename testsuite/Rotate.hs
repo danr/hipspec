@@ -1,18 +1,13 @@
 {-
 
     While the default settings proves prop_T32 from productive use of
-    failure, there are some properties that go unproved (!), in particular:
+    failure, and some other spectacular properties:
 
         length (rotate n xs) = length xs
 
         rotate n (rotate m xs) = rotate (n + m) xs
 
-    plus properties that follow from these. I think the reason is that
-    we do not yet have what I like to call "infinite domain axioms":
-
-        forall x . x = nil \/ (exists y ys . x = cons(y,ys))
-
-    and so on for all infinte data types.
+    Use --indvars=3, and vampire and maybe some generous timeout
 
 -}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -54,8 +49,8 @@ main = hipSpec "Rotate.hs" conf
     conf = [ vars ["x", "y", "z"] intType
            , vars ["n", "m", "o"] natType
            , vars ["xs", "ys", "zs"] listType
-           , fun0 "Z"      (Z        :: Nat)
-           , fun1 "S"      (S        :: Nat -> Nat)
+           , fun0 "Z"      Z
+           , fun1 "S"      S
            , fun2 "+"      (+)
            , fun0 "[]"     ([]       :: [Int])
            , fun2 ":"      ((:)      :: Int  -> [Int] -> [Int])

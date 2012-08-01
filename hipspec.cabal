@@ -37,7 +37,7 @@ executable          hipspec
         containers                    >= 0.3,
         geniplate                     >= 0.6,
 
-        -- Command-line Arguments
+        -- Command-line arguments
         cmdargs                       >= 0.9,
 
         -- Halo
@@ -107,6 +107,7 @@ library
         Hip.Trans.QSTerm
         Hip.Trans.SrcRep
         Hip.Trans.Theory
+        Hip.Trans.TypeGuards
         Hip.Trans.Types
 
     build-depends:
@@ -119,7 +120,7 @@ library
         -- Prelude
         QuickCheck                    >= 2.5,
 
-        -- Command-line Arguments
+        -- Command-line arguments
         cmdargs                       >= 0.9,
 
         -- Halo

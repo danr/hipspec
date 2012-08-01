@@ -8,6 +8,7 @@ import Hip.Trans.ProofDatatypes
 import Hip.Trans.Theory
 import Hip.Trans.Property as Prop
 import Hip.Trans.Types
+import Hip.Trans.TypeGuards
 import Hip.Params
 
 import Halo.FOL.Abstract hiding (Term)
@@ -104,15 +105,18 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
     plainProof :: MakerM Part
     plainProof = do
         (neg_conj,ptrs) <- lift (capturePtrs unequals)
-        let particle = Particle "plain" [comment "Proof by definitional equality"
-                                        ,clause negatedConjecture neg_conj]
+        let particle = Particle "plain" $
+                comment "Proof by definitional equality" : axioms neg_conj
         return (mkPart Plain ptrs [particle])
       where
-        unequals :: HaloM Formula'
+        unequals :: HaloM [Formula']
         unequals = local (addSkolems $ map fst propVars) $ do
             lhs <- trExpr proplhs
             rhs <- trExpr proprhs
-            return $ minrec lhs /\ minrec rhs /\ lhs =/= rhs
+            return $
+                [minrec lhs,minrec rhs,lhs =/= rhs] ++
+                mapMaybe (typeGuardSkolem . fst) propVars
+
 
 -- Induction ------------------------------------------------------------------
 
@@ -140,8 +144,8 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
         -- Some parts give very many hypotheses. If this is the case,
         -- we cruelly drop some of the first weak ones
-        let dropHyps part = part { hypotheses =
-                                      take indhyps (reverse $ hypotheses part) }
+        let dropHyps part = part
+                { hypotheses = take indhyps (reverse $ hypotheses part) }
 
         return $ do
             -- Rename the variables
@@ -182,7 +186,7 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
             return (showExpr proplhs' ++ "=" ++ showExpr proprhs',phi)
           where
             s = extendIdSubstList emptySubst
-                   [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
+                    [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
             proplhs' = substExpr (text "trPred") s proplhs
             proprhs' = substExpr (text "trPred") s proprhs
@@ -198,11 +202,13 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
             (fmap (second (clause hypothesis)) . trHyp) hyps
 
         (str_concl,tr_concl) <-
-            second (clause negatedConjecture) <$> trPred Concl concl
+            second (axioms . splitFormula) <$> trPred Concl concl
 
-        return $
-            comment (  "Proof by structural induction\n"
-                    ++ unlines str_hyp ++ "|-\n" ++ str_concl
-                    ++ "\n" ++ P.render (linPart ghcStyle ind_part))
-            :tr_concl
-            :tr_hyp
+        return
+            $ comment ( "Proof by structural induction\n" ++
+                        unlines str_hyp ++ "|-\n" ++ str_concl ++
+                        "\n" ++ P.render (linPart ghcStyle ind_part) )
+            : comment "Conclusion" : tr_concl
+            ++ comment "Hypothesis" : tr_hyp
+            ++ comment "Type guards" :
+                axioms (mapMaybe typeGuardSkolem skolem_vars)

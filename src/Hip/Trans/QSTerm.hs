@@ -74,8 +74,10 @@ termsToProp :: StrMarsh -> Term -> Term -> Prop
 termsToProp str_marsh e1 e2 = Prop
     { proplhs  = termToExpr str_marsh var_rename_map e1
     , proprhs  = termToExpr str_marsh var_rename_map e2
-    , propVars = [ (v,typeRepToType str_marsh (symbolType x))
-                 | (x,v) <- var_rename ]
+    , propVars = [ (setVarType v ty,ty)
+                 | (x,v) <- var_rename
+                 , let ty = typeRepToType str_marsh (symbolType x)
+                 ]
     , propName = repr
     , propRepr = repr
     , propQSTerms = e1 :=: e2
@@ -88,9 +90,11 @@ termsToProp str_marsh e1 e2 = Prop
     }
   where
     repr           = show (e1 :=: e2)
-    var_rename     = [ (x,v)
+    var_rename     = [ (x,setVarType v ty)
                      | x <- nub (vars e1 ++ vars e2)
-                     | v <- varNames ]
+                     , let ty = typeRepToType str_marsh (symbolType x)
+                     | v <- varNames
+                     ]
     var_rename_map = M.fromList var_rename
 
 eqToProp :: StrMarsh -> Equation -> Prop

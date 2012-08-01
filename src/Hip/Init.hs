@@ -74,13 +74,11 @@ processFile file = do
             (Left err,_msg)    -> error $ "Hip.Init, halo says: " ++ err
             (Right (m,_),_msg) -> m
 
-        subtheories_wo_min = binds_thy ++
-            backgroundTheory halo_conf ty_cons_with_builtins
+        subtheories = map (setExtraDependencies min) $ binds_thy ++
+            mkResultTypeAxioms core_defns ++
+            concatMap ($ ty_cons_with_builtins)
+                [backgroundTheory halo_conf,mkDomainAxioms,mkMinRecAxioms]
 
-        subtheories
-            | min       = map makeDataDepend subtheories_wo_min
-                       ++ mkMinRec ty_cons_with_builtins
-            | otherwise = subtheories_wo_min
 
         theory = Theory subtheories
 
