@@ -174,48 +174,77 @@ trDecl f e = do
 
 -- | Translate a case expression
 trCase :: Ord s => CoreExpr -> HaloM (BindParts s)
-trCase (Case scrutinee scrut_var _ty alts_unsubst) = do
+trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
 
-    write $ "Case on " ++ showExpr scrutinee
+    -- First, check if we are casing on a constructor already!
+    | Just rhs <- tryCase scrutinee scrut_var alts_unsubst = do
 
-    -- Substitute the scrutinee var to the scrutinee expression
-    let subst_alt (c,bs,e_alt) = (c,bs,substExp e_alt scrut_var scrutinee)
+        write $ "This is a case on a constructor: " ++ showExpr e
+        write $ "Continuing with right hand side: " ++ showExpr rhs
+        trCase rhs
 
-        alts_wo_bottom = map subst_alt alts_unsubst
+    | otherwise = do
 
-    -- The min part, makes the scrutinee interesting
-    min_part <- bindPart (Min scrutinee)
+        write $ "Case on " ++ showExpr scrutinee
 
-    -- Add a bottom case
-    alts' <- addBottomCase alts_wo_bottom
+        -- Substitute the scrutinee var to the scrutinee expression
+        let subst_alt (c,bs,e_alt) = (c,bs,substExp e_alt scrut_var scrutinee)
 
-    -- Everything happens under this scrutinee
-    local (extendMinSet scrutinee) $ do
+            alts_wo_bottom = map subst_alt alts_unsubst
 
-         -- If there is a default case, translate it separately
-         (alts,def_part) <- case alts' of
+        -- The min part, makes the scrutinee interesting
+        min_part <- bindPart (Min scrutinee)
 
-              (DEFAULT,[],def_expr):alts -> do
+        -- Add a bottom case
+        alts' <- addBottomCase alts_wo_bottom
 
-                  -- Collect the negative patterns
-                  neg_constrs <- mapM (invertAlt scrutinee) alts
+        -- Everything happens under this scrutinee
+        local (extendMinSet scrutinee) $ do
 
-                  -- Translate the default formula which happens on the negative
-                  -- constraints
-                  def_part' <- local (\env -> env { constr = neg_constrs ++ constr env })
-                                        (trCase def_expr)
+             -- If there is a default case, translate it separately
+             (alts,def_part) <- case alts' of
 
-                  return (alts,def_part')
+                  (DEFAULT,[],def_expr):alts -> do
 
-              alts -> return (alts,[])
+                      -- Collect the negative patterns
+                      neg_constrs <- mapM (invertAlt scrutinee) alts
 
-         -- Translate the alternatives that are not deafult
-         -- (mutually recursive with this function)
-         alt_parts <- concatMapM (trAlt scrutinee) alts
+                      -- Translate the default formula which happens
+                      -- on the negative constraints
+                      def_part' <- local
+                          (\env -> env { constr = neg_constrs ++ constr env })
+                          (trCase def_expr)
 
-         return (min_part : alt_parts ++ def_part)
+                      return (alts,def_part')
+
+                  alts -> return (alts,[])
+
+             -- Translate the alternatives that are not deafult
+             -- (mutually recursive with this function)
+             alt_parts <- concatMapM (trAlt scrutinee) alts
+
+             return (min_part : alt_parts ++ def_part)
 
 trCase e = return <$> bindPart (Rhs e)
+
+-- | If this case cases on a constructor already, pick the right alternative!
+tryCase :: CoreExpr -> Var -> [CoreAlt] -> Maybe CoreExpr
+tryCase scrut scrut_var alts = case collectArgs scrut of
+    (Var c,es)
+        | Just dc <- isDataConId_maybe c -> case alts of
+            _ | Just (_,bs,rhs) <- find_alt dc alts -> do
+                     guard (length bs == length es)
+                     let rhs' = (substExprList rhs (zip bs es))
+                     return (substExp rhs' scrut_var scrut)
+            (DEFAULT,[],rhs):_ -> return rhs
+            _                  -> Nothing
+    _ -> Nothing
+  where
+    find_alt :: DataCon -> [CoreAlt] -> Maybe CoreAlt
+    find_alt dc (alt:alts') = case alt of
+        (DataAlt dc',_,_) | dc == dc' -> Just alt
+        _                             -> find_alt dc alts'
+    find_alt _ [] = Nothing
 
 -- | Make an inequality constraint from a case alternative, when handling
 --   the DEFAULT case. A constructor like Cons gets a constraint that

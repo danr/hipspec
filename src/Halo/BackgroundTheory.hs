@@ -93,8 +93,7 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
         : pointer_subthys
 
     | ty_con <- ty_cons
-    , isAlgTyCon ty_con
-    , DataTyCon dcs _ <- [algTyConRhs ty_con]
+    , let dcs = tyConDataCons ty_con
     ]
 
 appOnMin :: Subtheory s
