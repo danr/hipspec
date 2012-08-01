@@ -34,8 +34,7 @@ data HipSpecExtras
     = Lemma String
     -- ^ Lemma with a name
     | Domain TyCon
-    -- ^ Domain axiom for a data type, either infinite
-    --   or finite + type predicates
+    -- ^ Domain axiom for a data type + type predicates if finite
     | ResultType Var
     -- ^ If a function f returns a finite type t, this axiom says
     --       forall x1, .., xn . isType(f(x1,..,xn),t)
@@ -46,6 +45,8 @@ data HipSpecExtras
   deriving
     (Eq,Ord)
 
+-- | Make data types depend on Domain axioms, and MinRec axioms if min is used.
+--   Make functions depend on finite result type axioms.
 setExtraDependencies :: Bool -> HipSpecSubtheory -> HipSpecSubtheory
 setExtraDependencies use_min s@(Subtheory{..}) = case provides of
     Data ty_con -> s { depends = (use_min ? (Specific (MinRec ty_con) :)) $
@@ -54,6 +55,13 @@ setExtraDependencies use_min s@(Subtheory{..}) = case provides of
     Function f  -> s { depends = Specific (ResultType f) : depends }
     _           -> s
 
+-- | Make an axiom for every function f
+--
+--      f : t1 -> t2 -> .. -> tn -> tr
+--
+--   where the result type `tr` is finite, like this:
+--
+--      ! [X1,..,Xn] . type(f(X1,..,Xn),tr)
 mkResultTypeAxioms :: [CoreBind] -> [HipSpecSubtheory]
 mkResultTypeAxioms binds =
     [ let (args_ty,res_ty)  = splitFunTys (repType (varType f))
@@ -73,9 +81,24 @@ mkResultTypeAxioms binds =
     | (f,e) <- flattenBinds binds
     ]
 
+-- | Make axioms expressing how the domain for a data type looks like
+--
+--   These axioms looks like
+--
+--   @
+--     ! [U] : (U = c_Nil | U = c_Cons(s_0_Cons(U),s_1_Cons(U)))
+--   @
+--
+--   For finite types, type predicates are added with
+--   TypeGuards.typeGuardFormula. The formulas will look like this:
+--
+--   @
+--     ! [U] : type(U,f_Bool) => (U = c_True | U = c_False)
+--   @
 mkDomainAxioms :: [TyCon] -> [HipSpecSubtheory]
 mkDomainAxioms ty_cons =
-    [ let u  = setVarType x (dataConType dc0)
+    [ let ty = dataConType dc0
+          u  = setVarType x ty
           u' = qvar u
           domain_formulae =
               [ forall' [u] $ min' u' ==>
@@ -83,6 +106,7 @@ mkDomainAxioms ty_cons =
                       | dc <- dcs
                       , let (k,arity) = dcIdArity dc
                       ]
+--              | finiteType ty
               ]
       in  Subtheory
               { provides    = Specific (Domain ty_con)
@@ -91,10 +115,13 @@ mkDomainAxioms ty_cons =
               , formulae    = domain_formulae
               }
     | ty_con <- ty_cons
-    , isAlgTyCon ty_con
-    , DataTyCon dcs@(dc0:_) _ <- [algTyConRhs ty_con]
+    , let dcs = tyConDataCons ty_con
+    , dc0:_ <- [dcs]
     ]
 
+-- | Make axioms about minrec
+--
+--   TODO : also try with an apartness relation
 mkMinRecAxioms :: [TyCon] -> [HipSpecSubtheory]
 mkMinRecAxioms ty_cons =
     [ let minrec_formulae =
@@ -116,8 +143,7 @@ mkMinRecAxioms ty_cons =
               }
 
     | ty_con <- ty_cons
-    , isAlgTyCon ty_con
-    , DataTyCon dcs _ <- [algTyConRhs ty_con]
+    , let dcs = tyConDataCons ty_con
     ]
       ++
     [ Subtheory
@@ -131,9 +157,6 @@ mkMinRecAxioms ty_cons =
                 ]
          }
     ]
-
--- Make datatypes depend on MinRec (or vice versa, or something)
--- [ MinRec ty_con | use_minrec ]
 
 instance Show HipSpecExtras where
     show (Lemma s)   = "(Lemma " ++ s ++ ")"

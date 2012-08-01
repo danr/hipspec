@@ -1,13 +1,13 @@
 {-
 
     While the default settings proves prop_T32 from productive use of
-    failure, and some other spectacular properties:
+    failure, and some other properties:
 
         length (rotate n xs) = length xs
 
         rotate n (rotate m xs) = rotate (n + m) xs
 
-    Use --indvars=3, and vampire and maybe some generous timeout
+    Use --indvars=3
 
 -}
 {-# LANGUAGE DeriveDataTypeable #-}
