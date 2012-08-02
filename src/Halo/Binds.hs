@@ -258,15 +258,15 @@ tryCase scrut scrut_var alts = case collectArgs scrut of
 invertAlt :: CoreExpr -> CoreAlt -> HaloM Constraint
 invertAlt scrut_exp (cons,_,_) = case cons of
     DataAlt data_con -> return (Inequality scrut_exp data_con)
-    DEFAULT -> throwError "invertAlt: on DEFAULT, internal error"
-    _       -> throwError "invertAlt: on LitAlt, literals not supported (yet)"
+    DEFAULT  -> throwError "invertAlt: on DEFAULT, internal error"
+    LitAlt _ -> throwError "invertAlt: on LitAlt, literals not supported (yet)"
 
 -- | Translate a case alternative
 trAlt :: Ord s => CoreExpr -> CoreAlt -> HaloM (BindParts s)
 trAlt scrut_exp alt@(cons,_,_) = case cons of
     DataAlt data_con -> trCon data_con scrut_exp alt
-    DEFAULT -> throwError "trAlt: on DEFAULT, internal error"
-    _       -> throwError "trAlt: on LitAlt, literals not supported (yet)"
+    DEFAULT  -> throwError "trAlt: on DEFAULT, internal error"
+    LitAlt _ -> throwError "trAlt: on LitAlt, literals not supported (yet)"
 
 -- | Translate a data con alternative from a case
 trCon :: Ord s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
@@ -285,7 +285,7 @@ trCon data_con scrut_exp (_cons,bound,e) = do
 -- | Translate and nub constraints
 trConstraints :: [Constraint] -> HaloM [Formula']
 trConstraints constrs = do
-    let write_cs hdr cs = write $ hdr ++ concatMap ("\n    " ++) (map show cs)
+    let write_cs hdr cs = write $ hdr ++ show cs
     write_cs "Constraints: " constrs
     if conflict constrs
         then throwError "  Conflict!"

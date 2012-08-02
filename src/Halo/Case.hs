@@ -1,3 +1,29 @@
+{-
+
+    Adds alternatives to UNR and BAD in cases.
+
+    1) There is a DEFAULT branch. Add a UNR and BAD alternative:
+
+        case e of                  case e of
+          DEFAULT -> e0              DEFAULT -> e0
+          K1 a    -> e1      =>      K1 a    -> e1
+          K2 a b  -> e2              K2 a b  -> e2
+                                     UNR     -> UNR
+                                     BAD     -> BAD
+
+    2) No DEFAULT branch. Add such a case to UNR, and one BAD -> BAD:
+
+        case e of                  case e of
+          K1 a    -> e1              DEFAULT -> UNR
+          K2 a b  -> e2      =>      K1 a    -> e1
+                                     K2 a b  -> e2
+                                     BAD     -> BAD
+
+    It turns out that 1) is unsound with finitely many constructors
+    (which all types but Integer have), so the DEFAULT cases are
+    removed by Halo.RemoveDefault
+
+-}
 module Halo.Case where
 
 import CoreSyn
@@ -8,63 +34,29 @@ import Halo.PrimCon
 import Halo.Util
 import Halo.Conf
 
+
 import Control.Monad.Reader
 
-{-
-
-  Note about the DEFAULT case and bottom. Two situations:
-
-  1) There is a DEFAULT case. Add a bottom alternative:
-
-      case e of                  case e of
-        DEFAULT -> e0              DEFAULT -> e0
-        K1 a    -> e1      =>      K1 a    -> e1
-        K2 a b  -> e2              K2 a b  -> e2
-                                   Bottom  -> Bottom
-
-  2) No DEFAULT case. Add such a case to Bottom.
-
-      case e of                  case e of
-        K1 a    -> e1              DEFAULT -> Bottom
-        K2 a b  -> e2      =>      K1 a    -> e1
-                                   K2 a b  -> e2
-
-
-  The situation with BAD/UNR is similar. We always add a case
-  BAD -> BAD, and UNR behaves just as Bottom above.
-
--}
--- | Adds a bottom case as described above.
+-- | Adds alts to BAD and UNR as described above
 addBottomCase :: [CoreAlt] -> HaloM [CoreAlt]
 addBottomCase alts = do
     unr_bad <- unr_and_bad <$> asks conf
+    return $ if unr_bad
+        then do
+            let -- DEFAULT -> _|_
+                defaultUNR :: CoreAlt
+                defaultUNR = (DEFAULT, [], primExpr UNR)
 
-    -- unr_bad should really be trinary,
-    -- ie, unr&bad, bottom, or nothing
-    -- but right now not unr_bad means nothing
-    -- and the code below is how you would do it for only bottom
+                -- BAD -> BAD
+                altBAD :: CoreAlt
+                altBAD = (DataAlt (primCon BAD), [], primExpr BAD)
 
-    if unr_bad then do
-            let bottomCon = primCon UNR
-                bottomVar = primExpr UNR
+                -- UNR -> UNR
+                altUNR :: CoreAlt
+                altUNR = (DataAlt (primCon UNR), [], primExpr UNR)
 
-                -- _|_ -> _|_
-                -- Breaks the core structure by having a new data constructor
-                bottomAlt :: CoreAlt
-                bottomAlt = (DataAlt bottomCon, [], bottomVar)
+            case findDefault alts of
+                 (as,Just def) -> (DEFAULT,[],def):altUNR:altBAD:as
+                 (as,Nothing)  -> defaultUNR:altBAD:as
 
-                -- DEFAULT -> _|_
-                defaultBottomAlt :: CoreAlt
-                defaultBottomAlt = (DEFAULT, [], bottomVar)
-
-                extraAlt :: [CoreAlt]
-                extraAlt | unr_bad = [(DataAlt (primCon BAD), [], primExpr BAD)]
-                         | otherwise = []
-
-            -- Case expressions have the invariant that the default case is always first.
-            return $ case findDefault alts of
-                 (as,Just def) -> (DEFAULT, [], def):bottomAlt:extraAlt++as
-                 (as,Nothing)  -> defaultBottomAlt:extraAlt++as
-
-        else
-            return alts
+        else alts
