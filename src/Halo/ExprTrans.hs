@@ -2,9 +2,9 @@
 module Halo.ExprTrans where
 
 import CoreSyn
+import CoreUtils
 import FastString
 import Literal
-import MkCore
 
 import Halo.FOL.Abstract
 import Halo.Monad
@@ -37,8 +37,8 @@ trExpr e = do
                           Nothing -> False
         isQuant x = x `M.notMember` arities
     case e of
+        _ | exprIsBottom e -> return bad
         Var x
-            | x `elem` errorIds -> return bad
             | x `elem` skolems  -> return (skolem x)
             | isPAP x           -> usePtr x >> return (ptr x)
             | isQuant x         -> return (qvar x)
@@ -46,7 +46,6 @@ trExpr e = do
         App{} -> case second trimTyArgs (collectArgs e) of
             (Var f,es)
                  | null es -> trExpr (Var f)
-                 | f `elem` errorIds -> return bad
                  | Just i <- M.lookup f arities -> do
                      if i > length es
                          then do usePtr f
