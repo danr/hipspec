@@ -2,7 +2,9 @@
 {-
 
     A main entry point to Halo, called `desugar', even though it can
-    run the GHC core-to-core passes as well.
+    run the GHC core-to-core passes as well, and return the TypeEnv.
+    The latter is used to get the "built-in" classes such as Eq, Ord
+    and Monad.
 
 -}
 module Halo.Entry where
@@ -15,11 +17,15 @@ import FloatOut
 import GHC
 import GHC.Paths
 import HscTypes
-import UniqSupply
 import SimplCore
+import TcRnTypes
+import UniqSupply
+
+import Halo.Util
 
 import Data.List
 import Data.Maybe
+import Data.IORef
 
 import Control.Monad
 
@@ -29,11 +35,10 @@ data DesugarConf = DesugarConf
     }
 
 desugar :: DesugarConf -> FilePath -> IO (ModGuts,DynFlags)
-desugar dc fp = fmap snd (desugarWith (\_ -> return ()) dc fp)
+desugar dc fp = first fst <$> desugarAndTypeEnv dc fp
 
-desugarWith :: (ModGuts -> Ghc a) -> DesugarConf -> FilePath
-            -> IO (a,(ModGuts,DynFlags))
-desugarWith extra DesugarConf{..} targetFile =
+desugarAndTypeEnv :: DesugarConf -> FilePath -> IO ((ModGuts,TypeEnv),DynFlags)
+desugarAndTypeEnv DesugarConf{..} targetFile =
   defaultErrorHandler defaultLogAction $
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
@@ -58,10 +63,11 @@ desugarWith extra DesugarConf{..} targetFile =
         d <- desugarModule t
         let modguts = dm_core_module d
         s <- getSession
-        modguts' <- if core2core_pass then liftIO (core2core s modguts)
-                                      else return modguts
-        a <- extra modguts'
-        return (a,(modguts',dflags'))
+        modguts' <- if core2core_pass
+                        then liftIO (core2core s modguts)
+                        else return modguts
+        type_env <- liftIO . readIORef . tcg_type_env_var . fst . tm_internals_ $ t
+        return ((modguts',type_env),dflags')
 
 lambdaLift :: DynFlags -> CoreProgram -> IO CoreProgram
 lambdaLift dflags program = do
