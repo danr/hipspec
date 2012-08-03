@@ -1,4 +1,22 @@
 {-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-
+
+    Translate expressions, i.e. not case (nor let/lambda)
+
+    This function registers used function pointers as a side-effect.
+    To capture them, run `capturePtrs', see Halo.Monad
+
+    TODO: register if app was used
+
+    trExpr looks at the following entries of HaloEnv
+
+        * skolems
+        * arities
+
+    If a variable is not a skolem variable, and not in arities, it is
+    deemed as quantified.
+
+-}
 module Halo.ExprTrans where
 
 import CoreSyn
@@ -17,18 +35,7 @@ import qualified Data.Map as M
 import Control.Monad.Reader
 import Control.Monad.Error
 
--- | Translate expressions, i.e. not case (nor let/lambda)
---
---   This function registers used function pointers as a side-effect.
---   To capture them, run `capturePtrs', see Halo.Monad
---
---   trExpr looks at the following entries of HaloEnv
---
---       * skolems
---       * arities
---
---   If a variable is not a skolem variable, and not in arities, it is
---   deemed as quantified.
+-- | Translate an expression to a term
 trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
     HaloEnv{..} <- ask
@@ -55,11 +62,12 @@ trExpr e = do
                                  apps inner <$> mapM trExpr es_after
             (f,es) -> apps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
-          write $ "String, " ++ unpackFS s ++ " coerced to bad"
-          return bad
+            write $ "String, " ++ unpackFS s ++ " coerced to bad"
+            return bad
         Cast e' _ -> do
-          write $ "Ignoring cast: " ++ showExpr e
-          trExpr e'
+            write $ "Ignoring cast: " ++ showExpr e ++
+                    "(hoping that it is a newtype cast)"
+            trExpr e'
         Case{}     -> intErr "case"
         Let{}      -> intErr "let"
         Lam{}      -> intErr "lambdas"

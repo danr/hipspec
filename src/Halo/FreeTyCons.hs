@@ -1,10 +1,11 @@
+{-# LANGUAGE PatternGuards #-}
 {-
 
     Obtaining the used data types in an expression, both as
     constructors or in patterns.
 
 -}
-module Halo.FreeTyCons ( freeTyCons ) where
+module Halo.FreeTyCons ( freeTyCons, isNewtypeConId ) where
 
 import CoreSyn
 import DataCon
@@ -20,6 +21,13 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 
+-- | Is this Id a "constructor" to a newtype?
+--   This is the only way I have found to do it...
+isNewtypeConId :: Id -> Bool
+isNewtypeConId i
+    | Just dc <- isDataConId_maybe i = isNewTyCon (dataConTyCon dc)
+    | otherwise = False
+
 -- | For all used constructors in expressions and patterns,
 --   return the TyCons they originate from
 --
@@ -30,7 +38,8 @@ freeTyCons e =
     let safeIdDataCon c = guard (isId c) >> isDataConId_maybe c
 
         as_exprs = mapMaybe safeIdDataCon . varSetElems
-                 . exprSomeFreeVars (\v -> isId v && isDataConWorkId v) $ e
+                 . exprSomeFreeVars
+                    (\v -> isId v && (isConLikeId v || isNewtypeConId v)) $ e
 
         in_patterns = S.toList (patCons e)
 

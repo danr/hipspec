@@ -53,27 +53,36 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
      -- Discriminations,  for j,k in the same TyCon + unr/bad, make j and k disjoint
 
-        discrims =
-            [ foralls $ min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
+        discrims
 
-            | let tagged_dcs
-                    = [ (True,dc) | dc <- dcs ] ++
-                      [ (False,prim_con)
-                      | unr_and_bad
-                      , prim_con <- [primCon BAD,primCon UNR] ]
+            -- (but for newtypes just say k(x) = x)
+            | isNewTyCon ty_con =
+                [ forall' [x] (apply k [x'] === x')
+                | dc <- dcs, let (k,1) = dcIdArity dc
+                ]
 
-            , (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
+            | otherwise =
 
-            , (need_min,k_dc) <- ks
+                [ foralls $ min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
 
-            , let (j,j_arity)     = dcIdArity j_dc
-                  (k,k_arity)     = dcIdArity k_dc
+                | let tagged_dcs
+                        = [ (True,dc) | dc <- dcs ] ++
+                          [ (False,prim_con)
+                          | unr_and_bad
+                          , prim_con <- [primCon BAD,primCon UNR] ]
 
-                  (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
+                , (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
 
-                  lhs             = apply j (map qvar j_args)
-                  rhs             = apply k (map qvar k_args)
-            ]
+                , (need_min,k_dc) <- ks
+
+                , let (j,j_arity)     = dcIdArity j_dc
+                      (k,k_arity)     = dcIdArity k_dc
+
+                      (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
+
+                      lhs             = apply j (map qvar j_args)
+                      rhs             = apply k (map qvar k_args)
+                ]
 
      -- Pointers, to each non-nullary constructor k
 

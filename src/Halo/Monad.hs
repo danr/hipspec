@@ -151,8 +151,7 @@ mkEnv conf@HaloConf{..} ty_cons program =
             [ (primId c,0) | c <- [UNR,BAD], unr_and_bad ] ++
             [ (dc_id,arity)
             | ty_con <- ty_cons
-            , isAlgTyCon ty_con
-            , DataTyCon dcs _ <- [algTyConRhs ty_con]
+            , let dcs = tyConDataCons ty_con
             , dc <- dcs
             , let dc_id           = dataConWorkId dc
                   (_,_,ty_args,_) = dataConSig dc

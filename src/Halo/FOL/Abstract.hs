@@ -51,6 +51,8 @@ import Id
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Operations
 
+import Halo.FreeTyCons (isNewtypeConId)
+
 import Control.Applicative ((<*>))
 import Data.Generics.Geniplate
 
@@ -76,8 +78,8 @@ clauseSplit cl_type = map (clause cl_type) . splitFormula
 --   it is a data constructor or a function, and make a term accordingly.
 apply :: Var -> [Term q Var] -> Term q Var
 apply x as
-    | isId x && isConLikeId x = Ctor x as
-    | otherwise               = Fun x as
+    | isId x && (isConLikeId x || isNewtypeConId x) = Ctor x as
+    | otherwise                                     = Fun x as
 
 -- | Make a term of this primitive constant, constructor or CAF.
 con :: Var -> Term q Var
