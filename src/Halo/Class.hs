@@ -18,7 +18,6 @@ import TyCon
 
 import Halo.Names
 import Halo.Subtheory
-import Halo.Util
 
 import Data.Maybe
 

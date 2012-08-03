@@ -62,6 +62,7 @@ import UniqSupply
 import Id
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Applicative
 
 import Halo.Shared
@@ -69,10 +70,14 @@ import Halo.Shared
 removeDefaults :: [CoreBind] -> UniqSM [CoreBind]
 removeDefaults = mapM rm
   where
-    rm (NonRec f e) = NonRec f <$> removeDefault e
-    rm (Rec fses)   = Rec <$> mapM (\(f,e) -> (,) f <$> removeDefault e) fses
+    rm (NonRec f e) = NonRec f <$> run f e
+    rm (Rec fses)   = Rec <$> mapM (\(f,e) -> (,) f <$> run f e) fses
 
-removeDefault :: CoreExpr -> UniqSM CoreExpr
+    run f e = runReaderT (removeDefault e) f
+
+type RMM = ReaderT Var UniqSM
+
+removeDefault :: CoreExpr -> RMM CoreExpr
 removeDefault e = case e of
     Var _           -> return e
     Lit _           -> return e
@@ -86,30 +91,33 @@ removeDefault e = case e of
     Tick t e'       -> Tick t <$> removeDefault e'
     Coercion _      -> return e
 
-removeDefaultInAlt :: CoreAlt -> UniqSM CoreAlt
+removeDefaultInAlt :: CoreAlt -> RMM CoreAlt
 removeDefaultInAlt (ac,bs,rhs) = (,,) ac bs <$> removeDefault rhs
 
 infixl 4 <.>
 (<.>) :: Applicative f => f (a -> b) -> a -> f b
 f <.> x = f <*> pure x
 
-unrollDefault :: [CoreAlt] -> UniqSM [CoreAlt]
+unrollDefault :: [CoreAlt] -> RMM [CoreAlt]
 unrollDefault alts0 = case findDefault alts0 of
     (alts,Nothing)      -> return alts
     (alts,Just def_rhs) -> case alts of
         (DataAlt dc,_,_):_ -> unroll (dataConTyCon dc) alts def_rhs
         (LitAlt _  ,_,_):_ -> return alts
-        (DEFAULT   ,_,_):_ -> return (int_err "duplicate DEFAULT")
-        []                 -> return (int_err "only DEFAULT")
+        (DEFAULT   ,_,_):_ -> int_err "duplicate DEFAULT"
+        []                 -> return alts0 -- only DEFAULT, caught in Halo.Binds
   where
-    unroll :: TyCon -> [CoreAlt] -> CoreExpr -> UniqSM [CoreAlt]
+    unroll :: TyCon -> [CoreAlt] -> CoreExpr -> RMM [CoreAlt]
     unroll ty_con alts rhs = case tyConDataCons_maybe ty_con of
         Just dcs -> forM dcs (\dc -> fromMaybeM (makeAlt rhs dc)
                                                 (findAlt alts dc))
-        Nothing  -> return (int_err "non-data TyCon?")
+        Nothing  -> int_err "non-data TyCon?"
 
-    int_err :: String -> a
-    int_err s = error $ "unrollDefault internal error: " ++ s
+    int_err :: String -> RMM a
+    int_err s = do
+        f <- ask
+        return $ error $ "unrollDefault internal error: " ++ s ++
+                         " in function " ++ show f
 
 findAlt :: [CoreAlt] -> DataCon -> Maybe CoreAlt
 findAlt (alt@(DataAlt dc',_,_):_) dc | dc' == dc = Just alt
@@ -120,9 +128,9 @@ fromMaybeM :: Monad m => m a -> Maybe a -> m a
 fromMaybeM _ (Just x) = return x
 fromMaybeM m Nothing  = m
 
-makeAlt :: CoreExpr -> DataCon -> UniqSM CoreAlt
+makeAlt :: CoreExpr -> DataCon -> RMM CoreAlt
 makeAlt rhs dc = do
-    bound <- mapM (\ty -> dummy_var ty <$> getUniqueM) (dataConRepArgTys dc)
+    bound <- mapM (\ty -> dummy_var ty <$> lift getUniqueM) (dataConRepArgTys dc)
     return (DataAlt dc,bound,rhs)
   where
     dummy_var :: Type -> Unique -> Var

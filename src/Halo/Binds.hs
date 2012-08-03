@@ -189,6 +189,15 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
         write $ "Continuing with right hand side: " ++ showExpr rhs
         trCase rhs
 
+    -- First, check if we are casing on a constructor already!
+    | [(DEFAULT,[],rhs)] <- alts_unsubst = do
+
+        write $ "This is a case with only a DEFAULT: " ++ showExpr e
+        write $ "Continuing with right hand side: " ++ showExpr rhs
+        let rhs' = substExp rhs scrut_var scrutinee
+        write $ "Substituted with scrut var: " ++ showExpr rhs'
+        trCase rhs'
+
     | otherwise = do
 
         write $ "Case on " ++ showExpr scrutinee
