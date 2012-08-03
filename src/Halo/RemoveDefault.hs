@@ -93,22 +93,23 @@ infixl 4 <.>
 (<.>) :: Applicative f => f (a -> b) -> a -> f b
 f <.> x = f <*> pure x
 
-int_err :: String -> a
-int_err s = error $ "unrollDefault internal error : " ++ s
-
 unrollDefault :: [CoreAlt] -> UniqSM [CoreAlt]
 unrollDefault alts0 = case findDefault alts0 of
     (alts,Nothing)      -> return alts
     (alts,Just def_rhs) -> case alts of
         (DataAlt dc,_,_):_ -> unroll (dataConTyCon dc) alts def_rhs
         (LitAlt _  ,_,_):_ -> return alts
-        _                  -> return (int_err "DEFAULT?")
+        (DEFAULT   ,_,_):_ -> return (int_err "duplicate DEFAULT")
+        []                 -> return (int_err "only DEFAULT")
   where
     unroll :: TyCon -> [CoreAlt] -> CoreExpr -> UniqSM [CoreAlt]
     unroll ty_con alts rhs = case tyConDataCons_maybe ty_con of
         Just dcs -> forM dcs (\dc -> fromMaybeM (makeAlt rhs dc)
                                                 (findAlt alts dc))
         Nothing  -> return (int_err "non-data TyCon?")
+
+    int_err :: String -> a
+    int_err s = error $ "unrollDefault internal error: " ++ s
 
 findAlt :: [CoreAlt] -> DataCon -> Maybe CoreAlt
 findAlt (alt@(DataAlt dc',_,_):_) dc | dc' == dc = Just alt
