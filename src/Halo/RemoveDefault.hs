@@ -79,11 +79,15 @@ removeDefault e = case e of
     App e1 e2       -> App <$> removeDefault e1 <*> removeDefault e2
     Lam x e'        -> Lam x <$> removeDefault e'
     Let _ _         -> error $ "Halo.removeDefault on let " ++ showExpr e
-    Case s t w alts -> Case <$> removeDefault s <.> t <.> w <*> unrollDefault alts
+    Case s t w alts -> Case <$> removeDefault s <.> t <.> w
+                            <*> (mapM removeDefaultInAlt <=< unrollDefault) alts
     Cast e' c       -> Cast <$> removeDefault e' <.> c
     Type _          -> return e
     Tick t e'       -> Tick t <$> removeDefault e'
     Coercion _      -> return e
+
+removeDefaultInAlt :: CoreAlt -> UniqSM CoreAlt
+removeDefaultInAlt (ac,bs,rhs) = (,,) ac bs <$> removeDefault rhs
 
 infixl 4 <.>
 (<.>) :: Applicative f => f (a -> b) -> a -> f b
