@@ -21,6 +21,8 @@
     BindParts is used elsewhere is in the contracts checker in
     Contracts.Trans.trSplit.
 
+    TODO: Better name for Rhs. Call it consequent? Or result?
+
 -}
 module Halo.Binds
     ( trBinds
@@ -36,6 +38,7 @@ import DataCon
 import Id
 import Outputable
 
+import Halo.Conf
 import Halo.Case
 import Halo.Constraints
 import Halo.ExprTrans
@@ -117,8 +120,8 @@ trBindPart BindPart{..} = do
     tr_constr <- trConstraints bind_constrs
     lhs <- apply bind_fun <$> mapM trExpr bind_args
     consequent <- case bind_rhs of
-               Min scrut -> min' <$> trExpr scrut
-               Rhs rhs   -> (lhs ===) <$> trExpr rhs
+        Min scrut -> min' <$> trExpr scrut
+        Rhs rhs   -> (lhs ===) <$> trExpr rhs
     return $ foralls (min' lhs : tr_constr ===> consequent)
 
 -- | Make a subtheory for bind parts that regard the same function
@@ -150,7 +153,7 @@ trBind f e = err_handler $ do
     err_handler m = m `catchError` \err -> do
       cleanUpFailedCapture
       return ((mkDummySubtheory (Function f))
-              { formulae = error $ "trBind, " ++ show f ++ " yielded " ++ err }
+                 { formulae = error $ "trBind, " ++ show f ++ " yielded " ++ err }
              ,M.empty)
 
 -- | Translate a CoreDecl to bind parts
@@ -280,10 +283,10 @@ trAlt scrut_exp alt@(cons,_,_) = case cons of
 -- | Translate a data con alternative from a case
 trCon :: Ord s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
 trCon data_con scrut_exp (_cons,bound,e) = do
-    HaloEnv{arities} <- ask
+    HaloEnv{arities,conf = HaloConf{var_scrut_constr}} <- ask
     let isQuant x = x `M.notMember` arities
     case removeCruft scrut_exp of
-        Var x | isQuant x -> do
+        Var x | isQuant x && not var_scrut_constr -> do
             let tr_pat = foldApps (Var (dataConWorkId data_con)) (map Var bound)
                 s = extendIdSubst emptySubst x (tr_pat)
                 e' = substExpr (text "trAlt") s e

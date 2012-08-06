@@ -19,6 +19,8 @@ data HaloConf = HaloConf
     -- ^ Always add true /= false even though they might not be min
     , or_discr          :: Bool
     -- ^ Use or instead of and in the assumptions of discrimination axioms
+    , var_scrut_constr  :: Bool
+    -- ^ Make a constraint instead of inline casing on variables
     }
   deriving (Eq,Ord,Show)
 
