@@ -30,17 +30,21 @@ import Control.Monad.Writer
 import Control.Applicative
 
 -- | The lift environment, current function and its arguments
-type LiftEnv = (Var,[Var])
+data LiftEnv = LiftEnv
+    { fun        :: Var
+    , args       :: [Var]
+    , lift_inner :: Bool
+    }
 
-args :: LiftEnv -> [Var]
-args = snd
+modArgs :: ([Var] -> [Var]) -> LiftEnv -> LiftEnv
+modArgs k env = env { args = k (args env) }
 
-fun :: LiftEnv -> Var
-fun = fst
+setFun :: Var -> LiftEnv -> LiftEnv
+setFun f env = env { fun = f }
 
 -- | The initial environment
-initEnv :: LiftEnv
-initEnv = (error "initEnv: fun",[])
+initEnv :: Bool -> LiftEnv
+initEnv li = LiftEnv (error "initEnv: fun") [] li
 
 -- | The lift monad
 type LiftM = WriterT [CoreBind] (ReaderT LiftEnv (WriterT [String] UniqSM))
@@ -53,18 +57,19 @@ dbgMsg = lift . tell . return
 liftUnique :: LiftM Unique
 liftUnique = lift . lift . lift $ getUniqueM
 
-run :: LiftM a -> UniqSupply -> (((a,[CoreBind]),[String]),UniqSupply)
-run m us = initUs us (runWriterT (runWriterT m `runReaderT` initEnv))
+run :: LiftM a -> Bool -> UniqSupply -> (((a,[CoreBind]),[String]),UniqSupply)
+run m li us = initUs us (runWriterT (runWriterT m `runReaderT` initEnv li))
 
 -- | caseLetLift a core program
-caseLetLift :: [CoreBind] -> UniqSupply -> (([CoreBind],[String]),UniqSupply)
-caseLetLift []     us = (([],[]),us)
-caseLetLift (b:bs) us = ((mkCoreBind (flattenBinds (b':lifted_binds)):more_binds
-                         ,msgs++more_msgs)
-                        ,fin_us)
+caseLetLift :: [CoreBind] -> Bool -> UniqSupply -> (([CoreBind],[String]),UniqSupply)
+caseLetLift []     _  us = (([],[]),us)
+caseLetLift (b:bs) li us =
+    ((mkCoreBind (flattenBinds (b':lifted_binds)):more_binds
+     ,msgs++more_msgs)
+    ,fin_us)
    where
-     (((b',lifted_binds),msgs),us')  = run (liftCoreBind b) us
-     ((more_binds,more_msgs),fin_us) = caseLetLift bs us'
+     (((b',lifted_binds),msgs),us')  = run (liftCoreBind b) li us
+     ((more_binds,more_msgs),fin_us) = caseLetLift bs li us'
 
 -- | Lift a binding group
 liftCoreBind :: CoreBind -> LiftM CoreBind
@@ -78,7 +83,7 @@ liftDecl f e = do
     dbgMsg $ "Lifting " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
     dbgMsg $ "    rhs:" ++ showExpr e
     args_ <- asks args
-    e_lifted <- local (const (f,args_++as)) (liftCase e_stripped)
+    e_lifted <- local (setFun f . modArgs (++as)) (liftCase e_stripped)
     return (mkCoreLams (args_ ++ as) e_lifted)
   where
     (as,e_stripped) = collectBinders e
@@ -101,7 +106,9 @@ liftCase e = case e of
 -- | Lift an alternative
 liftAlt :: CoreAlt -> LiftM CoreAlt
 liftAlt (con,bound,e) = do
-    e_lifted <- local (second (++ bound)) (liftCase e)
+    li <- asks lift_inner
+    let liftInner = if li then liftExpr else liftCase
+    e_lifted <- local (modArgs (++ bound)) (liftInner e)
     return (con,bound,e_lifted)
 
 -- | Lift an expression
@@ -143,7 +150,7 @@ liftInnerLambda x e = do
 
     dbgMsg $ "Lift lambda: " ++ showExpr (Lam x e) ++ " new name: " ++ show new_fun
 
-    lifted_lam <- local (const (new_fun,lam_args_x))
+    lifted_lam <- local (modArgs (const lam_args_x) . setFun new_fun)
                         (liftCoreBind (NonRec new_fun e))
 
     tell [lifted_lam]
@@ -165,7 +172,7 @@ liftInnerCase scrutinee scrut_var ty alts = do
 
     dbgMsg $ "Lift case: " ++ showExpr e ++ " new name: " ++ show new_fun
 
-    lifted_case <- local (const (new_fun,case_args))
+    lifted_case <- local (modArgs (const case_args) . setFun new_fun)
                          (liftCoreBind (NonRec new_fun e))
     tell [lifted_case]
 
@@ -204,7 +211,7 @@ liftInnerDecl v e = do
 
     let subst_v = mkVarApps (Var new_v) let_args
 
-    lifted_e <- local (second (const let_args))
+    lifted_e <- local (modArgs (const let_args))
                       (liftDecl new_v (substExp e v subst_v))
 
     return ((new_v,lifted_e),(v,subst_v))
