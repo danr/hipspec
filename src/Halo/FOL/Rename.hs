@@ -23,12 +23,13 @@ import qualified Data.Set as S
 import Data.Char
 import Data.Maybe
 
-renameClauses :: [Clause'] -> [StrClause]
+renameClauses :: [Clause'] -> ([StrClause],Map String Var)
 renameClauses clauses =
-    let renameFuns :: Clause q Var -> Clause q String
-        renameFuns = mkFunRenamer (map WrapClause clauses)
+    let rename_funs :: Clause' -> Clause Var String
+        str_map :: Map String Var
+        (rename_funs,str_map) = mkFunRenamer clauses
 
-        clauses' = map (renameQVar suggest) (map renameFuns clauses)
+        clauses' = map (renameQVar suggest) (map rename_funs clauses)
           where
             suggest :: Var -> [String]
             suggest v = [ case escape qvarEscapes s of
@@ -38,18 +39,21 @@ renameClauses clauses =
                         | i <- [(0 :: Int)..]
                         ]
 
-     in  clauses'
+     in  (clauses',str_map)
 
-data WrappedClause' = forall q . WrapClause (Clause q Var)
-
-mkFunRenamer :: [WrappedClause'] -> Clause q Var -> Clause q String
+mkFunRenamer :: [Clause'] -> (Clause' -> Clause Var String,Map String Var)
 mkFunRenamer clauses =
     let symbols :: [Var]
-        symbols = nubSorted $ concatMap (\(WrapClause cl) -> allSymbols' cl) clauses
+        symbols = nubSorted $ concatMap allSymbols' clauses
+
+        rep_bimap :: Bimap Var String
+        rep_bimap = foldr (allot varSuggest protectedWiredIn) B.empty symbols
 
         rep_map :: Map Var String
-        rep_map = B.toMap (foldr (allot varSuggest protectedWiredIn)
-                                 B.empty symbols)
+        rep_map = B.toMap rep_bimap
+
+        str_map :: Map String Var
+        str_map = B.toMapR rep_bimap
 
         replace :: Var -> String
         replace v = case M.lookup v rep_map of
@@ -57,7 +61,7 @@ mkFunRenamer clauses =
                         Nothing -> error $ "renameFuns: " ++ showSDoc (ppr v)
                                         ++ " not renamed!"
 
-    in  clauseMapTerms (replaceVarsTm replace) id
+    in  (clauseMapTerms (replaceVarsTm replace) id,str_map)
 
 renameQVar :: forall q . Ord q => (q -> [String]) -> Clause q String -> Clause String String
 renameQVar suggest cl =
