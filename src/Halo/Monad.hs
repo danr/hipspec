@@ -74,6 +74,7 @@ import Halo.Constraints
 import Halo.PrimCon
 import Halo.Shared
 import Halo.Util
+import Halo.Subtheory
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -178,12 +179,12 @@ mkEnv conf@HaloConf{..} ty_cons program =
 --   Reader : see HaloEnv above
 --   Writer : Debug strings
 --   State  : Set of used function pointers
-newtype HaloM a = HaloM (ErrorT String (RWS HaloEnv [String] (Maybe VarSet)) a)
+newtype HaloM a = HaloM (ErrorT String (RWS HaloEnv [String] (Maybe (VarSet,Bool))) a)
   deriving
       (Functor,Applicative,Monad
       ,MonadReader HaloEnv
       ,MonadWriter [String]
-      ,MonadState (Maybe VarSet)
+      ,MonadState (Maybe (VarSet,Bool))
       ,MonadError String
       )
 
@@ -194,18 +195,25 @@ runHaloM env hm = case runHaloMsafe env hm of
 runHaloMsafe :: HaloEnv -> HaloM a -> (Either String a,[String])
 runHaloMsafe env (HaloM m) = evalRWS (runErrorT m) env Nothing
 
-capturePtrs :: HaloM a -> HaloM (a,[Var])
+-- | Perform a comptutation, but also register which pointers where
+--   used and if app was ever used
+capturePtrs :: HaloM a -> HaloM (a,[Content s])
 capturePtrs m = do
     let nested_err = throwError "capturePtrs: Internal error, nested captures"
     check <- get
     when (isJust check) nested_err
-    put (Just emptyVarSet)
+    put (Just (emptyVarSet,False))
     res <- m
     m_vs <- get
     put Nothing
     case m_vs of
-        Just vs -> return (res,varSetElems vs)
-        Nothing -> nested_err
+        Just (vs,b) -> return (res,pointers (varSetElems vs) ++ app_content b)
+        Nothing     -> nested_err
+  where
+    app_content :: Bool -> [Content s]
+    app_content True = [AppTheory]
+    app_content _    = []
+
 
 -- | Register a pointer as used. Must be run inside capturePtrs
 usePtr :: Var -> HaloM ()
@@ -213,8 +221,17 @@ usePtr v = do
     write $ "Registering " ++ show v ++ " as a used pointer"
     m_vs <- get
     case m_vs of
-        Nothing -> throwError "usePtr: Internal error, ptr used without capture"
-        Just vs -> put $ Just (extendVarSet vs v)
+        Nothing     -> throwError "usePtr: Internal error, ptr used without capture"
+        Just (vs,b) -> put $ Just (extendVarSet vs v,b)
+
+-- | Register that the app symbol was used
+regApp :: HaloM ()
+regApp = do
+    write $ "Registering that app was used"
+    m_vs <- get
+    case m_vs of
+        Nothing     -> throwError "regApp: Internal error, app used without capture"
+        Just (vs,_) -> put $ Just (vs,True)
 
 -- | If the translation of an expression fails, we need to clean up
 --   the capturing of function pointers

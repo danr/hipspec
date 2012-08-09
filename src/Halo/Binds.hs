@@ -129,7 +129,7 @@ trBindParts :: Ord s => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
 trBindParts f e parts = do
 
     -- Capturing of pointers when translating all expressions in the bind parts
-    (tr_formulae,used_ptrs) <- capturePtrs (mapM trBindPart parts)
+    (tr_formulae,ptr_deps) <- capturePtrs (mapM trBindPart parts)
 
     -- We get this information from the bind_deps, in case
     -- we filter away a branch with conflicting constraints
@@ -137,7 +137,7 @@ trBindParts f e parts = do
 
     return $ Subtheory
         { provides    = Function f
-        , depends     = deps ++ pointers used_ptrs
+        , depends     = deps ++ ptr_deps
         , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
                      ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
         , formulae    = tr_formulae

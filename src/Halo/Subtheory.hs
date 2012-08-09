@@ -53,6 +53,10 @@ data Content s
     | ExtensionalEquality
     -- ^ Extensional equality, (f @ x = g @ x) => f = g
     --   Toggled by a flag in HaloConf
+    | AppTheory
+    -- ^ If you need some extra theory of app, you make this depend on
+    --   it. For contracts we add UNR @ x = UNR, and BAD @ x = BAD
+    --   by letting the subtheory for AppTheory depend on those axioms.
     | AppOnMin
     -- ^ Min of an app is min of the function pointer
     | Specific s
@@ -78,6 +82,7 @@ baseContentShow c = case c of
     Pointer v           -> "(Pointer " ++ show v ++ ")"
     Data tc             -> "(Data " ++ showOutputable tc ++ ")"
     ExtensionalEquality -> "(Extensional equality)"
+    AppTheory           -> "(AppTheory)"
     AppOnMin            -> "(App on min)"
     Specific _          -> "(Unknow Specific)"
 

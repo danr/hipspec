@@ -52,15 +52,21 @@ trExpr e = do
             | otherwise         -> return (con x) -- con or caf
         App{} -> case second trimTyArgs (collectArgs e) of
             (Var f,es)
-                 | null es -> trExpr (Var f)
-                 | Just i <- M.lookup f arities -> do
-                     if i > length es
-                         then do usePtr f
-                                 apps (ptr f) <$> mapM trExpr es
-                         else do let (es_inner,es_after) = splitAt i es
-                                 inner <- apply f <$> mapM trExpr es_inner
-                                 apps inner <$> mapM trExpr es_after
-            (f,es) -> apps <$> trExpr f <*> mapM trExpr es
+                | null es -> trExpr (Var f)
+                | Just i <- M.lookup f arities -> do
+                    if i > length es
+                        then do
+                            usePtr f
+                            regApp
+                            apps (ptr f) <$> mapM trExpr es
+                        else do
+                            let (es_inner,es_after) = splitAt i es
+                            unless (null es_after) regApp
+                            inner <- apply f <$> mapM trExpr es_inner
+                            apps inner <$> mapM trExpr es_after
+            (f,es) -> do
+                unless (null es) regApp
+                apps <$> trExpr f <*> mapM trExpr es
         Lit (MachStr s) -> do
             write $ "String, " ++ unpackFS s ++ " coerced to bad"
             return bad
