@@ -9,6 +9,7 @@ module Halo.Shared where
 import CoreFVs
 import DataCon
 import UniqSet
+import Var
 import Id
 import Name
 import Outputable
@@ -66,23 +67,26 @@ subst e x y = substExpr (text "halo") s e
   where
     s = extendIdSubst emptySubst x (Var y)
 
+mkTyAndIdSubst :: [(Var,CoreExpr)] -> Subst
+mkTyAndIdSubst = foldr (uncurry extend) emptySubst
+  where
+    extend x e su = case e of
+        Type ty | isTyVar x -> extendTvSubst su x ty
+        _                   -> extendIdSubst su x e
+
 -- | Substitute an expression
 substExp :: CoreExpr -> Var -> CoreExpr -> CoreExpr
-substExp e x e' = substExpr (text "halo") s e
-  where
-    s = extendIdSubst emptySubst x e'
+substExp e x e' = substExpr (text "halo") (mkTyAndIdSubst [(x,e')]) e
 
 -- | Substitute a list
 substList :: CoreExpr -> [(Var,Var)] -> CoreExpr
-substList e xs = substExpr (text "halo") s e
+substList e xs = substExpr (text "halo") (mkTyAndIdSubst xs') e
   where
-    s = extendIdSubstList emptySubst [ (x,Var y) | (x,y) <- xs ]
+    xs' = [ (x,Var y) | (x,y) <- xs ]
 
 -- | Substitute an expression list
 substExprList :: CoreExpr -> [(Var,CoreExpr)] -> CoreExpr
-substExprList e xs = substExpr (text "halo") s e
-  where
-    s = extendIdSubstList emptySubst xs
+substExprList e xs = substExpr (text "halo") (mkTyAndIdSubst xs) e
 
 -- | Simple application to get rid of some lambdas
 (@@) :: CoreExpr -> CoreExpr -> CoreExpr
