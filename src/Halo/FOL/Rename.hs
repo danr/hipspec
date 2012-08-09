@@ -154,12 +154,4 @@ qvarEscapes = M.fromList
     ]
 
 prelude :: Map String String
-prelude = M.fromList
-   [ ("[]","Nil")
-   , (":","Cons")
-   , ("()","Unit")
-   , ("(,)","Tup")
-   , ("(,,)","Trip")
-   , ("(,,,)","Quad")
-   , ("(,,,,)","Quint")
-   ]
+prelude = M.empty
