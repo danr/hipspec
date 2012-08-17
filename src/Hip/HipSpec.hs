@@ -205,3 +205,7 @@ hipSpec file sig0 = do
     unless dont_print_unproved $
         putStrLn $ "Unproved from QuickSpec: "
             ++ intercalate ", " (map (showEquation sig . propQSTerms) qsunproved)
+
+    when quickspec $
+         (writeFile (file++"_QuickSpecOutput.txt") ("All stuff from QuickSpec:\n" ++ intercalate "\n" 
+         (map show (classToEqs classes))))

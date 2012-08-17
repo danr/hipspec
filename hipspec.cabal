@@ -118,7 +118,7 @@ library
         geniplate                     >= 0.6,
 
         -- Prelude
-        QuickCheck                    >= 2.5,
+        QuickCheck                    >= 2.4,
 
         -- Command-line arguments
         cmdargs                       >= 0.9,

@@ -35,6 +35,7 @@ data Params = Params
     , quadratic           :: Bool
     , interesting_cands   :: Bool
     , assoc_important     :: Bool
+    , quickspec           :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -86,6 +87,7 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
+    , quickspec           = False   &= name "Q" &= help "Print conjectures from QuickSpec"
 
     , inddepth            = 1       &= groupname "\nStructural induction"
                                     &= help "Maximum depth                   (default 1)"
