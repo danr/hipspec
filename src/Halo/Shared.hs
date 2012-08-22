@@ -7,15 +7,18 @@
 module Halo.Shared where
 
 import CoreFVs
+import CoreSubst
+import CoreSyn
 import DataCon
-import UniqSet
-import Var
 import Id
-import Name
+import MkCore (errorIds)
+import Name hiding (varName)
 import Outputable
 import PprCore
-import CoreSyn
-import CoreSubst
+import PrelNames
+import TyCon
+import UniqSet
+import Var
 
 import qualified Data.Map as M
 import Data.Maybe
@@ -33,8 +36,9 @@ showOutputable = showSDoc . ppr
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
-    maybeLocaliseName n | isSystemName n = n
-                        | otherwise      = localiseName n
+    maybeLocaliseName n
+        | isSystemName n = n
+        | otherwise      = localiseName n
 
 -- | Shows a Core Expression
 showExpr :: CoreExpr -> String
@@ -106,9 +110,29 @@ lookupBind bs =
         let err = error $ "lookup_bind: lost binding for " ++ show v
         in fromMaybe err (M.lookup v bs_map)
 
--- | Free variables in an expression
+-- | Is this Id a "constructor" to a newtype?
+--   This is the only way I have found to do it...
+isNewtypeConId :: Id -> Bool
+isNewtypeConId i
+    | Just dc <- isDataConId_maybe i = isNewTyCon (dataConTyCon dc)
+    | otherwise = False
+
+-- | Is this Id a data or newtype constructor?
+--
+--   Note: cannot run isDataConWorkId on things that aren't isId,
+--         then we get a panic from idDetails.
+isDataConId :: Id -> Bool
+isDataConId v = isId v && (isConLikeId v || isNewtypeConId v)
+
+-- | Free non-type variables in an expression, local or global
+--
+--   For now, an ugly hack to not get stuck in GHC.Base.patError,
+--   or in String literals
 exprFVs :: CoreExpr -> [Var]
-exprFVs = uniqSetToList . exprFreeIds
+exprFVs = uniqSetToList . exprSomeFreeVars (\v ->
+    (isLocalId v || isGlobalId v) && not (isDataConId v)
+        && v `notElem` errorIds
+        && nameModule_maybe (varName v) /= Just gHC_CSTRING)
 
 -- | Removes Cast and Tick
 removeCruft :: CoreExpr -> CoreExpr
@@ -131,8 +155,8 @@ dcIdArity :: DataCon -> (Id,Int)
 dcIdArity dc = (dataConWorkId dc,dataConRepArity dc)
 
 cheapExprEq :: CoreExpr -> CoreExpr -> Bool
-cheapExprEq (Var x) (Var y) = x == y
-cheapExprEq (Lam x e1) (Lam y e2) = x == y && cheapExprEq e1 e2
-cheapExprEq (App e1 e2) (App e1' e2') = cheapExprEq e1 e2 &&
-                                        cheapExprEq e1' e2'
+cheapExprEq (Var x)     (Var y)       = x == y
+cheapExprEq (Lam x e1)  (Lam y e2)    = x == y && cheapExprEq e1 e2
+cheapExprEq (App e1 e2) (App e1' e2')
+    = cheapExprEq e1 e2 && cheapExprEq e1' e2'
 cheapExprEq _ _ = False

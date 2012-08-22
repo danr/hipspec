@@ -43,11 +43,14 @@ desugarAndTypeEnv DesugarConf{..} targetFile =
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
         dflags <- getSessionDynFlags
-        let dflags'
-              | debug_float_out = foldl dopt_set dflags [Opt_D_dump_simpl_stats
-                                                        ,Opt_D_verbose_core2core]
-              | otherwise = dflags
-
+        let dflags0
+                | debug_float_out = foldl dopt_set dflags
+                                        [Opt_D_dump_simpl_stats
+                                        ,Opt_D_verbose_core2core]
+                | otherwise = dflags
+            dflags' = flip dopt_unset Opt_IgnoreInterfacePragmas
+                    $ flip dopt_unset Opt_OmitInterfacePragmas
+                    $ dopt_set dflags0 Opt_ExposeAllUnfoldings
         void $ setSessionDynFlags dflags'
         target <- guessTarget targetFile Nothing
         setTargets [target]
@@ -78,8 +81,8 @@ lambdaLift dflags program = do
     simpleOpt (Rec vses)   = Rec [ (v,simpleOptExpr e) | (v,e) <- vses ]
 
     float_switches = FloatOutSwitches
-                      { floatOutLambdas = Just 100
-                      , floatOutConstants = False
-                      , floatOutPartialApplications = True
-                      }
+        { floatOutLambdas = Just 100
+        , floatOutConstants = False
+        , floatOutPartialApplications = True
+        }
 
