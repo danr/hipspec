@@ -24,51 +24,62 @@
              Unfolding: (\ @ t @ t1 @ t2 f :: t1 -> t g :: t2 -> t1 x :: t2 ->
                          f (g x)) -}
 
+
+    An important thing is to use realIdUnfolding instead of
+    idUnfolding, otherwise recursive unfoldings will be lost.
+
 -}
 module Halo.Fetch where
 
-import CoreSyn
 import CoreFVs
-import VarSet
-import Var
+import CoreSyn
 import Id
+import TyCon
+import VarSet
 
-import Halo.Util
+import Halo.FreeTyCons
 import Halo.Shared
+import Halo.Util
 
 import Data.Maybe
+import Data.List
 import Data.Graph
     -- we use topologically sorted SCC to put things in the right CoreBind
 
-
-import Debug.Trace
+import Control.Monad.Writer
+    -- to debug unfoldings
 
 -- | Fetches the missing definitions from other modules
-fetch :: [CoreBind] -> [CoreBind]
-fetch init_bs = arrangeCoreBinds new_vars new_binders
+fetch :: [CoreBind] -> ([CoreBind],String)
+fetch init_bs = (arrangeCoreBinds new_vars new_binders,unlines debug)
   where
     (init_vars,exprs) = first mkVarSet (unzip (flattenBinds init_bs))
 
     new_binders :: [(Var,CoreExpr)]
-    (all_vars,new_binders) = go init_vars exprs
+    ((all_vars,new_binders),debug) = runWriter (go init_vars exprs)
 
     new_vars = all_vars `minusVarSet` init_vars
 
-go :: VarSet -> [CoreExpr] -> (VarSet,[(Var,CoreExpr)])
+write :: a -> Writer [a] ()
+write = tell . return
+
+go :: VarSet -> [CoreExpr] -> Writer [String] (VarSet,[(Var,CoreExpr)])
 go vs es
-    | isEmptyVarSet new_vars = (vs,[])
-    | otherwise = second (new_exprs ++)
-                         (go (vs `unionVarSet` new_vars) (map snd new_exprs))
+    | isEmptyVarSet new_vars = write "No more unvisited expressions" >> return (vs,[])
+    | otherwise = do
+        write $ "Interesting variables this round: " ++ showOutputable new_vars
+        new_exprs <- catMaybes <$> mapM maybe_unfold (varSetElems new_vars)
+        second (new_exprs ++) <$> go (vs `unionVarSet` new_vars) (map snd new_exprs)
   where
-    interesting i = let res = not (i `elemVarSet` vs) && isGlobalId i
-                    in  trace ("interesting " ++ show i ++ ": " ++ show res) res
-
     new_vars = exprsSomeFreeVars interesting es
-    new_exprs = mapMaybe maybe_unfold (varSetElems new_vars)
 
-    maybe_unfold :: Var -> Maybe (Id,CoreExpr)
-    maybe_unfold x = let res = fmap ((,) x) (maybeUnfoldingTemplate (idUnfolding x))
-                     in  trace ("maybe_unfold " ++ show x ++ ": " ++ showOutputable res) res
+    interesting i = not (i `elemVarSet` vs) && isGlobalId i
+
+    maybe_unfold :: Var -> Writer [String] (Maybe (Id,CoreExpr))
+    maybe_unfold x = do
+        let res = fmap ((,) x) (maybeUnfoldingTemplate (realIdUnfolding x))
+        write $ "Unfolding of " ++ show x ++ ": " ++ showOutputable res
+        return res
 
 arrangeCoreBinds :: VarSet -> [(Var,CoreExpr)] -> [CoreBind]
 arrangeCoreBinds vs = map coalesce . stronglyConnComp . map (uncurry mkNode)
@@ -85,7 +96,9 @@ arrangeCoreBinds vs = map coalesce . stronglyConnComp . map (uncurry mkNode)
     coalesce (AcyclicSCC b) = b
     coalesce (CyclicSCC bs) = Rec (flattenBinds bs)
 
--- -- | Fetches missing TyCons
--- fetchTyCons :: [CoreBind] -> [TyCon] -> [TyCon]
--- fetchTyCons
+-- | Fetches used TyCons
+fetchTyCons :: [CoreBind] -> [TyCon]
+fetchTyCons = sort . unions . map freeTyCons . snd . unzip . flattenBinds
+  where
+    unions = foldl union []
 
