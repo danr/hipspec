@@ -32,7 +32,7 @@ mkCoreBind fses    = Rec fses
 showOutputable :: Outputable a => a -> String
 showOutputable = showSDoc . ppr
 
--- | Short representation of an Id/Var to String (unsafely for now)
+-- | Short representation of an Id/Var to String
 idToStr :: Id -> String
 idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
   where
@@ -44,6 +44,8 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
 showExpr :: CoreExpr -> String
 showExpr = showSDoc . pprCoreExpr
 
+-- | If a binder alternates between binding type variables and normal
+--   variables, this one strips off all the type variables.
 collectBindersDeep :: CoreExpr -> ([Var],CoreExpr)
 collectBindersDeep = go
   where
@@ -65,9 +67,9 @@ trimTyArgs = filter (not . isTyArg)
     isTyArg Coercion{} = True
     isTyArg _          = False
 
--- | @subst e x y@ substitutes as e[y/x]
-subst :: CoreExpr -> Var -> Var -> CoreExpr
-subst e x y = substExpr (text "halo") s e
+-- | @subst e x y@ substitutes as e[y/x] but does not touch global ids
+subst :: Var -> Var -> CoreExpr -> CoreExpr
+subst x y = substExpr (text "halo") s
   where
     s = extendIdSubst emptySubst x (Var y)
 
@@ -79,30 +81,58 @@ mkTyAndIdSubst = foldr (uncurry extend) emptySubst
         _                   -> extendIdSubst su x e
 
 -- | Substitute an expression
-substExp :: CoreExpr -> Var -> CoreExpr -> CoreExpr
-substExp e x e' = substExpr (text "halo") (mkTyAndIdSubst [(x,e')]) e
+substExp :: Var        -- ^ x
+         -> CoreExpr   -- ^ ex
+         -> CoreExpr   -- ^ e
+         -> CoreExpr   -- ^ e[ex/x]
+substExp x ex = substExpr (text "halo") (mkTyAndIdSubst [(x,ex)])
 
 -- | Substitute a list
-substList :: CoreExpr -> [(Var,Var)] -> CoreExpr
-substList e xs = substExpr (text "halo") (mkTyAndIdSubst xs') e
+substList :: [(Var,Var)] -> CoreExpr -> CoreExpr
+substList xs = substExpr (text "halo") (mkTyAndIdSubst xs')
   where
     xs' = [ (x,Var y) | (x,y) <- xs ]
 
 -- | Substitute an expression list
-substExprList :: CoreExpr -> [(Var,CoreExpr)] -> CoreExpr
-substExprList e xs = substExpr (text "halo") (mkTyAndIdSubst xs) e
+substExprList :: [(Var,CoreExpr)] -> CoreExpr -> CoreExpr
+substExprList xs = substExpr (text "halo") (mkTyAndIdSubst xs)
+
+-- | Sometimes, we want to change potentially global ids in
+--   expressions, then this function is the one
+substGblId :: Id -> Id -> CoreExpr -> CoreExpr
+substGblId xold xnew = go
+  where
+    go e0 = case e0 of
+        App e1 e2         -> App (go e1) (go e2)
+        Lam x e           -> Lam x (go e)
+        Let _ _           -> error $ "Halo.Shared.substGblId on let: " ++ showExpr e0
+        Case s t w alts   -> Case (go s) t w (map go_alt alts)
+        Cast e c          -> Cast (go e) c
+        Tick t e          -> Tick t (go e)
+        Var x | x == xold -> Var xnew
+        Var{}             -> e0
+        Lit{}             -> e0
+        Type{}            -> e0
+        Coercion{}        -> e0
+
+    go_alt (pat,bs,rhs) = (pat,bs,go rhs)
+
+-- | Substitute many (potentially) global ids
+substGblIds :: [(Id,Id)] -> CoreExpr -> CoreExpr
+substGblIds = flip (foldr (uncurry substGblId))
 
 -- | Simple application to get rid of some lambdas
 (@@) :: CoreExpr -> CoreExpr -> CoreExpr
-Lam x e @@ e2 = substExp e x e2
-e1      @@ e2 = App e1 e2
+Lam x e1 @@ e2 = substExp x e2 e1
+e1       @@ e2 = App e1 e2
 
 -- | Apply many expressions to an expression
 foldApps :: CoreExpr -> [CoreExpr] -> CoreExpr
 foldApps = foldl App
 
--- | Attempts to find the rhs of a variable in a binding list
---   You can let bind this to get a thunk specialised for a set of binds
+-- | Attempts to find the rhs of a variable in a binding list.
+--   Can be bound partially applied to get a thunk specialised for a
+--   set of binds.
 lookupBind :: [CoreBind] -> Var -> CoreExpr
 lookupBind bs =
     let bs_map = M.fromList (flattenBinds bs)
@@ -150,7 +180,7 @@ removeCruft e = case e of
   where
     rmAltCruft (pat,bs,rhs) = (pat,bs,removeCruft rhs)
 
--- Id and Arity of a DataCon
+-- | Id and Arity of a DataCon
 dcIdArity :: DataCon -> (Id,Int)
 dcIdArity dc = (dataConWorkId dc,dataConRepArity dc)
 

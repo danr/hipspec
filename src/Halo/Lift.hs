@@ -127,6 +127,8 @@ liftExpr e = case e of
     Cast e_cast c  -> Cast <$> liftExpr e_cast <*> pure c
     Tick t e_tick  -> Tick t <$> liftExpr e_tick
 
+-- | Make a new name for something that is lifted out, by attaching a label
+--   to the current function
 mkLiftedName :: Type -> String -> LiftM Var
 mkLiftedName ty lbl = do
     i <- liftUnique
@@ -188,14 +190,14 @@ liftInnerLet b in_e = do
 
             tell [uncurry NonRec lifted_bind]
 
-            liftExpr (substExprList in_e [subst_pair])
+            liftExpr (substExprList [subst_pair] in_e)
 
         Rec binds -> do
             (lifted_binds,subst_list) <- mapAndUnzipM (uncurry liftInnerDecl) binds
 
             tell [Rec lifted_binds]
 
-            liftExpr (substExprList in_e subst_list)
+            liftExpr (substExprList subst_list in_e)
 
 -- | Returns the substitution
 liftInnerDecl :: Var -> CoreExpr -> LiftM ((Var,CoreExpr),(Var,CoreExpr))
@@ -212,7 +214,7 @@ liftInnerDecl v e = do
     let subst_v = mkVarApps (Var new_v) let_args
 
     lifted_e <- local (modArgs (const let_args))
-                      (liftDecl new_v (substExp e v subst_v))
+                      (liftDecl new_v (substExp v subst_v e))
 
     return ((new_v,lifted_e),(v,subst_v))
 

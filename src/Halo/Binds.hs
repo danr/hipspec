@@ -197,7 +197,7 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
 
         write $ "This is a case with only a DEFAULT: " ++ showExpr e
         write $ "Continuing with right hand side: " ++ showExpr rhs
-        let rhs' = substExp rhs scrut_var scrutinee
+        let rhs' = substExp scrut_var scrutinee rhs
         write $ "Substituted with scrut var: " ++ showExpr rhs'
         trCase rhs'
 
@@ -206,7 +206,7 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
         write $ "Case on " ++ showExpr scrutinee
 
         -- Substitute the scrutinee var to the scrutinee expression
-        let subst_alt (c,bs,e_alt) = (c,bs,substExp e_alt scrut_var scrutinee)
+        let subst_alt (c,bs,e_alt) = (c,bs,substExp scrut_var scrutinee e_alt)
 
             alts_wo_bottom = map subst_alt alts_unsubst
 
@@ -252,8 +252,8 @@ tryCase scrut scrut_var alts = case collectArgs scrut of
         | Just dc <- isDataConId_maybe c -> case alts of
             _ | Just (_,bs,rhs) <- find_alt dc alts -> do
                      guard (length bs == length es)
-                     let rhs' = (substExprList rhs (zip bs es))
-                     return (substExp rhs' scrut_var scrut)
+                     let rhs' = (substExprList (zip bs es) rhs)
+                     return (substExp scrut_var scrut rhs')
             (DEFAULT,[],rhs):_ -> return rhs
             _                  -> Nothing
     _ -> Nothing
