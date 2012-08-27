@@ -19,7 +19,13 @@ so the easiest way is to get it from github:
 
     git clone https://github.com/nick8325/quickspec
 
-Then, you need to pull `halt`, the Haskell to Logic Translator:
+Follow its instructions, but it all boils down to `cabal install`.
+
+Clone this repo, if you haven't already:
+
+    git clone https://github.com/danr/hipspec.git
+
+Then, you need to pull `HALO`, the HAskell to LOgic Translator:
 
     git submodule update --init
 
@@ -27,7 +33,16 @@ Then, in the main directory, run
 
     cabal install
 
-This should install the HipSpec library and the hipspec executable.
+This should install the HipSpec library.
+
+If you later update the repository with `git pull`, you will probably
+need to update `HALO` as well. Do the same as before, but without `--init`:
+
+    git submodule update
+
+If you want to install the HipSpec executable, run cabal like this:
+
+    cabal install -fexecutable
 
 Supported theorem provers
 -------------------------
@@ -132,11 +147,16 @@ with the HipSpec library.
 QuickSpec flags
 ---------------
 
-  * `--swap-repr`: Swap equations with their representative
-  * `--prepend-pruned`: Prepend nice, pruned, equations from QuickSpec
+  * `--swap-repr` (`-s`): Swap equations with their representative
+  * `--prepend-pruned` (`-r`): Prepend nice, pruned, equations from QuickSpec
     before attacking all equations.
-  * `--quadratic`: Add all pairs of equations from every equivalence
+  * `--quadratic` (`-q`): Add all pairs of equations from every equivalence
     class instead of picking a representative.
+  * `--interesting-cands` (`-i`): Consider properties that imply newly
+    found theorems.
+  * `--assoc-important` (`-a`): Consider associativity as most important
+    and try to prove it first.
+
 
 Induction flags
 ---------------
@@ -156,15 +176,17 @@ Induction flags
 Specifying theorem prover
 -------------------------
 
-The `--provers` flag takes a one character description for the theorem
-prover:
+The `--provers` flag, or `-p` for short, takes a one character
+description for the theorem prover:
 
    * **`e`**: E prover
    * **`z`**: z3
-   * **`v`**: vampire 32 bit
-   * **`V`**: vampire 64 bit
+   * **`v`**: vampire
    * **`s`**: SPASS
    * **`x`**: equinox
+   * **`f`**: E-proof: prints which lemmas were used for each proof.
+
+To print which lemmas were used in each proof, run with `-p=f`.
 
 You can specify many at the same time, i.e. `--provers=zevs`, which
 will run z3, E prover, vampire 32-bit and SPASS, in that order, on
@@ -176,10 +198,10 @@ Processors and parallel proving
 As you probably have a multi-core machine, you might just as well use
 some more processor core. While theorem provers are still usually
 single-core, you can run many of them in parallel. The `--processes`
-or `-p` flag will let you specify this. The default is 2, but if you
+or `-N` flag will let you specify this. The default is 2, but if you
 have, say, 8 cores and you want to use all of them:
 
-    hipspec testsuite/hip/Nat.hs -p=8
+    hipspec testsuite/hip/Nat.hs -N=8
 
 Timeout
 -------
@@ -198,6 +220,12 @@ Should you wish to inspect the generated tptp theory, you can use
 `--output` (or `-o`) and make a `proving/` directory. Then all
 relevant `.tptp` files will be put there for you to view.
 
+A good combination is to also use the `--readable-tptp` flag (or `-R`).
+Without this flag, all tptp identifiers get short, cryptic names that
+are quick to otput. With the flag, the identifiers should have a
+strong resemblence from their origin in the Haskell Source (or at
+least, their Core representation).
+
 Consistency
 -----------
 
@@ -211,7 +239,7 @@ Authors and contact
 The HipSpec group consists of:
 
   * Dan Rosén, main developer
-    [danr at student dot gu dot se](mailto:danr-student-gu-se),
+    [danr at student dot chalmers dot se](mailto:danr-student-chalmers-se),
 
   * Koen Claessen
 
