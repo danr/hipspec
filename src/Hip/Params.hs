@@ -99,7 +99,17 @@ defParams = Params
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
     }
-    &= summary ("\nHipSpec v0.3.2 Dan Rosén danr@student.gu.se" ++
-                "\nQuickSpec by Nicholas Smallbone nicsma@chalmers.se" ++
-                "\n             and Koen Claessen koen@chalmers.se")
+    &= summary "\n\
+    \      888      d8b                                             \n\
+    \      888      Y8P                                             \n\
+    \      888                                                      \n\
+    \      888888b. 888 88888b.  .d8888b  88888b.   .d88b.  .d8888  \n\
+    \      888  888 888 888 \"88b 88K      888 \"88b d8P  Y8 d8P      \n\
+    \      888  888 888 888  888 \"Y8888b. 888  888 8888888 888      \n\
+    \      888  888 888 888 d88P      X88 888 d88P Y8b.    Y8b.     \n\
+    \      888  888 888 88888P\"   88888P' 88888P\"   \"Y8888  \"Y8888  \n\
+    \                   888               888                       \n\
+    \                   888               888                       \n\
+    \\n\
+    \       hipspec v0.3.2 by Dan Rosén, danr@student.chalmers.se   \n"
     &= program "hipspec"
