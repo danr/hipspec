@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns #-}
 {-
 
     Background theory:
@@ -12,7 +12,11 @@
         * Extensional equality
 
 -}
-module Halo.BackgroundTheory ( backgroundTheory ) where
+module Halo.BackgroundTheory
+    ( backgroundTheory
+    , makeDisjoint
+    , Disjoint(..)
+    ) where
 
 import Outputable
 import TyCon
@@ -63,25 +67,21 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
             | otherwise =
 
-                [ foralls $ min' lhs : [ min' rhs | need_min ] ===> lhs =/= rhs
-
-                | let tagged_dcs
-                        = [ (True,dc) | dc <- dcs ] ++
+                [ makeDisjoint halo_conf j k
+                | let disjoints = map fromTag $
+                          [ (True,dc) | dc <- dcs ] ++
                           [ (False,prim_con)
                           | unr_and_bad
                           , prim_con <- [primCon BAD,primCon UNR] ]
 
-                , (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
+                      fromTag (min_guard,dc) = Disjoint{..}
+                        where
+                          (symbol,arity) = dcIdArity dc
+                          is_ptr         = False
 
-                , (need_min,k_dc) <- ks
-
-                , let (j,j_arity)     = dcIdArity j_dc
-                      (k,k_arity)     = dcIdArity k_dc
-
-                      (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
-
-                      lhs             = apply j (map qvar j_args)
-                      rhs             = apply k (map qvar k_args)
+                , (j,ks) <- zip disjoints (drop 1 (tails disjoints))
+                , k <- ks
+                , not (symbol j == primId BAD && symbol k == primId UNR)
                 ]
 
      -- Pointers, to each non-nullary constructor k
@@ -104,6 +104,32 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
     | ty_con <- ty_cons
     , let dcs = tyConDataCons ty_con
     ]
+
+data Disjoint = Disjoint
+    { symbol            :: Var
+    , arity             :: Int
+    , is_ptr, min_guard :: Bool
+    }
+
+makeDisjoint :: HaloConf -> Disjoint -> Disjoint -> Formula'
+makeDisjoint HaloConf{or_discr} dj dk =
+      foralls $ ([ min' lhs | j_min ] ++ [ min' rhs | k_min ])
+                `implies` (lhs =/= rhs)
+  where
+    Disjoint j j_arity j_ptr j_min = dj
+    Disjoint k k_arity k_ptr k_min = dk
+
+    [] `implies` phi = phi
+    xs `implies` phi = (if or_discr then ors else ands) xs ==> phi
+
+    (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
+
+    mkSide i i_args i_ptr
+        | i_ptr     = ptr i
+        | otherwise = apply i (map qvar i_args)
+
+    lhs  = mkSide j j_args j_ptr
+    rhs  = mkSide k k_args k_ptr
 
 appOnMin :: Subtheory s
 appOnMin = Subtheory
