@@ -115,3 +115,29 @@ rewriteBi f = transformBi g
   where
     g :: s -> s
     g x = maybe x (rewriteBi f) (f x)
+
+-- Querying
+
+funsUsed :: forall q v . Ord v => Clause q v -> Set (v,Int)
+funsUsed cl    = S.fromList [ (f,length as) | Fun f as :: Term q v <- universeBi cl ]
+
+consUsed :: forall q v . Ord v => Clause q v -> Set (v,Int)
+consUsed cl    = S.fromList [ (c,length as) | Ctor c as :: Term q v <- universeBi cl ]
+
+ptrsUsed :: forall q v . Ord v => Clause q v -> Set v
+ptrsUsed cl    = S.fromList [ p | Ptr p :: Term q v <- universeBi cl ]
+
+skolemsUsed :: forall q v . Ord v => Clause q v -> Set v
+skolemsUsed cl = S.fromList [ s | Skolem s :: Term q v <- universeBi cl ]
+
+appUsed :: forall q v . Ord v => Clause q v -> Bool
+appUsed cl     = or [ True | App{}  :: Term q v <- universeBi cl ]
+
+minUsed :: forall q v . Ord v => Clause q v -> Bool
+minUsed cl     = or [ True | Min{}  :: Formula q v <- universeBi cl ]
+
+minRecUsed :: forall q v . Ord v => Clause q v -> Bool
+minRecUsed cl  = or [ True | MinRec{}  :: Formula q v <- universeBi cl ]
+
+cfUsed :: forall q v . Ord v => Clause q v -> Bool
+cfUsed cl      = or [ True | CF{}  :: Formula q v <- universeBi cl ]

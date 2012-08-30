@@ -1,7 +1,8 @@
 {-# LANGUAGE PatternGuards, FlexibleContexts #-}
 -- (c) Dan Rosén 2012
 module Halo.FOL.Abstract
-    ( Term', Formula', Clause', StrClause
+    ( Term', Formula', Clause'
+    , StrTerm, StrFormula, StrClause
 
     , apply, con
 
@@ -60,7 +61,9 @@ type Term'    = Term    Var Var
 type Formula' = Formula Var Var
 type Clause'  = Clause  Var Var
 
-type StrClause  = Clause String String
+type StrTerm    = Term    String String
+type StrFormula = Formula String String
+type StrClause  = Clause  String String
 
 comment :: String -> Clause q v
 comment = Comment
