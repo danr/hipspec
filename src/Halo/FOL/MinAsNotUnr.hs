@@ -9,5 +9,5 @@ import Data.Generics.Geniplate
 
 minAsNotUnr :: Clause' -> Clause'
 minAsNotUnr = clauseMapFormula $ transformBi $ \f -> case f of
-    Min tm -> tm =/= unr
-    e      -> e
+    Pred Min [tm] -> tm =/= unr
+    e             -> e

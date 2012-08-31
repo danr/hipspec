@@ -103,7 +103,7 @@ unrollDefault alts0 = case findDefault alts0 of
     (alts,Nothing)      -> return alts
     (alts,Just def_rhs) -> case alts of
         (DataAlt dc,_,_):_ -> unroll (dataConTyCon dc) alts def_rhs
-        (LitAlt _  ,_,_):_ -> return alts
+        (LitAlt _  ,_,_):_ -> return alts0
         (DEFAULT   ,_,_):_ -> int_err "duplicate DEFAULT"
         []                 -> return alts0 -- only DEFAULT, caught in Halo.Binds
   where

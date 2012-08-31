@@ -85,22 +85,22 @@ linClause (Clause cl_name cl_type cl_formula)
 --   Second argument is if it should be enclosed in parentheses.
 linForm :: StrFormula -> SDoc
 linForm form = parens $ case form of
-    Equal   t1 t2      -> linEqOp equals t1 t2
-    Unequal t1 t2      -> linEqOp (text "distinct") t1 t2
-    And fs             -> linBinOp (text "and") fs
-    Or  fs             -> linBinOp (text "or") fs
-    Implies f1 f2      -> linBinOp darrow [f1,f2]
-    Forall qs f        -> linQuant (text "forall") qs f
-    Exists qs f        -> linQuant (text "exists") qs f
-    Min tm             -> linTrue $ linMin <+> linTerm tm
-    MinRec tm          -> linTrue $ linMinRec <+> linTerm tm
-    CF tm              -> linTrue $ linCF <+> linTerm tm
-    IsType t1 t2       -> linTrue $ linEqOp linIsType t1 t2
-    Neg (Min tm)       -> linFalse $ linMin <+> linTerm tm
-    Neg (MinRec tm)    -> linFalse $ linMinRec <+> linTerm tm
-    Neg (CF tm)        -> linFalse $ linCF <+> linTerm tm
-    Neg (IsType t1 t2) -> linFalse $ linEqOp linIsType t1 t2
-    Neg f              -> text "not" <+> linForm f
+    Equal   t1 t2    -> linEqOp equals t1 t2
+    Unequal t1 t2    -> linEqOp (text "distinct") t1 t2
+    And fs           -> linBinOp (text "and") fs
+    Or  fs           -> linBinOp (text "or") fs
+    Implies f1 f2    -> linBinOp darrow [f1,f2]
+    Forall qs f      -> linQuant (text "forall") qs f
+    Exists qs f      -> linQuant (text "exists") qs f
+    Pred p tms       -> linTrue $ linPred p <+> sep (map linTerm tms)
+    Neg (Pred p tms) -> linFalse $ linPred p <+>  sep (map linTerm tms)
+    Neg f            -> text "not" <+> linForm f
+
+linPred :: Pred -> SDoc
+linPred Min    = linMin
+linPred MinRec = linMinRec
+linPred CF     = linCF
+linPred IsType = linIsType
 
 linTrue :: SDoc -> SDoc
 linTrue t = equals <+> text "true" <+> parens t
@@ -137,6 +137,7 @@ linTerm tm = case tm of
     Proj i c t  -> parens $ linProj i c <+> linTerm t
     Ptr a       -> linPtr a
     QVar a      -> linQVar a
+    Lit i       -> integer i
 
 -- | Our domain D
 linDomain :: SDoc

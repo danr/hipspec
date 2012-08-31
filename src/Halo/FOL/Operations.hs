@@ -19,6 +19,7 @@ replaceVarsTm k = go
         Proj i v a -> Proj i (k v) (go a)
         Ptr v      -> Ptr (k v)
         QVar q     -> QVar q
+        Lit i      -> Lit i
 
 replaceQVarsTm :: (q -> r) -> Term q v -> Term r v
 replaceQVarsTm k = go
@@ -31,6 +32,7 @@ replaceQVarsTm k = go
         Proj i v a -> Proj i v (go a)
         Ptr v      -> Ptr v
         QVar q     -> QVar (k q)
+        Lit i      -> Lit i
 
 formulaMapTerms :: (Term q v -> Term r u) -> (q -> r)
                 -> Formula q v -> Formula r u
@@ -45,10 +47,7 @@ formulaMapTerms tm qv = go
         Neg f'        -> Neg (go f')
         Forall qs f'  -> Forall (map qv qs) (go f')
         Exists qs f'  -> Exists (map qv qs) (go f')
-        CF t          -> CF (tm t)
-        Min t         -> Min (tm t)
-        MinRec t      -> MinRec (tm t)
-        IsType t1 t2  -> IsType (tm t1) (tm t2)
+        Pred p ts     -> Pred p (map tm ts)
 
 clauseMapTerms :: (Term q v -> Term r u) -> (q -> r)
                -> Clause q v -> Clause r u
@@ -133,11 +132,14 @@ skolemsUsed cl = S.fromList [ s | Skolem s :: Term q v <- universeBi cl ]
 appUsed :: forall q v . Ord v => Clause q v -> Bool
 appUsed cl     = or [ True | App{}  :: Term q v <- universeBi cl ]
 
-minUsed :: forall q v . Ord v => Clause q v -> Bool
-minUsed cl     = or [ True | Min{}  :: Formula q v <- universeBi cl ]
+predUsed :: forall q v . Ord v => Pred -> Clause q v -> Bool
+predUsed p cl = or  [ p == p' | Pred p' _ :: Formula q v <- universeBi cl ]
 
-minRecUsed :: forall q v . Ord v => Clause q v -> Bool
-minRecUsed cl  = or [ True | MinRec{}  :: Formula q v <- universeBi cl ]
+minUsed :: Ord v => Clause q v -> Bool
+minUsed = predUsed Min
 
-cfUsed :: forall q v . Ord v => Clause q v -> Bool
-cfUsed cl      = or [ True | CF{}  :: Formula q v <- universeBi cl ]
+minRecUsed :: Ord v => Clause q v -> Bool
+minRecUsed = predUsed MinRec
+
+cfUsed :: Ord v => Clause q v -> Bool
+cfUsed = predUsed CF

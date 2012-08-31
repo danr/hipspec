@@ -36,7 +36,13 @@ import CoreSyn
 import PprCore
 import DataCon
 import Id
+import Literal
 import Outputable
+
+import Var
+import TysPrim
+-- import TysWiredIn
+import Type
 
 import Halo.Conf
 import Halo.Case
@@ -213,8 +219,15 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
         -- The min part, makes the scrutinee interesting
         min_part <- bindPart (Min scrutinee)
 
-        -- Add a bottom case
-        alts' <- addBottomCase alts_wo_bottom
+        write $ "Adding bottom case, scrut var type is " ++
+            showOutputable (varType scrut_var)
+
+        -- Add UNR/BAD alternatives
+        alts' <- if varType scrut_var `eqType` intPrimTy
+                    then do
+                        write "No bottom case on primitive int"
+                        return alts_wo_bottom
+                    else addBottomCase alts_wo_bottom
 
         -- Everything happens under this scrutinee
         local (extendMinSet scrutinee) $ do
@@ -267,32 +280,39 @@ tryCase scrut scrut_var alts = case collectArgs scrut of
 -- | Make an inequality constraint from a case alternative, when handling
 --   the DEFAULT case. A constructor like Cons gets a constraint that
 --   looks like x /= Cons(sel_0_Cons(x),sel_1_Cons(x))
+--   (projections are added in trConstraints)
 invertAlt :: CoreExpr -> CoreAlt -> HaloM Constraint
 invertAlt scrut_exp (cons,_,_) = case cons of
-    DataAlt data_con -> return (Inequality scrut_exp data_con)
+    DataAlt data_con        -> return (Inequality scrut_exp data_con)
+    LitAlt (MachInt i)      -> return (LitInequality scrut_exp i)
+    LitAlt (LitInteger i _) -> return (LitInequality scrut_exp i)
+    LitAlt _ -> throwError "invertAlt: on non-integer alternative"
     DEFAULT  -> throwError "invertAlt: on DEFAULT, internal error"
-    LitAlt _ -> throwError "invertAlt: on LitAlt, literals not supported (yet)"
 
 -- | Translate a case alternative
 trAlt :: Ord s => CoreExpr -> CoreAlt -> HaloM (BindParts s)
-trAlt scrut_exp alt@(cons,_,_) = case cons of
-    DataAlt data_con -> trCon data_con scrut_exp alt
-    DEFAULT  -> throwError "trAlt: on DEFAULT, internal error"
-    LitAlt _ -> throwError "trAlt: on LitAlt, literals not supported (yet)"
+trAlt scrut_exp (cons,bound,e) = do
 
--- | Translate a data con alternative from a case
-trCon :: Ord s => DataCon -> CoreExpr -> CoreAlt -> HaloM (BindParts s)
-trCon data_con scrut_exp (_cons,bound,e) = do
+    (subst_expr,equality_constraint) <- case cons of
+        DataAlt data_con -> return
+            (foldApps (Var (dataConWorkId data_con)) (map Var bound)
+            ,Equality scrut_exp data_con (map Var bound))
+        LitAlt lit@(MachInt i) -> return
+            (Lit lit,LitEquality scrut_exp i)
+        LitAlt lit@(LitInteger i _) -> return
+            (Lit lit,LitEquality scrut_exp i)
+        LitAlt _ -> throwError "trAlt: on non-integer alternative"
+        DEFAULT  -> throwError "trAlt: on DEFAULT, internal error"
+
     HaloEnv{arities,conf = HaloConf{var_scrut_constr}} <- ask
     let isQuant x = x `M.notMember` arities
+
     case removeCruft scrut_exp of
         Var x | isQuant x && not var_scrut_constr -> do
-            let tr_pat = foldApps (Var (dataConWorkId data_con)) (map Var bound)
-                s = extendIdSubst emptySubst x (tr_pat)
+            let s = extendIdSubst emptySubst x subst_expr
                 e' = substExpr (text "trAlt") s e
             local (substContext s) (trCase e')
-        _ -> local (pushConstraint . Equality scrut_exp data_con . map Var $ bound)
-                   (trCase e)
+        _ -> local (pushConstraint equality_constraint) (trCase e)
 
 -- | Translate and nub constraints
 trConstraints :: [Constraint] -> HaloM [Formula']
@@ -318,6 +338,8 @@ trConstr (Inequality e data_con) = do
                     [ proj i (dataConWorkId data_con) lhs
                     | i <- [0..dataConSourceArity data_con-1] ]
     return $ lhs =/= rhs
+trConstr (LitEquality e i)   = (litInteger i ===) <$> trExpr e
+trConstr (LitInequality e i) = (litInteger i =/=) <$> trExpr e
 
 -- | Non-pointer dependencies of an expression
 exprDeps :: Ord s => CoreExpr -> Set (Content s)
@@ -327,8 +349,10 @@ exprDeps = S.fromList
 -- | Non-pointer dependencies of a constraint
 constraintDeps :: Ord s => Constraint -> Set (Content s)
 constraintDeps c = case c of
-    Equality e dc _es -> S.insert (dcContent dc) (exprDeps e)
-    Inequality e dc   -> S.insert (dcContent dc) (exprDeps e)
+    Equality e dc _es    -> S.insert (dcContent dc) (exprDeps e)
+    Inequality e dc      -> S.insert (dcContent dc) (exprDeps e)
+    LitEquality e _      -> (exprDeps e)
+    LitInequality e _    -> (exprDeps e)
   where
     dcContent :: DataCon -> Content s
     dcContent = Data . dataConTyCon

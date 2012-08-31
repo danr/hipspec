@@ -73,18 +73,20 @@ linClType ty = case ty of
 --   Second argument is if it should be enclosed in parentheses.
 linForm :: Style q v -> (SDoc -> SDoc) -> Formula q v -> SDoc
 linForm st par form = case form of
-    Equal   t1 t2 -> linEqOp st equals t1 t2
-    Unequal t1 t2 -> linEqOp st unequals t1 t2
-    And fs        -> par (linBinOp st ampersand fs)
-    Or  fs        -> par (linBinOp st pipe fs)
-    Implies f1 f2 -> par (linBinOp st darrow [f1,f2])
-    Neg f         -> (not (isAtomic f) ? par) (tilde <> linForm st parens f)
-    Forall qs f   -> par (linQuant st bang qs f)
-    Exists qs f   -> par (linQuant st questmark qs f)
-    Min tm        -> linMin st <> parens (linTm st tm)
-    MinRec tm     -> linMinRec st <> parens (linTm st tm)
-    CF tm         -> linCF st <> parens (linTm st tm)
-    IsType t1 t2  -> linIsType st <> parens (csv (map (linTm st) [t1,t2]))
+    Equal   t1 t2    -> linEqOp st equals t1 t2
+    Unequal t1 t2    -> linEqOp st unequals t1 t2
+    And fs           -> par (linBinOp st ampersand fs)
+    Or  fs           -> par (linBinOp st pipe fs)
+    Implies f1 f2    -> par (linBinOp st darrow [f1,f2])
+    Neg f            -> (not (isAtomic f) ? par) (tilde <> linForm st parens f)
+    Forall qs f      -> par (linQuant st bang qs f)
+    Exists qs f      -> par (linQuant st questmark qs f)
+    Pred Min [tm]    -> linMin st <> parens (linTm st tm)
+    Pred MinRec [tm] -> linMinRec st <> parens (linTm st tm)
+    Pred CF [tm]     -> linCF st <> parens (linTm st tm)
+    Pred IsType tms  -> linIsType st <> parens (csv (map (linTm st) tms))
+    Pred p xs        -> error $ "linForm: panic predicate "
+                            ++ show p ++ " args: " ++ show (length xs)
 
 -- | Linearise the equality operations: ==, !=
 linEqOp :: Style q v -> SDoc -> Term q v -> Term q v -> SDoc
@@ -114,6 +116,7 @@ linTm st tm = case tm of
     Proj i c t  -> linProj st i c <> parens (linTm st t)
     Ptr a       -> linPtr st a
     QVar a      -> linQVar st a
+    Lit i       -> error $ "linTm: Literal " ++ show i
 
 -- | Encloses a string in 'single quotes' if it is not a valid tptp
 --   identifier without it.

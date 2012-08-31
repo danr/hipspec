@@ -24,6 +24,10 @@ data Term q v
     | Proj Int v (Term q v)
     | Ptr v
     | QVar q
+    | Lit Integer
+  deriving (Eq,Ord,Show)
+
+data Pred = CF | Min | MinRec | IsType
   deriving (Eq,Ord,Show)
 
 data Formula q v
@@ -35,10 +39,7 @@ data Formula q v
     | Neg (Formula q v)
     | Forall [q] (Formula q v)
     | Exists [q] (Formula q v)
-    | CF (Term q v)
-    | Min (Term q v)
-    | MinRec (Term q v)
-    | IsType (Term q v) (Term q v)
+    | Pred Pred [Term q v]
   deriving (Eq,Ord,Show)
 
 data ClType

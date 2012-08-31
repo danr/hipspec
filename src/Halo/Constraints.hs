@@ -34,6 +34,7 @@ module Halo.Constraints where
 import CoreSubst
 import CoreSyn
 import CoreUtils
+import Literal
 import DataCon
 import Outputable
 import Id
@@ -44,23 +45,28 @@ import Data.List
 
 -- Constraints from case expressions to results, under a substitution
 data Constraint
-    = Equality   CoreExpr DataCon [CoreExpr]
-    | Inequality CoreExpr DataCon
+    = Equality      CoreExpr DataCon [CoreExpr]
+    | Inequality    CoreExpr DataCon
+    | LitEquality   CoreExpr Integer
+    | LitInequality CoreExpr Integer
 
 instance Show Constraint where
     show constr = case constr of
         Equality e dc bs ->
             showExpr e ++ " = " ++ showOutputable dc
               ++ "(" ++ intercalate "," (map showOutputable bs) ++ ")"
-        Inequality e dc ->
-             showExpr e ++ " != " ++ showOutputable dc
+        Inequality e dc   -> showExpr e ++ " != " ++ showOutputable dc
+        LitEquality e i   -> showExpr e ++ " = " ++ show i
+        LitInequality e i -> showExpr e ++ " != " ++ show i
 
 -- | Substitute in the constraints
 substConstr :: Subst -> Constraint -> Constraint
 substConstr s c = case c of
-    Equality e dc bs -> Equality (substExpr (text "substConstr") s e) dc
+    Equality e dc bs  -> Equality (substExpr (text "substConstr") s e) dc
                                  (map (substExpr (text "substConstr") s) bs)
-    Inequality e dc  -> Inequality (substExpr (text "substConstr") s e) dc
+    Inequality e dc   -> Inequality (substExpr (text "substConstr") s e) dc
+    LitEquality   e i -> LitEquality   (substExpr (text "substConstr") s e) i
+    LitInequality e i -> LitInequality (substExpr (text "substConstr") s e) i
 
 -- | The empty constraints
 noConstraints :: [Constraint]
@@ -88,6 +94,17 @@ conflict cs = or
         , isConLikeId x
         -- ^ only if x is a constructor!
         ]
+        -- Literal conflicts!
+     ++ [ cheapEqExpr e1 e2 && i /= j
+        | LitEquality e1 i <- cs
+        , LitEquality e2 j <- cs
+        ]
+     ++ [ cheapEqExpr e1 e2 && i == j
+        | LitEquality   e1 i <- cs
+        , LitInequality e2 j <- cs
+        ]
+     ++ [ i /= j | LitEquality   (Lit (LitInteger i _)) j <- cs ]
+     ++ [ i == j | LitInequality (Lit (LitInteger i _)) j <- cs ]
 
 rmRedundantConstraints :: [Constraint] -> [Constraint]
 rmRedundantConstraints = nubBy laxConstrEq . filter (not . redundant)
@@ -110,4 +127,6 @@ redundant c = case c of
     -- but what to do if it has arguments?
     Equality (collectArgs -> (Var x,[])) con []
         -> dataConWorkId con == x
+    LitEquality   (Lit (LitInteger i _)) j -> i == j
+    LitInequality (Lit (LitInteger i _)) j -> i /= j
     _ -> False

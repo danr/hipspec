@@ -60,8 +60,13 @@ collapse p x q y c xs
 
 rmMin :: Formula q v -> Rm (Formula q v)
 rmMin f = case f of
-    Min{}       -> Top
-    MinRec{}    -> Top
+    Pred Min _    -> Top
+    Pred MinRec _ -> Top
+
+    Pred _ _      -> Pure f
+
+    Equal{}     -> Pure f
+    Unequal{}   -> Pure f
 
     And fs -> collapse isBot Bot rmTop Top (Pure . ands) (map rmMin fs)
     Or fs  -> collapse isTop Top rmBot Bot (Pure . ors)  (map rmMin fs)
@@ -81,10 +86,6 @@ rmMin f = case f of
     Forall qs f' -> fmap (Forall qs) (rmMin f')
     Exists qs f' -> fmap (Exists qs) (rmMin f')
 
-    Equal{}     -> Pure f
-    Unequal{}   -> Pure f
-    CF{}        -> Pure f
-    IsType{}    -> Pure f
 
 rmToMaybe :: Rm a -> Maybe a
 rmToMaybe (Pure a) = Just a

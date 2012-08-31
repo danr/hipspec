@@ -21,7 +21,6 @@ module Halo.ExprTrans where
 
 import CoreSyn
 import CoreUtils
-import FastString
 import Literal
 
 import Halo.FOL.Abstract
@@ -67,20 +66,26 @@ trExpr e = do
             (f,es) -> do
                 unless (null es) regApp
                 apps <$> trExpr f <*> mapM trExpr es
+{-
         Lit (MachStr s) -> do
             write $ "String, " ++ unpackFS s ++ " coerced to bad"
             return bad
+-}
         Cast e' _ -> do
             write $ "Ignoring cast: " ++ showExpr e ++
                     "(hoping that it is a newtype cast)"
             trExpr e'
-        Case{}     -> intErr "case"
-        Let{}      -> intErr "let"
-        Lam{}      -> intErr "lambdas"
-        Lit{}      -> trErr "literals"
+        -- Int
+        Lit (MachInt i)      -> return (litInteger i)
+        -- Integer
+        Lit (LitInteger i _) -> return (litInteger i)
+        Lit{}      -> trErr "non-integer literals"
         Type{}     -> trErr "types"
         Coercion{} -> trErr "coercions"
         Tick{}     -> trErr "ticks"
+        Case{}     -> intErr "case"
+        Let{}      -> intErr "let"
+        Lam{}      -> intErr "lambdas"
   where
     trErr s  = throwError $ "trExpr: no support for " ++ s
                          ++ "\n    in expression: " ++ showExpr e

@@ -14,6 +14,7 @@ module Halo.FOL.Abstract
     , qvar
     , skolem
     , ptr
+    , litInteger
 
     , isAtomic
     , simpleCNF
@@ -118,6 +119,10 @@ skolem = Skolem
 ptr :: v -> Term q v
 ptr = Ptr
 
+-- | Make an Integer literal
+litInteger :: Integer -> Term q v
+litInteger = Lit
+
 infix 4 ===
 infix 4 =/=
 
@@ -189,16 +194,16 @@ foralls :: (UniverseBi (Formula q v) (Formula q v)
 foralls = flip forall' <*> allQuant
 
 min' :: Term q v -> Formula q v
-min' = Min
+min' t = Pred Min [t]
 
 minrec :: Term q v -> Formula q v
-minrec = MinRec
+minrec t = Pred MinRec [t]
 
 cf :: Term q v -> Formula q v
-cf = CF
+cf t = Pred CF [t]
 
 isType :: Term q v -> Term q v -> Formula q v
-isType = IsType
+isType t1 t2 = Pred IsType [t1,t2]
 
 type Atomic q v = Formula q v
 
@@ -213,10 +218,7 @@ isAtomic f = case f of
     (Neg x)     -> isAtomic x
     Forall{}    -> False
     Exists{}    -> False
-    CF{}        -> True
-    Min{}       -> True
-    MinRec{}    -> True
-    IsType{}    -> True
+    Pred{}      -> True
 
 -- | Can this formula be written simply in CNF?
 simpleCNF :: Formula q v -> Maybe [Atomic q v]

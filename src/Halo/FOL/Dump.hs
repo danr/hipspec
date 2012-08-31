@@ -51,18 +51,20 @@ dumpClType ty = case ty of
 --   Second argument is if it should be enclosed in parentheses.
 dumpForm :: (DLDoc -> DLDoc) -> Formula' -> DLDoc
 dumpForm par form = case form of
-    Equal   t1 t2 -> dumpEqOp equals t1 t2
-    Unequal t1 t2 -> dumpEqOp unequals t1 t2
-    And fs        -> par (dumpBinOp ampersand fs)
-    Or  fs        -> par (dumpBinOp pipe fs)
-    Implies f1 f2 -> par (dumpBinOp darrow [f1,f2])
-    Neg f         -> (not (isAtomic f) ? par) (space <> tilde <> dumpForm parens f)
-    Forall qs f   -> par (dumpQuant bang qs f)
-    Exists qs f   -> par (dumpQuant questmark qs f)
-    Min tm        -> text "$min" <> parens (dumpTm tm)
-    MinRec tm     -> text "minrec" <> parens (dumpTm tm)
-    CF tm         -> text "cf" <> parens (dumpTm tm)
-    IsType t1 t2  -> text "ty" <> parens (dumpTm t1 <> comma <> dumpTm t2)
+    Equal   t1 t2       -> dumpEqOp equals t1 t2
+    Unequal t1 t2       -> dumpEqOp unequals t1 t2
+    And fs              -> par (dumpBinOp ampersand fs)
+    Or  fs              -> par (dumpBinOp pipe fs)
+    Implies f1 f2       -> par (dumpBinOp darrow [f1,f2])
+    Neg f               -> (not (isAtomic f) ? par) (space <> tilde <> dumpForm parens f)
+    Forall qs f         -> par (dumpQuant bang qs f)
+    Exists qs f         -> par (dumpQuant questmark qs f)
+    Pred Min [tm]       -> text "$min" <> parens (dumpTm tm)
+    Pred MinRec [tm]    -> text "minrec" <> parens (dumpTm tm)
+    Pred CF [tm]        -> text "cf" <> parens (dumpTm tm)
+    Pred IsType [t1,t2] -> text "ty" <> parens (dumpTm t1 <> comma <> dumpTm t2)
+    Pred p xs           -> error $ "dumpForm: panic predicate "
+                            ++ show p ++ " args: " ++ show (length xs)
 
 -- | Dump the equality operations: ==, !=
 dumpEqOp :: DLDoc -> Term' -> Term' -> DLDoc
@@ -91,6 +93,7 @@ dumpTm tm = case tm of
     Proj i c t  -> char 's' <> (text . show) i <> dumpVar c <> dumpArgs [t]
     Ptr a       -> char 'p' <> dumpVar a
     QVar a      -> dumpQVar a
+    Lit i       -> error $ "dumpTm: Literal " ++ show i
 
 dumpVar :: Var -> DLDoc
 dumpVar = text . show . varUnique
