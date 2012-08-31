@@ -5,6 +5,12 @@ import Outputable hiding (quote)
 
 import Data.List
 
+import Var
+import TysPrim
+import Type
+import Id
+import Name
+
 import Halo.Util
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Operations
@@ -16,7 +22,7 @@ import Data.Map (Map)
 import Data.Maybe
 
 -- | Linearise a set of clauses to a String
-linSMT :: [StrClause] -> String
+linSMT :: [Clause'] -> String
 linSMT = (++ "\n") . showSDoc . linClauses
 
 -- | Linearise a sort declaration
@@ -31,7 +37,7 @@ linDeclFun name args res =
     parens (text "declare-fun" <+> name <+> parens (sep args) <+> res)
 
 -- | Linearise the set of clauses
-linClauses :: [StrClause] -> SDoc
+linClauses :: [Clause'] -> SDoc
 linClauses cls = vcat $ concat
     [ [parens (text "set-option :print-success false")]
     , [linDeclSort linDomain]
@@ -60,19 +66,29 @@ linClauses cls = vcat $ concat
 
     constant_decls = constants ptrsUsed linPtr ++ constants skolemsUsed linSkolem
 
-    function c i   = linDeclFun c (replicate i linDomain) linDomain
-    functions f ln = map (\(c,i) -> function (ln c) i)
-                   . S.toList . S.unions . map f $ cls
+    function c arg_tys = linDeclFun c (map linType arg_tys) linDomain
+    functions f linF = map (\(c,i) -> function (linF c) (fun_arg_tys c i))
+                     . S.toList . S.unions . map f $ cls
+
+    -- I# should be Int# -> D
+    fun_arg_tys :: Var -> Int -> [Type]
+    fun_arg_tys f i = take i (ts ++ repeat anyTy)
+      where (ts,_) = splitFunTys (repType (varType f))
 
     function_decls = functions funsUsed linFun ++ functions consUsed linCtor
 
-    projection_decls = [ linDeclFun (linProj p c) [linDomain] linDomain
-                       | (c,i) <- S.toList . S.unions . map consUsed $ cls
-                       , p <- [0..i-1]
-                       ]
+    projection_decls =
+        [ linDeclFun (linProj p c) [linDomain] (linType ty)
+        | (c,i) <- S.toList . S.unions . map consUsed $ cls
+        , p <- [0..i-1]
+        -- sel_0_I# should be D -> Int#
+        , let ty = case splitFunTys (repType (varType c)) of
+                      ([t],_) -> t
+                      _       -> anyTy
+        ]
 
 -- | Linearises a clause
-linClause :: StrClause -> SDoc
+linClause :: Clause' -> SDoc
 linClause (Comment s)
     = text ("\n" ++ intercalate "\n" (map ("; " ++) (lines s)))
 linClause (Clause cl_name cl_type cl_formula)
@@ -83,7 +99,7 @@ linClause (Clause cl_name cl_type cl_formula)
 
 -- | Linearise a formula.
 --   Second argument is if it should be enclosed in parentheses.
-linForm :: StrFormula -> SDoc
+linForm :: Formula' -> SDoc
 linForm form = parens $ case form of
     Equal   t1 t2    -> linEqOp equals t1 t2
     Unequal t1 t2    -> linEqOp (text "distinct") t1 t2
@@ -109,23 +125,32 @@ linFalse :: SDoc -> SDoc
 linFalse t = equals <+> text "false" <+> parens t
 
 -- | Linearise the equality operations: =, !=
-linEqOp :: SDoc -> StrTerm -> StrTerm -> SDoc
+linEqOp :: SDoc -> Term' -> Term' -> SDoc
 linEqOp op t1 t2 = op <+> linTerm t1 <+> linTerm t2
 
 -- | Linearise binary operations: or, and, =>
-linBinOp :: SDoc -> [StrFormula] -> SDoc
+linBinOp :: SDoc -> [Formula'] -> SDoc
 linBinOp op fs = op <+> sep (map linForm fs)
 
 -- | Linearise quantifiers: ! [..] :, ? [..] :
 --   op list should _not_ be empty
-linQuant :: SDoc -> [String] -> StrFormula -> SDoc
+linQuant :: SDoc -> [Var] -> Formula' -> SDoc
 linQuant op qs f = hang
-    (op <+> parens (sep (map (parens . (<+> text "D") . linQVar) qs))) 4
+    (op <+> parens (sep (map (linQuantBinder) qs))) 4
     (linForm f)
+
+-- | Linearises a quantifier binder, such as (x D) or (y Int)
+linQuantBinder :: Var -> SDoc
+linQuantBinder v = parens (linQuantVar v <+> linType (varType v))
+
+-- | Linearises a type, D or Int
+linType :: Type -> SDoc
+linType t | t `eqType` intPrimTy = linInt
+          | otherwise            = linDomain
 
 -- | Linearise a term
 --   The way to carry out most of the work is determined in the Style.
-linTerm :: StrTerm -> SDoc
+linTerm :: Term' -> SDoc
 linTerm (Skolem a) = linSkolem a
 linTerm tm = case tm of
     Fun a []    -> linFun a
@@ -136,32 +161,45 @@ linTerm tm = case tm of
     App t1 t2   -> parens $ linApp <+> sep (map linTerm [t1,t2])
     Proj i c t  -> parens $ linProj i c <+> linTerm t
     Ptr a       -> linPtr a
-    QVar a      -> linQVar a
+    QVar a      -> linQuantVar a
     Lit i       -> integer i
 
 -- | Our domain D
 linDomain :: SDoc
 linDomain = char 'D'
 
+-- | Integers
+linInt    :: SDoc
+linInt    = text "Int"
+
 -- | For predicates, the sort of booleans is used
-linBool :: SDoc
-linBool = text "Bool"
+linBool   :: SDoc
+linBool   = text "Bool"
+
+-- | Short representation of an Id/Var to String
+showVar :: Var -> String
+showVar v = (++ "_" ++ show (idUnique v))
+          . escape . showSDocOneLine . ppr . maybeLocaliseName . idName $ v
+  where
+    maybeLocaliseName n
+        | isSystemName n = n
+        | otherwise      = localiseName n
 
 -- | Pretty printing functions and variables
-linFun      :: String -> SDoc
-linFun      = text . escape . ("f_" ++)
+linFun      :: Var -> SDoc
+linFun      = text . ("f_" ++) . showVar
 
 -- | Pretty printing constructors
-linCtor     :: String -> SDoc
-linCtor     = text . escape . ("c_" ++)
+linCtor     :: Var -> SDoc
+linCtor     = text . ("c_" ++) . showVar
 
 -- | Pretty printing Skolemised variables
-linSkolem   :: String -> SDoc
-linSkolem   = text . escape . ("a_" ++)
+linSkolem   :: Var -> SDoc
+linSkolem   = text . ("a_" ++) . showVar
 
 -- | Quantified variables
-linQVar     :: String -> SDoc
-linQVar     = text . escape . ("q_" ++)
+linQuantVar :: Var -> SDoc
+linQuantVar = text . ("q_" ++) . showVar
 
 -- | The app/@ symbol
 linApp      :: SDoc
@@ -184,12 +222,12 @@ linIsType   :: SDoc
 linIsType   = text "type"
 
 -- | Projections
-linProj     :: Int -> String -> SDoc
-linProj     = \i n -> text (escape ("p_" ++ show i ++ "_" ++ n))
+linProj     :: Int -> Var -> SDoc
+linProj i   = text . (("s_" ++ show i ++ "_") ++) . showVar
 
 -- | Pointers
-linPtr      :: String -> SDoc
-linPtr      = text . escape . ("ptr_" ++)
+linPtr      :: Var -> SDoc
+linPtr      = text . ("p_" ++) . showVar
 
 -- | Escaping
 escape :: String -> String

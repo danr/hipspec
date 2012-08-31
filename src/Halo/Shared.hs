@@ -17,6 +17,7 @@ import Outputable
 import PprCore
 import PrelNames
 import TyCon
+import Type (Type)
 import UniqSet
 import Var
 
@@ -183,6 +184,9 @@ removeCruft e = case e of
 -- | Id and Arity of a DataCon
 dcIdArity :: DataCon -> (Id,Int)
 dcIdArity dc = (dataConWorkId dc,dataConRepArity dc)
+
+dcIdArgTypes :: DataCon -> (Id,[Type])
+dcIdArgTypes dc = (dataConWorkId dc,dataConRepArgTys dc)
 
 cheapExprEq :: CoreExpr -> CoreExpr -> Bool
 cheapExprEq (Var x)     (Var y)       = x == y

@@ -41,7 +41,6 @@ import Outputable
 
 import Var
 import TysPrim
--- import TysWiredIn
 import Type
 
 import Halo.Conf

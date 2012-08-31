@@ -34,10 +34,10 @@ module Halo.Constraints where
 import CoreSubst
 import CoreSyn
 import CoreUtils
-import Literal
 import DataCon
-import Outputable
 import Id
+import Literal
+import Outputable
 
 import Halo.Shared
 

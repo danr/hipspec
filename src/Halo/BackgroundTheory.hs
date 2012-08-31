@@ -22,6 +22,7 @@ import Outputable
 import TyCon
 import Type
 import TysPrim
+import Var
 
 import Halo.FOL.Abstract
 
@@ -48,11 +49,11 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
             [ foralls  $ [min' kxs,min' xi] ===> proj i k kxs === xi
             -- I think maybe this should just be min' kxs ==>
             | dc <- dcs
-            , let (k,arity) = dcIdArity dc
-                  xs        = take arity varNames
-                  kxs       = apply k (map qvar xs)
-            , i <- [0..arity-1]
-            , let xi        = qvar (xs !! i)
+            , let (k,arg_types) = dcIdArgTypes dc
+                  xs            = zipWith setVarType varNames arg_types
+                  kxs           = apply k (map qvar xs)
+            , i <- [0..length arg_types-1]
+            , let xi = qvar (xs !! i)
             ]
 
      -- Discriminations,  for j,k in the same TyCon + unr/bad, make j and k disjoint
@@ -61,8 +62,11 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
             -- (but for newtypes just say k(x) = x)
             | isNewTyCon ty_con =
-                [ forall' [x] (apply k [x'] === x')
-                | dc <- dcs, let (k,1) = dcIdArity dc
+                [ forall' [u] (apply k [u'] === u')
+                | dc <- dcs
+                , let (k,[t]) = dcIdArgTypes dc
+                      u = setVarType x t
+                      u' = qvar u
                 ]
 
             | otherwise =
@@ -76,8 +80,8 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
                       fromTag (min_guard,dc) = Disjoint{..}
                         where
-                          (symbol,arity) = dcIdArity dc
-                          is_ptr         = False
+                          (symbol,arg_types) = dcIdArgTypes dc
+                          is_ptr             = False
 
                 , (j,ks) <- zip disjoints (drop 1 (tails disjoints))
                 , k <- ks
@@ -107,22 +111,28 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
 data Disjoint = Disjoint
     { symbol            :: Var
-    , arity             :: Int
+    , arg_types         :: [Type]
     , is_ptr, min_guard :: Bool
     }
 
+-- | Makes these two entries disjoint
 makeDisjoint :: HaloConf -> Disjoint -> Disjoint -> Formula'
 makeDisjoint HaloConf{or_discr} dj dk =
       foralls $ ([ min' lhs | j_min ] ++ [ min' rhs | k_min ])
                 `implies` (lhs =/= rhs)
   where
-    Disjoint j j_arity j_ptr j_min = dj
-    Disjoint k k_arity k_ptr k_min = dk
+    Disjoint j j_arg_types j_ptr j_min = dj
+    Disjoint k k_arg_types k_ptr k_min = dk
+
+    k_arity = length k_arg_types
+    j_arity = length j_arg_types
 
     [] `implies` phi = phi
     xs `implies` phi = (if or_discr then ors else ands) xs ==> phi
 
-    (j_args,k_args) = second (take k_arity) (splitAt j_arity varNames)
+    (j_args0,k_args0) = second (take k_arity) (splitAt j_arity varNames)
+    j_args = zipWith setVarType j_args0 j_arg_types
+    k_args = zipWith setVarType k_args0 k_arg_types
 
     mkSide i i_args i_ptr
         | i_ptr     = ptr i
