@@ -22,6 +22,9 @@ module Halo.ExprTrans where
 import CoreSyn
 import CoreUtils
 import Literal
+import Name hiding (varName)
+import Module
+import Var
 
 import Halo.FOL.Abstract
 import Halo.Monad
@@ -63,6 +66,8 @@ trExpr e = do
                             unless (null es_after) regApp
                             inner <- apply f <$> mapM trExpr es_inner
                             apps inner <$> mapM trExpr es_after
+                | Just p <- trPrim f (length es) ->
+                    p <$> mapM trExpr es
             (f,es) -> do
                 unless (null es) regApp
                 apps <$> trExpr f <*> mapM trExpr es
@@ -91,3 +96,22 @@ trExpr e = do
                          ++ "\n    in expression: " ++ showExpr e
     intErr s = throwError $ "trExpr: internal error, unexpected " ++ s
                          ++ "\n    in expression: " ++ showExpr e
+
+trPrim :: Var -> Int -> Maybe ([Term'] -> Term')
+trPrim v no_args = do
+    let n = getOccString v
+    m <- moduleNameString . moduleName <$> nameModule_maybe (varName v)
+    M.lookup (m,n,no_args) prims
+  where
+    liftBool t = prim LiftBool [t]
+    prims = M.fromList
+        [(("GHC.Prim","+#" ,2),prim Add)
+        ,(("GHC.Prim","-#" ,2),prim Sub)
+        ,(("GHC.Prim","*#" ,2),prim Mul)
+        ,(("GHC.Prim","==#",2),liftBool . prim Eq)
+        ,(("GHC.Prim","/=#",2),liftBool . prim Ne)
+        ,(("GHC.Prim","<#" ,2),liftBool . prim Lt)
+        ,(("GHC.Prim","<=#",2),liftBool . prim Le)
+        ,(("GHC.Prim",">=#",2),liftBool . prim Ge)
+        ,(("GHC.Prim",">#" ,2),liftBool . prim Gt)
+        ]

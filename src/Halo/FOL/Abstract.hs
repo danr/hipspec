@@ -14,6 +14,7 @@ module Halo.FOL.Abstract
     , qvar
     , skolem
     , ptr
+    , prim
     , litInteger
 
     , isAtomic
@@ -34,6 +35,7 @@ module Halo.FOL.Abstract
 
     , Formula
     , Term
+    , Prim(..)
     , ClType
     , Clause
     , clause
@@ -119,7 +121,9 @@ skolem = Skolem
 ptr :: v -> Term q v
 ptr = Ptr
 
--- | Make an Integer literal
+prim :: Prim -> [Term q v] -> Term q v
+prim = Prim
+
 litInteger :: Integer -> Term q v
 litInteger = Lit
 

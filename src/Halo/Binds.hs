@@ -215,14 +215,18 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
 
             alts_wo_bottom = map subst_alt alts_unsubst
 
-        -- The min part, makes the scrutinee interesting
-        min_part <- bindPart (Min scrutinee)
+            primitive_case = varType scrut_var `eqType` intPrimTy
+
+        -- The min part, makes the scrutinee interesting,
+        -- unless we are casing on a primitive (say Int#)
+        min_part <- sequence [ bindPart (Min scrutinee) | not primitive_case ]
 
         write $ "Adding bottom case, scrut var type is " ++
-            showOutputable (varType scrut_var)
+            showOutputable (varType scrut_var) ++
+            " primive_case: " ++ show primitive_case
 
-        -- Add UNR/BAD alternatives
-        alts' <- if varType scrut_var `eqType` intPrimTy
+        -- Add UNR/BAD alternatives, unless casing on a primitive (say Int#)
+        alts' <- if primitive_case
                     then do
                         write "No bottom case on primitive int"
                         return alts_wo_bottom
@@ -253,7 +257,7 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
              -- (mutually recursive with this function)
              alt_parts <- concatMapM (trAlt scrutinee) alts
 
-             return (min_part : alt_parts ++ def_part)
+             return (min_part ++ alt_parts ++ def_part)
 
 trCase e = return <$> bindPart (Rhs e)
 

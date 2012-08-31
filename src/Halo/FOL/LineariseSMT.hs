@@ -8,8 +8,9 @@ import Data.List
 import Var
 import TysPrim
 import Type
-import Id
-import Name
+import TysWiredIn
+import DataCon
+import Name hiding (varName)
 
 import Halo.Util
 import Halo.FOL.Internals.Internals
@@ -48,6 +49,7 @@ linClauses cls = vcat $ concat
     , constant_decls
     , function_decls
     , projection_decls
+    , lift_bool_defn
     , map linClause cls
     , [parens (text "check-sat")]
     ]
@@ -69,6 +71,9 @@ linClauses cls = vcat $ concat
     function c arg_tys = linDeclFun c (map linType arg_tys) linDomain
     functions f linF = map (\(c,i) -> function (linF c) (fun_arg_tys c i))
                      . S.toList . S.unions . map f $ cls
+
+    lift_bool_defn =
+        [ linLiftBoolDefn | S.member LiftBool . S.unions . map primsUsed $ cls ]
 
     -- I# should be Int# -> D
     fun_arg_tys :: Var -> Int -> [Type]
@@ -154,15 +159,18 @@ linTerm :: Term' -> SDoc
 linTerm (Skolem a) = linSkolem a
 linTerm tm = case tm of
     Fun a []    -> linFun a
-    Fun a tms   -> parens $ linFun a <+> sep (map linTerm tms)
+    Fun a tms   -> parens $ linFun a <+> linTerms tms
     Ctor a []   -> linCtor a
-    Ctor a tms  -> parens $ linCtor a <+> sep (map linTerm tms)
+    Ctor a tms  -> parens $ linCtor a <+> linTerms tms
     Skolem a    -> linSkolem a
-    App t1 t2   -> parens $ linApp <+> sep (map linTerm [t1,t2])
+    App t1 t2   -> parens $ linApp <+> linTerms [t1,t2]
     Proj i c t  -> parens $ linProj i c <+> linTerm t
     Ptr a       -> linPtr a
     QVar a      -> linQuantVar a
+    Prim p tms  -> parens $ linPrim p <+> linTerms tms
     Lit i       -> integer i
+  where
+    linTerms = sep . map linTerm
 
 -- | Our domain D
 linDomain :: SDoc
@@ -176,10 +184,10 @@ linInt    = text "Int"
 linBool   :: SDoc
 linBool   = text "Bool"
 
--- | Short representation of an Id/Var to String
+-- | Short representation of a Var to String
 showVar :: Var -> String
-showVar v = (++ "_" ++ show (idUnique v))
-          . escape . showSDocOneLine . ppr . maybeLocaliseName . idName $ v
+showVar v = (++ "_" ++ show (varUnique v))
+          . escape . showSDocOneLine . ppr . maybeLocaliseName . varName $ v
   where
     maybeLocaliseName n
         | isSystemName n = n
@@ -267,3 +275,49 @@ escapes = M.fromList $ map (uncurry (flip (,)))
     , ("_equals_",'=')
     , ("_",' ')
     ]
+
+linPrim :: Prim -> SDoc
+linPrim p = case p of
+    Add -> char '+'
+    Sub -> char '-'
+    Mul -> char '*'
+    Eq  -> char '='
+    Ne  -> text "!=" -- will this work?
+    Lt  -> char '<'
+    Le  -> text "<="
+    Ge  -> text ">="
+    Gt  -> char '>'
+    LiftBool -> linLiftBool
+
+linLiftBool :: SDoc
+linLiftBool = text "lift_bool"
+
+linLiftBoolDefn :: SDoc
+linLiftBoolDefn = vcat $
+    linDeclFun linLiftBool [linBool] linDomain :
+    [ parens $ text "assert" <+>
+        parens (equals <+> parens (linLiftBool <+> text in_bool)
+                       <+> in_domain)
+    | (in_bool,in_domain) <-
+        [("true",linCtor (dataConWorkId trueDataCon))
+        ,("false",linCtor (dataConWorkId falseDataCon))
+        ]
+    ]
+
+{-
+primType :: Prim -> ([SDoc],SDoc)
+primType p = case p of
+    Add      -> int_int_int
+    Sub      -> int_int_int
+    Mul      -> int_int_int
+    Eq       -> int_int_bool
+    Ne       -> int_int_bool
+    Lt       -> int_int_bool
+    Le       -> int_int_bool
+    Ge       -> int_int_bool
+    Gt       -> int_int_bool
+    LiftBool -> ([linBool],linDomain)
+  where
+    int_int_int  = ([linInt,linInt],linInt)
+    int_int_bool = ([linInt,linInt],linBool)
+-}

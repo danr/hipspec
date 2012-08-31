@@ -46,8 +46,8 @@ tyConSubtheories :: HaloConf -> [TyCon] -> [Subtheory s]
 tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
     [ -- Projections, for each constructor k
     let projections =
-            [ foralls  $ [min' kxs,min' xi] ===> proj i k kxs === xi
-            -- I think maybe this should just be min' kxs ==>
+            [ foralls  $ [min' kxs {- ,min' xi -} ] ===> proj i k kxs === xi
+            -- Used to also have min' xi ==>
             | dc <- dcs
             , let (k,arg_types) = dcIdArgTypes dc
                   xs            = zipWith setVarType varNames arg_types

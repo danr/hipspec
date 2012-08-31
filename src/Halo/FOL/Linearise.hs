@@ -116,6 +116,7 @@ linTm st tm = case tm of
     Proj i c t  -> linProj st i c <> parens (linTm st t)
     Ptr a       -> linPtr st a
     QVar a      -> linQVar st a
+    Prim p _    -> error $ "linTm: Primitve " ++ show p
     Lit i       -> error $ "linTm: Literal " ++ show i
 
 -- | Encloses a string in 'single quotes' if it is not a valid tptp

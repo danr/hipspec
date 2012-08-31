@@ -93,6 +93,7 @@ dumpTm tm = case tm of
     Proj i c t  -> char 's' <> (text . show) i <> dumpVar c <> dumpArgs [t]
     Ptr a       -> char 'p' <> dumpVar a
     QVar a      -> dumpQVar a
+    Prim p _    -> error $ "dumpTm: Primitve " ++ show p
     Lit i       -> error $ "dumpTm: Literal " ++ show i
 
 dumpVar :: Var -> DLDoc

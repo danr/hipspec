@@ -19,6 +19,7 @@ replaceVarsTm k = go
         Proj i v a -> Proj i (k v) (go a)
         Ptr v      -> Ptr (k v)
         QVar q     -> QVar q
+        Prim p as  -> Prim p (map go as)
         Lit i      -> Lit i
 
 replaceQVarsTm :: (q -> r) -> Term q v -> Term r v
@@ -32,6 +33,7 @@ replaceQVarsTm k = go
         Proj i v a -> Proj i v (go a)
         Ptr v      -> Ptr v
         QVar q     -> QVar (k q)
+        Prim p as  -> Prim p (map go as)
         Lit i      -> Lit i
 
 formulaMapTerms :: (Term q v -> Term r u) -> (q -> r)
@@ -125,6 +127,9 @@ consUsed cl    = S.fromList [ (c,length as) | Ctor c as :: Term q v <- universeB
 
 ptrsUsed :: forall q v . Ord v => Clause q v -> Set v
 ptrsUsed cl    = S.fromList [ p | Ptr p :: Term q v <- universeBi cl ]
+
+primsUsed :: forall q v . Ord v => Clause q v -> Set Prim
+primsUsed cl   = S.fromList [ p | Prim p _ :: Term q v <- universeBi cl ]
 
 skolemsUsed :: forall q v . Ord v => Clause q v -> Set v
 skolemsUsed cl = S.fromList [ s | Skolem s :: Term q v <- universeBi cl ]
