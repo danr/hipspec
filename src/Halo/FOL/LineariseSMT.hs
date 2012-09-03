@@ -85,11 +85,9 @@ linClauses cls = vcat $ concat
     projection_decls =
         [ linDeclFun (linProj p c) [linDomain] (linType ty)
         | (c,i) <- S.toList . S.unions . map consUsed $ cls
-        , p <- [0..i-1]
+        , let (tys,_) = splitFunTys (repType (varType c))
+        , (p,ty) <- zip [0..i-1] (tys ++ repeat anyTy)
         -- sel_0_I# should be D -> Int#
-        , let ty = case splitFunTys (repType (varType c)) of
-                      ([t],_) -> t
-                      _       -> anyTy
         ]
 
 -- | Linearises a clause
