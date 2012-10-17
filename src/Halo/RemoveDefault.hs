@@ -117,7 +117,7 @@ unrollDefault alts0 = case findDefault alts0 of
     int_err s = do
         f <- ask
         return $ error $ "unrollDefault internal error: " ++ s ++
-                         " in function " ++ show f
+                         " in function " ++ showOutputable f
 
 findAlt :: [CoreAlt] -> DataCon -> Maybe CoreAlt
 findAlt (alt@(DataAlt dc',_,_):_) dc | dc' == dc = Just alt
@@ -135,4 +135,3 @@ makeAlt rhs dc = do
   where
     dummy_var :: Type -> Unique -> Var
     dummy_var ty u = mkSysLocal (fsLit "d") u ty
-

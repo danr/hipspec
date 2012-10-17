@@ -18,7 +18,6 @@ module Halo.BackgroundTheory
     , Disjoint(..)
     ) where
 
-import Outputable
 import TyCon
 import Type
 import TysPrim
@@ -100,7 +99,7 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
     in  Subtheory
             { provides    = Data ty_con
             , depends     = []
-            , description = showSDoc (pprSourceTyCon ty_con)
+            , description = showOutputable ty_con
             , formulae    = projections ++ discrims
             }
         : pointer_subthys

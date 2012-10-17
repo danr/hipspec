@@ -78,7 +78,7 @@ go vs es
     maybe_unfold :: Var -> Writer [String] (Maybe (Id,CoreExpr))
     maybe_unfold x = do
         let res = fmap ((,) x) (maybeUnfoldingTemplate (realIdUnfolding x))
-        write $ "Unfolding of " ++ show x ++ ": " ++ showOutputable res
+        write $ "Unfolding of " ++ showOutputable x ++ ": " ++ showOutputable res
         return res
 
 arrangeCoreBinds :: VarSet -> [(Var,CoreExpr)] -> [CoreBind]
@@ -101,4 +101,3 @@ fetchTyCons :: [CoreBind] -> [TyCon]
 fetchTyCons = sort . unions . map freeTyCons . snd . unzip . flattenBinds
   where
     unions = foldl union []
-

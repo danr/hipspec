@@ -33,7 +33,6 @@ module Halo.Binds
 
 import CoreSubst
 import CoreSyn
-import PprCore
 import DataCon
 import Id
 import Literal
@@ -143,7 +142,7 @@ trBindParts f e parts = do
     return $ Subtheory
         { provides    = Function f
         , depends     = deps ++ ptr_deps
-        , description = idToStr f ++ " = " ++ showSDoc (pprCoreExpr e)
+        , description = idToStr f ++ " = " ++ showExpr e
                      ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
         , formulae    = tr_formulae
         }
@@ -158,7 +157,7 @@ trBind f e = err_handler $ do
     err_handler m = m `catchError` \err -> do
       cleanUpFailedCapture
       return ((mkDummySubtheory (Function f))
-                 { formulae = error $ "trBind, " ++ show f ++ " yielded " ++ err }
+                 { formulae = error $ "trBind, " ++ showOutputable f ++ " yielded " ++ err }
              ,M.empty)
 
 -- | Translate a CoreDecl to bind parts
@@ -382,4 +381,3 @@ bindPartDeps BindPart{..}
 
     isFunction Function{} = True
     isFunction _          = False
-

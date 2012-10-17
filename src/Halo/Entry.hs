@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, CPP #-}
 {-
 
     A main entry point to Halo, called `desugar', even though it can
@@ -39,7 +39,11 @@ desugar dc fp = first fst <$> desugarAndTypeEnv dc fp
 
 desugarAndTypeEnv :: DesugarConf -> FilePath -> IO ((ModGuts,TypeEnv),DynFlags)
 desugarAndTypeEnv DesugarConf{..} targetFile =
+#if __GLASGOW_HASKELL__ >= 706
+  defaultErrorHandler defaultFatalMessager defaultFlushOut $
+#else
   defaultErrorHandler defaultLogAction $
+#endif
     {- defaultCleanupHandler defaultDynFlags $ -} do
       runGhc (Just libdir) $ do
         dflags <- getSessionDynFlags
@@ -85,4 +89,3 @@ lambdaLift dflags program = do
         , floatOutConstants = False
         , floatOutPartialApplications = True
         }
-

@@ -5,8 +5,8 @@ module Halo.FOL.Rename where
 import Var
 import Name
 import Id
-import Outputable
 
+import Halo.Shared
 import Halo.Util
 
 import Halo.FOL.Internals.Internals
@@ -58,7 +58,7 @@ mkFunRenamer clauses =
         replace :: Var -> String
         replace v = case M.lookup v rep_map of
                         Just s  -> s
-                        Nothing -> error $ "renameFuns: " ++ showSDoc (ppr v)
+                        Nothing -> error $ "renameFuns: " ++ showOutputable v
                                         ++ " not renamed!"
 
     in  (clauseMapTerms (replaceVarsTm replace) id,str_map)
@@ -100,8 +100,7 @@ varSuggest var = candidates
     name = idName var
 
     strs :: [String]
-    strs = map (toTPTPid . showSDoc)
-               [ppr (nameOccName name),ppr name]
+    strs = map toTPTPid [showOutputable (nameOccName name),showOutputable name]
 
     candidates :: [String]
     candidates = strs ++ [ s ++ "_" ++ show x | s <- strs , x <- [(0 :: Int)..]]

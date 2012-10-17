@@ -15,7 +15,6 @@ import Id
 import Name
 import MkCore
 import OccName
-import Outputable
 import Type
 import UniqSupply
 import Unique
@@ -133,7 +132,7 @@ mkLiftedName :: Type -> String -> LiftM Var
 mkLiftedName ty lbl = do
     i <- liftUnique
     fun_var <- asks fun
-    let fun_desc = showSDoc . ppr . localiseName . Var.varName $ fun_var
+    let fun_desc = idToStr fun_var
         name = mkSystemName i (mkOccName OccName.varName (fun_desc ++ "_" ++ lbl))
         var' = mkLocalId name ty
     return var'
@@ -150,7 +149,7 @@ liftInnerLambda x e = do
 
     new_fun <- mkLiftedName (mkPiTypes lam_args_x (exprType e)) "lam"
 
-    dbgMsg $ "Lift lambda: " ++ showExpr (Lam x e) ++ " new name: " ++ show new_fun
+    dbgMsg $ "Lift lambda: " ++ showExpr (Lam x e) ++ " new name: " ++ showOutputable new_fun
 
     lifted_lam <- local (modArgs (const lam_args_x) . setFun new_fun)
                         (liftCoreBind (NonRec new_fun e))
@@ -172,7 +171,7 @@ liftInnerCase scrutinee scrut_var ty alts = do
 
     new_fun <- mkLiftedName (mkPiTypes case_args ty) "case"
 
-    dbgMsg $ "Lift case: " ++ showExpr e ++ " new name: " ++ show new_fun
+    dbgMsg $ "Lift case: " ++ showExpr e ++ " new name: " ++ showOutputable new_fun
 
     lifted_case <- local (modArgs (const case_args) . setFun new_fun)
                          (liftCoreBind (NonRec new_fun e))
@@ -217,5 +216,3 @@ liftInnerDecl v e = do
                       (liftDecl new_v (substExp v subst_v e))
 
     return ((new_v,lifted_e),(v,subst_v))
-
-

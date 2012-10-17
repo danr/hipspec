@@ -78,8 +78,8 @@ datas = map Data
 
 baseContentShow :: Content s -> String
 baseContentShow c = case c of
-    Function v          -> "(Function " ++ show v ++ ")"
-    Pointer v           -> "(Pointer " ++ show v ++ ")"
+    Function v          -> "(Function " ++ showOutputable v ++ ")"
+    Pointer v           -> "(Pointer " ++ showOutputable v ++ ")"
     Data tc             -> "(Data " ++ showOutputable tc ++ ")"
     ExtensionalEquality -> "(Extensional equality)"
     AppTheory           -> "(AppTheory)"

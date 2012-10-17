@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, CPP #-}
 {-
 
     Shared functions operating on GHC
@@ -10,6 +10,7 @@ import CoreFVs
 import CoreSubst
 import CoreSyn
 import DataCon
+import DynFlags
 import Id
 import MkCore (errorIds)
 import Name hiding (varName)
@@ -17,7 +18,7 @@ import Outputable
 import PprCore
 import PrelNames
 import TyCon
-import Type (Type)
+import Type (Type, repType, flattenRepType)
 import UniqSet
 import Var
 
@@ -31,11 +32,15 @@ mkCoreBind fses    = Rec fses
 
 -- | Shows something outputable
 showOutputable :: Outputable a => a -> String
+#if __GLASGOW_HASKELL__ >= 706
+showOutputable = showSDoc tracingDynFlags . ppr
+#else
 showOutputable = showSDoc . ppr
+#endif
 
 -- | Short representation of an Id/Var to String
 idToStr :: Id -> String
-idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
+idToStr = showOutputable . maybeLocaliseName . idName
   where
     maybeLocaliseName n
         | isSystemName n = n
@@ -43,7 +48,11 @@ idToStr = showSDocOneLine . ppr . maybeLocaliseName . idName
 
 -- | Shows a Core Expression
 showExpr :: CoreExpr -> String
+#if __GLASGOW_HASKELL__ >= 706
+showExpr = showSDoc tracingDynFlags . pprCoreExpr
+#else
 showExpr = showSDoc . pprCoreExpr
+#endif
 
 -- | If a binder alternates between binding type variables and normal
 --   variables, this one strips off all the type variables.
@@ -138,7 +147,7 @@ lookupBind :: [CoreBind] -> Var -> CoreExpr
 lookupBind bs =
     let bs_map = M.fromList (flattenBinds bs)
     in \v ->
-        let err = error $ "lookup_bind: lost binding for " ++ show v
+        let err = error $ "lookup_bind: lost binding for " ++ showOutputable v
         in fromMaybe err (M.lookup v bs_map)
 
 -- | Is this Id a "constructor" to a newtype?
@@ -194,3 +203,11 @@ cheapExprEq (Lam x e1)  (Lam y e2)    = x == y && cheapExprEq e1 e2
 cheapExprEq (App e1 e2) (App e1' e2')
     = cheapExprEq e1 e2 && cheapExprEq e1' e2'
 cheapExprEq _ _ = False
+
+-- | Drop in replacement for repType
+repType' :: Type -> Type
+#if __GLASGOW_HASKELL__ >= 706
+repType' = fromMaybe (error "repType'") . listToMaybe . flattenRepType . repType
+#else
+repType' = repType
+#endif

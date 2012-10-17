@@ -89,7 +89,7 @@ type ArityMap = Map Var Int
 -- | Debug the arity map
 showArityMap :: ArityMap -> [String]
 showArityMap m =
-    [ show k ++ "(" ++ show (getUnique k) ++ "):" ++ show v
+    [ showOutputable k ++ "(" ++ show (getUnique k) ++ "):" ++ show v
     | (k,v) <- M.toList m ]
 
 -- | The Environment
@@ -218,7 +218,7 @@ capturePtrs m = do
 -- | Register a pointer as used. Must be run inside capturePtrs
 usePtr :: Var -> HaloM ()
 usePtr v = do
-    write $ "Registering " ++ show v ++ " as a used pointer"
+    write $ "Registering " ++ showOutputable v ++ " as a used pointer"
     m_vs <- get
     case m_vs of
         Nothing     -> throwError "usePtr: Internal error, ptr used without capture"

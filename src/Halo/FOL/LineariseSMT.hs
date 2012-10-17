@@ -10,8 +10,9 @@ import TysPrim
 import Type
 import TysWiredIn
 import DataCon
-import Name hiding (varName)
+import DynFlags
 
+import Halo.Shared
 import Halo.Util
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Operations
@@ -24,7 +25,7 @@ import Data.Maybe
 
 -- | Linearise a set of clauses to a String
 linSMT :: [Clause'] -> String
-linSMT = (++ "\n") . showSDoc . linClauses
+linSMT = (++ "\n") . showSDoc tracingDynFlags . linClauses
 
 -- | Linearise a sort declaration
 --   We will only declare the sort D of our domain
@@ -78,14 +79,14 @@ linClauses cls = vcat $ concat
     -- I# should be Int# -> D
     fun_arg_tys :: Var -> Int -> [Type]
     fun_arg_tys f i = take i (ts ++ repeat anyTy)
-      where (ts,_) = splitFunTys (repType (varType f))
+      where (ts,_) = splitFunTys (repType' (varType f))
 
     function_decls = functions funsUsed linFun ++ functions consUsed linCtor
 
     projection_decls =
         [ linDeclFun (linProj p c) [linDomain] (linType ty)
         | (c,i) <- S.toList . S.unions . map consUsed $ cls
-        , let (tys,_) = splitFunTys (repType (varType c))
+        , let (tys,_) = splitFunTys (repType' (varType c))
         , (p,ty) <- zip [0..i-1] (tys ++ repeat anyTy)
         -- sel_0_I# should be D -> Int#
         ]
@@ -184,12 +185,7 @@ linBool   = text "Bool"
 
 -- | Short representation of a Var to String
 showVar :: Var -> String
-showVar v = (++ "_" ++ show (varUnique v))
-          . escape . showSDocOneLine . ppr . maybeLocaliseName . varName $ v
-  where
-    maybeLocaliseName n
-        | isSystemName n = n
-        | otherwise      = localiseName n
+showVar v = (++ "_" ++ show (varUnique v)) . escape . idToStr $ v
 
 -- | Pretty printing functions and variables
 linFun      :: Var -> SDoc
