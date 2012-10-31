@@ -18,7 +18,11 @@ import Outputable
 import PprCore
 import PrelNames
 import TyCon
+#if __GLASGOW_HASKELL__ >= 706
 import Type (Type, repType, flattenRepType)
+#else
+import Type (Type, repType)
+#endif
 import UniqSet
 import Var
 
