@@ -10,7 +10,6 @@ import TysPrim
 import Type
 import TysWiredIn
 import DataCon
-import DynFlags
 
 import Halo.Shared
 import Halo.Util
@@ -25,7 +24,7 @@ import Data.Maybe
 
 -- | Linearise a set of clauses to a String
 linSMT :: [Clause'] -> String
-linSMT = (++ "\n") . showSDoc tracingDynFlags . linClauses
+linSMT = (++ "\n") . portableShowSDoc . linClauses
 
 -- | Linearise a sort declaration
 --   We will only declare the sort D of our domain

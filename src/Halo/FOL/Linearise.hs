@@ -12,11 +12,10 @@ import Var
 import Data.Char
 import Data.List
 
+import Halo.Shared
 import Halo.Util
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
-
-import DynFlags
 
 -- | Linearise string clauses with strStyle
 linStrStyleTPTP :: StyleConf -> [StrClause] -> String
@@ -28,7 +27,7 @@ linVarStyleTPTP = linTPTP . varStyle
 
 -- | Linearise a set of clauses to a String
 linTPTP :: Style q v -> [Clause q v] -> String
-linTPTP st = (++ "\n") . showSDoc tracingDynFlags . linClauses st
+linTPTP st = (++ "\n") . portableShowSDoc . linClauses st
 
 -- | Linearise a set of clauses
 linClauses :: Style q v -> [Clause q v] -> SDoc
