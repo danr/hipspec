@@ -97,11 +97,11 @@ defParams = Params
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
     , quickspec           = False   &= name "Q" &= help "Print conjectures from QuickSpec"
 
-    , inddepth            = 1       &= groupname "\nStructural induction"
+    , inddepth            = 1       &= name "D" &= groupname "\nStructural induction"
                                     &= help "Maximum depth                   (default 1)"
-    , indvars             = 1       &= help "Maximum variables               (default 1)"
-    , indhyps             = 200     &= help "Maximum hypotheses              (default 200)"
-    , indparts            = 10      &= help "Maximum parts (bases and steps) (default 10)"
+    , indvars             = 1       &= name "S" &= help "Maximum variables               (default 1)"
+    , indhyps             = 200     &= name "H" &= help "Maximum hypotheses              (default 200)"
+    , indparts            = 10      &= name "P" &= help "Maximum parts (bases and steps) (default 10)"
 
 
     , db_str_marsh        = False   &= groupname "\nDebugging"
