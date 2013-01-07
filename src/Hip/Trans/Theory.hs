@@ -64,7 +64,7 @@ setExtraDependencies use_min s@(Subtheory{..}) = case provides of
 --      ! [X1,..,Xn] . type(f(X1,..,Xn),tr)
 mkResultTypeAxioms :: [CoreBind] -> [HipSpecSubtheory]
 mkResultTypeAxioms binds =
-    [ let (args_ty,res_ty)  = splitFunTys (repType (varType f))
+    [ let (args_ty,res_ty)  = splitFunTys (repType' (varType f))
           us                = zipWith setVarType varNames args_ty
           fus               = apply f (map qvar us)
           (ty_qs,res_ty_tm) = trType res_ty
@@ -75,7 +75,7 @@ mkResultTypeAxioms binds =
       in  Subtheory
               { provides    = Specific (ResultType f)
               , depends     = []
-              , description = "Result type axiom for " ++ show f
+              , description = "Result type axiom for " ++ showOutputable f
               , formulae    = res_ty_formulae
               }
     | (f,e) <- flattenBinds binds

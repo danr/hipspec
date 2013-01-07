@@ -16,5 +16,3 @@ TODO
 
         Behave like ghc –c, called “OneShot” mode.
 
-
-

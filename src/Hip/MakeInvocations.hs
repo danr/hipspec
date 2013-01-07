@@ -81,7 +81,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
 
         toTPTP :: [Clause'] -> [HipSpecSubtheory] -> String
         toTPTP extra_clauses
-            = (if readable_tptp then linStrStyleTPTP style_conf . renameClauses
+            = (if readable_tptp then linStrStyleTPTP style_conf . fst . renameClauses
                     else dumpTPTP)
             . map (clauseMapFormula typeGuardFormula)
             . (not min ? removeMins)

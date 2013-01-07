@@ -16,6 +16,9 @@ module Hip.Trans.Types
     , finiteType
     ) where
 
+
+import Halo.Shared
+
 import Hip.Induction
 
 import Type
@@ -50,7 +53,7 @@ instDataCon data_con args =
        inst_args = dataConInstArgTys data_con args
 
        calc_Arg :: Type -> Arg Type
-       calc_Arg (repType -> ty)
+       calc_Arg (repType' -> ty)
            | Just (ty_con,_) <- splitTyConApp_maybe ty
            , ty_con == parent_ty_con = Rec ty
 
@@ -70,7 +73,7 @@ finiteType ty = finType [] ty
   where
     --
     finType :: [Type] -> Type -> Bool
-    finType visited (repType -> ty)     -- repType looks through foralls,
+    finType visited (repType' -> ty)     -- repType' looks through foralls,
                                         -- synonyms, predicates and newtypes
 
         -- Recursive types are never finite
@@ -104,7 +107,7 @@ finiteType ty = finType [] ty
 
         -- Raise error if we get some other type
         | otherwise    = error $ "Hip.Trans.Types.finiteType "
-                              ++ showSDoc (ppr ty)
+                              ++ showOutputable ty
                               ++ " neither forall, alg, fun or type variable!"
       where
         visited' = ty:visited

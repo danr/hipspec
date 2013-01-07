@@ -63,7 +63,7 @@ trLemma lemma@Prop{..} = do
     (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
         { provides    = Specific (Lemma propRepr)
-        , depends     = map Function propFunDeps ++ map Pointer ptrs
+        , depends     = map Function propFunDeps ++ ptrs
         , description = "Lemma " ++ propRepr
                         ++ "\ndependencies: " ++ unwords (map idToStr propFunDeps)
         , formulae    = tr_lem
@@ -98,9 +98,9 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
           return []
 
   where
-    mkPart :: ProofMethod -> [Var] -> [Particle] -> Part
-    mkPart meth ptrs particles = Part meth (deps,subthys,particles)
-      where deps = map Function propFunDeps ++ map Pointer ptrs
+    mkPart :: ProofMethod -> [HipSpecContent] -> [Particle] -> Part
+    mkPart meth ptr_content particles = Part meth (deps,subthys,particles)
+      where deps = map Function propFunDeps ++ ptr_content
 
     plainProof :: MakerM Part
     plainProof = do
@@ -166,9 +166,9 @@ trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
 
 ghcStyle :: Style DataCon Var Type
 ghcStyle = Style
-    { linc = P.text . showSDoc . ppr
-    , linv = P.text . showSDoc . ppr
-    , lint = P.text . showSDoc . ppr
+    { linc = P.text . showOutputable
+    , linv = P.text . showOutputable
+    , lint = P.text . showOutputable
     }
 
 data Loc = Hyp | Concl

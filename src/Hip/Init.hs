@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
 module Hip.Init where
 
 import Hip.BuiltinTypes
@@ -44,8 +44,9 @@ processFile file = do
 
     us <- mkSplitUniqSupply 'f'
 
-    ((lifted_program,_msgs_lift),_us) <- (`caseLetLift` us)
-                                     <$> lambdaLift dflags unlifted_program
+    ((lifted_program,_msgs_lift),_us) <-
+        (\binds -> caseLetLift binds case_lift_inner us)
+        <$> lambdaLift dflags unlifted_program
 
     let isPropBinder (NonRec x _) | isPropType x = True
         isPropBinder _ = False
@@ -64,8 +65,8 @@ processFile file = do
             , use_minrec        = min
             , unr_and_bad       = False
             , ext_eq            = True
-            , disjoint_booleans = True
             , or_discr          = False
+            , var_scrut_constr  = var_scrut_constr
             }
 
         halo_env = mkEnv halo_conf ty_cons_with_builtins core_defns

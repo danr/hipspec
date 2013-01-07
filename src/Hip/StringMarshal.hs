@@ -44,7 +44,7 @@ makeStringMarshallings debug mg = do
             | otherwise = return ()
 
     varANNs <- sequence $
-        [ do dbmsg $ "Function: " ++ name_str ++ " -> " ++ show v
+        [ do dbmsg $ "Function: " ++ name_str ++ " -> " ++ showOutputable v
              return (name_str,(v,True))
         | (v,_) <- binds
         , let name_str = occNameString (getOccName v)

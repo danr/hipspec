@@ -13,6 +13,8 @@ import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
 import qualified Test.QuickSpec.Utils.Typeable as Ty
 
+import Halo.Shared
+
 import Hip.StringMarshal
 import Hip.Trans.Theory
 import Hip.Trans.Property
@@ -43,7 +45,7 @@ typeRepToType (_,strToTyCon) = go
     go :: Ty.TypeRep -> Type
     go t | Just (ta,tb) <- splitArrow t   = go ta `GhcType.mkFunTy` go tb
     go t = let (ty_con,ts) = Ty.splitTyConApp t
-               _tr r = tyConName ty_con ++ " ~> " ++ showSDoc (pprSourceTyCon r)
+               _tr r = tyConName ty_con ++ " ~> " ++ portableShowSDoc (pprSourceTyCon r)
            in  fromMaybe a
                 (fmap (\r -> {- trace (tr r) -} r `GhcType.mkTyConApp` map go ts)
                       (M.lookup (tyConName ty_con) strToTyCon))

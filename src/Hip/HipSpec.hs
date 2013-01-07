@@ -189,7 +189,8 @@ hipSpec file sig0 = do
                           else equations
 
         univ      = concat classes
-        prunedEqs = prune (maxDepth sig) univ (equations classes)
+        reps      = map (erase . head) classes
+        prunedEqs = prune (maxDepth sig) univ reps (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
         qsprops = map (eqToProp str_marsh) eqs
@@ -207,5 +208,5 @@ hipSpec file sig0 = do
             ++ intercalate ", " (map (showEquation sig . propQSTerms) qsunproved)
 
     when quickspec $
-         (writeFile (file++"_QuickSpecOutput.txt") ("All stuff from QuickSpec:\n" ++ intercalate "\n" 
+         (writeFile (file++"_QuickSpecOutput.txt") ("All stuff from QuickSpec:\n" ++ intercalate "\n"
          (map show (classToEqs classes))))
