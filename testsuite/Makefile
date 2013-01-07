@@ -11,12 +11,14 @@
 #   * processes
 #
 # Always use -l --isolate
+#
+RESULT_DIR = results
 
 GHC       = ghc
 GHC_FLAGS = -threaded -O2 --make
 N         = -N 2
-# REDIRECT  = >
-REDIRECT = | tee
+REDIRECT  = >
+# REDIRECT = | tee
 
 # The files to test
 files = Nat Reverse
@@ -57,27 +59,28 @@ $(foreach flag,$(base_flags),$(eval \
 # 			 $(flag)_-t_3))
 
 # Different induction settings
-$(foreach flag,$(base_flags),$(eval \
-	flags += $(flag)_-D_1 \
-			 $(flag)_-D_2))
-$(foreach flag,$(base_flags),$(eval \
-	flags += $(flag)_-S_1 \
-   		     $(flag)_-S_2 \
-			 $(flag)_-S_3))
+# $(foreach flag,$(base_flags),$(eval \
+# 	flags += $(flag)_-D_1 \
+# 			 $(flag)_-D_2))
+# $(foreach flag,$(base_flags),$(eval \
+# 	flags += $(flag)_-S_1 \
+#    		     $(flag)_-S_2 \
+# 			 $(flag)_-S_3))
 
 # Flag delimiter
-delim:= _
-empty:=
-space:= $(empty) $(empty)
+delim = _
+empty =
+space = $(empty) $(empty)
 
 # All targets
 all_targets :=
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-$(1)$(2): $(1)
+$(RESULT_DIR)/$(1)$(2): $(1)
+	mkdir -p `dirname $$@`
 	./$(1) -l $(subst $(delim),$(space),$(2)) $(N) $(REDIRECT) $$@
-all_targets += $(1)$(2)
+all_targets += $(RESULT_DIR)/$(1)$(2)
 endef
 
 # Generate rules for a given file
