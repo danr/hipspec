@@ -24,8 +24,8 @@ main = hipSpec $(fileName)
     , "Z"      `fun0` Z
     , "S"      `fun1` S
     -- Functions
-    , "=="     `fun2` (==)
-    , "/="     `fun2` (/=)
+--    , "=="     `fun2` (==)
+--    , "/="     `fun2` (/=)
     , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat])
     , "drop"   `fun2`  (drop   :: Nat -> [Nat] -> [Nat])
     , "elem"   `fun2` elem

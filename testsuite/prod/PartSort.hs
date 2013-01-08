@@ -21,9 +21,9 @@ main = hipSpec $(fileName)
     , "[]"     `fun0` ([] :: [Nat])
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "<="        `fun2` (==)
-    , "=="        `fun2` (==)
-    , "/="        `fun2` (/=)
+--    , "<="        `fun2` (==)
+--    , "=="        `fun2` (==)
+--    , "/="        `fun2` (/=)
     , "isort"     `fun1` isort
     , "sorted"    `fun1` sorted
     , "elem"      `fun2` elem

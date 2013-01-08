@@ -21,8 +21,8 @@ main = hipSpec $(fileName)
     , "[]"     `fun0` ([] :: [Nat])
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "=="        `fun2` (==)
-    , "/="        `fun2` (/=)
+--    , "=="        `fun2` (==)
+--    , "/="        `fun2` (/=)
     , "elem"      `fun2` elem
     , "intersect" `fun2` intersect
     , "subset"    `fun2` subset
