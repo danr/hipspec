@@ -1,5 +1,5 @@
 {-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts #-}
-module Hip.Prelude
+module HipSpec.Prelude
     (module Test.QuickCheck
     ,module Data.Typeable
     ,Prop

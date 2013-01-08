@@ -11,7 +11,7 @@
         @tcView   :: Type -> Maybe Type@
 
 -}
-module Hip.Trans.Types
+module HipSpec.Trans.Types
     ( tyEnv
     , finiteType
     ) where
@@ -19,7 +19,7 @@ module Hip.Trans.Types
 
 import Halo.Shared
 
-import Hip.Induction
+import HipSpec.Induction
 
 import Type
 import DataCon
@@ -106,7 +106,7 @@ finiteType ty = finType [] ty
         | ty `eqType` anyTy = False
 
         -- Raise error if we get some other type
-        | otherwise    = error $ "Hip.Trans.Types.finiteType "
+        | otherwise    = error $ "HipSpec.Trans.Types.finiteType "
                               ++ showOutputable ty
                               ++ " neither forall, alg, fun or type variable!"
       where

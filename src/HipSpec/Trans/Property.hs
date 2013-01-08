@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.Trans.Property where
+module HipSpec.Trans.Property where
 
-import Hip.Trans.SrcRep
+import HipSpec.Trans.SrcRep
 import Test.QuickSpec.Equation
 
 import Type

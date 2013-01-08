@@ -5,9 +5,9 @@
     bindings, data constructors or type constructors.
 
 -}
-module Hip.StringMarshal where
+module HipSpec.StringMarshal where
 
-import Hip.BuiltinTypes
+import HipSpec.BuiltinTypes
 
 import Halo.Shared
 import Halo.Util

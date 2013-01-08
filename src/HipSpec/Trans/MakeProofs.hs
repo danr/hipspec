@@ -1,15 +1,15 @@
 {-# LANGUAGE RecordWildCards,NamedFieldPuns,TypeOperators,
              ParallelListComp,ViewPatterns #-}
-module Hip.Trans.MakeProofs where
+module HipSpec.Trans.MakeProofs where
 
-import Hip.Induction
-import Hip.Induction.Linearise
-import Hip.Trans.ProofDatatypes
-import Hip.Trans.Theory
-import Hip.Trans.Property as Prop
-import Hip.Trans.Types
-import Hip.Trans.TypeGuards
-import Hip.Params
+import HipSpec.Induction
+import HipSpec.Induction.Linearise
+import HipSpec.Trans.ProofDatatypes
+import HipSpec.Trans.Theory
+import HipSpec.Trans.Property as Prop
+import HipSpec.Trans.Types
+import HipSpec.Trans.TypeGuards
+import HipSpec.Params
 
 import Halo.FOL.Abstract hiding (Term)
 import Halo.ExprTrans

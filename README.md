@@ -29,7 +29,11 @@ Then, you need to pull `HALO`, the HAskell to LOgic Translator:
 
     git submodule update --init
 
-Then, in the main directory, run
+(The last two commands can be coalesced to
+
+    git clone https://github.com/danr/hipspec.git --recursive
+
+) Then, in the main directory, run
 
     cabal install
 
@@ -71,7 +75,7 @@ installed with the `cabal` file. Import `Hip.Prelude` to get access
 to the `=:=`, `oops` and `Prop` functions, and now you can enter
 properties in a fashion like this:
 
-    import Hip.Prelude
+    import HipSpec.Prelude
 
     prop_mirror_involutive :: Tree a -> Prop (Tree a)
     prop_mirror_involutive t = mirror (mirror t) =:= t
@@ -136,6 +140,17 @@ To make things run a bit faster, use optimisation and parallelism by
 passing the flags `-O2 -threaded -rtsopts` to `ghc`. Then run the
 executable with `+RTS -N2`, where `2` is the number of cores on your
 machine.
+
+We can use template haskell to avoid writing the source file name:
+
+    {-# LANGUAGE TemplateHaskell #-}
+
+    main = hipSpec $(fileName) conf 3
+      where conf = ...
+
+If we import modules we need to compile with these flags:
+
+   ghc --make Trees.hs -fforce-recomp -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
 
 Options and flags
 =================

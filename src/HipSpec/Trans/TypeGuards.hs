@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module Hip.Trans.TypeGuards where
+module HipSpec.Trans.TypeGuards where
 
 import Var
 import Id
@@ -12,7 +12,7 @@ import Halo.FOL.Internals.Internals
 import Halo.Util
 import Halo.Shared
 
-import Hip.Trans.Types
+import HipSpec.Trans.Types
 
 import Data.List
 import Data.Generics.Geniplate
@@ -28,7 +28,7 @@ trType ty0 = second go (splitForAllTys ty0)
                                                           (map go tys)
         | Just tyv      <- getTyVar_maybe ty      = qvar tyv
         | otherwise
-            = error $ "Hip.Trans.TypeGuards.trType: " ++
+            = error $ "HipSpec.Trans.TypeGuards.trType: " ++
                 "Can only translate top-level foralls, " ++
                 "type and function constructors and type variables, " ++
                 "but not this type: " ++ showOutputable ty ++ ", " ++

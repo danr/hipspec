@@ -1,16 +1,16 @@
 
   Structural Induction
   ====================
- 
+
   The heart of HipSpec
- 
+
 > {-# LANGUAGE
 >       ParallelListComp,
 >       ScopedTypeVariables,
 >       TypeOperators
 >   #-}
 
-> module Hip.Induction
+> module HipSpec.Induction
 >     ( Term(..)   , TermV
 >     , Hypothesis , HypothesisV
 >     , IndPart(..), IndPartV
@@ -33,13 +33,13 @@
 
 > import Halo.Util (concatFoldM,(.:),nubSortedOn)
 
-> import Hip.Induction.Terms
+> import HipSpec.Induction.Terms
 
 > import Safe
 
   Typed variables
   ===============
- 
+
 > type v ::: t = (v,t)
 
   | Delete a varibale from a type environment
@@ -49,7 +49,7 @@
 
   Induction steps data type
   =========================
- 
+
   The abstract predicate P is of some arity, and the arguments are in a list
 
 > type Predicate c v = [Term c v]

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
-module Hip.HipSpec (hipSpec, module Test.QuickSpec, fileName) where
+module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
 import Test.QuickSpec.Term hiding (depth)
@@ -12,13 +12,13 @@ import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
   Context, (=:=), (=?=), unify, unifiable, execEQ, evalEQ, initial)
 
-import Hip.Trans.Theory
-import Hip.Trans.Property
-import Hip.Trans.QSTerm
-import Hip.Init
-import Hip.MakeInvocations
+import HipSpec.Trans.Theory
+import HipSpec.Trans.Property
+import HipSpec.Trans.QSTerm
+import HipSpec.Init
+import HipSpec.MakeInvocations
 
-import Hip.Params
+import HipSpec.Params
 
 import Halo.Monad
 import Halo.Util

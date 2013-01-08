@@ -6,10 +6,10 @@
    In this file it is OK to have lines with >80 characters
 -}
 {-# LANGUAGE DeriveDataTypeable,RecordWildCards #-}
-module Hip.Params where
+module HipSpec.Params where
 
 import System.Console.CmdArgs
-import Hip.ATP.Provers
+import HipSpec.ATP.Provers
 
 data Params = Params
     { files               :: [FilePath]

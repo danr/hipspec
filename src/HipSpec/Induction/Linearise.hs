@@ -1,14 +1,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-
 
-   Linearises the parts defined in Hip.Induction.
+   Linearises the parts defined in HipSpec.Induction.
 
    Used in comments in generated TPTP files, and for testing.
 
 -}
-module Hip.Induction.Linearise where
+module HipSpec.Induction.Linearise where
 
-import Hip.Induction
+import HipSpec.Induction
 
 import Text.PrettyPrint hiding (Style)
 

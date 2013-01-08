@@ -1,12 +1,12 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
-module Hip.Init where
+module HipSpec.Init where
 
-import Hip.BuiltinTypes
-import Hip.Params
-import Hip.StringMarshal
-import Hip.Trans.Property
-import Hip.Trans.SrcRep
-import Hip.Trans.Theory
+import HipSpec.BuiltinTypes
+import HipSpec.Params
+import HipSpec.StringMarshal
+import HipSpec.Trans.Property
+import HipSpec.Trans.SrcRep
+import HipSpec.Trans.Theory
 
 import Halo.BackgroundTheory
 import Halo.Binds
@@ -108,7 +108,7 @@ processFile file = do
         halo_env = mkEnv halo_conf ty_cons core_defns
 
         (binds_thy,msg) = case runHaloMsafe halo_env (trBinds core_defns) of
-            (Left err,msg')    -> (error $ "Hip.Init, halo says: " ++ err,msg')
+            (Left err,msg')    -> (error $ "HipSpec.Init, halo says: " ++ err,msg')
             (Right (m,_),msg') -> (m,msg')
 
     {-

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
-module Hip.ATP.Invoke where
+module HipSpec.ATP.Invoke where
 
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
@@ -18,10 +18,10 @@ import Data.Maybe
 import qualified Data.Map as M
 import Data.Map (Map)
 
-import Hip.Trans.ProofDatatypes
-import Hip.ATP.Results
-import Hip.ATP.Provers
-import Hip.ATP.RunProver
+import HipSpec.Trans.ProofDatatypes
+import HipSpec.ATP.Results
+import HipSpec.ATP.Provers
+import HipSpec.ATP.RunProver
 
 import Halo.Util ((?))
 

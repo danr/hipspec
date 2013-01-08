@@ -1,10 +1,10 @@
 {-# LANGUAGE NamedFieldPuns,ViewPatterns #-}
 module Main where
 
-import Hip.Init
-import Hip.MakeInvocations
+import HipSpec.Init
+import HipSpec.MakeInvocations
 
-import Hip.Params
+import HipSpec.Params
 
 import Control.Monad
 

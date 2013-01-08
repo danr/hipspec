@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.Trans.Theory
+module HipSpec.Trans.Theory
     ( HipSpecExtras(..)
     , setExtraDependencies
     , mkMinRecAxioms
@@ -26,9 +26,9 @@ import Halo.Trim
 import Halo.Util
 import Halo.FOL.Abstract
 
-import Hip.Trans.Property
-import Hip.Trans.Types
-import Hip.Trans.TypeGuards
+import HipSpec.Trans.Property
+import HipSpec.Trans.Types
+import HipSpec.Trans.TypeGuards
 
 data HipSpecExtras
     = Lemma String

@@ -1,16 +1,16 @@
 {-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns #-}
-module Hip.MakeInvocations where
+module HipSpec.MakeInvocations where
 
-import Hip.ATP.Invoke
-import Hip.ATP.Provers
-import Hip.ATP.Results
-import Hip.Params
-import Hip.Trans.MakeProofs
-import Hip.Trans.ProofDatatypes (propMatter)
-import Hip.Trans.Theory
-import Hip.Trans.Property
-import Hip.Trans.TypeGuards
-import qualified Hip.Trans.ProofDatatypes as PD
+import HipSpec.ATP.Invoke
+import HipSpec.ATP.Provers
+import HipSpec.ATP.Results
+import HipSpec.Params
+import HipSpec.Trans.MakeProofs
+import HipSpec.Trans.ProofDatatypes (propMatter)
+import HipSpec.Trans.Theory
+import HipSpec.Trans.Property
+import HipSpec.Trans.TypeGuards
+import qualified HipSpec.Trans.ProofDatatypes as PD
 
 import Halo.Monad
 import Halo.Subtheory
@@ -110,7 +110,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
         -- Need to figure out which of the input properties this
         -- invocation result corresponds to.
         -- This could obviously be done in a more elegant way.
-        let err = error $ "Hip.ATP.MakeInvocations.tryProve: lost " ++ prop_name
+        let err = error $ "HipSpec.ATP.MakeInvocations.tryProve: lost " ++ prop_name
             original = fromMaybe err $ find (\p -> prop_name == propName p) props
 
         let green | propOops original = Red

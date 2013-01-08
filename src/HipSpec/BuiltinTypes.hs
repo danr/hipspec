@@ -3,7 +3,7 @@
    Builtin types, [a], Bool, (), (a,b)
 
 -}
-module Hip.BuiltinTypes where
+module HipSpec.BuiltinTypes where
 
 import BasicTypes
 import GHC

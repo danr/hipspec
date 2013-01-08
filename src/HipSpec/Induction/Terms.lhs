@@ -3,15 +3,15 @@
   =====
 
   The heart of Structural Induction
- 
+
 > {-# LANGUAGE
 >       TemplateHaskell,
 >       PatternGuards,
 >       ExplicitForAll,
 >       MultiParamTypeClasses
 >   #-}
- 
-> module Hip.Induction.Terms ( Term(..), varFree, substList, subst ) where
+
+> module HipSpec.Induction.Terms ( Term(..), varFree, substList, subst ) where
 
 > import Data.Generics.Geniplate
 
@@ -31,7 +31,7 @@
 
   Free Variables
   ==============
- 
+
   | Does this variable occur in this term?
 
 > varFree :: Eq v => v -> Term c v -> Bool

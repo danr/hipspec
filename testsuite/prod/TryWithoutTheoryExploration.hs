@@ -8,8 +8,8 @@
 -}
 module Main where
 
-import Hip.Prelude
-import Hip.HipSpec
+import HipSpec.Prelude
+import HipSpec
 import Prelude(Bool(..), IO)
 import Properties
 

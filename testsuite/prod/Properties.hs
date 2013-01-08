@@ -7,7 +7,7 @@
 -}
 module Properties where
 
-import Hip.Prelude
+import HipSpec.Prelude
 import Prelude(Bool(..))
 import Definitions
 

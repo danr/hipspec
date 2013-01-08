@@ -1,6 +1,6 @@
-module Hip.ATP.Provers where
+module HipSpec.ATP.Provers where
 
-import Hip.ATP.Results
+import HipSpec.ATP.Results
 
 import Data.Maybe
 import Data.Char
@@ -87,7 +87,7 @@ mkParadoxAnd p = template
     , proverShort         = toUpper (proverShort p)
     , proverCannotStdin   = True
     }
-  -- ^ mkParadoxAnd is deeply magical, see Hip.ATP.RunProver
+  -- ^ mkParadoxAnd is deeply magical, see HipSpec.ATP.RunProver
 
 allProvers :: [Prover]
 allProvers = baseProvers ++ map mkParadoxAnd baseProvers

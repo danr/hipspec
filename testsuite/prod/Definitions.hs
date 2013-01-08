@@ -7,7 +7,7 @@
 module Definitions where
 
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
-import Hip.Prelude
+import HipSpec.Prelude
 
 -- Booleans
 

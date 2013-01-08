@@ -1,4 +1,4 @@
-module Hip.Trans.SrcRep where
+module HipSpec.Trans.SrcRep where
 
 import Var
 

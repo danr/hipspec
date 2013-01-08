@@ -4,7 +4,7 @@
    Translating from QuickSpec -> Core
 
 -}
-module Hip.Trans.QSTerm where
+module HipSpec.Trans.QSTerm where
 
 
 import Test.QuickSpec.Term
@@ -15,9 +15,9 @@ import qualified Test.QuickSpec.Utils.Typeable as Ty
 
 import Halo.Shared
 
-import Hip.StringMarshal
-import Hip.Trans.Theory
-import Hip.Trans.Property
+import HipSpec.StringMarshal
+import HipSpec.Trans.Theory
+import HipSpec.Trans.Property
 
 import qualified Data.Map as M
 import Data.Map (Map)

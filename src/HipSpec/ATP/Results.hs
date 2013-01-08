@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Hip.ATP.Results where
+module HipSpec.ATP.Results where
 
 import Data.List
 import Data.Maybe

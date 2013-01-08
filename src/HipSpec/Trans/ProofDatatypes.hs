@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveFunctor #-}
-module Hip.Trans.ProofDatatypes where
+module HipSpec.Trans.ProofDatatypes where
 
 import Data.Function
 import Data.List
 
 import Var
 
-import Hip.Trans.Theory (HipSpecContent,HipSpecSubtheory)
+import HipSpec.Trans.Theory (HipSpecContent,HipSpecSubtheory)
 
 import Halo.Subtheory
 import Halo.FOL.Abstract

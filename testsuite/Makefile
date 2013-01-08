@@ -15,7 +15,7 @@
 RESULT_DIR = results
 
 GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make
+GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
 N         = -N 2
 REDIRECT  = >
 # REDIRECT = | tee
@@ -47,9 +47,9 @@ flags :=
 # Make flags from base flags times theorem prover to use
 $(foreach flag,$(base_flags),$(eval \
 	flags += $(flag)_-p_e \
-			 $(flag)_-p_f \
-			 $(flag)_-p_z \
-			 $(flag)_-p_x \
+#			 $(flag)_-p_f \
+#			 $(flag)_-p_z \
+#			 $(flag)_-p_x \
 			 $(flag)_-p_v))
 
 # # Times timeout, try 1 and 2 seconds
@@ -102,6 +102,7 @@ clean:
 	rm -f $(all_targets)
 	rm -f $(files)
 
+# Targets that do not create a file with the same name (meta-targets)
 .PHONY: all clean
 
 # Shortcut variables for indexing prerequisites of rules:

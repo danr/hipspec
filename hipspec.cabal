@@ -61,8 +61,8 @@ library
     hs-source-dirs: src halo/src
 
     exposed-modules:
-        Hip.HipSpec
-        Hip.Prelude
+        HipSpec
+        HipSpec.Prelude
 
     other-modules:
         Halo.Case
@@ -90,26 +90,26 @@ library
         Halo.Binds
         Halo.Trim
         Halo.Util
-        Hip.ATP.Invoke
-        Hip.ATP.Provers
-        Hip.ATP.Results
-        Hip.ATP.RunProver
-        Hip.BuiltinTypes
-        Hip.Init
-        Hip.MakeInvocations
-        Hip.Params
-        Hip.Induction
-        Hip.Induction.Linearise
-        Hip.Induction.Terms
-        Hip.StringMarshal
-        Hip.Trans.MakeProofs
-        Hip.Trans.ProofDatatypes
-        Hip.Trans.Property
-        Hip.Trans.QSTerm
-        Hip.Trans.SrcRep
-        Hip.Trans.Theory
-        Hip.Trans.TypeGuards
-        Hip.Trans.Types
+        HipSpec.ATP.Invoke
+        HipSpec.ATP.Provers
+        HipSpec.ATP.Results
+        HipSpec.ATP.RunProver
+        HipSpec.BuiltinTypes
+        HipSpec.Init
+        HipSpec.MakeInvocations
+        HipSpec.Params
+        HipSpec.Induction
+        HipSpec.Induction.Linearise
+        HipSpec.Induction.Terms
+        HipSpec.StringMarshal
+        HipSpec.Trans.MakeProofs
+        HipSpec.Trans.ProofDatatypes
+        HipSpec.Trans.Property
+        HipSpec.Trans.QSTerm
+        HipSpec.Trans.SrcRep
+        HipSpec.Trans.Theory
+        HipSpec.Trans.TypeGuards
+        HipSpec.Trans.Types
 
     build-depends:
         -- Shared
