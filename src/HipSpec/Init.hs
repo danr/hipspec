@@ -27,6 +27,7 @@ import CoreSyn
 import GHC
 import HscTypes
 import UniqSupply
+import TysWiredIn
 
 import System.Console.CmdArgs hiding (summary)
 
@@ -58,7 +59,7 @@ processFile file = do
         unlifted_program = filter (not . junk) (unfoldings ++ init_core_binds)
 
         ty_cons :: [TyCon]
-        ty_cons = fetchTyCons unlifted_program
+        ty_cons = insert boolTyCon $ fetchTyCons unlifted_program
 
     -- putStrLn debug_unfoldings
 
@@ -189,6 +190,7 @@ processFile file = do
             putStrLn $ showOutputable v
             putStrLn $ showOutputable (varType v)
             print $ isPropType v
+
     -}
 
     return (theory,halo_env,props,str_marsh,params)

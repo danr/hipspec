@@ -1,18 +1,35 @@
-{-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts #-}
+{-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts,GADTs #-}
 module HipSpec.Prelude
     (module Test.QuickCheck
     ,module Data.Typeable
     ,Prop
     ,(=:=)
     ,proveBool
+    ,given
+    ,givenBool
+    ,(==>)
     ,oops) where
 
-import Test.QuickCheck hiding (Prop)
+import Test.QuickCheck hiding (Prop, (==>))
 import Data.Typeable
 
 infix 1 =:=
 
-data Prop a = a :=: a | Oops (Prop a)
+infixr 0 ==>
+
+data Prop a where
+    Given :: Prop b -> Prop a -> Prop a
+    (:=:) :: a -> a -> Prop a
+    Oops :: Prop a -> Prop a
+
+given :: Prop b -> Prop a -> Prop a
+given = Given
+
+givenBool :: Bool -> Prop a -> Prop a
+givenBool b = Given (b =:= True)
+
+(==>) :: Prop b -> Prop a -> Prop a
+(==>) = Given
 
 proveBool :: Bool -> Prop Bool
 proveBool lhs = lhs =:= True

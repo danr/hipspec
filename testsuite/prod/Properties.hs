@@ -121,46 +121,50 @@ prop_T35 :: Nat -> Nat -> Prop Nat
 prop_T35 x y = exp x y =:= qexp x y one
 
 prop_T36 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T36 x y z = proveBool (x `elem` y --> x `elem` (y ++ z))
+prop_T36 x y z = givenBool (x `elem` y) (proveBool (x `elem` (y ++ z)))
 
 prop_T37 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T37 x y z = proveBool (x `elem` z --> x `elem` (y ++ z))
+prop_T37 x y z = givenBool (x `elem` z) (proveBool (x `elem` (y ++ z)))
 
 prop_T38 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T38 x y z = proveBool ((x `elem` y) && (x `elem` z) --> x `elem` (y ++ z))
+prop_T38 x y z = givenBool (x `elem` y)
+               ( givenBool (x `elem` z)
+               ( proveBool (x `elem` (y ++ z))))
 
 prop_T39 :: Nat -> Nat -> [Nat] -> Prop Bool
-prop_T39 x y z = proveBool (x `elem` drop y z --> x `elem` z)
+prop_T39 x y z = givenBool (x `elem` drop y z) (proveBool (x `elem` z))
 
 prop_T40 :: [Nat] -> [Nat] -> Prop Bool
-prop_T40 x y = proveBool (x `subset` y --> ((x `union` y) `listEq` y))
+prop_T40 x y = givenBool (x `subset` y) (proveBool ((x `union` y) `listEq` y))
 
 prop_T41 :: [Nat] -> [Nat] -> Prop Bool
-prop_T41 x y = proveBool (x `subset` y --> ((x `intersect` y) `listEq` x))
+prop_T41 x y = givenBool (x `subset` y) (proveBool ((x `intersect` y) `listEq` x))
 
 prop_T42 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T42 x y z = proveBool (x `elem` y --> x `elem` (y `union` z))
+prop_T42 x y z = givenBool (x `elem` y) (proveBool (x `elem` (y `union` z)))
 
 prop_T43 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T43 x y z = proveBool (x `elem` y --> x `elem` (z `union` y))
+prop_T43 x y z = givenBool (x `elem` y) (proveBool (x `elem` (z `union` y)))
 
 prop_T44 :: Nat -> [Nat] -> [Nat] -> Prop Bool
-prop_T44 x y z = proveBool ((x `elem` y) && (x `elem` z) --> (x `elem` (y `intersect` z)))
+prop_T44 x y z = givenBool (x `elem` y)
+               ( givenBool (x `elem` z)
+               ( proveBool (x `elem` (y `intersect` z))))
 
 prop_T45 :: Nat -> [Nat] -> Prop Bool
 prop_T45 x y = proveBool (x `elem` insert x y)
 
 prop_T46 :: Nat -> Nat -> [Nat] -> Prop Bool
-prop_T46 x y z = proveBool (x == y --> (x `elem` insert y z) <=> True)
+prop_T46 x y z = x =:= y ==> proveBool (x `elem` insert y z)
 
 prop_T47 :: Nat -> Nat -> [Nat] -> Prop Bool
-prop_T47 x y z = proveBool (x /= y --> (x `elem` insert y z) <=> x `elem` z)
+prop_T47 x y z = givenBool (x /= y) ((x `elem` insert y z) =:= x `elem` z)
 
 prop_T48 :: [Nat] -> Prop Nat
 prop_T48 x = length (isort x) =:= length x
 
 prop_T49 :: Nat -> [Nat] -> Prop Bool
-prop_T49 x y = proveBool (x `elem` isort y --> x `elem` y)
+prop_T49 x y = givenBool (x `elem` isort y) (proveBool (x `elem` y))
 
 prop_T50 :: Nat -> [Nat] -> Prop Nat
 prop_T50 x y = count x (isort y) =:= count x y
@@ -202,19 +206,19 @@ prop_L11 :: [a] -> a -> [a] -> Prop [a]
 prop_L11 x y z = (x ++ [y]) ++ z =:= x ++ (y:z)
 
 prop_L12 :: Nat -> [Nat] -> Prop Bool
-prop_L12 x y = proveBool (sorted y --> sorted (insert x y))
+prop_L12 x y = givenBool (sorted y) (proveBool (sorted (insert x y)))
 
 prop_L13 :: [a] -> [a] -> a -> Prop [a]
 prop_L13 x y z = (x ++ y) ++ [z] =:= x ++ (y ++ [z])
 
 prop_L14 :: a -> a -> [a] -> [a] -> Prop Bool
-prop_L14 x y z w = proveBool (even (length (w ++ z)) <=> even (length (w ++ (x:y:z))))
+prop_L14 x y z w = even (length (w ++ z)) =:= even (length (w ++ (x:y:z)))
 
 prop_L15 :: a -> a -> [a] -> [a] -> Prop Nat
 prop_L15 x y z w = length (w ++ (x:y:z)) =:= S (S (length (w ++ z)))
 
 prop_L16 :: Nat -> Nat -> Prop Bool
-prop_L16 x y = proveBool (even (x + y) <=> even (x + S (S y)))
+prop_L16 x y = even (x + y) =:= even (x + S (S y))
 
 prop_L17 :: Nat -> Nat -> Prop Nat
 prop_L17 x y = x + S (S y) =:= S (S (x + y))
@@ -223,13 +227,15 @@ prop_L18 :: Nat -> [Nat] -> Prop Nat
 prop_L18 x y = length (insert x y) =:= S (length y)
 
 prop_L19 :: Nat -> Nat -> [Nat] -> Prop Bool
-prop_L19 x y z = proveBool (x /= y --> (x `elem` insert y z --> x `elem` z))
+prop_L19 x y z = givenBool (x /= y)
+               ( givenBool (x `elem` insert y z)
+               ( proveBool (x `elem` z)))
 
 prop_L20 :: Nat -> [Nat] -> Prop Nat
 prop_L20 x y = count x (insert x y) =:= S (count x y)
 
-prop_L21 :: Nat -> Nat -> [Nat] -> Prop Bool
-prop_L21 x y z = proveBool (x /= y --> (count x (insert y z)) == count x z)
+prop_L21 :: Nat -> Nat -> [Nat] -> Prop Nat
+prop_L21 x y z = givenBool (x /= y) (count x (insert y z) =:= count x z)
 
 prop_L22 :: [a] -> [a] -> [a] -> Prop [a]
 prop_L22 x y z = (x ++ y) ++ z =:= x ++ (y ++ z)

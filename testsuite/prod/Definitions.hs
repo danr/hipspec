@@ -19,19 +19,8 @@ _    && _ = False
 False || x = x
 _     || _ = True
 
-True  <=> True  = True
-False <=> False = True
-_     <=> _     = False
-
-True --> False = False
-_    --> _     = True
-
 not True = False
 not False = True
-
-infixl 2 -->
-
-infix 3 <=>
 
 -- Nats
 

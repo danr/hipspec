@@ -74,8 +74,9 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
 -- So far only works on arguments with monomorphic, non-exponential types
 termsToProp :: StrMarsh -> Term -> Term -> Prop
 termsToProp str_marsh e1 e2 = Prop
-    { proplhs  = termToExpr str_marsh var_rename_map e1
-    , proprhs  = termToExpr str_marsh var_rename_map e2
+    { propEquality  = termToExpr str_marsh var_rename_map e1 :==
+                      termToExpr str_marsh var_rename_map e2
+    , propAssume    = []
     , propVars = [ (setVarType v ty,ty)
                  | (x,v) <- var_rename
                  , let ty = typeRepToType str_marsh (symbolType x)

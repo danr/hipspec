@@ -71,9 +71,15 @@ trLemma lemma@Prop{..} = do
   where
     equals :: HaloM [Formula']
     equals = do
-        lhs <- trExpr proplhs
-        rhs <- trExpr proprhs
-        return [ foralls $ min' side ==> lhs === rhs | side <- [lhs,rhs] ]
+        (lhs,rhs) <- trEquality propEquality
+        assums <- mapM trEquality' propAssume
+        return [ foralls $ min' side ==> (assums ===> lhs === rhs) | side <- [lhs,rhs] ]
+
+trEquality :: Equality -> HaloM (Term',Term')
+trEquality (e1 :== e2) = liftM2 (,) (trExpr e1) (trExpr e2)
+
+trEquality' :: Equality -> HaloM Formula'
+trEquality' = liftM (uncurry (===)) . trEquality
 
 -- | Takes a theory, and prepares the invocations
 --   for a property and adds the lemmas
@@ -111,10 +117,11 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
       where
         unequals :: HaloM [Formula']
         unequals = local (addSkolems $ map fst propVars) $ do
-            lhs <- trExpr proplhs
-            rhs <- trExpr proprhs
+            (lhs,rhs) <- trEquality propEquality
+            assums <- mapM trEquality' propAssume
             return $
                 [minrec lhs,minrec rhs,lhs =/= rhs] ++
+                assums ++
                 mapMaybe (typeGuardSkolem . fst) propVars
 
 
@@ -178,18 +185,18 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
 
     let trPred :: Loc -> [Term DataCon Var] -> HaloM (String,Formula')
         trPred loc tms = do
-            lhs <- trExpr proplhs'
-            rhs <- trExpr proprhs'
+            (lhs,rhs) <- trEquality propEquality'
+            assums <- mapM trEquality' propAssume'
             let phi = case loc of
-                    Hyp   -> min' lhs \/ min' rhs ==> lhs === rhs
-                    Concl -> minrec rhs /\ minrec lhs /\ rhs =/= lhs
-            return (showExpr proplhs' ++ "=" ++ showExpr proprhs',phi)
+                    Hyp   -> min' lhs \/ min' rhs ==> (assums ===> lhs === rhs)
+                    Concl -> ands $ [minrec rhs,minrec lhs,rhs =/= lhs] ++ assums
+            return (show propEquality',phi)
           where
             s = extendIdSubstList emptySubst
                     [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
-            proplhs' = substExpr (text "trPred") s proplhs
-            proprhs' = substExpr (text "trPred") s proprhs
+            propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq -> case eq of
+                e1 :== e2 -> substExpr (text "trPred") s e1 :== substExpr (text "trPred") s e2
 
         trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
         trHyp (map fst -> qs,tms) = second foralls <$> trPred Hyp tms

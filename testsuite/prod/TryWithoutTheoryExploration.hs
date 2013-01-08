@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-
 
    Compile with
@@ -12,16 +12,12 @@ import HipSpec.Prelude
 import HipSpec
 import Prelude(Bool(..), IO)
 import Properties
+import Tuples
 
 -- The properties can be tested without theory exploration mode
 main :: IO ()
 main = hipSpec $(fileName) ([] :: [Sig])
 
 -- The properties needs to be mentioned here to be included
-properties = (
-#include "Properties.tuple"
-    ,
-#include "Lemmas.tuple"
-    ,
-#include "Generalizations.tuple"
-    )
+to_show = (properties, lemmas, generalizations)
+
