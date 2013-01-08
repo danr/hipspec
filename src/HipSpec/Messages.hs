@@ -13,7 +13,7 @@ data Msg
     | FileProcessed
     | QuickSpecDone  { classes :: Int, eqs :: Int }
     | StartingUserLemmas
-    | Finished       { proved :: [String], unproved :: [String], qs_unproved :: [String] }
+    | Finished       { proved :: [String], unproved :: [String], qs_proved :: [String], qs_unproved :: [String] }
     | Discard        { discarded :: [String] }
     | Candidates     { candidates :: [String] }
     | InductiveProof { prop_name :: String, lemmas :: [String] }

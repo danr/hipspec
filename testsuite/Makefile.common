@@ -17,12 +17,8 @@ RESULT_DIR = results
 GHC       = ghc
 GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
 N         = -N 2
-REDIRECT  = >
-# REDIRECT = | tee
 
-# The files to test
-files = Nat Reverse
-
+# Depends on files
 
 # The different flags to test, separate flags with underscore
 base_flags =    \
@@ -30,17 +26,17 @@ base_flags =    \
 	-i_-a       \
 	-i_-s       \
 	-a_-s       \
-	-s          \
-	-a          \
-	-i          \
-	-p_-i_-a_-s \
-	-p_-i_-a    \
-	-p_-i_-s    \
-	-p_-a_-s    \
-	-p_-s       \
-	-p_-a       \
-	-p_-i       \
-	-p
+#	-s          \
+#	-a          \
+#	-i          \
+#	-p_-i_-a_-s \
+#	-p_-i_-a    \
+#	-p_-i_-s    \
+#	-p_-a_-s    \
+#	-p_-s       \
+#	-p_-a       \
+#	-p_-i       \
+#	-p
 
 flags :=
 
@@ -71,16 +67,17 @@ $(foreach flag,$(base_flags),$(eval \
 delim = _
 empty =
 space = $(empty) $(empty)
+comma = ,
 
 # All targets
 all_targets :=
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-$(RESULT_DIR)/$(1)$(2): $(1)
+$(RESULT_DIR)/$(1)$(2).json: $(1)
 	mkdir -p `dirname $$@`
-	./$(1) -l $(subst $(delim),$(space),$(2)) $(N) $(REDIRECT) $$@
-all_targets += $(RESULT_DIR)/$(1)$(2)
+	./$(1) -l $(subst $(delim),$(space),$(2)) $(N) --json $$@
+all_targets += $(RESULT_DIR)/$(1)$(2).json
 endef
 
 # Generate rules for a given file
@@ -95,12 +92,16 @@ endef
 $(foreach file,$(files),$(eval $(call file_rule,$(file))))
 
 # Make all targets
-all: $(all_targets)
+all: json_list $(all_targets)
+
+json_list:
+	echo $(all_targets) | sed 's/ /","/g' | sed 's/^/["/' | sed 's/$$/"]/' > json_list
 
 # Remove all targets
 clean:
 	rm -f $(all_targets)
 	rm -f $(files)
+	rm -f json_list
 
 # Targets that do not create a file with the same name (meta-targets)
 .PHONY: all clean

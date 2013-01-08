@@ -1,0 +1,36 @@
+pre.inline {
+  display: inline-block;
+  margin: 0px; }
+
+.prop-cell {
+  text-align: center; }
+
+.prop-solved {
+  background: #88ee88; }
+
+.prop-failed {
+  background: #ee8888; }
+
+table, td, tr, th {
+  border: 1px solid black; }
+
+td, th {
+  margin: 2px; }
+
+body {
+  font-family: sans-serif; }
+
+.FileProcessed {
+  background: #bbeeee; }
+
+.QuickSpecDone {
+  background: #eebbee; }
+
+.InductiveProof {
+  background: #88ee88; }
+
+.PlainProof {
+  background: #eeee88; }
+
+.Finished {
+  background: #eeeebb; }

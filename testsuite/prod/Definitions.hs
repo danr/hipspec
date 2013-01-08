@@ -29,7 +29,7 @@ data Nat = S Nat | Z deriving (Eq,Show,Typeable,Ord)
 instance Arbitrary Nat where
   arbitrary =
     let nats = iterate S Z
-    in (nats !!) `fmap` choose (0,25)
+    in (nats !!) `fmap` choose (0,5)
 
 (+) :: Nat -> Nat -> Nat
 Z + y = y

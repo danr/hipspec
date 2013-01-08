@@ -240,7 +240,11 @@ hipSpec file sig0 = do
 
     (unproved,proved) <- parLoop halt_env params write theory props qslemmas
 
-    write $ Finished (map propName proved) (map propName unproved) (showEqs qsunproved)
+    write $ Finished
+        (filter (`notElem` map propName qslemmas) $ map propName proved)
+        (map propName unproved)
+        (map propName qslemmas)
+        (showEqs qsunproved)
 
     printInfo unproved proved
 

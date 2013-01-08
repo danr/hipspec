@@ -1,0 +1,99 @@
+<!doctype html>
+<html ng-app="hipspec">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="lib/underscore.js" type="text/javascript"></script>
+    <script src="lib/angular.js" type="text/javascript"></script>
+
+    <script src="app.js" type="text/javascript"></script>
+
+    <link href='index.css' rel='stylesheet' type='text/css'>
+    <title>
+      HipSpec results
+    </title>
+  </head>
+  <body>
+    <div class="container">
+      <h1>HipSpec results</h1>
+
+      <div ng-controller="TestsuiteCtrl">
+
+        <div>
+          <a ng-click="setTestsuite('prod')">Productive Use Of Failure</a>
+          <a ng-click="setTestsuite('mini')">Mini</a>
+        </div>
+
+        <div ng-controller="CompareCtrl">
+          <table>
+            <tr>
+              <th>Settings</th>
+              <th>Time (s)</th>
+              <th ng-repeat="prop in headers">
+                <span class="prop-header">{{ display_prop(prop) }}</span>
+              </th>
+            </tr>
+            <tr ng-repeat="(suite, solved) in table">
+              <td>
+                <a ng-click="select(suite)">{{ suite }}</a>
+              </td>
+              <td>
+                {{ solved.time | seconds }}
+              </td>
+              <td
+                ng-repeat="prop in headers"
+                ng-class='{ "prop-solved": solved[prop], "prop-failed": !solved[prop] }'
+                class="prop-cell">
+                <span ng-show="solved[prop]">&#10003;</span>
+                <span ng-hide="solved[prop]">&#215;</span>
+              </td>
+            </tr>
+          </table>
+
+          <div ng-controller="InstanceCtrl">
+            <table>
+              <tr>
+                <th>Time (s)</th>
+                <th>Message</th>
+              </tr>
+              <tr ng-repeat="msg in result" ng-show="interestingType(msg.type)">
+                <td>{{ msg.time | seconds }}</td>
+                <td>
+                  <div ng-class="msg.type">
+                    <div ng-switch="msg.type">
+                      <div ng-switch-when="FileProcessed">
+                        File Processed
+                      </div>
+                      <div ng-switch-when="QuickSpecDone">
+                        QuickSpec done, {{ msg.classes }} classes, {{ msg.eqs }} equations.
+                      </div>
+                      <div ng-switch-when="InductiveProof">
+                        <pre class="inline">{{ msg.prop_name }}</pre>
+                      </div>
+                      <div ng-switch-when="PlainProof">
+                        <pre class="inline">{{ msg.prop_name }}</pre>
+                      </div>
+                      <div ng-switch-when="Finished">
+                        <div>
+                          <b>Proved:</b> <pre class="inline" ng-repeat="prop in msg.proved">{{ prop }}, </pre>
+                        </div>
+                        <div>
+                          <b>Unproved:</b> <pre class="inline" ng-repeat="prop in msg.unproved">{{ prop }}, </pre>
+                        </div>
+                        <div>
+                          <b>Proved from QuickSpec:</b> <pre class="inline" ng-repeat="prop in msg.qs_proved">{{ prop }}, </pre>
+                        </div>
+                         <div>
+                          <b>Unproved from QuickSpec:</b> <pre class="inline" ng-repeat="prop in msg.qs_unproved">{{ prop }}, </pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
