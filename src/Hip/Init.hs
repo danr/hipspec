@@ -79,7 +79,11 @@ processFile file = do
     let isPropBinder (NonRec x _) | isPropType x = True
         isPropBinder _ = False
 
-        (core_props,core_defns) = partition isPropBinder lifted_program
+        -- Some properties now come in bind groups, so we need this ugly hack
+        -- Should not destroy the translation though
+        flattenBindGroups = map (uncurry NonRec) . flattenBinds
+
+        (core_props,core_defns) = partition isPropBinder $ flattenBindGroups lifted_program
 
     {-
     putStrLn "== PROPS =="
@@ -103,14 +107,14 @@ processFile file = do
 
         halo_env = mkEnv halo_conf ty_cons core_defns
 
-    {-
         (binds_thy,msg) = case runHaloMsafe halo_env (trBinds core_defns) of
             (Left err,msg')    -> (error $ "Hip.Init, halo says: " ++ err,msg')
             (Right (m,_),msg') -> (m,msg')
-    -}
 
+    {-
         binds_thy = concatMap (fst . fst . runHaloM halo_env . trOneBind) core_defns
                  ++ fst (runHaloM halo_env trPointers)
+    -}
 
         app_theory = Subtheory
             { provides = AppTheory
@@ -167,9 +171,24 @@ processFile file = do
     -}
 
     {-
+
+    putStrLn "== DEFNS =="
+
+    mapM_ (putStrLn . showOutputable) core_defns
+
     putStrLn "== PROPS =="
 
-    mapM_ print props
+    mapM_ (putStrLn . showOutputable) core_props
+
+    putStrLn "== TYPES =="
+
+    flip mapM_ (core_defns ++ core_props) $ \ binder -> do
+        putStrLn ""
+        print $ isPropBinder binder
+        flip mapM_ (flattenBinds [binder]) $ \ (v,e) -> do
+            putStrLn $ showOutputable v
+            putStrLn $ showOutputable (varType v)
+            print $ isPropType v
     -}
 
     return (theory,halo_env,props,str_marsh,params)
