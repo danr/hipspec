@@ -159,8 +159,11 @@ mkMinRecAxioms ty_cons =
     ]
 
 instance Show HipSpecExtras where
-    show (Lemma s)   = "(Lemma " ++ s ++ ")"
-    show (Domain tc) = "(Domain " ++ showOutputable tc ++ ")"
+    show (Lemma s)      = "(Lemma " ++ s ++ ")"
+    show (Domain tc)    = "(Domain " ++ showOutputable tc ++ ")"
+    show (ResultType v) = "(ResultType " ++ showOutputable v ++ ")"
+    show PrimMinRec     = "PrimMinRec"
+    show (MinRec tc)    = "(MinRec " ++ showOutputable tc ++ ")"
 
 instance Clausifiable HipSpecExtras where
     mkClause (Lemma s) = namedClause ("Lemma{" ++ s ++ "}") lemma

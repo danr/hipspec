@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
-module Hip.HipSpec (hipSpec, module Test.QuickSpec) where
+module Hip.HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
 import Test.QuickSpec.Term hiding (depth)
@@ -32,6 +32,7 @@ import Control.Monad
 import Control.Monad.State
 
 import System.Console.CmdArgs hiding (summary)
+import Language.Haskell.TH
 
 import System.IO
 
@@ -171,6 +172,9 @@ eqIsAssoc
 eqIsAssoc _ = False
 
 -- Main library ---------------------------------------------------------------
+
+fileName :: ExpQ
+fileName = location >>= \(Loc f _ _ _ _) -> stringE f
 
 hipSpec :: Signature a => FilePath -> a -> IO ()
 hipSpec file sig0 = do

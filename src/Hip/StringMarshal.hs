@@ -33,11 +33,10 @@ import Var
 type StrMarsh = (Map String (Var,Bool) -- True: function, False: data constructor
                 ,Map String TyCon)
 
-makeStringMarshallings :: Bool -> ModGuts -> IO StrMarsh
-makeStringMarshallings debug mg = do
-    let ty_cons = mg_tcs mg
+makeStringMarshallings :: Bool -> [TyCon] -> [CoreBind] -> IO StrMarsh
+makeStringMarshallings debug ty_cons core_binds = do
 
-        binds = flattenBinds (mg_binds mg)
+    let binds = flattenBinds core_binds
 
         dbmsg s
             | debug     = putStrLn s

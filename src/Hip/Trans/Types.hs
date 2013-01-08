@@ -73,7 +73,7 @@ finiteType ty = finType [] ty
   where
     --
     finType :: [Type] -> Type -> Bool
-    finType visited (repType' -> ty)     -- repType' looks through foralls,
+    finType visited (repType' -> ty)    -- repType' looks through foralls,
                                         -- synonyms, predicates and newtypes
 
         -- Recursive types are never finite

@@ -22,7 +22,7 @@ instance Show ProofMethod where
 
 proofMethodFile :: ProofMethod -> String
 proofMethodFile pt = case pt of
-    Plain                  -> "plain"
+    Plain        -> "plain"
     Induction vs -> intercalate "_" (map show vs)
 
 type Property  = PropertyMatter [Part]

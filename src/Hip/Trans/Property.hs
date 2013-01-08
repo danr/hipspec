@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Hip.Trans.Property where
 
 import Hip.Trans.SrcRep
@@ -26,6 +27,19 @@ data Prop = Prop
     -- ^ It's an error if this property was provable
     }
 
+instance Show Prop where
+    show Prop{..} = concat
+        ["Prop "
+        ,"{ proplhs = ", showOutputable proplhs
+        ,", proprhs = ", showOutputable proprhs
+        ,", propVars = ", showOutputable propVars
+        ,", propName = ", show propName
+        ,", propRepr = ", show propRepr
+        ,", propFunDeps = ", showOutputable propFunDeps
+        ,", propOops = ", show propOops
+        ,"}"
+        ]
+
 inconsistentProp :: Prop
 inconsistentProp = Prop
     { proplhs     = Var trueDataConId
@@ -37,6 +51,7 @@ inconsistentProp = Prop
     , propFunDeps = []
     , propOops    = True
     }
+
 trProperty :: CoreBind -> Maybe Prop
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
@@ -51,16 +66,16 @@ trProperty (NonRec prop_name e) = do
                        _  -> Nothing
 
     -- Free variables, but do not count =:=, proveBool, oops or arguments
-    let free = (exprFreeVars lhs `unionUniqSets` exprFreeVars rhs)
-                  `delListFromUniqSet` (vars ++ ty_vars)
+    let free = filter (`notElem` (vars ++ ty_vars)) $ exprFVs lhs ++ exprFVs rhs
 
-    return $ Prop { propName    = idToStr prop_name
-                  , proplhs     = lhs
-                  , proprhs     = rhs
-                  , propVars    = [ (x,varType x) | x <- vars ]
-                  , propRepr    = showExpr lhs ++ " = " ++ showExpr rhs
-                  , propQSTerms = error "trProperty : propQSTerms"
-                  , propFunDeps = uniqSetToList free
-                  , propOops    = oops
-                  }
+    return $ Prop
+        { propName    = idToStr prop_name
+        , proplhs     = lhs
+        , proprhs     = rhs
+        , propVars    = [ (x,varType x) | x <- vars ]
+        , propRepr    = showExpr lhs ++ " = " ++ showExpr rhs
+        , propQSTerms = error "trProperty : propQSTerms"
+        , propFunDeps = free
+        , propOops    = oops
+        }
 trProperty _ = Nothing

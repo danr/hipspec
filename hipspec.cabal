@@ -81,6 +81,7 @@ library
         Halo.FOL.RemoveMin
         Halo.FOL.Rename
         Halo.FreeTyCons
+        Halo.Fetch
         Halo.Lift
         Halo.Monad
         Halo.PrimCon
@@ -119,6 +120,7 @@ library
 
         -- Prelude
         QuickCheck                    >= 2.4,
+        template-haskell,
 
         -- Command-line arguments
         cmdargs                       >= 0.9,

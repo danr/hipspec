@@ -13,7 +13,7 @@ isMain      :: Var -> Bool
 isMain      = isInfixOf "main" . showOutputable
 
 isEquals    :: Var -> Bool
-isEquals    = isInfixOf "=:=" . showOutputable
+isEquals    = isInfixOf ":=:" . showOutputable
 
 isProveBool :: Var -> Bool
 isProveBool = isInfixOf "proveBool" . showOutputable

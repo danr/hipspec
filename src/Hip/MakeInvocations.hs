@@ -68,7 +68,7 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
 
     us <- mkSplitUniqSupply 'c'
 
-    let ((properties,_msgs),_us) = runMakerM halo_env us
+    let ((properties,msgs),_us) = runMakerM halo_env us
                                  . mapM (\prop -> theoryToInvocations
                                                       params thy prop lemmas)
                                  $ props
