@@ -1,22 +1,15 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-
 
     All properties, lemmas and generalizations from the article.
 
     We do not use this file directly, but they are all here for brevity.
 
-
 -}
-module Main where
+module Properties where
 
 import Hip.Prelude
-import Hip.HipSpec
-import Prelude(Bool(..),putStrLn,print,(>>=),show)
+import Prelude(Bool(..))
 import Definitions
-
--- This file can be tested without theory exploration mode:
-
-main = hipSpec $(fileName) ([] :: [Sig])
 
 -- Theorems
 
