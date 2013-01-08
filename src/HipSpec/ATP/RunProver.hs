@@ -43,7 +43,7 @@ runOneProver filename (Prover{..}) inputStr timelimit = do
         n   <- evaluate (length err)
         when (n > 0) $ hPutStrLn stderr $
             "*** " ++ filename ++ " using " ++ show proverName ++ " stderr: ***"
-            ++ "\n" ++ err
+            ++ "\n" ++ err ++ "\nstdin was: " ++ inputStr
 
     unless (null inputStr || proverCannotStdin) $ do
         hPutStr inh inputStr

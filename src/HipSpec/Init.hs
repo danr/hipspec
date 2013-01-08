@@ -46,17 +46,14 @@ processFile file = do
     let init_core_binds = mg_binds modguts
 
 
-    let (unfoldings,debug_unfoldings) = fetch init_core_binds
-
-        -- Some stuff in this pile of junk contains non-translatable code.
+    let -- Some stuff in this pile of junk contains non-translatable code.
         -- I shouldn't fetch all dependencies :( Only necessary. Meep.
-        junk bind = any (`isInfixOf` showOutputable bind)
-            [ "Test.QuickSpec" {-, " Foreign."
-            , "GHC.Ptr", "GHC.Fingerprint", "GHC.Arr", "GHC.IO", "GHC.Conc"
-            , "State#", "RealWorld", "Data.Typeable", "CString", "GHC.TopHandler" -}
-            ]
+        junk v = any (`isInfixOf` showOutputable (varType v))
+                     [ "Test.QuickSpec", "GHC.Class" ]
 
-        unlifted_program = filter (not . junk) (unfoldings ++ init_core_binds)
+        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds
+
+        unlifted_program = unfoldings ++ init_core_binds
 
         ty_cons :: [TyCon]
         ty_cons = insert boolTyCon $ fetchTyCons unlifted_program
