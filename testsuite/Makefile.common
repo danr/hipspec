@@ -16,52 +16,53 @@ RESULT_DIR = results
 
 GHC       = ghc
 GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
-N         = -N 2
+N         = -N 1
+HIP_FLAGS = -p e -R
 
 # Depends on files
 
 # The different flags to test, separate flags with underscore
-base_flags =    \
-	-i_-a_-s    \
-	-i_-a       \
-	-i_-s       \
-	-a_-s       \
+base_flags = -r_-s
+#	-i_-a_-s    \
+#	-i_-a       \
+#	-i_-s       \
+#	-a_-s       \
 #	-s          \
 #	-a          \
 #	-i          \
-#	-p_-i_-a_-s \
-#	-p_-i_-a    \
-#	-p_-i_-s    \
-#	-p_-a_-s    \
-#	-p_-s       \
-#	-p_-a       \
-#	-p_-i       \
-#	-p
+#	-r_-i_-a_-s \
+#	-r_-i_-a    \
+#	-r_-i_-s    \
+#	-r_-a_-s    \
+#	-r_-s       \
+#	-r_-a       \
+#	-r_-i       \
+#	-r
 
-flags :=
+flags := $(base_flags)
 
 # Make flags from base flags times theorem prover to use
-$(foreach flag,$(base_flags),$(eval \
-	flags += $(flag)_-p_e \
-#			 $(flag)_-p_f \
-#			 $(flag)_-p_z \
-#			 $(flag)_-p_x \
-			 $(flag)_-p_v))
-
+# $(foreach flag,$(flags),$(eval \
+# 	flags += $(flag)_-p_e \
+# 			 $(flag)_-p_f \
+# 			 $(flag)_-p_z \
+# 			 $(flag)_-p_x \
+# 			 $(flag)_-p_v))
+#
 # # Times timeout, try 1 and 2 seconds
-# $(foreach flag,$(base_flags),$(eval \
+# $(foreach flag,$(flags),$(eval \
 # 	flags += $(flag)_-t_1 \
 # 			 $(flag)_-t_2 \
 # 			 $(flag)_-t_3))
-
+#
 # Different induction settings
-# $(foreach flag,$(base_flags),$(eval \
+# $(foreach flag,$(flags),$(eval \
 # 	flags += $(flag)_-D_1 \
 # 			 $(flag)_-D_2))
-# $(foreach flag,$(base_flags),$(eval \
+# $(foreach flag,$(flags),$(eval \
 # 	flags += $(flag)_-S_1 \
 #    		     $(flag)_-S_2 \
-# 			 $(flag)_-S_3))
+#  			 $(flag)_-S_3))
 
 # Flag delimiter
 delim = _
@@ -74,9 +75,9 @@ all_targets :=
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-$(RESULT_DIR)/$(1)$(2).json: $(1)
+$(RESULT_DIR)/$(1)$(2).json: $(1) json_list
 	mkdir -p `dirname $$@`
-	./$(1) -l $(subst $(delim),$(space),$(2)) $(N) --json $$@
+	./$(1) -l $(subst $(delim),$(space),$(2)) $(N) $(HIP_FLAGS) --json $$@
 all_targets += $(RESULT_DIR)/$(1)$(2).json
 endef
 
@@ -92,10 +93,14 @@ endef
 $(foreach file,$(files),$(eval $(call file_rule,$(file))))
 
 # Make all targets
-all: json_list $(all_targets)
+all: $(all_targets)
 
+# Make json list of all generated json result files
 json_list:
 	echo $(all_targets) | sed 's/ /","/g' | sed 's/^/["/' | sed 's/$$/"]/' > json_list
+
+# Binaries
+binaries: $(files)
 
 # Remove all targets
 clean:
@@ -104,7 +109,7 @@ clean:
 	rm -f json_list
 
 # Targets that do not create a file with the same name (meta-targets)
-.PHONY: all clean
+.PHONY: all clean binaries
 
 # Shortcut variables for indexing prerequisites of rules:
 arg1 = $(word 1,$+)

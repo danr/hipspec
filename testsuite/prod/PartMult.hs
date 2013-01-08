@@ -31,11 +31,11 @@ main = hipSpec $(fileName)
 --    , "Z"      `fun0` Z
 --    , "S"      `fun1` S
     -- Functions
+    , "wrap"      `fun1` wrap
+    , "unwrap"    `fun1` unwrap
     , "mult'"     `fun3` mult'
     , "+"         `fun2` (+)
     , "*"         `fun2` (*)
-    , "wrap"      `fun1` wrap
-    , "unwrap"    `fun1` unwrap
     ]
 
 -- The properties needs to be mentioned here to be included

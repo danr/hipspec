@@ -134,11 +134,11 @@ prop_T38 x y z = givenBool (x `elem` y)
 prop_T39 :: Nat -> Nat -> [Nat] -> Prop Bool
 prop_T39 x y z = givenBool (x `elem` drop y z) (proveBool (x `elem` z))
 
-prop_T40 :: [Nat] -> [Nat] -> Prop Bool
-prop_T40 x y = givenBool (x `subset` y) (proveBool ((x `union` y) `listEq` y))
+prop_T40 :: [Nat] -> [Nat] -> Prop [Nat]
+prop_T40 x y = givenBool (x `subset` y) ((x `union` y) =:= y)
 
-prop_T41 :: [Nat] -> [Nat] -> Prop Bool
-prop_T41 x y = givenBool (x `subset` y) (proveBool ((x `intersect` y) `listEq` x))
+prop_T41 :: [Nat] -> [Nat] -> Prop [Nat]
+prop_T41 x y = givenBool (x `subset` y) ((x `intersect` y) =:= x)
 
 prop_T42 :: Nat -> [Nat] -> [Nat] -> Prop Bool
 prop_T42 x y z = givenBool (x `elem` y) (proveBool (x `elem` (y `union` z)))

@@ -158,11 +158,6 @@ count n (x:xs) | n == x = S (count n xs)
                | otherwise = count n xs
 count n [] = Z
 
-listEq :: [Nat] -> [Nat] -> Bool
-listEq [] [] = True
-listEq (x:xs) (y:ys) = x == y && (xs `listEq` ys)
-listEq _ _ = False
-
 sorted :: [Nat] -> Bool
 sorted (x:y:xs) = x <= y && sorted (y:xs)
 sorted _ = True

@@ -23,20 +23,14 @@ main = hipSpec $(fileName)
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     , "Z"      `fun0` Z
     , "S"      `fun1` S
-    , "True"   `fun0` True
-    , "False"  `fun0` False
     -- Functions
-    , "not"       `fun1` not
-    , "&&"        `fun2` (&&)
-    , "=="        `fun2` (==)
-    , "/="        `fun2` (/=)
-    , "elem"      `fun2` elem
-    , "intersect" `fun2` intersect
-    , "union"     `fun2` union
-    , "listEq"    `fun2` listEq
-    , "subset"    `fun2` subset
-    , "++"        `fun2` ((++)   :: [Nat] -> [Nat] -> [Nat])
-    , "+"         `fun2` (+)
+    , "=="     `fun2` (==)
+    , "/="     `fun2` (/=)
+    , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat])
+    , "drop"   `fun2`  (drop   :: Nat -> [Nat] -> [Nat])
+    , "elem"   `fun2` elem
+    , "length" `fun1`  (length :: [Nat] -> Nat)
+    , "+"      `fun2`  (+)
     ]
 
 -- The properties needs to be mentioned here to be included
