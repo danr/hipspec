@@ -50,26 +50,26 @@ import Control.Monad.Writer
     -- to debug unfoldings
 
 -- | Fetches the missing definitions from other modules
-fetch :: [CoreBind] -> ([CoreBind],String)
-fetch init_bs = (arrangeCoreBinds new_vars new_binders,unlines debug)
+fetch :: (Var -> Bool) -> [CoreBind] -> ([CoreBind],String)
+fetch ok init_bs = (arrangeCoreBinds new_vars new_binders,unlines debug)
   where
     (init_vars,exprs) = first mkVarSet (unzip (flattenBinds init_bs))
 
     new_binders :: [(Var,CoreExpr)]
-    ((all_vars,new_binders),debug) = runWriter (go init_vars exprs)
+    ((all_vars,new_binders),debug) = runWriter (go ok init_vars exprs)
 
     new_vars = all_vars `minusVarSet` init_vars
 
 write :: a -> Writer [a] ()
 write = tell . return
 
-go :: VarSet -> [CoreExpr] -> Writer [String] (VarSet,[(Var,CoreExpr)])
-go vs es
+go :: (Var -> Bool) -> VarSet -> [CoreExpr] -> Writer [String] (VarSet,[(Var,CoreExpr)])
+go ok vs es
     | isEmptyVarSet new_vars = write "No more unvisited expressions" >> return (vs,[])
     | otherwise = do
         write $ "Interesting variables this round: " ++ showOutputable new_vars
-        new_exprs <- catMaybes <$> mapM maybe_unfold (varSetElems new_vars)
-        second (new_exprs ++) <$> go (vs `unionVarSet` new_vars) (map snd new_exprs)
+        new_exprs <- catMaybes <$> mapM maybe_unfold (filter ok $ varSetElems new_vars)
+        second (new_exprs ++) <$> go ok (vs `unionVarSet` new_vars) (map snd new_exprs)
   where
     new_vars = exprsSomeFreeVars interesting es
 
