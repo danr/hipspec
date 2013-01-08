@@ -10,6 +10,7 @@ import HipSpec.Trans.ProofDatatypes (propMatter)
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.TypeGuards
+import HipSpec.Messages
 import qualified HipSpec.Trans.ProofDatatypes as PD
 
 import Halo.Monad
@@ -53,9 +54,9 @@ partitionInvRes ((x,ir):xs) = case ir of
   where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: HaloEnv -> Params -> [Prop] -> Theory -> [Prop]
+tryProve :: HaloEnv -> Params -> (Msg -> IO ()) -> [Prop] -> Theory -> [Prop]
          -> IO [(Prop,InvokeResult)]
-tryProve halo_env params@(Params{..}) props thy lemmas = do
+tryProve halo_env params@(Params{..}) write props thy lemmas = do
     let env = Env { reproveTheorems = False
                   , timeout         = timeout
                   , store           = output
@@ -118,7 +119,16 @@ tryProve halo_env params@(Params{..}) props thy lemmas = do
 
         putStrLn $ viewInvRes green prop_name invRes
 
+        writeInvRes write prop_name invRes
+
         return (original,invRes)
+
+writeInvRes write prop_name res = case res of
+    ByInduction lemmas  -> write $ InductiveProof prop_name (view_lemmas lemmas)
+    ByPlain lemmas      -> write $ PlainProof prop_name (view_lemmas lemmas)
+    NoProof             -> write $ FailedProof prop_name
+  where
+    view_lemmas = fromMaybe []
 
 viewInvRes green prop_name res = case res of
     ByInduction lemmas ->
@@ -136,11 +146,11 @@ viewInvRes green prop_name res = case res of
         Just [x] -> ", using " ++ x
         Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
 
-parLoop :: HaloEnv -> Params -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
-parLoop halo_env params thy props lemmas = do
+parLoop :: HaloEnv -> Params -> (Msg -> IO ()) -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
+parLoop halo_env params write thy props lemmas = do
 
     (proved,without_induction,unproved) <-
-         partitionInvRes <$> tryProve halo_env params props thy lemmas
+         partitionInvRes <$> tryProve halo_env params write props thy lemmas
 
     unless (null without_induction) $
          putStrLn $ unwords (map (showProp True) without_induction)
@@ -152,7 +162,7 @@ parLoop halo_env params thy props lemmas = do
 
          else do putStrLn $ "Adding " ++ show (length proved)
                          ++ " lemmas: " ++ intercalate ", " (map propName proved)
-                 parLoop halo_env params thy unproved
+                 parLoop halo_env params write thy unproved
                          (lemmas ++ proved ++ without_induction)
 
 showProp :: Bool -> Prop -> String

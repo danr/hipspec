@@ -16,6 +16,7 @@ data Params = Params
     , output              :: Maybe FilePath
     , z_encode_filenames  :: Bool
     , warnings            :: Bool
+    , json                :: Maybe FilePath
 
     , processes           :: Int
     , batchsize           :: Int
@@ -70,6 +71,7 @@ defParams = Params
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
+    , json                = Nothing &= help "File to write statistics to (in json format)"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"

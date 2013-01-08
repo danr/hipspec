@@ -17,6 +17,7 @@ import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
+import HipSpec.Messages
 
 import HipSpec.Params
 
@@ -27,12 +28,16 @@ import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
+import Data.Maybe
 
 import Control.Monad
 import Control.Monad.State
 
 import System.Console.CmdArgs hiding (summary)
 import Language.Haskell.TH
+
+import Data.Aeson (encode)
+import qualified Data.ByteString.Lazy as B
 
 import System.IO
 
@@ -45,17 +50,21 @@ getUpTo n p (x:xs) ys
    | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
    | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
 
+
 -- | The main loop
 deep :: HaloEnv            -- ^ Environment to run HaltM
      -> Params             -- ^ Parameters to the program
+     -> (Msg -> IO ())     -- ^ Writer function
      -> Theory             -- ^ Translated theory
      -> Sig                -- ^ Configuration to QuickSpec
      -> [Tagged Term]      -- ^ The universe from QuickSpec
      -> [Prop]             -- ^ The equations from QuickSpec
      -> IO ([Prop],[Prop]) -- ^ Resulting theorems and unproved
-deep halt_env params@Params{..} theory sig univ init_eqs =
+deep halt_env params@Params{..} write theory sig univ init_eqs =
     loop (initial (maxDepth sig) univ) init_eqs [] [] False
   where
+    showEqs = map (showEquation sig . propQSTerms)
+
     loop :: Context            -- ^ Prune state, to handle the congurece closure
          -> [Prop]             -- ^ Equations to process
          -> [Prop]             -- ^ Equations processed, but failed
@@ -75,14 +84,19 @@ deep halt_env params@Params{..} theory sig univ init_eqs =
 
           (renamings,try,next) = getUpTo batchsize discard eqs failed
 
-      unless (null renamings) $ putStrLn $
-         let n = length renamings
-         in if (n > 4)
-               then "Discarding " ++ show n ++ " renamings and subsumptions."
-               else "Discarding renamings and subsumptions: "
-                       ++ csv (map (showEquation sig . propQSTerms) renamings)
+      unless (null renamings) $ do
 
-      res <- tryProve halt_env params try theory proved
+        let shown = showEqs renamings
+
+        write $ Discard shown
+
+        putStrLn $
+          let n = length renamings
+          in if (n > 4)
+                then "Discarding " ++ show n ++ " renamings and subsumptions."
+                else "Discarding renamings and subsumptions: " ++ csv shown
+
+      res <- tryProve halt_env params write try theory proved
 
       let (successes,without_induction,failures) = partitionInvRes res
           prunable = successes ++ without_induction
@@ -109,9 +123,10 @@ deep halt_env params@Params{..} theory sig univ init_eqs =
 
               if interesting_cands
                   then do
-                      unless (null cand) . putStrLn $
-                        "Interesting candidates: "
-                          ++ csv (map (showEquation sig . propQSTerms) cand)
+                      unless (null cand) $ do
+                        let shown = showEqs cand
+                        write $ Candidates $ shown
+                        putStrLn $ "Interesting candidates: " ++ csv shown
                       loop ps' (cand ++ next) failed_wo_cand
                                (proved ++ successes) True
 
@@ -178,8 +193,18 @@ fileName = location >>= \(Loc f _ _ _ _) -> stringE f
 
 hipSpec :: Signature a => FilePath -> a -> IO ()
 hipSpec file sig0 = do
+
+    (write0, read) <- mkWriter
+
+    write0 Started
+
     let sig = signature sig0
     (theory,halt_env,props,str_marsh,params@Params{..}) <- processFile file
+
+    let write = if isJust json then write0 else const (return ())
+
+    write FileProcessed
+
     classes <- fmap eraseClasses (generate sig)
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
@@ -197,20 +222,35 @@ hipSpec file sig0 = do
         prunedEqs = prune (maxDepth sig) univ reps (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
-        qsprops = map (eqToProp str_marsh) eqs
+        qsprops   = map (eqToProp str_marsh) eqs
+
+        showEqs   = map (showEquation sig . propQSTerms)
+
+    when quickspec $
+         (writeFile (file++"_QuickSpecOutput.txt") ("All stuff from QuickSpec:\n" ++ intercalate "\n"
+         (map show (classToEqs classes))))
+
+    write $ QuickSpecDone (length classes) (length eqs)
 
     putStrLn "Starting to prove..."
 
-    (qslemmas,qsunproved) <- deep halt_env params theory sig univ qsprops
+    (qslemmas,qsunproved) <- deep halt_env params write theory sig univ qsprops
 
-    (unproved,proved) <- parLoop halt_env params theory props qslemmas
+    write StartingUserLemmas
+
+    (unproved,proved) <- parLoop halt_env params write theory props qslemmas
+
+    write $ Finished (map propName proved) (map propName unproved) (showEqs qsunproved)
 
     printInfo unproved proved
 
     unless dont_print_unproved $
         putStrLn $ "Unproved from QuickSpec: "
-            ++ intercalate ", " (map (showEquation sig . propQSTerms) qsunproved)
+            ++ intercalate ", " (showEqs qsunproved)
 
-    when quickspec $
-         (writeFile (file++"_QuickSpecOutput.txt") ("All stuff from QuickSpec:\n" ++ intercalate "\n"
-         (map show (classToEqs classes))))
+    case json of
+        Just json_file -> do
+            msgs <- read
+            B.writeFile json_file (encode msgs)
+        Nothing -> return ()
+

@@ -98,6 +98,7 @@ library
         HipSpec.Init
         HipSpec.MakeInvocations
         HipSpec.Params
+        HipSpec.Messages
         HipSpec.Induction
         HipSpec.Induction.Linearise
         HipSpec.Induction.Terms
@@ -117,6 +118,9 @@ library
         mtl                           >= 2.0,
         containers                    >= 0.3,
         geniplate                     >= 0.6,
+        time,
+        aeson,
+        bytestring,
 
         -- Prelude
         QuickCheck                    >= 2.4,
