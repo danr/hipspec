@@ -49,6 +49,16 @@
                 <span ng-hide="solved[prop]">&#215;</span>
               </td>
             </tr>
+            <tr class="result-row">
+              <td>Total: {{ num_solved }}/{{ headers.length }}</td>
+              <td></td>
+              <td
+                ng-repeat="prop in headers"
+                ng-class='{ "prop-solved": solved[prop], "prop-failed": !solved[prop] }'
+                class="prop-cell">
+                <span ng-show="solved[prop]">&#10003;</span>
+                <span ng-hide="solved[prop]">&#215;</span>
+              </td>
           </table>
 
           <div ng-controller="InstanceCtrl">

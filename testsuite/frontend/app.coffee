@@ -21,6 +21,7 @@ hipspec_module.controller 'CompareCtrl', ($scope, request) ->
 
     $scope.table = {}
     $scope.headers = []
+    $scope.num_solved = 0
 
     $scope.select = (id) -> console.log $scope.selected = id
 
@@ -30,6 +31,8 @@ hipspec_module.controller 'CompareCtrl', ($scope, request) ->
         request.list($scope.testsuite).success (list) ->
             $scope.headers = []
             $scope.table = {}
+            $scope.num_solved = 0
+            $scope.solved = {}
             for i in list
                 do (i) ->
                     console.log i
@@ -43,6 +46,9 @@ hipspec_module.controller 'CompareCtrl', ($scope, request) ->
                                     console.log $scope.headers
                                 for prop in $scope.headers
                                     res[prop] = _.contains obj.proved, prop
+                                    if res[prop] and not $scope.solved[prop]
+                                        $scope.solved[prop] = true
+                                        $scope.num_solved++
                                 res.time = time
                         $scope.table[i] = res
                         console.log i, $scope.table

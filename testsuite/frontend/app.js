@@ -32,6 +32,7 @@
   hipspec_module.controller('CompareCtrl', function($scope, request) {
     $scope.table = {};
     $scope.headers = [];
+    $scope.num_solved = 0;
     $scope.select = function(id) {
       return console.log($scope.selected = id);
     };
@@ -44,6 +45,8 @@
           var i, _i, _len, _results;
           $scope.headers = [];
           $scope.table = {};
+          $scope.num_solved = 0;
+          $scope.solved = {};
           _results = [];
           for (_i = 0, _len = list.length; _i < _len; _i++) {
             i = list[_i];
@@ -64,6 +67,10 @@
                     for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
                       prop = _ref2[_k];
                       res[prop] = _.contains(obj.proved, prop);
+                      if (res[prop] && !$scope.solved[prop]) {
+                        $scope.solved[prop] = true;
+                        $scope.num_solved++;
+                      }
                     }
                     res.time = time;
                   }

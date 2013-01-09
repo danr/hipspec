@@ -8,5 +8,6 @@ main = scotty 2999 $ do
 
     middleware logStdout
     middleware static
-    middleware $ staticPolicy (addBase "..")
+    middleware $ staticPolicy (addBase "results")
+    -- middleware $ staticPolicy (addBase "..")
 
