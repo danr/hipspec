@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 module Main where
 
 import HipSpec.Prelude
@@ -7,6 +7,8 @@ import Prelude(undefined,Bool(..), IO, product, Integer, (^), (+), (*), (-), ret
 import Definitions hiding (Nat, (+), (*))
 import Properties
 import Data.Typeable
+
+newtype Wrap a = Wrap a deriving (Typeable, Eq, Ord, Arbitrary)
 
 newtype Nat = Nat Integer
   deriving (Typeable, Eq, Ord)
@@ -39,7 +41,8 @@ main = hipSpec $(fileName)
     , "+"      `fun2` nat_plus
     , "*"      `fun2` nat_mul
     , "exp"    `fun2` nat_exp
-    , "qexp"   `fun3` nat_qexp
+    , "qexp"   `fun3` (\x y z -> Wrap (nat_qexp x y z))
+    , withTests 100
     ]
 
 -- The properties needs to be mentioned here to be included
