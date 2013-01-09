@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LNatNGUNatGE TemplateHaskell #-}
 {-
 
    Compile with -fforce-recomp -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
@@ -15,16 +15,15 @@ import Definitions
 
 main :: IO ()
 main = hipSpec $(fileName)
-    [ vars ["m", "n", "o"] (undefined :: Nat)
-    , vars ["x", "y", "z"] (undefined :: A)
-    , vars ["xs", "ys", "zs"] (undefined :: [A])
+    [ vars ["x", "y", "z"] (undefined :: Nat)
+    , vars ["xs", "ys", "zs"] (undefined :: [Nat])
     -- Constructors
-    , "[]"     `fun0` ([] :: [A])
-    , ":"      `fun2` ((:) :: A -> [A] -> [A])
+    , "[]"     `fun0` ([] :: [Nat])
+    , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     , "Z"      `fun0` Z
     , "S"      `fun1` S
     -- Functions
-    , "drop"   `fun2`  (drop   :: Nat -> [A] -> [A])
+    , "drop"   `fun2`  (drop   :: Nat -> [Nat] -> [Nat])
     , "+"      `fun2`  (+)
     ]
 
