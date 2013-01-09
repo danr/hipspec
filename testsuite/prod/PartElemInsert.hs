@@ -20,18 +20,17 @@ main = hipSpec $(fileName)
     -- Constructors
     , "[]"     `fun0` ([] :: [Nat])
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
+    , "Z"      `fun0` Z
+    , "S"      `fun1` S
     -- Functions
---    , "<="        `fun2` (==)
---    , "=="        `fun2` (==)
---    , "/="        `fun2` (/=)
-    , "isort"     `fun1` isort
-    , "sorted"    `fun1` sorted
+    , "<="        `fun2` (<=) -- insert calls (<=)
+    , "||"        `fun2` (||) -- elem calls (||)
+    , "=="        `fun2` (==) -- elem calls (==)
     , "elem"      `fun2` elem
     , "insert"    `fun2` insert
-    , "count"     `fun2` count
     , "++"        `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = (prop_T14, prop_T45, prop_T46, prop_T47, prop_T48, prop_T49, prop_T50)
+to_show = (prop_T45, prop_T46, prop_T47)
 

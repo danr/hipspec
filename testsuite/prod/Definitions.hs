@@ -113,12 +113,15 @@ qrev :: [a] -> [a] -> [a]
 qrev []     acc = acc
 qrev (x:xs) acc = qrev xs (x:acc)
 
-{-
--- revflat and qrevflat is mentioned in the properties but I do not
--- know what it is
-revflat = rev
-qrevflat = qrev
--}
+revflat :: [[a]] -> [a]
+revflat []           = []
+revflat ([]:xss)     = revflat xss
+revflat ((x:xs):xss) = revflat (xs:xss) ++ [x]
+
+qrevflat :: [[a]] -> [a] -> [a]
+qrevflat []           acc = acc
+qrevflat ([]:xss)     acc = qrevflat xss acc
+qrevflat ((x:xs):xss) acc = qrevflat (xs:xss) (x:acc)
 
 rotate :: Nat -> [a] -> [a]
 rotate Z xs = xs

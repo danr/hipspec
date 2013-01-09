@@ -15,16 +15,20 @@ import Definitions
 
 main :: IO ()
 main = hipSpec $(fileName)
-    [ vars ["xs", "ys", "zs"] (undefined :: [A])
-    , vars ["x", "y", "z"] (undefined :: A)
+    [ vars ["x", "y", "z"] (undefined :: Nat)
+    , vars ["xs", "ys", "zs"] (undefined :: [Nat])
     -- Constructors
-    , "[]"     `fun0` ([] :: [A])
-    , ":"      `fun2` ((:) :: A -> [A] -> [A])
+    , "[]"     `fun0` ([] :: [Nat])
+    , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
+    , "Z"      `fun0` Z
+    , "S"      `fun1` S
     -- Functions
-    , "++"     `fun2`  ((++) :: [A] -> [A] -> [A]) -- rev calls (++)
-    , "rev"    `fun1`  (rev  :: [A] -> [A])
+    , "elem"      `fun2` elem
+    , "=="        `fun2` (==) -- elem calls (==)
+    , "||"        `fun2` (||) -- elem calls (||)
+    , "intersect" `fun2` intersect
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = (prop_T10, prop_T11, prop_T17, prop_T18, prop_T19, prop_T30)
+to_show = prop_T42
 

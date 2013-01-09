@@ -92,10 +92,8 @@ prop_T26 x y = half (x + y) =:= half (y + x)
 prop_T27 :: [a] -> Prop [a]
 prop_T27 x = rev x =:= qrev x []
 
-{-
-prop_T28 :: [a] -> Prop [a]
+prop_T28 :: [[a]] -> Prop [a]
 prop_T28 x = revflat x =:= qrevflat x []
--}
 
 prop_T29 :: [a] -> Prop [a]
 prop_T29 x = rev (qrev x []) =:= x

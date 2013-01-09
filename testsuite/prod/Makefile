@@ -1,4 +1,3 @@
-
-files = PartFac PartMult PartExp PartDrop PartIntersect PartLength PartRev PartRotate PartSort PartUnion 
+files = PartCountSort PartDoubleLength PartDoublePlus PartDropElem PartDrop PartDrop_WithPlus PartElemAppend PartElemInsert PartElemSort PartEven PartEvenLengthAppend PartEvenLengthAppendPlus PartExp PartFac PartFlatRevQRev PartHalfLength PartHalfPlus PartIntersectElem PartIntersectSubset PartLength PartLengthQRevPlus PartMult PartPlus PartQRev PartQRev_WithAppend PartRev PartRevLengthAppend PartRevLength PartRevLength_WithAppend PartRevQRev PartRotate PartSorted PartSort PartSortLength PartUnionElem PartUnionSubset
 
 include ../Makefile.common

@@ -41,6 +41,5 @@ main = hipSpec $(fileName)
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = properties
-
+to_show = prop_T34
 

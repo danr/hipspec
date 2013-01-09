@@ -16,7 +16,6 @@ import Definitions
 main :: IO ()
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] (undefined :: Nat)
-    , vars ["a", "b", "c"] (undefined :: Bool)
     , vars ["xs", "ys", "zs"] (undefined :: [Nat])
     -- Constructors
     , "[]"     `fun0` ([] :: [Nat])
@@ -24,12 +23,11 @@ main = hipSpec $(fileName)
     , "Z"      `fun0` Z
     , "S"      `fun1` S
     -- Functions
-    , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat])
+    , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat]) -- rotate calls (++)
     , "length" `fun1`  (length :: [Nat] -> Nat)
     , "rotate" `fun2`  (rotate :: Nat -> [Nat] -> [Nat])
-    , "+"      `fun2`  (+)
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = properties
+to_show = prop_T32
 
