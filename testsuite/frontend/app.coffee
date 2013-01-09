@@ -58,9 +58,11 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http) ->
 
     $scope.display_prop = (prop) -> prop.replace /^prop_/, ""
 
+    $scope.num_problems = () -> _.size $scope.headers
+
     $scope.$watch 'testsuite', () -> if $scope.testsuite?
         request.list($scope.testsuite).success (list) ->
-            $scope.headers = []
+            $scope.headers = {}
             $scope.table = {}
             $scope.num_solved = 0
             $scope.solved = {}
@@ -69,12 +71,19 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http) ->
                     request.log($scope.testsuite, i).success (log) ->
                         for [ time, message ] in log
                             [[type,obj]] = _.pairs message
-                            res = []
+                            res = {}
                             if type == "Finished"
-                                $scope.headers = _.union($scope.headers, obj.proved, obj.unproved).sort()
-                                for prop in $scope.headers
-                                    res[prop] = _.contains obj.proved, prop
-                                    if res[prop] and not $scope.solved[prop]
+                                for prop in obj.unproved
+                                    $scope.headers[prop] = {}
+                                    res[prop] =
+                                        solved: false
+                                        failed: true
+                                for prop in obj.proved
+                                    $scope.headers[prop] = {}
+                                    res[prop] =
+                                        solved: true
+                                        failed: false
+                                    if res[prop].solved and not $scope.solved[prop]
                                         $scope.solved[prop] = true
                                         $scope.num_solved++
                                 res.time = time
@@ -82,6 +91,7 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http) ->
                         i.replace /^results/, ""
                         console.log i
                         $scope.table[i] = res
+
 
 
 hipspec_module.controller 'InstanceCtrl', ($scope, $http, request) ->

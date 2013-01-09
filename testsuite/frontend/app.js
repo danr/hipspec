@@ -69,11 +69,14 @@
     $scope.display_prop = function(prop) {
       return prop.replace(/^prop_/, "");
     };
+    $scope.num_problems = function() {
+      return _.size($scope.headers);
+    };
     return $scope.$watch('testsuite', function() {
       if ($scope.testsuite != null) {
         return request.list($scope.testsuite).success(function(list) {
           var i, _i, _len, _results;
-          $scope.headers = [];
+          $scope.headers = {};
           $scope.table = {};
           $scope.num_solved = 0;
           $scope.solved = {};
@@ -82,18 +85,30 @@
             i = list[_i];
             _results.push((function(i) {
               return request.log($scope.testsuite, i).success(function(log) {
-                var message, obj, prop, res, time, type, _j, _k, _len1, _len2, _ref, _ref1, _ref2;
+                var message, obj, prop, res, time, type, _j, _k, _l, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
                 for (_j = 0, _len1 = log.length; _j < _len1; _j++) {
                   _ref = log[_j], time = _ref[0], message = _ref[1];
                   _ref1 = _.pairs(message)[0], type = _ref1[0], obj = _ref1[1];
-                  res = [];
+                  res = {};
                   if (type === "Finished") {
-                    $scope.headers = _.union($scope.headers, obj.proved, obj.unproved).sort();
-                    _ref2 = $scope.headers;
+                    _ref2 = obj.unproved;
                     for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
                       prop = _ref2[_k];
-                      res[prop] = _.contains(obj.proved, prop);
-                      if (res[prop] && !$scope.solved[prop]) {
+                      $scope.headers[prop] = {};
+                      res[prop] = {
+                        solved: false,
+                        failed: true
+                      };
+                    }
+                    _ref3 = obj.proved;
+                    for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
+                      prop = _ref3[_l];
+                      $scope.headers[prop] = {};
+                      res[prop] = {
+                        solved: true,
+                        failed: false
+                      };
+                      if (res[prop].solved && !$scope.solved[prop]) {
                         $scope.solved[prop] = true;
                         $scope.num_solved++;
                       }
