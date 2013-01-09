@@ -40,6 +40,7 @@ main = hipSpec $(fileName)
     , "qfac"   `fun2` nat_qfac
     , "+"      `fun2` nat_plus
     , "*"      `fun2` nat_mul
+    , withTests 100
     ]
 
 -- The properties needs to be mentioned here to be included

@@ -38,6 +38,7 @@ main = hipSpec $(fileName)
     , "+"      `fun2` nat_plus
     , "*"      `fun2` nat_mul
     , "mult"   `fun3` nat_mult
+    , withTests 100
     ]
 
 -- The properties needs to be mentioned here to be included
