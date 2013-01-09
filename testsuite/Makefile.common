@@ -16,10 +16,16 @@ RESULT_DIR = results
 
 GHC       = ghc
 GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
-N         = -N 1
-HIP_FLAGS = -p e -R
+N         = -N 2
+HIP_FLAGS =
 
 # Depends on files
+
+# Flag delimiter
+delim = _
+empty =
+space = $(empty) $(empty)
+comma = ,
 
 # The different flags to test, separate flags with underscore
 base_flags = -r_-s
@@ -42,12 +48,12 @@ base_flags = -r_-s
 flags := $(base_flags)
 
 # Make flags from base flags times theorem prover to use
-# $(foreach flag,$(flags),$(eval \
-# 	flags += $(flag)_-p_e \
-# 			 $(flag)_-p_f \
-# 			 $(flag)_-p_z \
-# 			 $(flag)_-p_x \
-# 			 $(flag)_-p_v))
+$(foreach flag,$(flags),$(eval \
+	flags += $(flag)_-p_e \
+			 $(flag)_-p_z))
+#			 $(flag)_-p_f \
+#			 $(flag)_-p_v \
+#			 $(flag)_-p_x \
 #
 # # Times timeout, try 1 and 2 seconds
 # $(foreach flag,$(flags),$(eval \
@@ -59,16 +65,10 @@ flags := $(base_flags)
 # $(foreach flag,$(flags),$(eval \
 # 	flags += $(flag)_-D_1 \
 # 			 $(flag)_-D_2))
-# $(foreach flag,$(flags),$(eval \
-# 	flags += $(flag)_-S_1 \
-#    		     $(flag)_-S_2 \
-#  			 $(flag)_-S_3))
-
-# Flag delimiter
-delim = _
-empty =
-space = $(empty) $(empty)
-comma = ,
+$(foreach flag,$(flags),$(eval \
+	flags += $(flag)_-S_1 \
+ 			 $(flag)_-S_3))
+#            $(flag)_-S_2 \
 
 # All targets
 all_targets :=
