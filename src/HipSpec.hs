@@ -40,6 +40,7 @@ import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
 import System.IO
+import Text.Printf
 
 -- | Get up to n elements satisfying the predicate, those skipped, and the rest
 --   (satisfies p,does not satisfy p (at most n),the rest)
@@ -52,35 +53,35 @@ getUpTo n p (x:xs) ys
 
 
 -- | The main loop
-deep :: HaloEnv            -- ^ Environment to run HaltM
-     -> Params             -- ^ Parameters to the program
-     -> (Msg -> IO ())     -- ^ Writer function
-     -> Theory             -- ^ Translated theory
-     -> Sig                -- ^ Configuration to QuickSpec
-     -> [Tagged Term]      -- ^ The universe from QuickSpec
-     -> [Prop]             -- ^ The equations from QuickSpec
-     -> IO ([Prop],[Prop]) -- ^ Resulting theorems and unproved
+deep :: HaloEnv                    -- ^ Environment to run HaltM
+     -> Params                     -- ^ Parameters to the program
+     -> (Msg -> IO ())             -- ^ Writer function
+     -> Theory                     -- ^ Translated theory
+     -> Sig                        -- ^ Configuration to QuickSpec
+     -> [Tagged Term]              -- ^ The universe from QuickSpec
+     -> [Prop]                     -- ^ The equations from QuickSpec
+     -> IO ([Prop],[Prop],Context) -- ^ Resulting theorems and unproved
 deep halt_env params@Params{..} write theory sig univ init_eqs =
     loop (initial (maxDepth sig) univ) init_eqs [] [] False
   where
     showEqs = map (showEquation sig . propQSTerms)
 
-    loop :: Context            -- ^ Prune state, to handle the congurece closure
-         -> [Prop]             -- ^ Equations to process
-         -> [Prop]             -- ^ Equations processed, but failed
-         -> [Prop]             -- ^ Equations proved
-         -> Bool               -- ^ Managed to prove something this round
-         -> IO ([Prop],[Prop]) -- ^ Resulting theorems and unproved
-    loop _  []  failed proved False = return (proved,failed)
-    loop ps []  failed proved True  = do putStrLn "Loop!"
-                                         loop ps failed [] proved False
-    loop ps eqs failed proved retry = do
+    loop :: Context                    -- ^ Prune state, to handle the congurece closure
+         -> [Prop]                     -- ^ Equations to process
+         -> [Prop]                     -- ^ Equations processed, but failed
+         -> [Prop]                     -- ^ Equations proved
+         -> Bool                       -- ^ Managed to prove something this round
+         -> IO ([Prop],[Prop],Context) -- ^ Resulting theorems and unproved
+    loop ctx []  failed proved False = return (proved,failed,ctx)
+    loop ctx  []  failed proved True  = do putStrLn "Loop!"
+                                           loop ctx failed [] proved False
+    loop ctx eqs failed proved retry = do
 
       let discard :: Prop -> [Prop] -> Bool
           discard eq = \failedacc ->
                             any (isomorphicTo (propQSTerms eq))
                                 (map propQSTerms failedacc)
-                         || evalEQ ps (unifiable (propQSTerms eq))
+                         || evalEQ ctx (unifiable (propQSTerms eq))
 
           (renamings,try,next) = getUpTo batchsize discard eqs failed
 
@@ -102,10 +103,10 @@ deep halt_env params@Params{..} write theory sig univ init_eqs =
           prunable = successes ++ without_induction
 
       if null prunable
-          then loop ps next (failed ++ failures) proved retry
+          then loop ctx next (failed ++ failures) proved retry
           else do
-              let ps' :: Context
-                  ps' = execEQ ps (mapM_ (unify . propQSTerms) prunable)
+              let ctx' :: Context
+                  ctx' = execEQ ctx (mapM_ (unify . propQSTerms) prunable)
 
                   failed' :: [Prop]
                   failed' = failed ++ failures
@@ -117,7 +118,7 @@ deep halt_env params@Params{..} write theory sig univ init_eqs =
                       $ forM prunable
                       $ \prop -> do
                            failed <- get
-                           let (cand,failed') = instancesOf ps prop failed
+                           let (cand,failed') = instancesOf ctx prop failed
                            put failed'
                            return cand
 
@@ -127,10 +128,10 @@ deep halt_env params@Params{..} write theory sig univ init_eqs =
                         let shown = showEqs cand
                         write $ Candidates $ shown
                         putStrLn $ "Interesting candidates: " ++ csv shown
-                      loop ps' (cand ++ next) failed_wo_cand
+                      loop ctx' (cand ++ next) failed_wo_cand
                                (proved ++ successes) True
 
-                  else loop ps' next failed' (proved ++ successes) True
+                  else loop ctx' next failed' (proved ++ successes) True
 
 
     -- Renaming
@@ -158,11 +159,11 @@ deep halt_env params@Params{..} write theory sig univ init_eqs =
 
     -- For interesting candidates
     instancesOf :: Context -> Prop -> [Prop] -> ([Prop],[Prop])
-    instancesOf ps new = partition (instanceOf ps new)
+    instancesOf ctx new = partition (instanceOf ctx new)
 
     instanceOf :: Context -> Prop -> Prop -> Bool
-    instanceOf ps (propQSTerms -> new) (propQSTerms -> cand) =
-      evalEQ ps (new --> cand)
+    instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
+      evalEQ ctx (new --> cand)
       where
         (t :=: u) --> (v :=: w) = do
           v =:= w
@@ -234,8 +235,14 @@ hipSpec file sig0 = do
 
     putStrLn "Starting to prove..."
 
-    (qslemmas,qsunproved) <- deep halt_env params write theory sig univ qsprops
-
+    (qslemmas,qsunproved,ctx) <- deep halt_env params write theory sig univ qsprops
+    
+    when explore_theory $ do
+      putStrLn "\nExplored theory (proved correct):"
+      let provable (t :=: u) = evalEQ ctx (t =?= u)
+          prunedEqs = prune (maxDepth sig) univ reps (filter provable (equations classes))
+      forM_ (zip [1 :: Int ..] prunedEqs) $ \(i, eq) ->
+        printf "%3d: %s\n" i (showEquation sig eq)
     write StartingUserLemmas
 
     (unproved,proved) <- parLoop halt_env params write theory props qslemmas

@@ -17,6 +17,7 @@ data Params = Params
     , z_encode_filenames  :: Bool
     , warnings            :: Bool
     , json                :: Maybe FilePath
+    , explore_theory      :: Bool
 
     , processes           :: Int
     , batchsize           :: Int
@@ -72,6 +73,7 @@ defParams = Params
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= help "File to write statistics to (in json format)"
+    , explore_theory      = False   &= help "Print explored theory"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"
