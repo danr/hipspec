@@ -7,7 +7,6 @@ import Prelude(undefined,Bool(..), IO)
 import Definitions
 import Properties
 
--- The properties can be tested without theory exploration mode
 main :: IO ()
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] (undefined :: Nat)
