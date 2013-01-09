@@ -16,7 +16,6 @@ import Tuples
 main :: IO ()
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] (undefined :: Nat)
-    , vars ["a", "b", "c"] (undefined :: Bool)
     , vars ["xs", "ys", "zs"] (undefined :: [Nat])
     -- Constructors
     , "[]"     `fun0` ([] :: [Nat])
@@ -28,7 +27,7 @@ main = hipSpec $(fileName)
 --    , "/="     `fun2` (/=)
     , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat])
     , "drop"   `fun2`  (drop   :: Nat -> [Nat] -> [Nat])
-    , "elem"   `fun2` elem
+    , "elem"   `fun2`  elem
     , "length" `fun1`  (length :: [Nat] -> Nat)
     , "+"      `fun2`  (+)
     ]

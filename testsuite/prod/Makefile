@@ -1,4 +1,4 @@
 
-files = PartDrop PartIntersect PartLength PartMult PartRev PartRotate PartSort PartUnion
+files = PartDrop PartIntersect PartLength PartRev PartRotate PartSort PartUnion # PartMult
 
 include ../Makefile.common
