@@ -13,7 +13,7 @@ newtype Nat = Nat Integer
 
 instance Arbitrary Nat where
   arbitrary = do
-    x <- choose (0,5)
+    x <- choose (0,3)
     return (Nat x)
 
 un  op  (Nat x)         = Nat (op x)
@@ -26,15 +26,15 @@ nat_mul  = bin (*)
 
 nat_exp = bin (^)
 
-nat_qexp x (Nat 0) acc       = acc
-nat_qexp x (Nat n) (Nat acc) = nat_qexp x (Nat (n - 1)) (Nat (x * acc))
+nat_qexp _       (Nat 0) acc       = acc
+nat_qexp (Nat x) (Nat n) (Nat acc) = nat_qexp (Nat x) (Nat (n - 1)) (Nat (x * acc))
 
 main :: IO ()
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] (undefined :: Nat)
     -- Constructors
-    , "Z"      `fun0` nat_z
-    , "S"      `fun1` nat_s
+--    , "Z"      `fun0` nat_z
+--    , "S"      `fun1` nat_s
     -- Functions
     , "+"      `fun2` nat_plus
     , "*"      `fun2` nat_mul
