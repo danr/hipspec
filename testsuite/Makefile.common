@@ -103,6 +103,7 @@ clean:
 	rm -f $(all_targets)
 	rm -f $(files)
 	rm -f json_list
+	rm -f *{\.o,\.hi}
 
 # Targets that do not create a file with the same name (meta-targets)
 .PHONY: all clean binaries debug json_list
