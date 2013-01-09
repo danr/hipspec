@@ -23,12 +23,15 @@ import HipSpec.Params
 
 import Halo.Monad
 import Halo.Util
+import Halo.Subtheory
+import Halo.FOL.RemoveMin
 
 import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
 import Data.Maybe
+import qualified Data.Map as M
 
 import Control.Monad
 import Control.Monad.State
@@ -206,6 +209,24 @@ hipSpec file sig0 = do
 
     write FileProcessed
 
+    when definitions $ do
+
+        let getFunction s = case s of
+                Subtheory (Function v) _ _ _ ->
+                    let Subtheory _ _ _ fs = removeMinsSubthy s
+                    in  Just (v,fs)
+                _ -> Nothing
+
+            func_map = M.fromList (mapMaybe getFunction (subthys theory))
+
+            lookup_func x = fromMaybe [] (M.lookup x func_map)
+
+            def_eqs = definitionalEquations str_marsh lookup_func sig
+
+        putStrLn "\nDefinitional equations:"
+        forM_ (zip [1 :: Int ..] def_eqs) $ \(i, eq) ->
+            printf "%3d: %s\n" i (showEquation sig eq)
+
     classes <- fmap eraseClasses (generate sig)
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
@@ -236,13 +257,14 @@ hipSpec file sig0 = do
     putStrLn "Starting to prove..."
 
     (qslemmas,qsunproved,ctx) <- deep halt_env params write theory sig univ qsprops
-    
+
     when explore_theory $ do
       putStrLn "\nExplored theory (proved correct):"
       let provable (t :=: u) = evalEQ ctx (t =?= u)
           prunedEqs = prune (maxDepth sig) univ reps (filter provable (equations classes))
       forM_ (zip [1 :: Int ..] prunedEqs) $ \(i, eq) ->
         printf "%3d: %s\n" i (showEquation sig eq)
+
     write StartingUserLemmas
 
     (unproved,proved) <- parLoop halt_env params write theory props qslemmas

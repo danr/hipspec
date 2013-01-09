@@ -17,6 +17,7 @@ data Params = Params
     , z_encode_filenames  :: Bool
     , warnings            :: Bool
     , json                :: Maybe FilePath
+    , definitions         :: Bool
     , explore_theory      :: Bool
 
     , processes           :: Int
@@ -73,7 +74,8 @@ defParams = Params
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= help "File to write statistics to (in json format)"
-    , explore_theory      = False   &= help "Print explored theory"
+    , definitions         = False   &= name "d" &= help "Print translated QuickSpec function definitions"
+    , explore_theory      = False   &= name "e" &= help "Print explored theory"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"
@@ -85,7 +87,7 @@ defParams = Params
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
-    , dont_print_unproved = False   &= name "d" &= help "Don't print unproved conjectures from QuickSpec"
+    , dont_print_unproved = False   &= name "u" &= help "Don't print unproved conjectures from QuickSpec"
     , min                 = False   &= name "m" &= help "Use min and minrec translation"
 
     , case_lift_inner  = False &= groupname "\nTranslation settings"

@@ -111,6 +111,7 @@ library
         HipSpec.Trans.Theory
         HipSpec.Trans.TypeGuards
         HipSpec.Trans.Types
+        HipSpec.Trans.Unify
 
     build-depends:
         -- Shared
@@ -121,6 +122,7 @@ library
         time,
         aeson,
         bytestring,
+        logict,
 
         -- Prelude
         QuickCheck                    >= 2.4,
