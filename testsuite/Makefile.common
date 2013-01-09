@@ -77,6 +77,8 @@ define file_rule
 $(1): $(1).hs
 	$$(GHC) $$(GHC_FLAGS) $$(arg1) -o $$@
 
+$(1)_runs: $(foreach flag,$(flags),$(RESULT_DIR)/$(1)$(flag).json)
+
 $(foreach flag,$(flags),$(eval $(call flag_rule,$(file),$(flag))))
 endef
 
