@@ -19,9 +19,9 @@
       <div ng-controller="TestsuiteCtrl">
 
         <ul>
-          <li><a ng-click="setTestsuite('prod')">Productive Use Of Failure</a></li>
-          <li><a ng-click="setTestsuite('zeno')">Zeno</a></li>
-          <li><a ng-click="setTestsuite('mini')">Mini</a></li>
+          <li ng-repeat="(short, name) in testsuites">
+            <a ng-click="setTestsuite(short)">{{ name }}</a>
+          </li>
         </ul>
 
         <div ng-controller="CompareCtrl">

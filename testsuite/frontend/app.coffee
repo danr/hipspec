@@ -2,13 +2,21 @@ window.hipspec_module = angular.module('hipspec', [])
 
 hipspec_module.filter 'seconds', () -> (s) -> s.toFixed 2
 
+hipspec_module.factory 'config', () ->
+
+    prod: 'Productive Use of Failure'
+    zeno: 'Zeno/Isabelle'
+    mini: 'Mini'
+
 hipspec_module.factory 'request', ($http) ->
 
     list: (testsuite) -> $http.get("#{testsuite}/json_list")
 
     log: (testsuite, instance) -> $http.get("#{testsuite}/#{instance}")
 
-hipspec_module.controller 'TestsuiteCtrl', ($scope) ->
+hipspec_module.controller 'TestsuiteCtrl', ($scope, config) ->
+
+    $scope.testsuites = config
 
     $scope.testsuite = undefined
     $scope.selected = null

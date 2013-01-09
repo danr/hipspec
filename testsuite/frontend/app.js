@@ -9,6 +9,14 @@
     };
   });
 
+  hipspec_module.factory('config', function() {
+    return {
+      prod: 'Productive Use of Failure',
+      zeno: 'Zeno/Isabelle',
+      mini: 'Mini'
+    };
+  });
+
   hipspec_module.factory('request', function($http) {
     return {
       list: function(testsuite) {
@@ -20,7 +28,8 @@
     };
   });
 
-  hipspec_module.controller('TestsuiteCtrl', function($scope) {
+  hipspec_module.controller('TestsuiteCtrl', function($scope, config) {
+    $scope.testsuites = config;
     $scope.testsuite = void 0;
     $scope.selected = null;
     return $scope.setTestsuite = function(v) {
