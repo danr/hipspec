@@ -24,9 +24,10 @@ nat_s    = un (+1)
 nat_plus = bin (+)
 nat_mul  = bin (*)
 
-nat_mult :: Nat -> Nat -> Nat -> Nat
-nat_mult (Nat 0) _       acc       = acc
-nat_mult (Nat n) (Nat y) (Nat acc) = nat_mult (Nat (n - 1)) (Nat y) (Nat (y + acc))
+nat_fac  = un (\n -> product [1..n])
+
+nat_qfac (Nat 0) acc       = acc
+nat_qfac (Nat x) (Nat acc) = nat_qfac (Nat (x - 1)) (Nat (x * acc))
 
 main :: IO ()
 main = hipSpec $(fileName)
@@ -35,9 +36,10 @@ main = hipSpec $(fileName)
     , "Z"      `fun0` nat_z
     , "S"      `fun1` nat_s
     -- Functions
+    , "fac"    `fun1` nat_fac
+    , "qfac"   `fun2` nat_qfac
     , "+"      `fun2` nat_plus
     , "*"      `fun2` nat_mul
-    , "mult"   `fun3` nat_mult
     ]
 
 -- The properties needs to be mentioned here to be included
