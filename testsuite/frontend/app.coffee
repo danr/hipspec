@@ -11,8 +11,10 @@ hipspec_module.factory 'request', ($http) ->
 hipspec_module.controller 'TestsuiteCtrl', ($scope) ->
 
     $scope.testsuite = undefined
+    $scope.selected = null
 
     $scope.setTestsuite = (v) ->
+        $scope.selected = null
         $scope.testsuite = v
 
 hipspec_module.controller 'CompareCtrl', ($scope, request) ->
@@ -20,7 +22,6 @@ hipspec_module.controller 'CompareCtrl', ($scope, request) ->
     $scope.table = {}
     $scope.headers = []
 
-    $scope.selected = null
     $scope.select = (id) -> console.log $scope.selected = id
 
     $scope.display_prop = (prop) -> prop.replace /^prop_/, ""
@@ -52,22 +53,27 @@ hipspec_module.controller 'InstanceCtrl', ($scope, $http, request) ->
     $scope.interestingType = (type) ->
         String _.contains ["FileProcessed","QuickSpecDone","InductiveProof","PlainProof","Finished"], type
 
-    $scope.result = {}
-    $scope.$watch 'selected', () -> if $scope.selected?
-        request.log($scope.testsuite,$scope.selected).success (x) ->
-            res = []
+    $scope.result = []
+    $scope.$watch 'selected', () ->
+        if $scope.selected?
+            console.log "Something selected!"
+            request.log($scope.testsuite,$scope.selected).success (x) ->
+                res = []
 
-            for [time, message] in x
+                for [time, message] in x
 
-                [[type,obj]] = _.pairs message
+                    [[type,obj]] = _.pairs message
 
-                if _.isArray obj
-                    obj = {}
+                    if _.isArray obj
+                        obj = {}
 
-                obj.time = time
-                obj.type = type
+                    obj.time = time
+                    obj.type = type
 
-                res.push obj
+                    res.push obj
 
-            $scope.result = res
+                $scope.result = res
+        else
+            console.log "Nothing selected!"
+            $scope.result = []
 

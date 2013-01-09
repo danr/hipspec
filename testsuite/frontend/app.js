@@ -22,7 +22,9 @@
 
   hipspec_module.controller('TestsuiteCtrl', function($scope) {
     $scope.testsuite = void 0;
+    $scope.selected = null;
     return $scope.setTestsuite = function(v) {
+      $scope.selected = null;
       return $scope.testsuite = v;
     };
   });
@@ -30,7 +32,6 @@
   hipspec_module.controller('CompareCtrl', function($scope, request) {
     $scope.table = {};
     $scope.headers = [];
-    $scope.selected = null;
     $scope.select = function(id) {
       return console.log($scope.selected = id);
     };
@@ -82,9 +83,10 @@
     $scope.interestingType = function(type) {
       return String(_.contains(["FileProcessed", "QuickSpecDone", "InductiveProof", "PlainProof", "Finished"], type));
     };
-    $scope.result = {};
+    $scope.result = [];
     return $scope.$watch('selected', function() {
       if ($scope.selected != null) {
+        console.log("Something selected!");
         return request.log($scope.testsuite, $scope.selected).success(function(x) {
           var message, obj, res, time, type, _i, _len, _ref, _ref1;
           res = [];
@@ -100,6 +102,9 @@
           }
           return $scope.result = res;
         });
+      } else {
+        console.log("Nothing selected!");
+        return $scope.result = [];
       }
     });
   });

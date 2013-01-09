@@ -18,12 +18,14 @@
 
       <div ng-controller="TestsuiteCtrl">
 
-        <div>
-          <a ng-click="setTestsuite('prod')">Productive Use Of Failure</a>
-          <a ng-click="setTestsuite('mini')">Mini</a>
-        </div>
+        <ul>
+          <li><a ng-click="setTestsuite('prod')">Productive Use Of Failure</a></li>
+          <li><a ng-click="setTestsuite('zeno')">Zeno</a></li>
+          <li><a ng-click="setTestsuite('mini')">Mini</a></li>
+        </ul>
 
         <div ng-controller="CompareCtrl">
+          <h2>{{ testsuite }}</h2>
           <table>
             <tr>
               <th>Settings</th>
@@ -50,6 +52,7 @@
           </table>
 
           <div ng-controller="InstanceCtrl">
+            <h3>{{ selected }}</h3>
             <table>
               <tr>
                 <th>Time (s)</th>
