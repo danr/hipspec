@@ -11,9 +11,22 @@
 
   hipspec_module.factory('config', function() {
     return {
-      prod: 'Productive Use of Failure',
-      zeno: 'Zeno/Isabelle',
-      mini: 'Mini'
+      prod: {
+        name: 'Productive Use of Failure',
+        files: ['Definitions.hs', 'Properties.hs']
+      },
+      zeno: {
+        name: 'Zeno/IsaPlanner',
+        files: ['Definitions.hs', 'Properties.hs']
+      },
+      mini: {
+        name: 'Mini',
+        files: ['Mini.hs']
+      },
+      examples: {
+        name: 'Examples',
+        files: ['AppendLists.hs', 'BinLists.hs', 'Implies.hs', 'ListMonad.hs', 'Nat.hs', 'Nicomachus.hs', 'Reverse.hs', 'Rotate.hs']
+      }
     };
   });
 
@@ -32,18 +45,26 @@
     $scope.testsuites = config;
     $scope.testsuite = void 0;
     $scope.selected = null;
-    return $scope.setTestsuite = function(v) {
+    return $scope.setTestsuite = function(v, n, fs) {
       $scope.selected = null;
+      $scope.testsuite_name = n;
+      $scope.testsuite_files = fs;
       return $scope.testsuite = v;
     };
   });
 
-  hipspec_module.controller('CompareCtrl', function($scope, request) {
+  hipspec_module.controller('CompareCtrl', function($scope, request, $http) {
+    $scope.content = "";
+    $scope.viewFile = function(dir, file) {
+      return $http.get("" + dir + "/" + file).success(function(res) {
+        return $scope.content = res;
+      });
+    };
     $scope.table = {};
     $scope.headers = [];
     $scope.num_solved = 0;
     $scope.select = function(id) {
-      return console.log($scope.selected = id);
+      return $scope.selected = id;
     };
     $scope.display_prop = function(prop) {
       return prop.replace(/^prop_/, "");
@@ -60,7 +81,6 @@
           for (_i = 0, _len = list.length; _i < _len; _i++) {
             i = list[_i];
             _results.push((function(i) {
-              console.log(i);
               return request.log($scope.testsuite, i).success(function(log) {
                 var message, obj, prop, res, time, type, _j, _k, _len1, _len2, _ref, _ref1, _ref2;
                 for (_j = 0, _len1 = log.length; _j < _len1; _j++) {
@@ -68,10 +88,7 @@
                   _ref1 = _.pairs(message)[0], type = _ref1[0], obj = _ref1[1];
                   res = [];
                   if (type === "Finished") {
-                    if (_.isEmpty($scope.headers)) {
-                      $scope.headers = [].concat(obj.proved, obj.unproved).sort();
-                      console.log($scope.headers);
-                    }
+                    $scope.headers = _.union($scope.headers, obj.proved, obj.unproved).sort();
                     _ref2 = $scope.headers;
                     for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
                       prop = _ref2[_k];
@@ -84,8 +101,10 @@
                     res.time = time;
                   }
                 }
-                $scope.table[i] = res;
-                return console.log(i, $scope.table);
+                console.log(i);
+                i.replace(/^results/, "");
+                console.log(i);
+                return $scope.table[i] = res;
               });
             })(i));
           }
@@ -102,7 +121,6 @@
     $scope.result = [];
     return $scope.$watch('selected', function() {
       if ($scope.selected != null) {
-        console.log("Something selected!");
         return request.log($scope.testsuite, $scope.selected).success(function(x) {
           var message, obj, res, time, type, _i, _len, _ref, _ref1;
           res = [];
@@ -119,7 +137,6 @@
           return $scope.result = res;
         });
       } else {
-        console.log("Nothing selected!");
         return $scope.result = [];
       }
     });

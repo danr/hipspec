@@ -19,13 +19,23 @@
       <div ng-controller="TestsuiteCtrl">
 
         <ul>
-          <li ng-repeat="(short, name) in testsuites">
-            <a ng-click="setTestsuite(short)">{{ name }}</a>
+          <li ng-repeat="(short, suite) in testsuites">
+            <a ng-click="setTestsuite(short,suite.name,suite.files)">{{ suite.name }}</a>
           </li>
         </ul>
 
         <div ng-controller="CompareCtrl">
-          <h2>{{ testsuite }}</h2>
+          <h2>{{ testsuite_name }}</h2>
+          <ul>
+            <li ng-repeat="file in testsuite_files">
+              <a ng-click="viewFile(testsuite,file)">{{ file }}</a>
+            </li>
+          </ul>
+          <div>
+            <a ng-click="content = ''" ng-show="content">close file</a>
+            <pre>{{ content }}</pre>
+            <a ng-click="content = ''" ng-show="content">close file</a>
+          </div>
           <table>
             <tr>
               <th>Settings</th>
