@@ -26,7 +26,7 @@ main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] intType
     , vars ["e", "e'", "e''"] stateType
     , vars ["xs", "ys", "zs"] listType
-    , vars ["f", "g"] (undefined :: A -> B -> A)
+    , vars ["f", "g"] (undefined :: B -> A -> B)
     , vars ["f", "g"] (undefined :: A -> B -> B)
     , fun0 "[]"       ([]       :: [A])
     , fun2 ":"        ((:)      :: A  -> [A] -> [A])
