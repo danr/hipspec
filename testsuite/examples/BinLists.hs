@@ -80,7 +80,8 @@ main = hipSpec $(fileName)
 
 instance Arbitrary Bin where
   arbitrary = sized arbBin
-    where arbBin s = frequency
+    where 
+      arbBin s = frequency
         [ (1, return One)
         , (s, ZeroAnd <$> arbBin (s `div` 2))
         , (s, OneAnd <$> arbBin (s `div` 2))
