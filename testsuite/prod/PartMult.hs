@@ -11,7 +11,7 @@ import HipSpec
 import Prelude(Bool(..), IO, undefined, Eq, Ord)
 import Properties
 import Definitions
-import Tuples
+
 import Data.Typeable (Typeable)
 
 newtype WrapNat = Wrap Nat deriving (Arbitrary, Typeable, Eq, Ord)

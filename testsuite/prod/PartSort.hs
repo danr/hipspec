@@ -11,7 +11,7 @@ import HipSpec
 import Prelude(Bool(..), IO, undefined)
 import Properties
 import Definitions
-import Tuples
+
 
 main :: IO ()
 main = hipSpec $(fileName)

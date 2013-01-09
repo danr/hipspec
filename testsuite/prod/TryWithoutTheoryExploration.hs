@@ -12,7 +12,7 @@ import HipSpec.Prelude
 import HipSpec
 import Prelude(Bool(..), IO)
 import Properties
-import Tuples
+import LemmasAndGeneralizations
 
 -- The properties can be tested without theory exploration mode
 main :: IO ()
