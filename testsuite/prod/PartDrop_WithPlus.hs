@@ -1,4 +1,4 @@
-{-# LNatNGUNatGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-
 
    Compile with -fforce-recomp -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas

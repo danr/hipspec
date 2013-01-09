@@ -22,16 +22,12 @@ main = hipSpec $(fileName)
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     , "Z"      `fun0` Z
     , "S"      `fun1` S
-    , "True"   `fun0` True
-    , "False"  `fun0` False
     -- Functions
-    , "++"     `fun2`  ((++) :: [Nat] -> [Nat] -> [Nat])
-    , "elem"   `fun2`  (elem :: Nat -> [Nat] -> Bool)
-    , "=="     `fun2`  (==)    -- elem calls (==)
-    , "||"     `fun2`  (||)    -- elem calls (||)
+    , "++"     `fun2`  ((++)   :: [Nat] -> [Nat] -> [Nat])
+    , "+"      `fun2`  ((+)    :: Nat -> Nat -> Nat)
+    , "length" `fun1`  (length :: [Nat] -> Nat)
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = (prop_T36, prop_T37, prop_T38)
-
+to_show = prop_T03
 

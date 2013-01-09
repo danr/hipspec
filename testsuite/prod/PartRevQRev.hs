@@ -27,5 +27,5 @@ main = hipSpec $(fileName)
     ]
 
 -- The properties needs to be mentioned here to be included
-to_show = (prop_T12, prop_T27, prop_T30)
+to_show = (prop_T12, prop_T27, prop_T29, prop_T30)
 
