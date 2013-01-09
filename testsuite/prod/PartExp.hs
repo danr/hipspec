@@ -31,7 +31,7 @@ nat_qexp (Nat x) (Nat n) (Nat acc) = nat_qexp (Nat x) (Nat (n - 1)) (Nat (x * ac
 
 main :: IO ()
 main = hipSpec $(fileName)
-    [ vars ["x", "y", "z"] (undefined :: Nat)
+    [ vars ["x", "y", "z", "u"] (undefined :: Nat)
     -- Constructors
 --    , "Z"      `fun0` nat_z
 --    , "S"      `fun1` nat_s
