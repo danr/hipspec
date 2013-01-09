@@ -66,7 +66,7 @@ comma = ,
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-$(RESULT_DIR)/$(1)$(2).json: $(1) json_list
+$(RESULT_DIR)/$(1)$(2).json: $(1)
 	mkdir -p `dirname $$@`
 	./$(1) -l $(subst $(delim),$(space),$(2)) $(HIP_FLAGS) --json $$@
 all_targets += $(RESULT_DIR)/$(1)$(2).json
