@@ -15,7 +15,7 @@
 RESULT_DIR = results
 
 GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
+GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas 
 HIP_FLAGS = -l
 
 # The different flags to test, separate flags with underscore
