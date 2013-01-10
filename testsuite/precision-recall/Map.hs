@@ -8,6 +8,9 @@ import Data.Typeable
 import HipSpec
 import HipSpec.Prelude
 
+app :: a -> a
+app x = x
+
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
@@ -29,7 +32,7 @@ main = hipSpec $(fileName)
     , fun2 "++"       ((++)     :: [A] -> [A] -> [A])
     , fun1 "reverse"  (reverse  :: [A] -> [A])
     , fun2 "map"      (map      :: (A -> A) -> [A] -> [A])
-    , fun2 "$" (($) :: (A -> A) -> A -> A)
+    , fun2 "app" (app :: (A -> A) -> A -> A)
     , observer2 (flip ($) :: A -> (A -> A) -> A)
     ]
   where

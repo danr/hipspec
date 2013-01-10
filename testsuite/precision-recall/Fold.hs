@@ -10,6 +10,9 @@ import HipSpec.Prelude
 
 newtype B = B Int deriving (Eq, Ord, Typeable, Arbitrary, CoArbitrary, Show)
 
+app :: a -> a
+app x = x
+
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
@@ -33,7 +36,10 @@ main = hipSpec $(fileName)
     , fun2 "++"       ((++)     :: [A] -> [A] -> [A])
     , fun3 "foldl"    (foldl    :: (B -> A -> B) -> B -> [A] -> B)
     , fun3 "foldr"    (foldr    :: (A -> B -> B) -> B -> [A] -> B)
-    , observer2 (flip ($) :: A -> (A -> A) -> A)
+    , fun3 "app"      (app      :: (B -> A -> B) -> B -> A -> B)
+    , fun3 "app"      (app      :: (A -> B -> B) -> A -> B -> B)
+    , observer3 ((\x y f -> f x y) :: B -> A -> (B -> A -> B) -> B)
+    , observer3 ((\x y f -> f x y) :: A -> B -> (A -> B -> B) -> B)
     ]
   where
     intType   = intType   :: A
