@@ -207,7 +207,10 @@ def main():
                 row = content.readline()
                 for f in functions:
                     fs = map(lambda s:s.format(f),
-                             ('({0} ',' {0})', ' {0} ', '`{0}`'))
+                             ('({0} ',' {0})',
+                              '[{0} ',' {0}]',
+                              ' {0} ',
+                              '`{0}`'))
                     if f not in funs and any(ff in row for ff in fs):
                         funs.extend([f])
 
