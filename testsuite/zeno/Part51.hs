@@ -8,19 +8,15 @@ import Definitions
 import Properties
 
 main :: IO ()
-main = hipSpec "Part73.hs"
+main = hipSpec "Part51.hs"
     [ vars ["x", "y", "z"] (undefined :: A)
     , vars ["xs", "ys", "zs"] (undefined :: [A])
-    , vars ["p", "q"] (undefined :: A -> Bool)
     -- Constructors
     , "[]" `fun0` ([] :: [A])
     , ":"  `fun2` ((:) :: A -> [A] -> [A])
     -- Functions
-    , "filter" `fun2` ((filter) :: (A -> Bool) -> [A] -> [A])
     , "++" `fun2` ((++) :: [A] -> [A] -> [A])
-    , "rev" `fun1` ((rev) :: [A] -> [A])
-    -- Observers
-    , observer2 (flip ($) :: A -> (A -> Bool) -> Bool)
+    , "butlast" `fun1` ((butlast) :: [A] -> [A])
     ]
 
-to_show = (prop_73)
+to_show = (prop_51)

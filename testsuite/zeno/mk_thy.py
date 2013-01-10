@@ -55,9 +55,9 @@ lists = {
         "ins"           : "Nat -> [Nat] -> [Nat]",
         "ins1"          : "Nat -> [Nat] -> [Nat]",
         "sort"          : "[Nat] -> [Nat]",
-        "ButlastConcat" : "[A] -> [A] -> [A]",
+        "butlastConcat" : "[{0}] -> [{0}] -> [{0}]",
         "lastOfTwo"     : "[Nat] -> [Nat] -> Nat",
-        "zipConcat"     : "A -> [A] -> [A] -> [(A, A)]",
+        "zipConcat"     : "{0} -> [{0}] -> [{0}] -> [({0}, {0})]",
     }
 
 trees = {
@@ -112,7 +112,7 @@ def unique(l):
 
 def generate(props, init_funs, filename=None):
     funs = unique(tuple(sum(map(depcalc, init_funs), [])))
-    print init_funs, funs
+    # print init_funs, funs
 
     use_nats = any(f in nats for f in funs)
     use_hof = any(f in hofs for f in funs)
@@ -164,6 +164,7 @@ def generate(props, init_funs, filename=None):
     for f in funs:
         if fun_exists(f):
             sig = lists.get(f,trees.get(f,"")).format(ty)
+            # print f, sig, bool(sig)
             if sig:
                 res += """    , "{0}" `fun{1}` (({0}) :: {2})\n""".format(f, arity(f), sig)
             else:
