@@ -13,6 +13,7 @@
 -}
 module HipSpec.Trans.Types
     ( tyEnv
+    , finiteFunctionResult
     , finiteType
     ) where
 
@@ -62,6 +63,14 @@ instDataCon data_con args =
            | otherwise               = NonRec ty
 
    in  map calc_Arg inst_args
+
+-- | Is this a function type with a finite result?
+finiteFunctionResult :: Type -> Maybe ([Type],Type)
+finiteFunctionResult ty =
+    case splitFunTys ty of
+        r@(args,res)
+            | not (null args) , finiteType res -> Just r
+            | otherwise                        -> Nothing
 
 -- | Is this type definitely finite?
 --
