@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 module Main where
 
 import HipSpec.Prelude
@@ -7,6 +7,8 @@ import Prelude(undefined,Bool(..), IO, product, Integer, (^), (+), (*), (-), ret
 import Definitions hiding (Nat, (+), (*))
 import Properties
 import Data.Typeable
+
+newtype Wrap a = Wrap a deriving (Typeable, Eq, Ord, Arbitrary)
 
 newtype Nat = Nat Integer
   deriving (Typeable, Eq, Ord)
@@ -24,8 +26,8 @@ nat_s    = un (+1)
 nat_plus = bin (+)
 nat_mul  = bin (*)
 
-nat_mult :: Nat -> Nat -> Nat -> Nat
-nat_mult (Nat 0) _       acc       = acc
+nat_mult :: Nat -> Nat -> Nat -> Wrap Nat
+nat_mult (Nat 0) _       acc       = Wrap acc
 nat_mult (Nat n) (Nat y) (Nat acc) = nat_mult (Nat (n - 1)) (Nat y) (Nat (y + acc))
 
 main :: IO ()
