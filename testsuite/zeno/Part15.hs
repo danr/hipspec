@@ -17,6 +17,7 @@ main = hipSpec "Part15.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
+    , "<" `fun2` (<)
     , "len" `fun1` ((len) :: [Nat] -> Nat)
     , "ins" `fun2` ((ins) :: Nat -> [Nat] -> [Nat])
     ]

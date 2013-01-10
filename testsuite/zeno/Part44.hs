@@ -15,8 +15,8 @@ main = hipSpec "Part44.hs"
     , "[]" `fun0` ([] :: [A])
     , ":"  `fun2` ((:) :: A -> [A] -> [A])
     -- Functions
-    , "zip" `fun2` ((zip) :: [A] -> [A] -> [(A,A)])
     , "zipConcat" `fun3` ((zipConcat) :: A -> [A] -> [A] -> [(A, A)])
+    , "zip" `fun2` ((zip) :: [A] -> [A] -> [(A,A)])
     ]
 
 to_show = (prop_44)

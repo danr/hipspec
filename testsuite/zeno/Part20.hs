@@ -17,8 +17,10 @@ main = hipSpec "Part20.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "len" `fun1` ((len) :: [Nat] -> Nat)
     , "sort" `fun1` ((sort) :: [Nat] -> [Nat])
+    , "insort" `fun2` ((insort) :: Nat -> [Nat] -> [Nat])
+    , "<=" `fun2` (<=)
+    , "len" `fun1` ((len) :: [Nat] -> Nat)
     ]
 
 to_show = (prop_20)

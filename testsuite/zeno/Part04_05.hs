@@ -18,6 +18,7 @@ main = hipSpec "Part04_05.hs"
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
     , "count" `fun2` ((count) :: Nat -> [Nat] -> Nat)
+    , "==" `fun2` (==)
     ]
 
 to_show = (prop_04,prop_05)

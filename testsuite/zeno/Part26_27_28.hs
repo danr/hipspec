@@ -17,8 +17,9 @@ main = hipSpec "Part26_27_28.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "elem" `fun2` ((elem) :: Nat -> [Nat] -> Bool)
+    , "==" `fun2` (==)
     , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
+    , "elem" `fun2` ((elem) :: Nat -> [Nat] -> Bool)
     ]
 
 to_show = (prop_26,prop_27,prop_28)

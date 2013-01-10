@@ -17,10 +17,10 @@ main = hipSpec "Part55.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "len" `fun1` ((len) :: [Nat] -> Nat)
+    , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     , "drop" `fun2` ((drop) :: Nat -> [Nat] -> [Nat])
     , "-" `fun2` (-)
-    , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
+    , "len" `fun1` ((len) :: [Nat] -> Nat)
     ]
 
 to_show = (prop_55)

@@ -14,8 +14,8 @@ main = hipSpec "Part21_69.hs"
     , "Z" `fun0` Z
     , "S" `fun1` S
     -- Functions
-    , "<=" `fun2` (<=)
     , "+" `fun2` (+)
+    , "<=" `fun2` (<=)
     ]
 
 to_show = (prop_21,prop_69)

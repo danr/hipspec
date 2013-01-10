@@ -18,9 +18,9 @@ main = hipSpec "Part66.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
+    , "filter" `fun2` ((filter) :: (Nat -> Bool) -> [Nat] -> [Nat])
     , "<=" `fun2` (<=)
     , "len" `fun1` ((len) :: [Nat] -> Nat)
-    , "filter" `fun2` ((filter) :: (Nat -> Bool) -> [Nat] -> [Nat])
     -- Observers
     , observer2 (flip ($) :: Nat -> (Nat -> Bool) -> Bool)
     ]

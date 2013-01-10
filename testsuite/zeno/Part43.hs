@@ -16,9 +16,9 @@ main = hipSpec "Part43.hs"
     , "[]" `fun0` ([] :: [A])
     , ":"  `fun2` ((:) :: A -> [A] -> [A])
     -- Functions
-    , "takeWhile" `fun2` ((takeWhile) :: (A -> Bool) -> [A] -> [A])
-    , "dropWhile" `fun2` ((dropWhile) :: (A -> Bool) -> [A] -> [A])
     , "++" `fun2` ((++) :: [A] -> [A] -> [A])
+    , "dropWhile" `fun2` ((dropWhile) :: (A -> Bool) -> [A] -> [A])
+    , "takeWhile" `fun2` ((takeWhile) :: (A -> Bool) -> [A] -> [A])
     -- Observers
     , observer2 (flip ($) :: A -> (A -> Bool) -> Bool)
     ]

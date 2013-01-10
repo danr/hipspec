@@ -18,6 +18,7 @@ main = hipSpec "Part38.hs"
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
     , "count" `fun2` ((count) :: Nat -> [Nat] -> Nat)
+    , "==" `fun2` (==)
     , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     ]
 

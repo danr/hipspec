@@ -87,11 +87,10 @@ boolfuns = ["filter", "takeWhile", "dropWhile"]
 hofs = ["map"]
 
 def depcalc(fun):
-    immediate = deps.get(fun, None)
-    if immediate:
-        return [immediate] + depcalc(immediate)
-    else:
+    if fun is None:
         return []
+    else:
+        return [fun] + depcalc(deps.get(fun, None))
 
 th_header = "{-# LANGUAGE TemplateHaskell #-}\n"
 
@@ -108,13 +107,20 @@ main :: IO ()
 main = hipSpec {0}
 """
 
-def generate(props, funs, filename=None):
+def unique(l):
+    return list(set(l))
+
+def generate(props, init_funs, filename=None):
+    funs = unique(tuple(sum(map(depcalc, init_funs), [])))
+    print init_funs, funs
+
     use_nats = any(f in nats for f in funs)
     use_hof = any(f in hofs for f in funs)
     use_boolfun = any(f in boolfuns for f in funs)
-    ty = 'Nat' if use_nats else 'A'
     use_list = any(f in lists for f in funs)
     use_trees = any(f in trees for f in funs)
+
+    ty = 'Nat' if use_nats else 'A'
 
     if filename is None:
         res = th_header
@@ -178,7 +184,7 @@ def generate(props, funs, filename=None):
 
     return res
 
-if __name__ == "__main__":
+def main():
     import sys
     if sys.argv[1] == 'all' or sys.argv[1] == 'all_th':
         th = sys.argv[1] == 'all_th'
@@ -206,13 +212,13 @@ if __name__ == "__main__":
 
             funs = tuple(funs)
 
-            gen[funs] = gen.get(funs,[]) + [prop]
+            gen[funs] = gen.get(funs, []) + [prop]
 
         for funs in gen:
             props = gen[funs]
             hs_file_name = 'Part{0}.hs'.format("_".join(props))
             with open(hs_file_name, 'w') as hs:
-                hs.write(generate(props, funs, hs_file_name if th else None))
+                hs.write(generate(props, funs, None if th else hs_file_name))
             print hs_file_name
 
     else:
@@ -223,4 +229,8 @@ if __name__ == "__main__":
                 props.extend([x])
             else:
                 funs.extend([x])
-        print generate(props, funs, filename)
+        print generate(props, funs)
+
+if __name__ == "__main__":
+    main()
+

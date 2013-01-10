@@ -15,8 +15,8 @@ main = hipSpec "Part49_51.hs"
     , "[]" `fun0` ([] :: [A])
     , ":"  `fun2` ((:) :: A -> [A] -> [A])
     -- Functions
-    , "butlast" `fun1` ((butlast) :: [A] -> [A])
     , "++" `fun2` ((++) :: [A] -> [A] -> [A])
+    , "butlast" `fun1` ((butlast) :: [A] -> [A])
     ]
 
 to_show = (prop_49,prop_51)

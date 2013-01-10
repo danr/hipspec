@@ -17,9 +17,9 @@ main = hipSpec "Part60.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
+    , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     , "null" `fun1` ((null) :: [Nat] -> Bool)
     , "last" `fun1` ((last) :: [Nat] -> Nat)
-    , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     ]
 
 to_show = (prop_60)

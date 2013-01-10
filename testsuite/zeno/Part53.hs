@@ -18,6 +18,9 @@ main = hipSpec "Part53.hs"
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
     , "count" `fun2` ((count) :: Nat -> [Nat] -> Nat)
+    , "==" `fun2` (==)
+    , "insort" `fun2` ((insort) :: Nat -> [Nat] -> [Nat])
+    , "<=" `fun2` (<=)
     , "sort" `fun1` ((sort) :: [Nat] -> [Nat])
     ]
 

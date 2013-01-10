@@ -17,10 +17,10 @@ main = hipSpec "Part83_84.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "zip" `fun2` ((zip) :: [Nat] -> [Nat] -> [(Nat,Nat)])
     , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
-    , "len" `fun1` ((len) :: [Nat] -> Nat)
     , "drop" `fun2` ((drop) :: Nat -> [Nat] -> [Nat])
+    , "len" `fun1` ((len) :: [Nat] -> Nat)
+    , "zip" `fun2` ((zip) :: [Nat] -> [Nat] -> [(Nat,Nat)])
     , "take" `fun2` ((take) :: Nat -> [Nat] -> [Nat])
     ]
 

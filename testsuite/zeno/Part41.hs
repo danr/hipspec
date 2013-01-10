@@ -18,8 +18,8 @@ main = hipSpec "Part41.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
-    , "take" `fun2` ((take) :: Nat -> [Nat] -> [Nat])
     , "map" `fun2` ((map) :: (Nat -> Nat) -> [Nat] -> [Nat])
+    , "take" `fun2` ((take) :: Nat -> [Nat] -> [Nat])
     -- Observers
     , observer2 (flip ($) :: Nat -> (Nat -> Nat) -> Nat)
     ]

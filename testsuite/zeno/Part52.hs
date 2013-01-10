@@ -18,7 +18,9 @@ main = hipSpec "Part52.hs"
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
     , "count" `fun2` ((count) :: Nat -> [Nat] -> Nat)
+    , "==" `fun2` (==)
     , "rev" `fun1` ((rev) :: [Nat] -> [Nat])
+    , "++" `fun2` ((++) :: [Nat] -> [Nat] -> [Nat])
     ]
 
 to_show = (prop_52)

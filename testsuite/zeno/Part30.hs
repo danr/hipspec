@@ -17,7 +17,9 @@ main = hipSpec "Part30.hs"
     , "[]" `fun0` ([] :: [Nat])
     , ":"  `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     -- Functions
+    , "==" `fun2` (==)
     , "elem" `fun2` ((elem) :: Nat -> [Nat] -> Bool)
+    , "<" `fun2` (<)
     , "ins" `fun2` ((ins) :: Nat -> [Nat] -> [Nat])
     ]
 

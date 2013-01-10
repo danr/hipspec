@@ -16,8 +16,9 @@ main = hipSpec "Part73.hs"
     , "[]" `fun0` ([] :: [A])
     , ":"  `fun2` ((:) :: A -> [A] -> [A])
     -- Functions
-    , "rev" `fun1` ((rev) :: [A] -> [A])
+    , "++" `fun2` ((++) :: [A] -> [A] -> [A])
     , "filter" `fun2` ((filter) :: (A -> Bool) -> [A] -> [A])
+    , "rev" `fun1` ((rev) :: [A] -> [A])
     -- Observers
     , observer2 (flip ($) :: A -> (A -> Bool) -> Bool)
     ]
