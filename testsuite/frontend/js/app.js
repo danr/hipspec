@@ -5,7 +5,11 @@
 
   hipspec_module.filter('seconds', function() {
     return function(s) {
-      return s.toFixed(2);
+      if (s != null) {
+        return s.toFixed(2);
+      } else {
+        return "";
+      }
     };
   });
 
@@ -53,7 +57,7 @@
     };
   });
 
-  hipspec_module.controller('CompareCtrl', function($scope, request, $http) {
+  hipspec_module.controller('CompareCtrl', function($scope, request, $http, $q) {
     $scope.content = "";
     $scope.viewFile = function(dir, file) {
       return $http.get("" + dir + "/" + file).success(function(res) {
@@ -61,11 +65,9 @@
       });
     };
     $scope.table = {};
-    $scope.headers = [];
+    $scope.headers = {};
     $scope.num_solved = 0;
-    $scope.select = function(id) {
-      return $scope.selected = id;
-    };
+    $scope.solved = {};
     $scope.display_prop = function(prop) {
       return prop.replace(/^prop_/, "");
     };
@@ -75,55 +77,67 @@
     return $scope.$watch('testsuite', function() {
       if ($scope.testsuite != null) {
         return request.list($scope.testsuite).success(function(list) {
-          var i, _i, _len, _results;
+          var i, u;
           $scope.headers = {};
           $scope.table = {};
           $scope.num_solved = 0;
           $scope.solved = {};
-          _results = [];
-          for (_i = 0, _len = list.length; _i < _len; _i++) {
-            i = list[_i];
-            _results.push((function(i) {
-              return request.log($scope.testsuite, i).success(function(log) {
-                var message, obj, prop, res, time, type, _j, _k, _l, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
-                for (_j = 0, _len1 = log.length; _j < _len1; _j++) {
-                  _ref = log[_j], time = _ref[0], message = _ref[1];
-                  _ref1 = _.pairs(message)[0], type = _ref1[0], obj = _ref1[1];
-                  res = {};
-                  if (type === "Finished") {
-                    _ref2 = obj.unproved;
-                    for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-                      prop = _ref2[_k];
-                      $scope.headers[prop] = {};
-                      res[prop] = {
-                        solved: false,
-                        failed: true
-                      };
-                    }
-                    _ref3 = obj.proved;
-                    for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
-                      prop = _ref3[_l];
-                      $scope.headers[prop] = {};
-                      res[prop] = {
-                        solved: true,
-                        failed: false
-                      };
-                      if (res[prop].solved && !$scope.solved[prop]) {
-                        $scope.solved[prop] = true;
-                        $scope.num_solved++;
-                      }
-                    }
-                    res.time = time;
+          u = $q.all((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = list.length; _i < _len; _i++) {
+              i = list[_i];
+              _results.push(request.log($scope.testsuite, i));
+            }
+            return _results;
+          })());
+          return u.then(function(logs) {
+            var headers, http_res, log, message, num_solved, obj, prop, res, solved, table, time, type, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
+            headers = {};
+            table = {};
+            num_solved = 0;
+            solved = {};
+            _ref = _.zip(list, logs);
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              _ref1 = _ref[_i], i = _ref1[0], http_res = _ref1[1];
+              log = http_res.data;
+              for (_j = 0, _len1 = log.length; _j < _len1; _j++) {
+                _ref2 = log[_j], time = _ref2[0], message = _ref2[1];
+                _ref3 = _.pairs(message)[0], type = _ref3[0], obj = _ref3[1];
+                res = {};
+                if (type === "Finished") {
+                  _ref4 = obj.unproved;
+                  for (_k = 0, _len2 = _ref4.length; _k < _len2; _k++) {
+                    prop = _ref4[_k];
+                    headers[prop] = {};
+                    res[prop] = {
+                      solved: false,
+                      failed: true
+                    };
                   }
+                  _ref5 = obj.proved;
+                  for (_l = 0, _len3 = _ref5.length; _l < _len3; _l++) {
+                    prop = _ref5[_l];
+                    headers[prop] = {};
+                    res[prop] = {
+                      solved: true,
+                      failed: false
+                    };
+                    if (res[prop].solved && !solved[prop]) {
+                      solved[prop] = true;
+                      num_solved++;
+                    }
+                  }
+                  res.time = time;
                 }
-                console.log(i);
-                i.replace(/^results/, "");
-                console.log(i);
-                return $scope.table[i] = res;
-              });
-            })(i));
-          }
-          return _results;
+              }
+              table[i] = res;
+            }
+            $scope.headers = headers;
+            $scope.table = table;
+            $scope.num_solved = num_solved;
+            return $scope.solved = solved;
+          });
         });
       }
     });
@@ -134,9 +148,11 @@
       return String(_.contains(["FileProcessed", "QuickSpecDone", "InductiveProof", "PlainProof", "Finished"], type));
     };
     $scope.result = [];
-    return $scope.$watch('selected', function() {
-      if ($scope.selected != null) {
-        return request.log($scope.testsuite, $scope.selected).success(function(x) {
+    $scope.show = false;
+    return $scope.toggle_shown = function() {
+      $scope.show = !$scope.show;
+      if (_.isEmpty($scope.result)) {
+        return request.log($scope.testsuite, $scope.instance).success(function(x) {
           var message, obj, res, time, type, _i, _len, _ref, _ref1;
           res = [];
           for (_i = 0, _len = x.length; _i < _len; _i++) {
@@ -151,10 +167,8 @@
           }
           return $scope.result = res;
         });
-      } else {
-        return $scope.result = [];
       }
-    });
+    };
   });
 
 }).call(this);

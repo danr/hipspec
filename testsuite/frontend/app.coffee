@@ -1,6 +1,10 @@
 window.hipspec_module = angular.module('hipspec', [])
 
-hipspec_module.filter 'seconds', () -> (s) -> s.toFixed 2
+hipspec_module.filter 'seconds', () -> (s) ->
+    if s?
+        s.toFixed 2
+    else
+        ""
 
 hipspec_module.factory 'config', () ->
 
@@ -45,16 +49,15 @@ hipspec_module.controller 'TestsuiteCtrl', ($scope, config) ->
         $scope.testsuite_files = fs
         $scope.testsuite = v
 
-hipspec_module.controller 'CompareCtrl', ($scope, request, $http) ->
+hipspec_module.controller 'CompareCtrl', ($scope, request, $http, $q) ->
 
     $scope.content = ""
     $scope.viewFile = (dir,file) -> $http.get("#{dir}/#{file}").success (res) -> $scope.content = res
 
     $scope.table = {}
-    $scope.headers = []
+    $scope.headers = {}
     $scope.num_solved = 0
-
-    $scope.select = (id) -> $scope.selected = id
+    $scope.solved = {}
 
     $scope.display_prop = (prop) -> prop.replace /^prop_/, ""
 
@@ -66,31 +69,43 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http) ->
             $scope.table = {}
             $scope.num_solved = 0
             $scope.solved = {}
-            for i in list
-                do (i) ->
-                    request.log($scope.testsuite, i).success (log) ->
-                        for [ time, message ] in log
-                            [[type,obj]] = _.pairs message
-                            res = {}
-                            if type == "Finished"
-                                for prop in obj.unproved
-                                    $scope.headers[prop] = {}
-                                    res[prop] =
-                                        solved: false
-                                        failed: true
-                                for prop in obj.proved
-                                    $scope.headers[prop] = {}
-                                    res[prop] =
-                                        solved: true
-                                        failed: false
-                                    if res[prop].solved and not $scope.solved[prop]
-                                        $scope.solved[prop] = true
-                                        $scope.num_solved++
-                                res.time = time
-                        console.log i
-                        i.replace /^results/, ""
-                        console.log i
-                        $scope.table[i] = res
+
+            u = $q.all(request.log($scope.testsuite, i) for i in list)
+
+            u.then (logs) ->
+                headers = {}
+                table = {}
+                num_solved = 0
+                solved = {}
+                for [i,http_res] in _.zip(list,logs)
+                    log = http_res.data
+                    # console.log i, log
+                    for [ time, message ] in log
+                        [[type,obj]] = _.pairs message
+                        res = {}
+                        if type == "Finished"
+                            for prop in obj.unproved
+                                headers[prop] = {}
+                                res[prop] =
+                                    solved: false
+                                    failed: true
+                            for prop in obj.proved
+                                headers[prop] = {}
+                                res[prop] =
+                                    solved: true
+                                    failed: false
+                                if res[prop].solved and not solved[prop]
+                                    solved[prop] = true
+                                    num_solved++
+                            res.time = time
+                    table[i] = res
+
+                # console.log num_solved, solved, headers, table
+
+                $scope.headers = headers
+                $scope.table = table
+                $scope.num_solved = num_solved
+                $scope.solved = solved
 
 
 
@@ -100,9 +115,12 @@ hipspec_module.controller 'InstanceCtrl', ($scope, $http, request) ->
         String _.contains ["FileProcessed","QuickSpecDone","InductiveProof","PlainProof","Finished"], type
 
     $scope.result = []
-    $scope.$watch 'selected', () ->
-        if $scope.selected?
-            request.log($scope.testsuite,$scope.selected).success (x) ->
+    $scope.show = false
+
+    $scope.toggle_shown = ->
+        $scope.show = !$scope.show
+        if _.isEmpty $scope.result
+            request.log($scope.testsuite,$scope.instance).success (x) ->
                 res = []
 
                 for [time, message] in x
@@ -118,6 +136,4 @@ hipspec_module.controller 'InstanceCtrl', ($scope, $http, request) ->
                     res.push obj
 
                 $scope.result = res
-        else
-            $scope.result = []
 
