@@ -13,6 +13,7 @@ data Msg
     | FileProcessed
     | QuickSpecDone  { classes :: Int, eqs :: Int }
     | StartingUserLemmas
+    | ExploredTheory { equations :: [String] }
     | Finished       { proved :: [String], unproved :: [String], qs_proved :: [String], qs_unproved :: [String] }
     | Discard        { discarded :: [String] }
     | Candidates     { candidates :: [String] }

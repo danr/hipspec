@@ -17,7 +17,7 @@ import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
-import HipSpec.Messages
+import HipSpec.Messages hiding (equations)
 
 import HipSpec.Params
 
@@ -281,10 +281,12 @@ hipSpec file sig0 = do
     (qslemmas,qsunproved,ctx) <- deep halo_env params write theory sig ctx0 qsprops
 
     when explore_theory $ do
+        let provable (t :=: u) = evalEQ ctx (t =?= u)
+            explored_theory    = filter (not . definition) $ pruner
+                               $ filter provable (equations classes)
+        write $ ExploredTheory (showEqs explored_theory)
         putStrLn "\nExplored theory (proved correct):"
-        let provable (t :=: u)   = evalEQ ctx (t =?= u)
-        printNumberedEqs $ filter (not . definition) $ pruner
-                         $ filter provable (equations classes)
+        printNumberedEqs explored_theory
 
     write StartingUserLemmas
 
