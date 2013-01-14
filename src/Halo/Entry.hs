@@ -18,6 +18,7 @@ import GHC
 import GHC.Paths
 import HscTypes
 import SimplCore
+import StaticFlags
 import TcRnTypes
 import UniqSupply
 
@@ -45,6 +46,7 @@ desugarAndTypeEnv DesugarConf{..} targetFile =
   defaultErrorHandler defaultLogAction $
 #endif
     {- defaultCleanupHandler defaultDynFlags $ -} do
+      addWay WayThreaded
       runGhc (Just libdir) $ do
         dflags <- getSessionDynFlags
         let dflags0
@@ -52,9 +54,9 @@ desugarAndTypeEnv DesugarConf{..} targetFile =
                                         [Opt_D_dump_simpl_stats
                                         ,Opt_D_verbose_core2core]
                 | otherwise = dflags
-            dflags' = flip dopt_unset Opt_IgnoreInterfacePragmas
-                    $ flip dopt_unset Opt_OmitInterfacePragmas
-                    $ dopt_set dflags0 Opt_ExposeAllUnfoldings
+            dflags' = (flip dopt_unset Opt_IgnoreInterfacePragmas
+                     $ flip dopt_unset Opt_OmitInterfacePragmas
+                     $ dopt_set dflags0 Opt_ExposeAllUnfoldings)
         void $ setSessionDynFlags dflags'
         target <- guessTarget targetFile Nothing
         setTargets [target]
