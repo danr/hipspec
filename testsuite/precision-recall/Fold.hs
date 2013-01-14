@@ -8,8 +8,6 @@ import Data.Typeable
 import HipSpec
 import HipSpec.Prelude
 
-newtype B = B Int deriving (Eq, Ord, Typeable, Arbitrary, CoArbitrary, Show)
-
 app :: a -> a
 app x = x
 
@@ -27,21 +25,14 @@ foldr op e (x:xs) = op x (foldr op e xs)
 
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] intType
-    , vars ["e", "e'", "e''"] stateType
     , vars ["xs", "ys", "zs"] listType
-    , vars ["f", "g"] (undefined :: B -> A -> B)
-    , vars ["f", "g"] (undefined :: A -> B -> B)
+    , vars ["f", "g"] (undefined :: A -> A -> A)
     , fun0 "[]"       ([]       :: [A])
     , fun2 ":"        ((:)      :: A  -> [A] -> [A])
     , fun2 "++"       ((++)     :: [A] -> [A] -> [A])
-    , fun3 "foldl"    (foldl    :: (B -> A -> B) -> B -> [A] -> B)
-    , fun3 "foldr"    (foldr    :: (A -> B -> B) -> B -> [A] -> B)
-    , fun3 "app"      (app      :: (B -> A -> B) -> B -> A -> B)
-    , fun3 "app"      (app      :: (A -> B -> B) -> A -> B -> B)
-    , observer3 ((\x y f -> f x y) :: B -> A -> (B -> A -> B) -> B)
-    , observer3 ((\x y f -> f x y) :: A -> B -> (A -> B -> B) -> B)
+    , fun3 "foldl"    (foldl    :: (A -> A -> A) -> A -> [A] -> A)
+    , fun3 "foldr"    (foldr    :: (A -> A -> A) -> A -> [A] -> A)
     ]
   where
     intType   = intType   :: A
-    stateType = stateType :: B
     listType  = listType  :: [A]
