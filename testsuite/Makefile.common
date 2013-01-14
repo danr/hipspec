@@ -12,10 +12,8 @@
 #
 #    processes=4 indvars=3 make
 #
-RESULT_DIR = results
-
 GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas 
+GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
 HIP_FLAGS = -l
 
 # The different flags to test, separate flags with underscore
@@ -64,12 +62,14 @@ empty =
 space = $(empty) $(empty)
 comma = ,
 
+results:
+	mkdir -p results
+
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-$(RESULT_DIR)/$(1)$(2).json: $(1)
-	mkdir -p `dirname $$@`
+results/$(1)$(2).json: $(1) results
 	./$(1) $(subst $(delim),$(space),$(2)) $(HIP_FLAGS) --json $$@
-all_targets += $(RESULT_DIR)/$(1)$(2).json
+all_targets += results/$(1)$(2).json
 endef
 
 # Generate rules for a given file
@@ -77,7 +77,7 @@ define file_rule
 $(1): $(1).hs
 	$$(GHC) $$(GHC_FLAGS) $$(arg1) -o $$@
 
-$(1)_runs: $(foreach flag,$(flags),$(RESULT_DIR)/$(1)$(flag).json)
+$(1)_runs: $(foreach flag,$(flags),results/$(1)$(flag).json)
 
 $(foreach flag,$(flags),$(eval $(call flag_rule,$(file),$(flag))))
 endef
@@ -97,6 +97,11 @@ binaries: $(files)
 
 debug:
 	@echo $(flags)
+
+# Remove binaries and Haskell interface/object files
+binclean:
+	rm -f $(files)
+	rm -f *{\.o,\.hi}
 
 # Remove all targets
 clean:
