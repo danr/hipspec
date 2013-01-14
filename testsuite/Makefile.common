@@ -14,7 +14,10 @@
 #
 GHC       = ghc
 GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
-HIP_FLAGS = -l
+
+ifeq ($(HIP_FLAGS),)
+  HIP_FLAGS = -l
+endif
 
 # The different flags to test, separate flags with underscore
 ifeq ($(base_flags),)
@@ -49,7 +52,9 @@ endef
 
 $(eval $(call cross_flags,-p_,$(provers)))
 $(eval $(call cross_flags,-t_,$(timeouts)))
-$(eval $(call cross_flags,-N_,$(processes)))
+
+flags := $(foreach flag,$(flags),$(foreach n,$(processes),$(flag)_N$(n)_+RTS_-N$(n)_-RTS))
+
 $(eval $(call cross_flags,-S_,$(indvars)))
 $(eval $(call cross_flags,-D_,$(inddepth)))
 
@@ -67,9 +72,9 @@ results:
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-results/$(1)$(2).json: $(1) results
+results/$(1)_$(2).json: $(1) results
 	./$(1) $(subst $(delim),$(space),$(2)) $(HIP_FLAGS) --json $$@
-all_targets += results/$(1)$(2).json
+all_targets += results/$(1)_$(2).json
 endef
 
 # Generate rules for a given file
