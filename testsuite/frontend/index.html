@@ -19,15 +19,15 @@
       <div ng-controller="TestsuiteCtrl">
 
         <ul>
-          <li ng-repeat="(short, suite) in testsuites">
-            <a ng-click="setTestsuite(short,suite.name,suite.files)">{{ suite.name }}</a>
+          <li ng-repeat="ts in testsuites">
+            <a ng-click="setTestsuite(ts)">{{ ts.name }}</a>
           </li>
         </ul>
 
         <div ng-controller="CompareCtrl">
-          <h2>{{ testsuite_name }}</h2>
+          <h2>{{ testsuite.name }}</h2>
           <ul>
-            <li ng-repeat="file in testsuite_files">
+            <li ng-repeat="file in testsuite.files">
               <a ng-click="viewFile(testsuite,file)">{{ file }}</a>
             </li>
           </ul>
@@ -56,6 +56,15 @@
               </td>
           </table>
 
+          <div ng-repeat="(instance, unused) in table" ng-controller="ExplorationCtrl">
+            <div ng-show="is_explored(instance)">
+              <h3>{{ instance | ppresfile }}, {{ exploration_time | seconds }} s</h3>
+              <ol>
+                <li ng-repeat="eq in equations"><pre class="inline">{{ eq }}</pre></li>
+              <ol>
+            </div>
+          </div>
+
           <table ng-hide='empty(table)'>
             <tr>
               <th>File</th>
@@ -65,7 +74,7 @@
             <tr ng-repeat="(instance, result) in table" ng-controller="InstanceCtrl">
 
               <td class="top">
-                <a ng-click="toggle_shown()">{{ instance | ppresfile }}</a>
+                <a ng-click="toggle_shown(instance)">{{ instance | ppresfile }}</a>
               </td>
 
               <td class="top">
@@ -94,6 +103,9 @@
                         <div ng-switch="msg.type">
                           <div ng-switch-when="FileProcessed">
                             File Processed
+                          </div>
+                          <div ng-switch-when="ExploredTheory">
+                            Theory Explored
                           </div>
                           <div ng-switch-when="QuickSpecDone">
                             QuickSpec done, {{ msg.classes }} classes, {{ msg.eqs }} equations.
