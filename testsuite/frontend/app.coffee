@@ -6,6 +6,12 @@ hipspec_module.filter 'seconds', () -> (s) ->
     else
         ""
 
+hipspec_module.filter 'ppresfile', () -> (s) ->
+    s = s.replace /^results\//, -> ""
+    s = s.replace /.json$/, -> ""
+    s.replace /_/g, -> " "
+
+
 hipspec_module.factory 'config', () ->
 
     prod:
@@ -17,6 +23,7 @@ hipspec_module.factory 'config', () ->
     mini:
         name: 'Mini'
         files: ['Mini.hs']
+
     examples:
         name: 'Examples'
         files:
@@ -30,6 +37,10 @@ hipspec_module.factory 'config', () ->
               'Rotate.hs'
             ]
 
+    'precision-recall':
+        name: 'Precision/Recall'
+        files: []
+
 hipspec_module.factory 'request', ($http) ->
 
     list: (testsuite) -> $http.get("#{testsuite}/json_list")
@@ -37,6 +48,8 @@ hipspec_module.factory 'request', ($http) ->
     log: (testsuite, instance) -> $http.get("#{testsuite}/#{instance}")
 
 hipspec_module.controller 'TestsuiteCtrl', ($scope, config) ->
+
+    $scope.empty = _.isEmpty
 
     $scope.testsuites = config
 

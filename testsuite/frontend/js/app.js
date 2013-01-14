@@ -13,6 +13,20 @@
     };
   });
 
+  hipspec_module.filter('ppresfile', function() {
+    return function(s) {
+      s = s.replace(/^results\//, function() {
+        return "";
+      });
+      s = s.replace(/.json$/, function() {
+        return "";
+      });
+      return s.replace(/_/g, function() {
+        return " ";
+      });
+    };
+  });
+
   hipspec_module.factory('config', function() {
     return {
       prod: {
@@ -30,6 +44,10 @@
       examples: {
         name: 'Examples',
         files: ['AppendLists.hs', 'BinLists.hs', 'Implies.hs', 'ListMonad.hs', 'Nat.hs', 'Nicomachus.hs', 'Reverse.hs', 'Rotate.hs']
+      },
+      'precision-recall': {
+        name: 'Precision/Recall',
+        files: []
       }
     };
   });
@@ -46,6 +64,7 @@
   });
 
   hipspec_module.controller('TestsuiteCtrl', function($scope, config) {
+    $scope.empty = _.isEmpty;
     $scope.testsuites = config;
     $scope.testsuite = void 0;
     $scope.selected = null;

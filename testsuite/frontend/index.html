@@ -36,7 +36,7 @@
             <pre>{{ content }}</pre>
             <a ng-click="content = ''" ng-show="content">close file</a>
           </div>
-          <table>
+          <table ng-hide='empty(headers)'>
             <tr>
               <th>Settings</th>
               <!-- <th>Time (s)</th> -->
@@ -56,7 +56,7 @@
               </td>
           </table>
 
-          <table>
+          <table ng-hide='empty(table)'>
             <tr>
               <th>File</th>
               <th>Time (s)</th>
@@ -64,12 +64,14 @@
             </tr>
             <tr ng-repeat="(instance, result) in table" ng-controller="InstanceCtrl">
 
-              <td>
-                <h3><a ng-click="toggle_shown()">{{ instance }}</a></h3>
+              <td class="top">
+                <a ng-click="toggle_shown()">{{ instance | ppresfile }}</a>
               </td>
-              <td>
+
+              <td class="top">
                 <span>{{ $parent.result.time | seconds }} s</span>
               </td>
+
               <td>
                 <span ng-repeat="(prop, unused) in headers">
                   <span ng-show="$parent.$parent.result[prop].solved || $parent.$parent.result[prop].failed"

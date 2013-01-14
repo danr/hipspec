@@ -42,3 +42,6 @@ body {
 
 .Finished {
   background: #eeeebb; }
+
+.top {
+  vertical-align: top; }
