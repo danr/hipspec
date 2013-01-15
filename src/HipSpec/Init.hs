@@ -29,6 +29,7 @@ import HscTypes
 import UniqSupply
 import TysWiredIn
 
+import Control.Monad
 import System.Console.CmdArgs hiding (summary)
 
 processFile :: FilePath -> IO (Theory,HaloEnv,[Prop],StrMarsh,Params)
@@ -48,12 +49,30 @@ processFile file = do
 
     let -- Some stuff in this pile of junk contains non-translatable code.
         -- I shouldn't fetch all dependencies :( Only necessary. Meep.
-        junk v = any (`isInfixOf` showOutputable (varType v))
-                     [ "Test.QuickSpec", "GHC.Class" ]
+        junk v = any (`isInfixOf` showOutputable (varType v)) $
+                     [ "Test." , "GHC.Class" ] ++
+                     ( guard (not permissive_junk) >>
+                     [ "GHC.Conc"
+                     , "GHC.Exception"
+                     , "GHC.Real"
+                     , "GHC.Float"
+                     , "GHC.Enum"
+                     , "GHC.Prim.Int#"
+                     , "GHC.Types.Int"
+                     , "GHC.Types.Char"
+                     , "GHC.Show.ShowS"
+                     , "Foreign."
+                     , "Data.Typeable"
+                     , "Data.Dynamic"
+                     , "System."
+                     ])
 
-        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds
+        init_core_binds' = filter (any (not . junk . fst) . flattenBinds . (:[]))
+                                  init_core_binds
 
-        unlifted_program = unfoldings ++ init_core_binds
+        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds'
+
+        unlifted_program = unfoldings ++ init_core_binds'
 
         ty_cons :: [TyCon]
         ty_cons = insert boolTyCon $ fetchTyCons unlifted_program
@@ -83,15 +102,23 @@ processFile file = do
 
         (core_props,core_defns) = partition isPropBinder $ flattenBindGroups lifted_program
 
-    {-
-    putStrLn "== PROPS =="
+    when dump_props $ do
+        putStrLn "== PROPS =="
+        putStrLn $ showOutputable core_props
 
-    putStrLn $ showOutputable core_props
+    when dump_defns $ do
+        putStrLn "== DEFNS =="
+        putStrLn $ showOutputable core_defns
 
-    putStrLn "== DEFNS =="
-
-    putStrLn $ showOutputable core_defns
-    -}
+    when dump_types $ do
+        putStrLn "== TYPES =="
+        flip mapM_ (core_defns ++ core_props) $ \ binder -> do
+            putStrLn ""
+            putStrLn $ "Is prop binder:" ++ show (isPropBinder binder)
+            flip mapM_ (flattenBinds [binder]) $ \ (v,e) -> do
+                putStrLn $ showOutputable v ++ " :: " ++ showOutputable (varType v)
+                putStrLn $ "Prop type: " ++ show (isPropType v) ++
+                           ", junk: " ++ show (junk v)
 
     let halo_conf :: HaloConf
         halo_conf = sanitizeConf $ HaloConf
@@ -142,11 +169,10 @@ processFile file = do
     print binds_thy
     -}
 
-    {-
-    putStrLn "== SUBTHEORIES =="
+    when dump_subthys $ do
+        putStrLn "== SUBTHEORIES =="
 
-    mapM_ print subtheories
-    -}
+        mapM_ print subtheories
 
     {-
 
@@ -168,26 +194,6 @@ processFile file = do
 
     -}
 
-    {-
 
-    putStrLn "== DEFNS =="
-
-    mapM_ (putStrLn . showOutputable) core_defns
-
-    putStrLn "== PROPS =="
-
-    mapM_ (putStrLn . showOutputable) core_props
-
-    putStrLn "== TYPES =="
-
-    flip mapM_ (core_defns ++ core_props) $ \ binder -> do
-        putStrLn ""
-        print $ isPropBinder binder
-        flip mapM_ (flattenBinds [binder]) $ \ (v,e) -> do
-            putStrLn $ showOutputable v
-            putStrLn $ showOutputable (varType v)
-            print $ isPropType v
-
-    -}
 
     return (theory,halo_env,props,str_marsh,params)

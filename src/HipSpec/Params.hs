@@ -48,7 +48,13 @@ data Params = Params
     , indhyps             :: Int
     , indparts            :: Int
 
+    , permissive_junk     :: Bool
+
     , db_str_marsh        :: Bool
+    , dump_props          :: Bool
+    , dump_defns          :: Bool
+    , dump_types          :: Bool
+    , dump_subthys        :: Bool
     }
   deriving (Show,Data,Typeable)
 
@@ -112,6 +118,11 @@ defParams = Params
 
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
+    , dump_props          = False   &= help "Dump bindings that are considered properties"
+    , dump_defns          = False   &= help "Dump bindings that are considered definitions"
+    , dump_types          = False   &= help "Dump types of bindings"
+    , dump_subthys        = False   &= help "Dump subtheories"
+    , permissive_junk     = False   &= help "Add a lot of (seemingly) unnecessary junk. Use this if a definition doesn't get translated that should be, and file a bug report."
     }
     &= summary "\n\
     \      888      d8b                                             \n\
