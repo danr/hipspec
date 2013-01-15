@@ -11,6 +11,10 @@ hipspec_module.filter 'ppresfile', () -> (s) ->
     s = s.replace /.json$/, -> ""
     s.replace /_/g, -> " "
 
+hipspec_module.filter 'display_prop', () -> (s) ->
+    s = s.replace /^prop_/, ""
+    s = s.replace /^Prop/, ""
+    s.replace /.hs$/, ""
 
 hipspec_module.factory 'config', () ->
 
@@ -18,6 +22,11 @@ hipspec_module.factory 'config', () ->
         short: 'prod'
         name: 'Productive Use of Failure'
         files: ['Definitions.hs', 'Properties.hs']
+    ,
+        short: 'prod'
+        name: "Zeno's results on Productive Use of Failure"
+        files: []
+        zeno_style: true
     ,
         short: 'zeno'
         name: 'Zeno/IsaPlanner'
@@ -47,6 +56,8 @@ hipspec_module.factory 'config', () ->
     ]
 
 hipspec_module.factory 'request', ($http) ->
+
+    zeno_style: (testsuite) -> $http.get "#{testsuite.short}/zeno_results.json"
 
     list: (testsuite) -> $http.get "#{testsuite.short}/json_list"
 
@@ -109,12 +120,32 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http, $q) ->
         $scope.num_solved = num_solved
         $scope.solved = solved
 
-    $scope.$watch 'testsuite', () -> if $scope.testsuite?
-        request.list($scope.testsuite).success (list) ->
-            empty()
-            $q.all(request.log($scope.testsuite, i) for i in list).then (logs) ->
-                $scope.results = _.object list, _.map logs, (res) -> res.data
-                process_results()
+    $scope.$watch 'testsuite', () ->
+        if $scope.testsuite?
+            if $scope.testsuite.zeno_style
+                request.zeno_style($scope.testsuite).success (list) ->
+                    $scope.table = {}
+                    headers = {}
+                    num_solved = 0
+                    solved = {}
+                    for prop, result of list
+                        headers[prop] = {}
+                        success = result == "true"
+                        # res[prop] =
+                        #     solved: success
+                        #     failed: !success
+                        if success
+                            solved[prop] = true
+                            num_solved++
+                    $scope.headers = headers
+                    $scope.num_solved = num_solved
+                    $scope.solved = solved
+            else
+                request.list($scope.testsuite).success (list) ->
+                    empty()
+                    $q.all(request.log($scope.testsuite, i) for i in list).then (logs) ->
+                        $scope.results = _.object list, _.map logs, (res) -> res.data
+                        process_results()
 
 hipspec_module.controller 'ExplorationCtrl', ($scope) ->
 

@@ -27,12 +27,25 @@
     };
   });
 
+  hipspec_module.filter('display_prop', function() {
+    return function(s) {
+      s = s.replace(/^prop_/, "");
+      s = s.replace(/^Prop/, "");
+      return s.replace(/.hs$/, "");
+    };
+  });
+
   hipspec_module.factory('config', function() {
     return [
       {
         short: 'prod',
         name: 'Productive Use of Failure',
         files: ['Definitions.hs', 'Properties.hs']
+      }, {
+        short: 'prod',
+        name: "Zeno's results on Productive Use of Failure",
+        files: [],
+        zeno_style: true
       }, {
         short: 'zeno',
         name: 'Zeno/IsaPlanner',
@@ -55,6 +68,9 @@
 
   hipspec_module.factory('request', function($http) {
     return {
+      zeno_style: function(testsuite) {
+        return $http.get("" + testsuite.short + "/zeno_results.json");
+      },
       list: function(testsuite) {
         return $http.get("" + testsuite.short + "/json_list");
       },
@@ -142,24 +158,46 @@
     };
     return $scope.$watch('testsuite', function() {
       if ($scope.testsuite != null) {
-        return request.list($scope.testsuite).success(function(list) {
-          var i;
-          empty();
-          return $q.all((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = list.length; _i < _len; _i++) {
-              i = list[_i];
-              _results.push(request.log($scope.testsuite, i));
+        if ($scope.testsuite.zeno_style) {
+          return request.zeno_style($scope.testsuite).success(function(list) {
+            var headers, num_solved, prop, result, solved, success;
+            $scope.table = {};
+            headers = {};
+            num_solved = 0;
+            solved = {};
+            for (prop in list) {
+              result = list[prop];
+              headers[prop] = {};
+              success = result === "true";
+              if (success) {
+                solved[prop] = true;
+                num_solved++;
+              }
             }
-            return _results;
-          })()).then(function(logs) {
-            $scope.results = _.object(list, _.map(logs, function(res) {
-              return res.data;
-            }));
-            return process_results();
+            $scope.headers = headers;
+            $scope.num_solved = num_solved;
+            return $scope.solved = solved;
           });
-        });
+        } else {
+          return request.list($scope.testsuite).success(function(list) {
+            var i;
+            empty();
+            return $q.all((function() {
+              var _i, _len, _results;
+              _results = [];
+              for (_i = 0, _len = list.length; _i < _len; _i++) {
+                i = list[_i];
+                _results.push(request.log($scope.testsuite, i));
+              }
+              return _results;
+            })()).then(function(logs) {
+              $scope.results = _.object(list, _.map(logs, function(res) {
+                return res.data;
+              }));
+              return process_results();
+            });
+          });
+        }
       }
     });
   });

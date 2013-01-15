@@ -41,7 +41,7 @@
               <th>Settings</th>
               <!-- <th>Time (s)</th> -->
               <th ng-repeat="(prop, unused) in headers">
-                <span class="prop-header">{{ display_prop(prop) }}</span>
+                <span class="prop-header">{{ prop | display_prop }}</span>
               </th>
             </tr>
             <tr class="result-row">
