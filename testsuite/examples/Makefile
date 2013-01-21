@@ -1,5 +1,3 @@
-
-files = Nat Reverse Implies Rotate ListMonad Nichomachus BinLists AppendLists
+files = AppendLists BinLists Implies ListMonad Nat Nichomachus QRev Reverse Rotate
 
 include ../Makefile.common
-
