@@ -22,9 +22,10 @@ main = hipSpec $(fileName)
     , ":"      `fun2` ((:) :: Nat -> [Nat] -> [Nat])
     , "Z"      `fun0` Z
     , "S"      `fun1` S
+    , "True"   `fun0` True
+    , "False"  `fun0` False
     -- Functions
     , "<="        `fun2` (<=) -- sorted, insert calls (<=)
-    , "&&"        `fun2` (&&) -- sorted calls (&&)
     , "isort"     `fun1` isort
     , "sorted"    `fun1` sorted
     , "insert"    `fun2` insert
