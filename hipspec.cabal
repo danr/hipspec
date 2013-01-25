@@ -21,7 +21,7 @@ flag executable
     default:        False
 
 executable          hipspec
-    ghc-options:    -threaded -O2 -rtsopts -package ghc
+    ghc-options:    -Wall -threaded -rtsopts -package ghc
     hs-source-dirs: src halo/src
     main-is:        Main.hs
 
