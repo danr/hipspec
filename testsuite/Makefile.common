@@ -53,7 +53,7 @@ endef
 $(eval $(call cross_flags,-p_,$(provers)))
 $(eval $(call cross_flags,-t_,$(timeouts)))
 
-flags := $(foreach flag,$(flags),$(foreach n,$(processes),$(flag)_N$(n)_+RTS_-N$(n)_-RTS))
+flags := $(foreach flag,$(flags),$(foreach n,$(processes),$(flag)_-N$(n)_+RTS_-N$(n)_-RTS))
 
 $(eval $(call cross_flags,-S_,$(indvars)))
 $(eval $(call cross_flags,-D_,$(inddepth)))
