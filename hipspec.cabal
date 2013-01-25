@@ -10,54 +10,8 @@ cabal-version:      >= 1.6
 build-type:         Simple
 homepage:           github.com/danr/hip
 
-flag executable
-    description:
-        Enable generation of the hipspec executable.
-
-        You typically want to use hipspec as a library
-        instead, this allows generation of lemmas from
-        QuickSpec.
-
-    default:        False
-
-executable          hipspec
-    ghc-options:    -Wall -threaded -rtsopts -package ghc
-    hs-source-dirs: src halo/src
-    main-is:        Main.hs
-
-    if flag(executable)
-        buildable:  True
-    else
-        buildable:  False
-
-    build-depends:
-        -- Shared
-        base                          >= 4    && < 5,
-        mtl                           >= 2.0,
-        containers                    >= 0.3,
-        geniplate                     >= 0.6,
-
-        -- Command-line arguments
-        cmdargs                       >= 0.9,
-
-        -- Halo
-        bimap                         >= 0.2,
-        ghc-paths                     >= 0.1,
-        filepath                      >= 1.0,
-        dlist                         >= 0.5,
-
-        -- Structural Induction
-        safe                          >= 0.3,
-        pretty                        >= 1.0,
-
-        -- Running Theorem Provers
-        process                       >= 1.0.1.1,
-        stm                           >= 2.0,
-        directory                     >= 1.0,
-        split                         >= 0.1
-
 library
-    ghc-options:    -threaded -O2 -rtsopts -package ghc
+    ghc-options:    -threaded -Wall -rtsopts -package ghc
     hs-source-dirs: src halo/src
 
     exposed-modules:
@@ -130,6 +84,9 @@ library
 
         -- Command-line arguments
         cmdargs                       >= 0.9,
+
+        -- Messages
+        ghc-prim,
 
         -- Halo
         bimap                         >= 0.2,
