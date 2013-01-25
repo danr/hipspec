@@ -3,7 +3,8 @@ language: haskell
 install:
     - git submodule update --init
     - git clone https://github.com/nick8325/quickspec
-    - (cd quickspec; cabal install)
+    - (cd quickspec; ../travis/cabal-apt-install; cabal install)
+    - travis/cabal-apt-install
     - cabal configure
     - cabal build
 
