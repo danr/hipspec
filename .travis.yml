@@ -4,6 +4,7 @@ install:
     - git submodule update --init
     - git clone https://github.com/nick8325/quickspec
     - (cd quickspec; cabal install)
+    - cabal configure
     - cabal build
 
 script:
