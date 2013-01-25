@@ -1,14 +1,19 @@
 name:               hipspec
+category:           Theorem Provers
 version:            0.4
 license:            BSD3
 author:             Dan Rosén
-maintainer:         danr@student.gu.se
-synopsis:           HipSpec, prove properties of Haskell functions using induction and ATPs, fuelled by GHC Core
-category:           Proving
-stability:          Experimental
-cabal-version:      >= 1.6
+maintainer:         Dan Rosén <danr@chalmers.se>
+homepage:           http://www.github.com/danr/hipspec
+bug-reports:        http://www.github.com/danr/hipspec/issues
 build-type:         Simple
-homepage:           github.com/danr/hip
+cabal-version:      >= 1.6
+tested-with:        GHC == 7.4.1, GHC == 7.6.1
+synopsis:           HipSpec: prove properties of Haskell programs, with theory exploration from QuickSpec
+
+source-repository head
+    type: git
+    location: git://github.com/danr/hipspec.git
 
 library
     ghc-options:    -threaded -Wall -rtsopts -package ghc
