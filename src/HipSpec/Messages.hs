@@ -24,6 +24,12 @@ data Msg
 
 instance ToJSON Msg
 
+-- GHC 7.4.1 STM does not have modifyTVar
+modTVar :: TVar a -> (a -> a) -> STM ()
+modTVar v f = do
+    x <- readTVar v
+    writeTVar v (f x)
+
 mkWriter :: IO (Msg -> IO (), IO [(Double,Msg)])
 mkWriter = do
 
@@ -37,7 +43,7 @@ mkWriter = do
             t1 <- getCurrentTime
             let t :: Double
                 t = fromRat (toRational (diffUTCTime t1 t0))
-            atomically $ modifyTVar msgs ((t,m):)
+            atomically $ modTVar msgs ((t,m):)
 
     return (write,read)
 
