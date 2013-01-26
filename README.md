@@ -3,8 +3,7 @@ HipSpec - the Haskell Inductive Prover meets QuickSpec
 
 [![Build Status](https://travis-ci.org/danr/hipspec.png?branch=master)](https://travis-ci.org/danr/hipspec)
 
-Installation instructions
-=========================
+## Installation instructions
 
 HipSpec is only supported on GHC 7.4.1 and GHC 7.6.1. Patches
 for other versions are more than welcome.
@@ -20,19 +19,15 @@ Have you already cloned this repo? Then get the submodules:
 
     git submodule update --init
 
-Not cloned yet? OK, clone hipspec with this flag:
+Not cloned yet? Then you can clone hipspec and submodules in one go with this flag:
 
     git clone https://github.com/danr/hipspec.git --recursive
 
-Whatever method you have now cloned hipspec+its submodules,
-you should now be able to issue this in the main directory:
+If you now have hipspec and its submodules, install the library thusly:
 
     cabal install
 
-This install the HipSpec library.
-
-Supported theorem provers
--------------------------
+### Supported theorem provers
 
 You will need to install at least one or more of the following theorem provers:
 
@@ -53,12 +48,14 @@ You will need to install at least one or more of the following theorem provers:
 
   * [equinox](https://github.com/nick8325/equinox)
 
-Theory exploration mode
-=======================
+## Tutorial
 
-The interesting mode is when you use QuickSpec to generate a theory.
-A few steps needs to be carried out. An example is given in
-[`testsuite/examples/Nat.hs`](https://github.com/danr/hipspec/blob/master/testsuite/examples/Nat.hs).
+In HipSpec, QuickSpec will generate a background theory, which
+then Hip will try to prove as much as possible from.
+This little tutorial will try to explain how to use HipSpec
+as a theory exploration system.
+
+An example is given in [`testsuite/examples/Nat.hs`](https://github.com/danr/hipspec/blob/master/testsuite/examples/Nat.hs).
 
 Two important imports:
 
@@ -94,14 +91,14 @@ should use when generating terms.
 
 We continue the example above:
 
-    main = hipSpec "Trees.hs" conf
+    main = hipSpec "Trees.hs" sig
       where
-        conf = [ vars ["t","u"] (undefined :: Tree Int)
-               , vars ["x","y"] (undefined :: Int)
-               , fun0 "Leaf" Leaf
-               , fun0 "Fork" Fork
-               , fun1 "mirror" mirror
-               ]
+        sig = [ vars ["t","u"] (undefined :: Tree A)
+              , vars ["x","y"] (undefined :: A)
+              , fun0 "Leaf"    (Leaf :: A -> Tree A)
+              , fun0 "Fork"    (Fork :: Tree A -> Tree A -> Tree A)
+              , fun1 "mirror"  (mirror :: Tree A -> Tree A)
+              ]
 
 You need to give concrete, monoromorphic signatures to polymorphic functions
 (and variables). QuickSpec gives you one which is called A. You can see it as a
@@ -117,6 +114,14 @@ Now, we are good to go. Compile this and run:
     ...
     $ ./Trees
     ...
+
+### Theory Exploration mode
+
+To make HipSpec print a small, pruned theory of everything that is proved
+to be correct, run the compiled binary with `--explore-theory`, or `-e` for
+short.
+
+### Other options
 
 To make things run a bit faster, use optimisation and parallelism by
 passing the flags `-O2 -threaded -rtsopts` to `ghc`. Then run the
@@ -145,15 +150,18 @@ induction variables on depth two, and E as the theorem prover, using
 
     make Nat_runs provers=e indvars=3 inddepth=2 processes=8
 
-Options and flags
-=================
+To use the theory exploration mode, you can use the `HIP_FLAGS`
+variable:
+
+    make Nat_runs HIP_FLAGS=-e
+
+## Options and flags
 
 Quick information about available flags can be accessed anytime by the
 `--help` flag to the `hipspec` executable, or executables compiled
 with the HipSpec library.
 
-QuickSpec flags
----------------
+### QuickSpec flags
 
   * `--swap-repr` (`-s`): Swap equations with their representative
   * `--prepend-pruned` (`-r`): Prepend nice, pruned, equations from QuickSpec
@@ -166,8 +174,7 @@ QuickSpec flags
     and try to prove it first.
 
 
-Induction flags
----------------
+### Induction flags
 
   * `--inddepth=INT` (`-D`): Induction depth, default 1.
   * `--indvars=INT` (`-S`): Variables to do induction on simultaneously,
@@ -181,8 +188,7 @@ Induction flags
     skipped. Default is 10.
 
 
-Specifying theorem prover
--------------------------
+### Specifying theorem prover
 
 The `--provers` flag, or `-p` for short, takes a one character
 description for the theorem prover:
@@ -200,29 +206,21 @@ You can specify many at the same time, i.e. `--provers=zevs`, which
 will run z3, E prover, vampire 32-bit and SPASS, in that order, on
 each problem.
 
-Processors and parallel proving
--------------------------------
+### Processors and parallel proving
 
 As you probably have a multi-core machine, you might just as well use
 some more processor core. While theorem provers are still usually
 single-core, you can run many of them in parallel. The `--processes`
 or `-N` flag will let you specify this. The default is 2, but if you
-have, say, 8 cores and you want to use all of them:
+have, say, 8 cores and you want to use all of them, use `-N=8`:
 
-    hipspec testsuite/hip/Nat.hs -N=8
+### Timeout
 
-Timeout
--------
+The default timeout is one second. It can be specified with the `-t` or
+`--timeout` flag. With `-t=5`, each theorem prover invocation will be 5 seconds
+long.
 
-The default timeout is one second. It can be specified with the `-t`
-or `--timeout` flag:
-
-    hipspec testsuite/hip/Nat.hs -t=5
-
-Now, each theorem prover invocation will be 5 seconds long.
-
-Output TPTP
------------
+### Output TPTP
 
 Should you wish to inspect the generated tptp theory, you can use
 `--output` (or `-o`) and make a `proving/` directory. Then all
@@ -234,14 +232,12 @@ are quick to otput. With the flag, the identifiers should have a
 strong resemblence from their origin in the Haskell Source (or at
 least, their Core representation).
 
-Consistency
------------
+### Consistency
 
-HipSpec will try to prove True = False if given the `--consistency` flag,
+HipSpec will try to prove `True =:= False` if given the `--consistency` flag,
 or `-c` for short.
 
-Authors and contact
-===================
+## Authors and contact
 
 The HipSpec group consists of:
 
