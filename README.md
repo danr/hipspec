@@ -1,18 +1,13 @@
 HipSpec - the Haskell Inductive Prover meets QuickSpec
 ======================================================
 
-Automatically prove properties about Haskell programs by using
-induction or coinduction. The approach taken is to compile Haskell
-programs to first order theories. Induction is applied on the meta
-level, and proof search is carried out by automated theorem provers
-for first order logic with equality.
-
-This version uses HALO to translate from GHC Core to First Order
-Logic.  There is an old version is in the `src-exts` branch, using
-Haskell Source Extensions.
+[![Build Status](https://travis-ci.org/danr/hipspec.png?branch=master)](https://travis-ci.org/danr/hipspec)
 
 Installation instructions
 =========================
+
+HipSpec is only supported on GHC 7.4.1 and GHC 7.6.1. Patches
+for other versions are more than welcome.
 
 Make sure you have `quickspec` installed. It isn't yet on hackage,
 so the easiest way is to get it from github:
@@ -21,32 +16,20 @@ so the easiest way is to get it from github:
 
 Follow its instructions, but it all boils down to `cabal install`.
 
-Clone this repo, if you haven't already:
-
-    git clone https://github.com/danr/hipspec.git
-
-Then, you need to pull `HALO`, the HAskell to LOgic Translator:
+Have you already cloned this repo? Then get the submodules:
 
     git submodule update --init
 
-(The last two commands can be coalesced to
+Not cloned yet? OK, clone hipspec with this flag:
 
     git clone https://github.com/danr/hipspec.git --recursive
 
-) Then, in the main directory, run
+Whatever method you have now cloned hipspec+its submodules,
+you should now be able to issue this in the main directory:
 
     cabal install
 
-This should install the HipSpec library.
-
-If you later update the repository with `git pull`, you will probably
-need to update `HALO` as well. Do the same as before, but without `--init`:
-
-    git submodule update
-
-If you want to install the HipSpec executable, run cabal like this:
-
-    cabal install -fexecutable
+This install the HipSpec library.
 
 Supported theorem provers
 -------------------------
@@ -60,51 +43,47 @@ You will need to install at least one or more of the following theorem provers:
   * [z3](http://research.microsoft.com/en-us/um/redmond/projects/z3/),
     recommended, precompiled binaries [here](http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html)
 
+    NOTE: You will need an old version of z3 (3.2 or older), because later z3s
+    do not support TPTP format. Or send a patch which makes HipSpec print
+    in a native z3 format. (Much of the code is already in halo)
+
   * [vampire](http://www.vprover.org/)
 
   * [SPASS](http://www.spass-prover.org/)
 
   * [equinox](https://github.com/nick8325/equinox)
 
-Only user stated properties mode
-================================
-
-To prove properties using structural induction without generating a
-background theory with QuickSpec, use the `hipspec` executable
-installed with the `cabal` file. Import `Hip.Prelude` to get access
-to the `=:=`, `oops` and `Prop` functions, and now you can enter
-properties in a fashion like this:
-
-    import HipSpec.Prelude
-
-    prop_mirror_involutive :: Tree a -> Prop (Tree a)
-    prop_mirror_involutive t = mirror (mirror t) =:= t
-
-    prop_mirror_idempotent :: Tree a -> Prop (Tree a)
-    prop_mirror_idempotent t = oops (mirror (mirror t) =:= mirror t)
-
-Type signatures on properties are optional, unlike the old version
-based on `haskell-src-exts`.
-
-The `oops` function exists mainly for the reason to check that HipSpec
-is not lying and proves whatever you give it.
-
 Theory exploration mode
 =======================
 
 The interesting mode is when you use QuickSpec to generate a theory.
-A few steps needs to be carried out. An example is given in `testsuite/Nat.hs`.
+A few steps needs to be carried out. An example is given in
+[`testsuite/examples/Nat.hs`](https://github.com/danr/hipspec/blob/master/testsuite/examples/Nat.hs).
 
-Import the `Hip.HipSpec` library. This gives you the `hipSpec` function.
+Two important imports:
+
+    import HipSpec
+    import HipSpec.Prelude
 
 Make a `main` function which calls `hipSpec`. This function takes
-three parameters: the file name, a configuration and the maximum depth
-of generated terms. Example:
+three parameters: the file name and a QuickSpec signature. Example:
 
-    main = hipSpec "Trees.hs" conf 3
-      where conf = ...
+    main = hipSpec "Trees.hs" sig
+      where sig = ...
 
-The configuration explains what variables and constants QuickSpec
+If you think it's crazy that you have to write your filename,
+GHC can do it for you with Template Haskell. Slap this on the
+top of your file:
+
+    {-# LANUGAGE TemplateHaskell -#}
+
+Now the HipSpec import gives you the fileName function which
+is appropriately used like this:
+
+    main = hipSpec $(fileName) sig
+      where sig = ...
+
+The signature explains what variables and constants QuickSpec
 should use when generating terms.
 
   * Make variables with `vars`, then string representations and
@@ -115,7 +94,7 @@ should use when generating terms.
 
 We continue the example above:
 
-    main = hipSpec "Trees.hs" conf 3
+    main = hipSpec "Trees.hs" conf
       where
         conf = [ vars ["t","u"] (undefined :: Tree Int)
                , vars ["x","y"] (undefined :: Int)
@@ -124,10 +103,13 @@ We continue the example above:
                , fun1 "mirror" mirror
                ]
 
-For polymorphic functions, just enter some concrete and rich data type
-as `Int`. To be able to translate from QuickSpec's internal representation
-to HipSpec's, the string of functions and data constructors needs to match
-up exactly as they are named in the source code.
+You need to give concrete, monoromorphic signatures to polymorphic functions
+(and variables). QuickSpec gives you one which is called A. You can see it as a
+skolem type. In fact, as you might have guessed, it's a newtype wrapper around
+`Int`. To be able to translate from QuickSpec's internal representation to
+HipSpec's, the string of functions and data constructors needs to match up
+exactly as they are named in the source code. This sometimes does not work.
+If this happens you can raise an [issue](https://github.com/danr/hipspec/issues).
 
 Now, we are good to go. Compile this and run:
 
@@ -141,16 +123,27 @@ passing the flags `-O2 -threaded -rtsopts` to `ghc`. Then run the
 executable with `+RTS -N2`, where `2` is the number of cores on your
 machine.
 
-We can use template haskell to avoid writing the source file name:
-
-    {-# LANGUAGE TemplateHaskell #-}
-
-    main = hipSpec $(fileName) conf 3
-      where conf = ...
-
-If we import modules we need to compile with these flags:
+If we import modules of whose definitions we want to prove properties about we
+need to compile with these flags:
 
    ghc --make Trees.hs -fforce-recomp -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+
+There is a makefile that does this, namely
+[`testsuite/Makefile.common`](https://github.com/danr/hipspec/blob/master/testsuite/Makefile.common)
+As an example, goto the testsuite/examples directory. Now you
+can compile the Nat.hs file by issuing:
+
+    make Nat
+
+If you also want to run this, you write:
+
+    make Nat_runs
+
+You can also specify some flags here. For instance, to use up to three
+induction variables on depth two, and E as the theorem prover, using
+8 cores on your machine:
+
+    make Nat_runs provers=e indvars=3 inddepth=2 processes=8
 
 Options and flags
 =================
@@ -176,8 +169,8 @@ QuickSpec flags
 Induction flags
 ---------------
 
-  * `--inddepth=INT`: Induction depth, default 1.
-  * `--indvars=INT`: Variables to do induction on simultaneously,
+  * `--inddepth=INT` (`-D`): Induction depth, default 1.
+  * `--indvars=INT` (`-S`): Variables to do induction on simultaneously,
     default 1.
   * `--indhyps=INT`: For some data types, and with many variables and
     depths, the number of hypotheses become very large. This flag
@@ -244,22 +237,19 @@ least, their Core representation).
 Consistency
 -----------
 
-Doubting the consistency of the theories that are generated? Run with
-the `--consistency` flag (for short, `-c`), which will let the theorem
-provers try to find a contradiction without any properties.
+HipSpec will try to prove True = False if given the `--consistency` flag,
+or `-c` for short.
 
 Authors and contact
 ===================
 
 The HipSpec group consists of:
 
-  * Dan Rosén, main developer
-    [danr at student dot chalmers dot se](mailto:danr-student-chalmers-se),
+  * Dan Rosén, [danr@chalmers.se](mailto:danr@chalmers.se),
 
   * Koen Claessen
 
   * Moa Johansson
 
   * Nicholas Smallbone
-
 
