@@ -13,7 +13,7 @@
 #    processes=4 indvars=3 make
 #
 GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
 
 ifeq ($(HIP_FLAGS),)
   HIP_FLAGS = -l
@@ -72,7 +72,7 @@ results:
 
 # First argument is binary, then an underscore-separated list of flags
 define flag_rule
-results/$(1)_$(2).json: $(1) results
+results/$(1)_$(2).json: $(1)
 	./$(1) $(subst $(delim),$(space),$(2)) $(HIP_FLAGS) --json $$@
 all_targets += results/$(1)_$(2).json
 endef
@@ -91,7 +91,7 @@ endef
 $(foreach file,$(files),$(eval $(call file_rule,$(file))))
 
 # Make all targets
-all: $(all_targets)
+all: results $(all_targets)
 
 # Make json list of all generated json result files
 json_list:
