@@ -58,9 +58,6 @@ library
         HipSpec.MakeInvocations
         HipSpec.Params
         HipSpec.Messages
-        HipSpec.Induction
-        HipSpec.Induction.Linearise
-        HipSpec.Induction.Terms
         HipSpec.StringMarshal
         HipSpec.Trans.MakeProofs
         HipSpec.Trans.ProofDatatypes
@@ -100,7 +97,7 @@ library
         dlist                         >= 0.5,
 
         -- Structural Induction
-        safe                          >= 0.3,
+        structural-induction          >= 0.1 && < 0.2,
         pretty                        >= 1.0,
 
         -- Running Theorem Provers

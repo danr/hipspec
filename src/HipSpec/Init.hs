@@ -67,12 +67,16 @@ processFile file = do
                      , "System."
                      ])
 
+        {-
+        -- This makes + to disappear
         init_core_binds' = filter (any (not . junk . fst) . flattenBinds . (:[]))
                                   init_core_binds
+                                  -}
 
-        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds'
 
-        unlifted_program = unfoldings ++ init_core_binds'
+        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds
+
+        unlifted_program = unfoldings ++ init_core_binds
 
         ty_cons :: [TyCon]
         ty_cons = insert boolTyCon $ fetchTyCons unlifted_program

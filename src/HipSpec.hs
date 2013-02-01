@@ -94,7 +94,7 @@ deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
 
         let shown = showEqs renamings
 
-        write $ Discard shown
+        -- write $ Discard shown
 
         putStrLn $
           let n = length renamings

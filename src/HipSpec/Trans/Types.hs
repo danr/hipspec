@@ -20,7 +20,7 @@ module HipSpec.Trans.Types
 
 import Halo.Shared
 
-import HipSpec.Induction
+import Induction.Structural
 
 import Type
 import DataCon

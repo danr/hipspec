@@ -2,8 +2,8 @@
              ParallelListComp,ViewPatterns #-}
 module HipSpec.Trans.MakeProofs where
 
-import HipSpec.Induction
-import HipSpec.Induction.Linearise
+import Induction.Structural
+
 import HipSpec.Trans.ProofDatatypes
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property as Prop
@@ -143,7 +143,7 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
     induction :: [Int] -> Maybe (MakerM Part)
     induction coords = do
-        let parts = structuralInduction tyEnv propVars coords
+        let parts = subtermInductionQ tyEnv propVars coords
 
         -- If induction on these variables with this depth gives too many
         -- parts, then do not do this induction, return Nothing
@@ -156,11 +156,11 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
         return $ do
             -- Rename the variables
-            parts' <- mapM (unVM getVar) parts
+            parts' <- mapM (unTagM getVar) parts
 
             -- Translate all induction parts to particles
             (particles,ptrs) <- lift $ capturePtrs $ sequence
-                           [ Particle (show i) <$> trIndPart prop (dropHyps part)
+                           [ Particle (show i) <$> trObligation prop (dropHyps part)
                            | part <- parts'
                            | i <- [(0 :: Int)..] ]
 
@@ -180,8 +180,8 @@ ghcStyle = Style
 
 data Loc = Hyp | Concl
 
-trIndPart :: Prop -> IndPart DataCon Var Type -> HaloM [Clause']
-trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
+trObligation :: Prop -> Obligation DataCon Var Type -> HaloM [Clause']
+trObligation Prop{..} obligation@(Obligation skolem hyps concl) = do
 
     let trPred :: Loc -> [Term DataCon Var] -> HaloM (String,Formula')
         trPred loc tms = do
@@ -214,7 +214,7 @@ trIndPart Prop{..} ind_part@(IndPart skolem hyps concl) = do
         return
             $ comment ( "Proof by structural induction\n" ++
                         unlines str_hyp ++ "|-\n" ++ str_concl ++
-                        "\n" ++ P.render (linPart ghcStyle ind_part) )
+                        "\n" ++ P.render (linObligation ghcStyle obligation) )
             : comment "Conclusion" : tr_concl
             ++ comment "Hypothesis" : tr_hyp
             ++ comment "Type guards" :
