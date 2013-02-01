@@ -28,7 +28,6 @@ main = hipSpec $(fileName)
     , "drop"   `fun2`  (drop :: Nat -> [Nat] -> [Nat])
     , "elem"   `fun2`  (elem :: Nat -> [Nat] -> Bool)
     , "=="     `fun2`  (==)    -- elem calls (==)
-    , "||"     `fun2`  (||)    -- elem calls (||)
     ]
 
 -- The properties needs to be mentioned here to be included

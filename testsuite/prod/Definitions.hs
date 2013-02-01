@@ -134,7 +134,7 @@ elem n (x:xs) = n == x || elem n xs
 
 subset :: [Nat] -> [Nat] -> Bool
 subset [] ys = True
-subset (x:xs) ys = x `elem` xs && subset xs ys
+subset (x:xs) ys = x `elem` ys && subset xs ys
 
 intersect,union :: [Nat] -> [Nat] -> [Nat]
 (x:xs) `intersect` ys | x `elem` ys = x:(xs `intersect` ys)

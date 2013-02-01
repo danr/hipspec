@@ -25,7 +25,7 @@ main = hipSpec $(fileName)
     -- Functions
     , "elem"   `fun2` elem
     , "=="     `fun2` (==) -- elem calls (==)
-    , "||"     `fun2` (||) -- elem calls (||)
+--    , "||"     `fun2` (||) -- elem calls (||)
     , "union"  `fun2` union
     ]
 
