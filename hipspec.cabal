@@ -1,6 +1,6 @@
 name:               hipspec
 category:           Theorem Provers
-version:            0.4
+version:            0.4.1
 license:            BSD3
 author:             Dan Rosén
 maintainer:         Dan Rosén <danr@chalmers.se>

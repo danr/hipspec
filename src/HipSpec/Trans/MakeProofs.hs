@@ -18,8 +18,6 @@ import Halo.Util
 import Halo.Shared
 import Halo.Subtheory
 
-import qualified Data.Map as M
-import Data.Map (Map)
 import Data.Maybe (mapMaybe)
 
 import Control.Monad.Reader
@@ -34,27 +32,21 @@ import DataCon
 import Type
 import Var
 import Id
-import Outputable hiding (equals)
+import Outputable hiding (equals,text)
+import qualified Outputable as Outputable
 
-import qualified Text.PrettyPrint as P
+type MakerM = StateT UniqSupply HaloM
 
-type MakerM = StateT (UniqSupply,Map (Var,Integer) Var) HaloM
-
-getVar :: Var -> Integer -> MakerM Var
-getVar v i = do
-    m_v <- gets (M.lookup (v,i) . snd)
-    case m_v of
-        Just v' -> return v'
-        Nothing -> do
-            (u,us) <- takeUniqFromSupply <$> gets fst
-            let v' = setVarUnique v u
-            modify (const us *** M.insert (v,i) v')
-            return v'
+makeVar :: Tagged Var -> MakerM Var
+makeVar (v :~ i) = do
+    (u,us) <- takeUniqFromSupply <$> get
+    put us
+    return (setVarUnique v u)
 
 runMakerM :: HaloEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
 runMakerM env us mm
-    = case runHaloMsafe env (runStateT mm (us,M.empty)) of
-        (Right ((hm,(us',_))),msg) -> ((hm,msg),us')
+    = case runHaloMsafe env (runStateT mm us) of
+        (Right ((hm,us')),msg) -> ((hm,msg),us')
         (Left err,_msg)
             -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
@@ -110,7 +102,7 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
     plainProof :: MakerM Part
     plainProof = do
-        (neg_conj,ptrs) <- lift (capturePtrs unequals)
+        (neg_conj,ptrs) <- lift $ capturePtrs unequals
         let particle = Particle "plain" $
                 comment "Proof by definitional equality" : axioms neg_conj
         return (mkPart Plain ptrs [particle])
@@ -143,7 +135,7 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
     induction :: [Int] -> Maybe (MakerM Part)
     induction coords = do
-        let parts = subtermInductionQ tyEnv propVars coords
+        let parts = subtermInduction tyEnv propVars coords
 
         -- If induction on these variables with this depth gives too many
         -- parts, then do not do this induction, return Nothing
@@ -156,7 +148,7 @@ prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..}
 
         return $ do
             -- Rename the variables
-            parts' <- mapM (unTagM getVar) parts
+            parts' <- fst <$> unTagMapM makeVar parts
 
             -- Translate all induction parts to particles
             (particles,ptrs) <- lift $ capturePtrs $ sequence
@@ -173,9 +165,9 @@ trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
 
 ghcStyle :: Style DataCon Var Type
 ghcStyle = Style
-    { linc = P.text . showOutputable
-    , linv = P.text . showOutputable
-    , lint = P.text . showOutputable
+    { linc = text . showOutputable
+    , linv = text . showOutputable
+    , lint = text . showOutputable
     }
 
 data Loc = Hyp | Concl
@@ -196,10 +188,11 @@ trObligation Prop{..} obligation@(Obligation skolem hyps concl) = do
                     [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
             propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq -> case eq of
-                e1 :== e2 -> substExpr (text "trPred") s e1 :== substExpr (text "trPred") s e2
+                e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
+                             substExpr (Outputable.text "trPred") s e2
 
         trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
-        trHyp (map fst -> qs,tms) = second foralls <$> trPred Hyp tms
+        trHyp (_,tms) = second foralls <$> trPred Hyp tms
 
         skolem_vars = map fst skolem
 
@@ -214,7 +207,7 @@ trObligation Prop{..} obligation@(Obligation skolem hyps concl) = do
         return
             $ comment ( "Proof by structural induction\n" ++
                         unlines str_hyp ++ "|-\n" ++ str_concl ++
-                        "\n" ++ P.render (linObligation ghcStyle obligation) )
+                        "\n" ++ render (linObligation ghcStyle obligation) )
             : comment "Conclusion" : tr_concl
             ++ comment "Hypothesis" : tr_hyp
             ++ comment "Type guards" :
