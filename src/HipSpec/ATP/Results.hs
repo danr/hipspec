@@ -68,3 +68,4 @@ statusFromResults [] = None
 statusFromResults xs = case flattenProverResults xs of
     Success time lemmas -> Theorem lemmas
     _                   -> None
+

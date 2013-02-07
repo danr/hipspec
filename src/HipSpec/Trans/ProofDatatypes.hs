@@ -11,6 +11,31 @@ import HipSpec.Trans.Theory (HipSpecContent,HipSpecSubtheory)
 import Halo.Subtheory
 import Halo.FOL.Abstract
 
+import HipSpec.Trans.Property
+
+data Property a = Property
+    { prop_prop    :: Prop
+    , prop_content :: a
+    }
+  deriving (Functor,Show)
+
+data Proof a = Induction
+    { ind_coords  :: [Int]
+    , ind_oblig   :: Int
+    , ind_obligs  :: Int
+    , ind_content :: a
+    -- ^ This will be a theory, TPTP string or prover results
+    }
+  deriving (Functor)
+
+{-
+instance Semigroup (Proof a) where
+    Induction cs o os a <> Induction cs' o' s' a =
+        case cs
+-}
+
+
+{-
 data ProofMethod
     = Plain
     | Induction { coords :: [Int] }
@@ -65,3 +90,4 @@ data ParticleMatter m = Particle
 
 extendPart :: [HipSpecSubtheory] -> Part -> Part
 extendPart st' (Part n (vs,st,p)) = Part n (vs,st++st',p)
+-}

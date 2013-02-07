@@ -14,12 +14,14 @@ import UniqSet
 import Halo.Shared
 
 import Data.List (nub)
+import Data.Function (on)
 import Control.Arrow (second)
 
 data Equality = CoreExpr :== CoreExpr
 
 instance Show Equality where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
+
 
 data Prop = Prop
     { propEquality :: Equality
@@ -32,6 +34,16 @@ data Prop = Prop
     , propOops     :: Bool
     -- ^ It's an error if this property was provable
     }
+
+instance Eq Prop where
+    (==) = equal propName .&&. equal (map fst . propVars)
+
+(.&&.) :: (a -> b -> Bool) -> (a -> b -> Bool) -> a -> b -> Bool
+(f .&&. g) x y = f x y && g x y
+
+equal :: Eq b => (a -> b) -> a -> a -> Bool
+equal = ((==) `on`)
+
 
 instance Show Prop where
     show Prop{..} = concat

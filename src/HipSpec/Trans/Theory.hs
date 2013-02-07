@@ -33,6 +33,8 @@ import HipSpec.Trans.TypeGuards
 data HipSpecExtras
     = Lemma String
     -- ^ Lemma with a name
+    | Conjecture
+    -- ^ The conjecture
     | Domain TyCon
     -- ^ Domain axiom for a data type + type predicates if finite
     | ResultType Var
@@ -173,7 +175,5 @@ type HipSpecContent = Content HipSpecExtras
 
 type HipSpecSubtheory = Subtheory HipSpecExtras
 
--- I once had the idea to put a specialised trimmer here, but I got
--- confused what to do about the lemmas
+newtype Theory = Theory { subthys :: [HipSpecSubtheory] }
 
-data Theory = Theory { subthys :: [HipSpecSubtheory] }

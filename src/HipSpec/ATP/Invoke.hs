@@ -1,14 +1,19 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 module HipSpec.ATP.Invoke where
 
+import Prelude hiding (mapM)
 import Control.Concurrent
-import Control.Concurrent.STM.TChan
-import Control.Concurrent.STM.TVar
-import Control.Monad.STM
-import Control.Monad
+import Control.Concurrent.STM
+import Control.Concurrent.STM.Promise
+import Control.Concurrent.STM.Promise.Workers
+import Control.Concurrent.STM.Promise.Tree
+import Control.Monad hiding (mapM)
+import Data.Traversable (mapM)
 import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader hiding (mapM)
+import Control.Monad.State hiding (mapM)
+
+import Halo.Util
 
 import Control.Arrow ((***),first,second)
 
@@ -18,10 +23,11 @@ import Data.Maybe
 import qualified Data.Map as M
 import Data.Map (Map)
 
+import HipSpec.Trans.Property
 import HipSpec.Trans.ProofDatatypes
-import HipSpec.ATP.Results
+-- import HipSpec.ATP.Results
 import HipSpec.ATP.Provers
-import HipSpec.ATP.RunProver
+-- import HipSpec.ATP.RunProver
 
 import Halo.Util ((?))
 
@@ -29,33 +35,13 @@ import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 
-type PropName = String
 
-type PropIn     = PropertyMatter [PartIn]
-type PartIn     = PartMatter [ParticleIn]
-type ParticleIn = ParticleMatter String
+import Control.Concurrent.STM.Promise
+import Control.Concurrent.STM.Promise.Process
 
-type PropResult = PropertyMatter (Status,[PartResult])
-type PartResult = PartMatter [ParticleResult]
-type ParticleResult = ParticleMatter (ProverResult,Maybe ProverName)
-
-statusFromPart :: PartResult -> Status
-statusFromPart (Part _ (map (fst . particleMatter) -> res))
-    = statusFromResults res
-
-plainProof :: PropResult -> Either () (Maybe [String])
-plainProof res = case fmap statusFromPart . find plain_success . snd . propMatter
-                    $ res of
-    Just (Theorem lemmas) -> Right lemmas
-    Nothing               -> Left ()
-  where
-    plain_success p = partMethod p == Plain && statusFromPart p /= None
 
 data Env = Env
-    { propStatuses    :: MVar (Map PropName Status)
-    , propCodes       :: Map PropName String
-    , reproveTheorems :: Bool
-    , timeout         :: Int
+    { timeout         :: Int
     , store           :: Maybe FilePath
     , provers         :: [Prover]
     , processes       :: Int
@@ -64,201 +50,106 @@ data Env = Env
 
 type ProveM = ReaderT Env IO
 
-runProveM :: Env -> ProveM a -> IO a
-runProveM = flip runReaderT
+{-
+statusFromPart :: PartResult -> Status
+statusFromPart (Part _ (map (fst . particleMatter) -> res))
+    = statusFromResults res
+    -}
 
-invokeATPs :: [PropIn] -> Env -> IO [PropResult]
-invokeATPs properties env@(Env{..}) = do
-    statusMVar <- newMVar M.empty
-    doneMVar   <- newTVarIO False
+{-
+interpretResult :: Prover -> ProcessResult -> ProverResult
+interpretResult Prover{..} pr@ProcessResult{..} = flip (,) proverName $
+    case proverProcessOutput stdout of
+        s@Success{} -> case proverParseLemmas of
+            Just lemma_parser -> s { successLemmas = lemma_parser stdout }
+            Nothing -> s
+        Failure -> Failure
+        Unknown _ -> Unknown (show pr)
+        -}
 
-    let codes = M.fromList [ (probName,probCode) | Property probName probCode _ <- properties ]
-        env' = env { propStatuses = statusMVar, propCodes = codes }
-        allParts  = [ (propName,part)
-                    | Property propName _ parts <- properties
-                    , part <- parts ]
-        propParts = M.fromList [ (propName,length parts)
-                               | Property propName _ parts <- properties ]
+type ProverResult = ()
 
-    probChan         <- newChan
-    intermediateChan <- newChan
-    resChan          <- newTChanIO
 
-    mapM_ (writeChan probChan) allParts
+interpretResult :: ProcessResult -> ProverResult
+interpretResult ProcessResult{..} = excode `seq` ()
 
-    workers <- replicateM processes $ forkIO $
-                   runProveM env' (worker probChan intermediateChan)
+promiseProof :: Property String -> Int -> Prover -> IO (Promise [Property ProverResult])
+promiseProof (Property p inputStr) timelimit Prover{..} = do
 
-    void $ forkIO $ runProveM env' $
-        listener intermediateChan resChan propParts workers doneMVar
+    {-
+    let filename = "apabepa"  -- calculate this from a hash of input string,
+                              -- or get it from some other information
+                              -- (property name, induction step ish ish)
 
-    consume resChan doneMVar
-  where
-    consume :: TChan PropResult -> TVar Bool -> IO [PropResult]
-    consume resChan doneTVar = fix $ \loop -> unsafeInterleaveIO $ do
-        -- Consuming
-        element <- atomically $ do
-            is_empty <- isEmptyTChan resChan
-            done  <- readTVar doneTVar
-            if is_empty then (if done then return Nothing else retry)
-                        else Just <$> readTChan resChan
 
-        -- Time to stop?
-        case element of
-                Nothing -> return []
-                Just e  -> (e:) <$> loop
+    when proverCannotStdin $ do
+        exists <- doesFileExist filename
+        unless exists $ putStrLn $
+            "*** " ++ filename ++ " using " ++  show proverName ++
+            " must read its input from a file, run with --output ***"
+            -}
 
-propStatus :: PropName -> ProveM Status
-propStatus propName = do
-    Env{..} <- ask
-    if reproveTheorems
-        then return None
-        else do
-            statusMap <- liftIO (readMVar propStatuses)
-            let status = fromMaybe None (M.lookup propName statusMap)
---          liftIO $ putStrLn $ "status on " ++ propName ++ " is " ++ show status
-            return status
+    when proverCannotStdin $ error "Cannot use non-stdin provers at the moment!"
 
-updatePropStatus :: PropName -> Status -> ProveM ()
-updatePropStatus propName status = do
-    Env{..} <- ask
-    unless reproveTheorems $ liftIO $
-        modifyMVar_ propStatuses (return . M.insertWith max propName status)
---  liftIO $ do putStrLn $ "updated " ++ propName ++ " to " ++ show status
---              map <- readMVar propStatuses
---              print map
+    let filename = error "filename!"
 
-type ListenerSt = (Map PropName Int,Map PropName PropResult)
+    let inputStr' | proverCannotStdin = ""
+                  | otherwise         = inputStr
 
--- | Listens to all the results, report if a property was proven,
---   and puts them all in a list of results
-listener :: Chan (PropName,PartResult) -> TChan PropResult
-         -> Map PropName Int -> [ThreadId] -> TVar Bool -> ProveM ()
-listener intermediateChan resChan propParts workers doneTVar = do
-    Env{..} <- ask
+    promise <- processPromise proverCmd (proverArgs filename timelimit) inputStr'
 
-    let initState :: ListenerSt
-        initState = (propParts,M.empty)
+    return Promise
+        { spawn = do
+            -- putStrLn $ "Spawning " ++ propName p ++ ": "
+            -- putStrLn inputStr
+            spawn promise
+        , cancel = do
+            -- putStrLn $ "Cancelling " ++ propName p ++ "!"
+            cancel promise
+        , result = fmap ((:[]) . Property p . interpretResult) <$> result promise
+        }
 
-        process :: StateT ListenerSt ProveM ()
-        process = fix $ \loop -> do
-            res@(propName,part) <- liftIO (readChan intermediateChan)
-            let status = statusFromPart part
-            lift $ updatePropStatus propName status
+invokeATPs :: Tree (Property String) -> Env -> IO [Property ProverResult]
+invokeATPs tree env@Env{..} = do
 
-            -- update map
-            modify (second (uncurry updateResults res propCodes))
+    {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
 
-            -- decrement propName parts
-            modify (first (M.adjust pred propName))
+    void $ flip mapM tree $ \ (Property prop s) -> do
+        putStrLn $ propName prop ++ ": " ++ "\n" ++ s
+        putStrLn "\n"
+        -}
 
-            maybe_in_map <- gets (M.lookup propName *** M.lookup propName)
+    let make_promises :: Property String -> IO (Tree (Promise [Property ProverResult]))
+        make_promises p = requireAny . map Leaf <$> mapM (promiseProof p timeout) provers
 
-            case maybe_in_map of
-                (Just left,Just res)
-                    | left == 0 -> do
-                        liftIO $ atomically $ writeTChan resChan res
-                        modify (M.delete propName *** M.delete propName)
+    promise_tree <- join <$> mapM make_promises tree
+        -- ^ mapM over trees, but we get a tree of trees, so we need to use join
 
-                    | otherwise -> return ()
+    workers (Just (timeout * 1000 * 1000)) processes (interleave promise_tree)
 
-                (Nothing,Nothing) ->
-                    liftIO $ putStrLn $ "Warning! " ++ propName
-                            ++ " appeared more than once!"
+    res <- evalTree promise_tree
 
-                _ ->
-                    liftIO $ putStrLn $ "Warning! " ++ propName
-                            ++ " has caused an internal inconsistency"
-                            ++ " (info exists in one map but not in the other)"
+    -- print res
 
-            -- are we finished?
-            done <- gets (M.null . fst)
-            unless done loop
+    return $ case res of
+        Nothing    -> []
+        Just props -> nubSortedOn (propName . prop_prop) props
+            -- ^ Returns what was proved, but with no information how
 
-    unless (M.null propParts) (evalStateT process initState)
+{-
 
-    liftIO $ do -- All parts are done
-                mapM_ killThread workers
-                atomically (writeTVar doneTVar True)
-  where
-    updateResults :: PropName -> PartResult -> Map PropName String
-                  -> Map PropName PropResult -> Map PropName PropResult
-    updateResults name partRes propCodeMap = M.alter (Just . alterer) name
-      where
-        alterer :: Maybe PropResult -> PropResult
-        alterer m = case m of
-           Nothing ->
-               Property name (propCodeMap M.! name)
-                        (statusFromPart partRes ,[partRes])
-           Just (Property name' code (status,parts)) ->
-               Property name' code
-                        (statusFromPart partRes `max` status,partRes:parts)
+    {- -- old filename stuff:
+            let almost_filename = proofMethodFile method ++ "_" ++ desc ++ ".tptp"
 
--- | A worker. Reads the channel of parts to process, and writes to
--- the result channel. Skips doing the rest of the particles if one
--- fails, or if the property is proved elsewhere.
-worker :: Chan (PropName,PartIn) -> Chan (PropName,PartResult) -> ProveM ()
-worker partChan resChan = forever $ do
-    (propName,Part partMethod particles) <- liftIO (readChan partChan)
-
---  liftIO $ putStrLn $ "Working on " ++ propName ++ "."
-
-    env@(Env{..}) <- ask
-
-    let unnecessary Theorem{} = True
-        unnecessary _         = False
-
-        processParticle :: ParticleIn -> StateT Bool ProveM ParticleResult
-        processParticle (Particle particleDesc tptp) = do
-            stop <- get
-            if stop then return (Particle particleDesc (Failure,Nothing)) else do
-                resvar <- liftIO newEmptyMVar
-
-                let almost_filename = proofMethodFile partMethod ++ "_" ++
-                                      particleDesc ++ ".tptp"
-                filename <- case store of
-                    Nothing  -> return almost_filename
-                    Just dir -> liftIO $ do
-                        let dirname  = (z_encode ? escape) propName
-                            filename = dir </> dirname </> almost_filename
-                        createDirectoryIfMissing True (dir </> dirname)
-                        writeFile filename tptp
-                        return filename
-
-                length tptp `seq`
-                    (void . liftIO . forkIO
-                          . runProveM env . runProvers filename tptp $ resvar)
-
-                (res,maybeProver) <- liftIO (takeMVar resvar)
-                provedElsewhere <- unnecessary <$> lift (propStatus propName)
-
-                when (not (success res) || provedElsewhere) (put True)
-                return (Particle particleDesc (res,maybeProver))
-
-    provedElsewhere <- unnecessary <$> propStatus propName
-
-    res <- evalStateT (mapM processParticle particles) provedElsewhere
-
-    liftIO (writeChan resChan (propName,Part partMethod res))
-
---  liftIO $ putStrLn $ "Finished " ++ propName ++ "."
-
-runProvers :: FilePath -> String
-           -> MVar (ProverResult,Maybe ProverName) -> ProveM ()
-runProvers filename str res = do
-    Env{..} <- ask
-    liftIO . putMVar res =<< go provers
-  where
-    go (p:ps) = do
-        t <- asks timeout
-        -- liftIO $ putStrLn $ "Invoking prover " ++ show (proverName p)
-        --                  ++ " on " ++ filename
-        r <- liftIO $ runProver filename p str t
-        -- liftIO $ putStrLn $ "Prover " ++ show (proverName p) ++ " finished"
-        case r of
-           Failure   -> go ps
-           _         -> return (r,Just (proverName p))
-    go []     = return (Failure,Nothing)
+            filename <- case store of
+                Nothing  -> return almost_filename
+                Just dir -> liftIO $ do
+                    let dirname  = (z_encode ? escape) propName
+                        filename = dir </> dirname </> almost_filename
+                    createDirectoryIfMissing True (dir </> dirname)
+                    writeFile filename tptp
+                    return filename
+    -}
 
 escape :: String -> String
 escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
@@ -299,3 +190,4 @@ escapes = M.fromList $ map (uncurry (flip (,)))
 
     , ("_",' ')
     ]
+    -}

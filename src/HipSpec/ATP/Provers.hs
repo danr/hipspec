@@ -190,3 +190,4 @@ parseLemma :: String -> Maybe String
 parseLemma s = case splitOn "Lemma{" s of
     [_,l] -> Just (takeWhile (/= '}') l)
     _     -> Nothing
+

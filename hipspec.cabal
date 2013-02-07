@@ -1,6 +1,6 @@
 name:               hipspec
 category:           Theorem Provers
-version:            0.4.1
+version:            0.5
 license:            BSD3
 author:             Dan Rosén
 maintainer:         Dan Rosén <danr@chalmers.se>
@@ -101,6 +101,7 @@ library
         pretty                        >= 1.0,
 
         -- Running Theorem Provers
+        stm-promise                   >= 0.1 && < 0.2,
         process                       >= 1.0.1.1,
         stm                           >= 2.0,
         directory                     >= 1.0,

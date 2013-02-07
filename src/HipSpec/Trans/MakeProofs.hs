@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards,NamedFieldPuns,TypeOperators,
              ParallelListComp,ViewPatterns #-}
-module HipSpec.Trans.MakeProofs where
+module HipSpec.Trans.MakeProofs (runMakerM, makeProofs, translateLemma) where
+
+import Data.List (nub)
 
 import Induction.Structural
 
@@ -10,6 +12,8 @@ import HipSpec.Trans.Property as Prop
 import HipSpec.Trans.Types
 import HipSpec.Trans.TypeGuards
 import HipSpec.Params
+
+import Control.Concurrent.STM.Promise.Tree
 
 import Halo.FOL.Abstract hiding (Term)
 import Halo.ExprTrans
@@ -35,13 +39,24 @@ import Id
 import Outputable hiding (equals,text)
 import qualified Outputable as Outputable
 
-type MakerM = StateT UniqSupply HaloM
+translateLemma :: Prop -> HaloM HipSpecSubtheory
+translateLemma lemma@Prop{..} = do
+    (tr_lem,ptrs) <- capturePtrs equals
+    return $ Subtheory
+        { provides    = Specific (Lemma propRepr)
+        , depends     = map Function propFunDeps ++ ptrs
+        , description = "Lemma " ++ propRepr ++ "\n" ++
+                        "dependencies: " ++ unwords (map idToStr propFunDeps)
+        , formulae    = [tr_lem]
+        }
+  where
+    equals :: HaloM Formula'
+    equals = do
+        (lhs,rhs) <- trEquality propEquality
+        assums <- mapM trEquality' propAssume
+        return $ foralls $ (min' lhs \/ min' rhs) ==> (assums ===> lhs === rhs)
 
-makeVar :: Tagged Var -> MakerM Var
-makeVar (v :~ i) = do
-    (u,us) <- takeUniqFromSupply <$> get
-    put us
-    return (setVarUnique v u)
+type MakerM = StateT UniqSupply HaloM
 
 runMakerM :: HaloEnv -> UniqSupply -> MakerM a -> ((a,[String]),UniqSupply)
 runMakerM env us mm
@@ -50,113 +65,74 @@ runMakerM env us mm
         (Left err,_msg)
             -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
-trLemma :: Prop -> HaloM HipSpecSubtheory
-trLemma lemma@Prop{..} = do
-    (tr_lem,ptrs) <- capturePtrs equals
-    return $ Subtheory
-        { provides    = Specific (Lemma propRepr)
-        , depends     = map Function propFunDeps ++ ptrs
-        , description = "Lemma " ++ propRepr
-                        ++ "\ndependencies: " ++ unwords (map idToStr propFunDeps)
-        , formulae    = tr_lem
-        }
-  where
-    equals :: HaloM [Formula']
-    equals = do
-        (lhs,rhs) <- trEquality propEquality
-        assums <- mapM trEquality' propAssume
-        return [ foralls $ min' side ==> (assums ===> lhs === rhs) | side <- [lhs,rhs] ]
-
 trEquality :: Equality -> HaloM (Term',Term')
 trEquality (e1 :== e2) = liftM2 (,) (trExpr e1) (trExpr e2)
 
 trEquality' :: Equality -> HaloM Formula'
 trEquality' = liftM (uncurry (===)) . trEquality
 
--- | Takes a theory, and prepares the invocations
---   for a property and adds the lemmas
-theoryToInvocations :: Params -> Theory -> Prop -> [Prop] -> MakerM Property
-theoryToInvocations params@(Params{..}) theory prop lemmas = do
-    tr_lemmas <- lift $ mapM trLemma lemmas
-    parts <- map (extendPart tr_lemmas) <$> prove params theory prop
-    return $ Property
-        { propName   = Prop.propName prop
-        , propCode   = propRepr prop
-        , propMatter = parts
-        }
+-- One subtheory with a conjecture with all dependencies
+type ProofProperty = Property HipSpecSubtheory
+type ProofTree     = Tree ProofProperty
 
-
-prove :: Params -> Theory -> Prop -> MakerM [Part]
-prove Params{methods,indvars,indparts,indhyps,inddepth} Theory{..} prop@Prop{..} =
-    (sequence $ [ plainProof | 'p' `elem` methods ]
-            ++ (do guard ('i' `elem` methods)
-                   mapMaybe induction inductionCoords))
-      `catchError` \err -> do
+makeProofs :: Params -> Prop -> MakerM ProofTree
+makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Prop{..}
+    = requireAny <$>
+        (sequence (mapMaybe induction induction_coords) `catchError` \err -> do
           lift $ cleanUpFailedCapture
-          return []
-
+          return [])
   where
-    mkPart :: ProofMethod -> [HipSpecContent] -> [Particle] -> Part
-    mkPart meth ptr_content particles = Part meth (deps,subthys,particles)
-      where deps = map Function propFunDeps ++ ptr_content
-
-    plainProof :: MakerM Part
-    plainProof = do
-        (neg_conj,ptrs) <- lift $ capturePtrs unequals
-        let particle = Particle "plain" $
-                comment "Proof by definitional equality" : axioms neg_conj
-        return (mkPart Plain ptrs [particle])
+    induction_coords :: [[Int]]
+    induction_coords = nub $
+        [ concat (replicate depth var_ixs)
+        -- ^ For each variable, repeat it to the depth
+        | var_ixs <- var_pow
+        -- ^ Consider all sets of variables
+        , length var_ixs <= indvars
+        , 'p' `elem` methods || length var_ixs > 0
+        -- ^ Don't do induction on too many variables
+        , depth <- [start_depth..stop_depth]
+        ]
       where
-        unequals :: HaloM [Formula']
-        unequals = local (addSkolems $ map fst propVars) $ do
-            (lhs,rhs) <- trEquality propEquality
-            assums <- mapM trEquality' propAssume
-            return $
-                [minrec lhs,minrec rhs,lhs =/= rhs] ++
-                assums ++
-                mapMaybe (typeGuardSkolem . fst) propVars
+        var_indicies :: [Int]
+        var_indicies = zipWith const [0..] propVars
 
+        var_pow :: [[Int]]
+        var_pow = filterM (const [False,True]) var_indicies
 
--- Induction ------------------------------------------------------------------
+        start_depth | 'p' `elem` methods = 0
+                    | otherwise          = 1
+        stop_depth  | 'i' `elem` methods = inddepth
+                    | otherwise          = 0
 
-    inductionCoords :: [[Int]]
-    inductionCoords =
-        let var_indicies :: [Int]
-            var_indicies = zipWith const [0..] propVars
-
-            var_pow :: [[Int]]
-            var_pow = drop 1 $ filterM (const [False,True]) var_indicies
-
-        in  [ concat (replicate depth var_ixs)
-            | var_ixs <- var_pow
-            , length var_ixs <= indvars
-            , depth <- [1..inddepth]
-            ]
-
-    induction :: [Int] -> Maybe (MakerM Part)
+    induction :: [Int] -> Maybe (MakerM ProofTree)
     induction coords = do
-        let parts = subtermInduction tyEnv propVars coords
+        let obligs = subtermInduction tyEnv propVars coords
 
         -- If induction on these variables with this depth gives too many
-        -- parts, then do not do this induction, return Nothing
-        guard (length parts <= indparts)
+        -- obligations, then do not do this induction, return Nothing
+        guard (length obligs <= indparts)
 
         -- Some parts give very many hypotheses. If this is the case,
         -- we cruelly drop some of the first weak ones
-        let dropHyps part = part
-                { hypotheses = take indhyps (reverse $ hypotheses part) }
+        let dropHyps oblig = oblig
+                { hypotheses = take indhyps (reverse $ hypotheses oblig) }
 
-        return $ do
+        return $ fmap requireAll $ do
+
             -- Rename the variables
-            parts' <- fst <$> unTagMapM makeVar parts
+            obligs' <- fst <$> unTagMapM makeVar obligs
 
-            -- Translate all induction parts to particles
-            (particles,ptrs) <- lift $ capturePtrs $ sequence
-                           [ Particle (show i) <$> trObligation prop (dropHyps part)
-                           | part <- parts'
-                           | i <- [(0 :: Int)..] ]
+            forM obligs' $ \ oblig ->  do
 
-            return (mkPart (Induction coords) ptrs particles)
+                ((commentary,fs),ptrs) <- lift $ capturePtrs $ trObligation prop (dropHyps oblig)
+
+                return $ Leaf $ Property prop $ Subtheory
+                    { provides    = Specific Conjecture
+                    , depends     = map Function propFunDeps ++ ptrs
+                    , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
+                    , formulae    = fs
+                    }
 
 trTerm :: Term DataCon Var -> CoreExpr
 trTerm (Var x)    = C.Var x
@@ -172,43 +148,47 @@ ghcStyle = Style
 
 data Loc = Hyp | Concl
 
-trObligation :: Prop -> Obligation DataCon Var Type -> HaloM [Clause']
-trObligation Prop{..} obligation@(Obligation skolem hyps concl) = do
+makeVar :: Tagged Var -> MakerM Var
+makeVar (v :~ i) = do
+    (u,us) <- takeUniqFromSupply <$> get
+    put us
+    return (setVarUnique v u)
 
-    let trPred :: Loc -> [Term DataCon Var] -> HaloM (String,Formula')
-        trPred loc tms = do
-            (lhs,rhs) <- trEquality propEquality'
-            assums <- mapM trEquality' propAssume'
-            let phi = case loc of
-                    Hyp   -> min' lhs \/ min' rhs ==> (assums ===> lhs === rhs)
-                    Concl -> ands $ [minrec rhs,minrec lhs,rhs =/= lhs] ++ assums
-            return (show propEquality',phi)
-          where
-            s = extendIdSubstList emptySubst
-                    [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
-
-            propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq -> case eq of
-                e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
-                             substExpr (Outputable.text "trPred") s e2
-
-        trHyp :: Hypothesis DataCon Var Type -> HaloM (String,Formula')
-        trHyp (_,tms) = second foralls <$> trPred Hyp tms
-
-        skolem_vars = map fst skolem
+trObligation :: Prop -> Obligation DataCon Var Type -> HaloM (String,[Formula'])
+trObligation Prop{..} obligation@(Obligation skolem hyps concl) =
 
     local (addSkolems skolem_vars) $ do
 
-        (str_hyp,tr_hyp) <- mapAndUnzipM
-            (fmap (second (clause hypothesis)) . trHyp) hyps
+        (tr_hyps) <- mapM trHyp hyps
 
-        (str_concl,tr_concl) <-
-            second (axioms . splitFormula) <$> trPred Concl concl
+        (tr_concl) <- splitFormula <$> trPred Concl concl
 
         return
-            $ comment ( "Proof by structural induction\n" ++
-                        unlines str_hyp ++ "|-\n" ++ str_concl ++
-                        "\n" ++ render (linObligation ghcStyle obligation) )
-            : comment "Conclusion" : tr_concl
-            ++ comment "Hypothesis" : tr_hyp
-            ++ comment "Type guards" :
-                axioms (mapMaybe typeGuardSkolem skolem_vars)
+            ("Proof by structural induction\n" ++
+                render (linObligation ghcStyle obligation)
+            ,tr_concl ++ tr_hyps ++ mapMaybe typeGuardSkolem skolem_vars
+            )
+
+  where
+
+    skolem_vars = map fst skolem
+
+    trPred :: Loc -> [Term DataCon Var] -> HaloM Formula'
+    trPred loc tms = do
+        (lhs,rhs) <- trEquality propEquality'
+        assums <- mapM trEquality' propAssume'
+        return $ case loc of
+                Hyp   -> min' lhs \/ min' rhs ==> (assums ===> lhs === rhs)
+                Concl -> ands $ [minrec rhs,minrec lhs,rhs =/= lhs] ++ assums
+      where
+        s = extendIdSubstList emptySubst
+                [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
+
+        propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq -> case eq of
+            e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
+                         substExpr (Outputable.text "trPred") s e2
+
+    trHyp :: Hypothesis DataCon Var Type -> HaloM Formula'
+    trHyp (_,tms) = foralls <$> trPred Hyp tms
+
+

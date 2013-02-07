@@ -17,8 +17,7 @@ data Msg
     | Finished       { proved :: [String], unproved :: [String], qs_proved :: [String], qs_unproved :: [String] }
     | Discard        { discarded :: [String] }
     | Candidates     { candidates :: [String] }
-    | InductiveProof { prop_name :: String, lemmas :: [String] }
-    | PlainProof     { prop_name :: String, lemmas :: [String] }
+    | Proved         { prop_name :: String }
     | FailedProof    { prop_name :: String }
   deriving (Eq, Ord, Show, Generic)
 
