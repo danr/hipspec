@@ -20,11 +20,11 @@ data Obligation a = Obligation
   deriving (Functor,Show)
 
 data Proof a = Induction
-    { ind_coords  :: [Int]
-    , ind_num     :: Int
-    , ind_nums    :: Int
-    , ind_content :: a
+    { ind_coords    :: [Int]
+    , ind_num       :: Int
+    , ind_nums      :: Int
+    , proof_content :: a
     -- ^ This will be a theory, TPTP string or prover results
     }
-  deriving (Functor)
+  deriving (Functor,Show)
 

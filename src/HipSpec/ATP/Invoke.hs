@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards, ViewPatterns #-}
-module HipSpec.ATP.Invoke where
+{-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns #-}
+module HipSpec.ATP.Invoke (invokeATPs, Env(..)) where
 
 import Prelude hiding (mapM)
 import Control.Concurrent
@@ -26,13 +26,13 @@ import Data.Map (Map)
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property
 import HipSpec.ATP.Provers
+import HipSpec.ATP.Results
 
 import Halo.Util ((?))
 
 import System.IO.Unsafe (unsafeInterleaveIO)
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing,doesFileExist)
 import System.FilePath ((</>))
-
 
 import Control.Concurrent.STM.Promise
 import Control.Concurrent.STM.Promise.Process
@@ -48,53 +48,61 @@ data Env = Env
 
 type ProveM = ReaderT Env IO
 
-{-
-statusFromPart :: PartResult -> Status
-statusFromPart (Part _ (map (fst . particleMatter) -> res))
-    = statusFromResults res
-    -}
+type Result = (ProverName,ProverResult)
 
-{-
 interpretResult :: Prover -> ProcessResult -> ProverResult
-interpretResult Prover{..} pr@ProcessResult{..} = flip (,) proverName $
+interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
     case proverProcessOutput stdout of
         s@Success{} -> case proverParseLemmas of
-            Just lemma_parser -> s { successLemmas = lemma_parser stdout }
+            Just lemma_parser -> s { successLemmas = Just (lemma_parser stdout) }
             Nothing -> s
         Failure -> Failure
         Unknown _ -> Unknown (show pr)
-        -}
 
-type ProverResult = ()
+filename :: Bool -> Obligation (Proof a) -> (FilePath,FilePath)
+filename z_encode (Obligation Property{propName} p) = case p of
+    Induction coords ix _ _ ->
+        ((z_encode ? escape) propName
+        ,usv coords ++ "__" ++ show ix ++ ".tptp")
+  where
+    usv = intercalate "_" . map show
 
+promiseProof :: Env -> Obligation (Proof String) -> Int -> Prover
+             -> IO (Promise [Obligation (Proof Result)])
+promiseProof Env{store,z_encode} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
 
-interpretResult :: ProcessResult -> ProverResult
-interpretResult ProcessResult{..} = excode `seq` ()
+    filepath <- case store of
+        Nothing  -> return Nothing
+        Just dir -> do
+            let (path,file) = filename z_encode ob
+                d = dir </> path
+                f = d </> file
+            exists <- doesFileExist f
+            unless exists $ do
+                createDirectoryIfMissing True d
+                writeFile f (proof_content proof)
+            return (Just f)
 
-promiseProof :: Obligation String -> Int -> Prover -> IO (Promise [Obligation ProverResult])
-promiseProof (Obligation p inputStr) timelimit Prover{..} = do
-
-    {-
-    let filename = "apabepa"  -- calculate this from a hash of input string,
-                              -- or get it from some other information
-                              -- (property name, induction step ish ish)
-
-
-    when proverCannotStdin $ do
-        exists <- doesFileExist filename
-        unless exists $ putStrLn $
-            "*** " ++ filename ++ " using " ++  show proverName ++
+    when (proverCannotStdin && isNothing filepath) $
+        putStrLn $
+            "*** " ++ show proverName ++
             " must read its input from a file, run with --output ***"
-            -}
 
-    when proverCannotStdin $ error "Cannot use non-stdin provers at the moment!"
+    let filepath' | proverCannotStdin = case filepath of
+                                            Just k  -> k
+                                            Nothing -> error "Run with --output"
+                  | otherwise = error $
+                       "Prover " ++ show proverName ++
+                       " should not open a file, but it did!"
 
-    let filename = error "filename!"
+        inputStr | proverCannotStdin = ""
+                 | otherwise         = proof_content proof
 
-    let inputStr' | proverCannotStdin = ""
-                  | otherwise         = inputStr
+    promise <- processPromise proverCmd (proverArgs filepath' timelimit) inputStr
 
-    promise <- processPromise proverCmd (proverArgs filename timelimit) inputStr'
+    let update :: ProcessResult -> [Obligation (Proof Result)]
+        update r = [fmap (fmap (const $ res)) ob]
+          where res = (proverName,interpretResult prover r)
 
     return Promise
         { spawn = do
@@ -104,10 +112,10 @@ promiseProof (Obligation p inputStr) timelimit Prover{..} = do
         , cancel = do
             -- putStrLn $ "Cancelling " ++ propName p ++ "!"
             cancel promise
-        , result = fmap ((:[]) . Obligation p . interpretResult) <$> result promise
+        , result = fmap update <$> result promise
         }
 
-invokeATPs :: Tree (Obligation String) -> Env -> IO [Obligation ProverResult]
+invokeATPs :: Tree (Obligation (Proof String)) -> Env -> IO [Obligation (Proof Result)]
 invokeATPs tree env@Env{..} = do
 
     {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
@@ -117,37 +125,22 @@ invokeATPs tree env@Env{..} = do
         putStrLn "\n"
         -}
 
-    let make_promises :: Obligation String -> IO (Tree (Promise [Obligation ProverResult]))
-        make_promises p = requireAny . map Leaf <$> mapM (promiseProof p timeout) provers
+    let make_promises :: Obligation (Proof String)
+                      -> IO (Tree (Promise [Obligation (Proof Result)]))
+        make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree
         -- ^ mapM over trees, but we get a tree of trees, so we need to use join
 
     workers (Just (timeout * 1000 * 1000)) processes (interleave promise_tree)
 
-    res <- evalTree promise_tree
+    res <- evalTree (any failure . map (snd . proof_content . ob_content)) promise_tree
 
     -- print res
 
     return $ case res of
         Nothing    -> []
-        Just props -> nubSortedOn (propName . ob_property) props
-            -- ^ Returns what was proved, but with no information how
-
-{-
-
-    {- -- old filename stuff:
-            let almost_filename = proofMethodFile method ++ "_" ++ desc ++ ".tptp"
-
-            filename <- case store of
-                Nothing  -> return almost_filename
-                Just dir -> liftIO $ do
-                    let dirname  = (z_encode ? escape) propName
-                        filename = dir </> dirname </> almost_filename
-                    createDirectoryIfMissing True (dir </> dirname)
-                    writeFile filename tptp
-                    return filename
-    -}
+        Just props -> props
 
 escape :: String -> String
 escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
@@ -188,4 +181,3 @@ escapes = M.fromList $ map (uncurry (flip (,)))
 
     , ("_",' ')
     ]
-    -}

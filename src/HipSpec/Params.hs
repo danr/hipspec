@@ -85,7 +85,7 @@ defParams = Params
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"
-    , batchsize           = 2       &= name "b" &= help "Equations to process simultaneously (default 2)"
+    , batchsize           = 1       &= name "b" &= help "Equations to process simultaneously (default 1)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
     , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
     , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"

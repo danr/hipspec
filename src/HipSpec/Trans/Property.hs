@@ -43,6 +43,8 @@ instance Eq Property where
 equal :: Eq b => (a -> b) -> a -> a -> Bool
 equal = ((==) `on`)
 
+varsFromCoords :: Property -> [Int] -> [Var]
+varsFromCoords p cs = [ fst $ propVars p !! c | c <- cs ]
 
 instance Show Property where
     show Property{..} = concat

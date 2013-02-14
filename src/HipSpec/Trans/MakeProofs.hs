@@ -73,8 +73,8 @@ trEquality' :: Equality -> HaloM Formula'
 trEquality' = liftM (uncurry (===)) . trEquality
 
 -- One subtheory with a conjecture with all dependencies
-type ProofObligation = Obligation HipSpecSubtheory
-type ProofTree     = Tree ProofObligation
+type ProofObligation = Obligation (Proof HipSpecSubtheory)
+type ProofTree       = Tree ProofObligation
 
 makeProofs :: Params -> Property -> MakerM ProofTree
 makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
@@ -109,10 +109,11 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
     induction :: [Int] -> Maybe (MakerM ProofTree)
     induction coords = do
         let obligs = subtermInduction tyEnv propVars coords
+            n_obligs = length obligs
 
         -- If induction on these variables with this depth gives too many
         -- obligations, then do not do this induction, return Nothing
-        guard (length obligs <= indparts)
+        guard (n_obligs <= indparts)
 
         -- Some parts give very many hypotheses. If this is the case,
         -- we cruelly drop some of the first weak ones
@@ -124,15 +125,20 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
             -- Rename the variables
             obligs' <- fst <$> unTagMapM makeVar obligs
 
-            forM obligs' $ \ oblig ->  do
+            forM (zip obligs' [0..]) $ \ (oblig,n) ->  do
 
                 ((commentary,fs),ptrs) <- lift $ capturePtrs $ trObligation prop (dropHyps oblig)
 
-                return $ Leaf $ Obligation prop $ Subtheory
-                    { provides    = Specific Conjecture
-                    , depends     = map Function propFunDeps ++ ptrs
-                    , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
-                    , formulae    = fs
+                return $ Leaf $ Obligation prop $ Induction
+                    { ind_coords    = coords
+                    , ind_num       = n
+                    , ind_nums      = n_obligs
+                    , proof_content = Subtheory
+                        { provides    = Specific Conjecture
+                        , depends     = map Function propFunDeps ++ ptrs
+                        , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
+                        , formulae    = fs
+                        }
                     }
 
 data Loc = Hyp | Concl

@@ -18,6 +18,7 @@ import Halo.Monad
 import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
+import Halo.Shared
 
 import Halo.FOL.Abstract
 import Halo.FOL.Dump
@@ -33,32 +34,25 @@ import Control.Monad
 
 import UniqSupply
 
-{-
+import Var
+
 data InvokeResult
-    = ByInduction { invokeLemmas :: Maybe [String] }
-    | ByPlain     { invokeLemmas :: Maybe [String] }
+    = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], coords :: [Var] }
+    | ByPlain     { invoke_lemmas :: Maybe [String], provers :: [ProverName] }
     | NoProof
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord)
 
-toInvokeResult :: PropResult -> InvokeResult
-toInvokeResult p
-    | Right lemmas <- plainProof p    = ByPlain lemmas
-    | let status = fst (propMatter p)
-    , status /= None                  = ByInduction (statusLemmas status)
-    | otherwise                       = NoProof
-    -}
-
--- We never put anything in the middle (by plain)
-partitionInvRes :: [(a,Bool)] -> ([a],[a],[a])
+partitionInvRes :: [(a,InvokeResult)] -> ([a],[a],[a])
 partitionInvRes []          = ([],[],[])
 partitionInvRes ((x,ir):xs) = case ir of
-    True  -> (x:a,b,c)
-    False -> (a,b,x:c)
+    ByInduction{} -> (x:a,b,c)
+    ByPlain{}     -> (a,x:b,c)
+    NoProof{}     -> (a,b,x:c)
   where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: HaloEnv -> Params -> (Msg -> IO ()) -> [Property] -> Theory -> [Property]
-         -> IO [(Property,Bool)]
+         -> IO [(Property,InvokeResult)]
 tryProve _        _                   _     []    _          _      = return []
 tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
@@ -85,14 +79,15 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
         calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
         calc_dependencies s = concatMap depends (s:lemma_theories)
 
-        trimmer :: [HipSpecContent] -> [HipSpecSubtheory]
-        trimmer = trim (subthys ++ lemma_theories)
+        fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
+        fetcher = trim (subthys ++ lemma_theories)
 
-        handle :: HipSpecSubtheory -> String
-        handle conj = toTPTP $ conj : lemma_theories ++ trimmer (calc_dependencies conj)
+        fetch_and_make_tptp :: HipSpecSubtheory -> String
+        fetch_and_make_tptp conj = toTPTP $
+            conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-        proof_tree_tptp :: Tree (Obligation String)
-        proof_tree_tptp = fmap (fmap handle) proof_tree
+        proof_tree_tptp :: Tree (Obligation (Proof String))
+        proof_tree_tptp = fmap (fmap (fmap fetch_and_make_tptp)) proof_tree
 
     let env = Env
             { timeout         = timeout
@@ -102,46 +97,73 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             , z_encode        = z_encode_filenames
             }
 
-    proved <- invokeATPs proof_tree_tptp env
+    result <- invokeATPs proof_tree_tptp env
 
-    let result = [ (p,any ((p ==) . ob_property) proved) | p <- props ]
+    let results =
 
-    forM_ result $ \ (prop,proved) -> do
+            [
+                let proofs = groupSortedOn ind_coords
+                                [ proof | Obligation prop' proof <- result
+                                        , prop == prop'
+                                        , success (snd $ proof_content proof)
+                                ]
 
-        case proved of
-            True -> do
-                write $ Proved (propName prop)
-                putStrLn $ "Proved " ++ propName prop ++ "!"
-            False -> do
-                write $ FailedProof (propName prop)
-                putStrLn $ "Failed to prove " ++ propName prop
+                    check grp@(Induction _ _ nums _:_) = all (\ n -> any ((n ==) . ind_num) grp) [0..nums-1]
 
-    return result
+                    proofs' = filter check proofs
 
-{-
+                in  (,) prop $ case proofs' of
+                        [] -> NoProof
+                        grp:_ -> case grp of
+                            Induction [] _ _ _:_ -> ByPlain Nothing (nub $ map (fst . proof_content) grp)
+                            Induction cs _ _ _:_ -> ByInduction Nothing (nub $ map (fst . proof_content) grp)
+                                                                        (varsFromCoords prop cs)
+
+            | prop <- props
+            ]
+
+    -- print result
+    forM_ result $ \ (Obligation prop proof) -> when (failure (snd $ proof_content proof)) $ do
+        putStrLn $ "Failure from " ++ show (fst $ proof_content proof)
+            ++ " on " ++ show prop
+            ++ ":" ++ show (snd $ proof_content proof)
+
+    forM_ results $ \ (prop,invres) -> do
+
+        writeInvRes write (propName prop) invres
+
+        putStrLn $ viewInvRes Green (propName prop) invres
+
+    return results
+
 writeInvRes write prop_name res = case res of
-    ByInduction lemmas  -> write $ InductiveProof prop_name (view_lemmas lemmas)
-    ByPlain lemmas      -> write $ PlainProof prop_name (view_lemmas lemmas)
-    NoProof             -> write $ FailedProof prop_name
+    ByInduction lemmas provers coords -> write $ InductiveProof prop_name (view_lemmas lemmas)
+    ByPlain lemmas provers            -> write $ PlainProof prop_name (view_lemmas lemmas)
+    NoProof                           -> write $ FailedProof prop_name
   where
     view_lemmas = fromMaybe []
 
 viewInvRes green prop_name res = case res of
-    ByInduction lemmas ->
-        bold_green ("Proved " ++ prop_name) ++ view_lemmas lemmas
-    ByPlain lemmas ->
+    ByInduction lemmas provers coords ->
+        bold_green ("Proved " ++ prop_name ++ " by induction on " ++ csv showOutputable coords)
+            ++ view_provers provers ++ view_lemmas lemmas
+    ByPlain lemmas provers ->
         colour green ("Proved " ++ prop_name ++ " without induction")
-         ++ view_lemmas lemmas
+            ++ view_provers provers ++ view_lemmas lemmas
     NoProof -> "Failed to prove " ++ prop_name
   where
     bold_green = bold . colour green
+
+    csv :: (a -> String) -> [a] -> String
+    csv f = intercalate "," . map f
+
+    view_provers ps = " using " ++ csv show ps
 
     view_lemmas mx = case mx of
         Nothing  -> ""
         Just []  -> ", using no lemmas"
         Just [x] -> ", using " ++ x
         Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
-        -}
 
 parLoop :: HaloEnv -> Params -> (Msg -> IO ()) -> Theory -> [Property] -> [Property] -> IO ([Property],[Property])
 parLoop halo_env params write thy props lemmas = do

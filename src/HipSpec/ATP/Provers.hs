@@ -15,14 +15,13 @@ data ProverName
     | SPASS
     | Vampire
     | Z3
-    | ParadoxAnd Prover
+  deriving (Eq,Ord)
 
 instance Show ProverName where
     show E              = "eprover"
     show Eproof         = "eproof"
     show Equinox        = "equinox"
     show Paradox        = "paradox"
-    show (ParadoxAnd p) = "paradox and " ++ show (proverName p)
     show SPASS          = "spass"
     show Vampire        = "vampire"
     show Z3             = "z3"
@@ -37,7 +36,7 @@ data Prover = Prover
     , proverArgs          :: String -> Int -> [String]
     -- ^ given file name (if proverCannotStdin)
     --   and timeout in secs, args to createProcess
-    , proverProcessOutput :: String -> Integer -> ProverResult
+    , proverProcessOutput :: String  -> ProverResult
     -- ^ processes the output and time and gives a result
     , proverShort         :: Char
     -- ^ short char for command line options
@@ -65,35 +64,24 @@ template = Prover
     }
 
 -- Should really use something more efficient than isInfixOf
-searchOutput :: [(String,time -> ProverResult)] -> String -> time -> ProverResult
-searchOutput []         output _ = Unknown output
-searchOutput ((s,r):xs) output time
-    | s `isInfixOf` output = r time
-    | otherwise            = searchOutput xs output time
+searchOutput :: [(String,ProverResult)] -> String -> ProverResult
+searchOutput []         output = Unknown output
+searchOutput ((s,r):xs) output
+    | s `isInfixOf` output = r
+    | otherwise            = searchOutput xs output
 
 
-statusSZS :: [(String,Integer -> ProverResult)]
+statusSZS :: [(String,ProverResult)]
 statusSZS =
     [("Theorem",mkSuccess)
     ,("Unsatisfiable",mkSuccess)
-    ,("CounterSatisfiable",const Failure)
-    ,("Satisfiable",const Failure)
-    ,("Timeout",const Failure)
+    ,("CounterSatisfiable",Failure)
+    ,("Satisfiable",Failure)
+    ,("Timeout",Failure)
     ]
 
-mkParadoxAnd :: Prover -> Prover
-mkParadoxAnd p = template
-    { proverName          = ParadoxAnd p
-    , proverShort         = toUpper (proverShort p)
-    , proverCannotStdin   = True
-    }
-  -- ^ mkParadoxAnd is deeply magical, see HipSpec.ATP.RunProver
-
 allProvers :: [Prover]
-allProvers = baseProvers ++ map mkParadoxAnd baseProvers
-
-baseProvers :: [Prover]
-baseProvers =
+allProvers =
     [eprover
     ,eproof
     ,eprover_win
@@ -168,8 +156,8 @@ spass = template
     , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
     , proverProcessOutput = searchOutput
                                 [("Proof found.",mkSuccess)
-                                ,("Completion found.",const Failure)
-                                ,("Ran out of time.",const Failure)]
+                                ,("Completion found.",Failure)
+                                ,("Ran out of time.",Failure)]
     , proverShort         = 's'
     }
 
