@@ -52,7 +52,6 @@ library
         HipSpec.ATP.Invoke
         HipSpec.ATP.Provers
         HipSpec.ATP.Results
-        HipSpec.ATP.RunProver
         HipSpec.BuiltinTypes
         HipSpec.Init
         HipSpec.MakeInvocations
@@ -60,7 +59,7 @@ library
         HipSpec.Messages
         HipSpec.StringMarshal
         HipSpec.Trans.MakeProofs
-        HipSpec.Trans.ProofDatatypes
+        HipSpec.Trans.Obligation
         HipSpec.Trans.Property
         HipSpec.Trans.QSTerm
         HipSpec.Trans.SrcRep

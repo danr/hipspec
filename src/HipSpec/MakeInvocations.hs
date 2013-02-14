@@ -6,12 +6,11 @@ import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
 import HipSpec.Params
 import HipSpec.Trans.MakeProofs
-import HipSpec.Trans.ProofDatatypes
+import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.TypeGuards
 import HipSpec.Messages
-import qualified HipSpec.Trans.ProofDatatypes as PD
 
 import Control.Concurrent.STM.Promise.Tree
 
@@ -58,8 +57,8 @@ partitionInvRes ((x,ir):xs) = case ir of
   where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: HaloEnv -> Params -> (Msg -> IO ()) -> [Prop] -> Theory -> [Prop]
-         -> IO [(Prop,Bool)]
+tryProve :: HaloEnv -> Params -> (Msg -> IO ()) -> [Property] -> Theory -> [Property]
+         -> IO [(Property,Bool)]
 tryProve _        _                   _     []    _          _      = return []
 tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
@@ -92,7 +91,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
         handle :: HipSpecSubtheory -> String
         handle conj = toTPTP $ conj : lemma_theories ++ trimmer (calc_dependencies conj)
 
-        proof_tree_tptp :: Tree (Property String)
+        proof_tree_tptp :: Tree (Obligation String)
         proof_tree_tptp = fmap (fmap handle) proof_tree
 
     let env = Env
@@ -105,7 +104,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
     proved <- invokeATPs proof_tree_tptp env
 
-    let result = [ (p,any ((p ==) . prop_prop) proved) | p <- props ]
+    let result = [ (p,any ((p ==) . ob_property) proved) | p <- props ]
 
     forM_ result $ \ (prop,proved) -> do
 
@@ -144,14 +143,14 @@ viewInvRes green prop_name res = case res of
         Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
         -}
 
-parLoop :: HaloEnv -> Params -> (Msg -> IO ()) -> Theory -> [Prop] -> [Prop] -> IO ([Prop],[Prop])
+parLoop :: HaloEnv -> Params -> (Msg -> IO ()) -> Theory -> [Property] -> [Property] -> IO ([Property],[Property])
 parLoop halo_env params write thy props lemmas = do
 
     (proved,without_induction,unproved) <-
          partitionInvRes <$> tryProve halo_env params write props thy lemmas
 
     unless (null without_induction) $
-         putStrLn $ unwords (map (showProp True) without_induction)
+         putStrLn $ unwords (map (showProperty True) without_induction)
                  ++ " provable without induction"
 
     if null proved || isolate params
@@ -163,19 +162,19 @@ parLoop halo_env params write thy props lemmas = do
                  parLoop halo_env params write thy unproved
                          (lemmas ++ proved ++ without_induction)
 
-showProp :: Bool -> Prop -> String
-showProp proved Prop{..}
+showProperty :: Bool -> Property -> String
+showProperty proved Property{..}
     | propOops && proved     = bold (colour Red propName)
     | propOops && not proved = colour Green propName
     | otherwise              = propName
 
-printInfo :: [Prop] -> [Prop] -> IO ()
+printInfo :: [Property] -> [Property] -> IO ()
 printInfo unproved proved = do
 
     let pr b xs | null xs   = "(none)"
-                | otherwise = intercalate "\n\t" (map (showProp b) xs)
+                | otherwise = intercalate "\n\t" (map (showProperty b) xs)
 
-        len :: [Prop] -> Int
+        len :: [Property] -> Int
         len = length . filter (not . propOops)
 
         mistakes = filter propOops proved

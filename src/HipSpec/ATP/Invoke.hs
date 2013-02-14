@@ -23,11 +23,9 @@ import Data.Maybe
 import qualified Data.Map as M
 import Data.Map (Map)
 
+import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property
-import HipSpec.Trans.ProofDatatypes
--- import HipSpec.ATP.Results
 import HipSpec.ATP.Provers
--- import HipSpec.ATP.RunProver
 
 import Halo.Util ((?))
 
@@ -73,8 +71,8 @@ type ProverResult = ()
 interpretResult :: ProcessResult -> ProverResult
 interpretResult ProcessResult{..} = excode `seq` ()
 
-promiseProof :: Property String -> Int -> Prover -> IO (Promise [Property ProverResult])
-promiseProof (Property p inputStr) timelimit Prover{..} = do
+promiseProof :: Obligation String -> Int -> Prover -> IO (Promise [Obligation ProverResult])
+promiseProof (Obligation p inputStr) timelimit Prover{..} = do
 
     {-
     let filename = "apabepa"  -- calculate this from a hash of input string,
@@ -106,20 +104,20 @@ promiseProof (Property p inputStr) timelimit Prover{..} = do
         , cancel = do
             -- putStrLn $ "Cancelling " ++ propName p ++ "!"
             cancel promise
-        , result = fmap ((:[]) . Property p . interpretResult) <$> result promise
+        , result = fmap ((:[]) . Obligation p . interpretResult) <$> result promise
         }
 
-invokeATPs :: Tree (Property String) -> Env -> IO [Property ProverResult]
+invokeATPs :: Tree (Obligation String) -> Env -> IO [Obligation ProverResult]
 invokeATPs tree env@Env{..} = do
 
     {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
 
-    void $ flip mapM tree $ \ (Property prop s) -> do
+    void $ flip mapM tree $ \ (Obligation prop s) -> do
         putStrLn $ propName prop ++ ": " ++ "\n" ++ s
         putStrLn "\n"
         -}
 
-    let make_promises :: Property String -> IO (Tree (Promise [Property ProverResult]))
+    let make_promises :: Obligation String -> IO (Tree (Promise [Obligation ProverResult]))
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree
@@ -133,7 +131,7 @@ invokeATPs tree env@Env{..} = do
 
     return $ case res of
         Nothing    -> []
-        Just props -> nubSortedOn (propName . prop_prop) props
+        Just props -> nubSortedOn (propName . ob_property) props
             -- ^ Returns what was proved, but with no information how
 
 {-

@@ -88,8 +88,8 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
                    ++ " with --db-str-marsh "
 
 -- So far only works on arguments with monomorphic, non-exponential types
-termsToProp :: StrMarsh -> Term -> Term -> Prop
-termsToProp str_marsh e1 e2 = Prop
+termsToProp :: StrMarsh -> Term -> Term -> Property
+termsToProp str_marsh e1 e2 = Property
     { propEquality  = termToExpr str_marsh var_rename_map e1 :==
                       termToExpr str_marsh var_rename_map e2
     , propAssume    = []
@@ -148,7 +148,7 @@ definitionalEquations str_marsh lookup_var sig =
                       (lookup_var v)
         _ -> []
 
-eqToProp :: StrMarsh -> Equation -> Prop
+eqToProp :: StrMarsh -> Equation -> Property
 eqToProp str_marsh (t :=: u) = termsToProp str_marsh t u
 
 csv :: [String] -> String

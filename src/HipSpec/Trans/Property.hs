@@ -22,8 +22,7 @@ data Equality = CoreExpr :== CoreExpr
 instance Show Equality where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
 
-
-data Prop = Prop
+data Property = Property
     { propEquality :: Equality
     , propAssume   :: [Equality]
     , propVars     :: [(Var,Type)]
@@ -35,7 +34,7 @@ data Prop = Prop
     -- ^ It's an error if this property was provable
     }
 
-instance Eq Prop where
+instance Eq Property where
     (==) = equal propName .&&. equal (map fst . propVars)
 
 (.&&.) :: (a -> b -> Bool) -> (a -> b -> Bool) -> a -> b -> Bool
@@ -45,9 +44,9 @@ equal :: Eq b => (a -> b) -> a -> a -> Bool
 equal = ((==) `on`)
 
 
-instance Show Prop where
-    show Prop{..} = concat
-        ["Prop "
+instance Show Property where
+    show Property{..} = concat
+        ["Property "
         ,"{ propEquality = ", show propEquality
         ,", propAssume = ", show propAssume
         ,", propVars = ", showOutputable propVars
@@ -58,8 +57,8 @@ instance Show Prop where
         ,"}"
         ]
 
-inconsistentProp :: Prop
-inconsistentProp = Prop
+inconsistentProperty :: Property
+inconsistentProperty = Property
     { propEquality = Var trueDataConId :== Var falseDataConId
     , propAssume   = []
     , propVars     = []
@@ -83,7 +82,7 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
         return (u,(b :== Var trueDataConId):as,o)
     _ -> Nothing
 
-trProperty :: CoreBind -> Maybe Prop
+trProperty :: CoreBind -> Maybe Property
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
 
@@ -92,7 +91,7 @@ trProperty (NonRec prop_name e) = do
     -- Free variables, but do not count =:=, proveBool, oops or arguments
     let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) $ exprFVs lhs ++ exprFVs rhs
 
-    return $ Prop
+    return $ Property
         { propName     = idToStr prop_name
         , propEquality = eq
         , propAssume   = assume

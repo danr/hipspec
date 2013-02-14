@@ -32,7 +32,7 @@ import TysWiredIn
 import Control.Monad
 import System.Console.CmdArgs hiding (summary)
 
-processFile :: FilePath -> IO (Theory,HaloEnv,[Prop],StrMarsh,Params)
+processFile :: FilePath -> IO (Theory,HaloEnv,[Property],StrMarsh,Params)
 processFile file = do
 
     params@Params{..} <- sanitizeParams <$> cmdArgs defParams
@@ -160,7 +160,7 @@ processFile file = do
 
         theory = Theory subtheories
 
-        props = (consistency ? (inconsistentProp:))
+        props = (consistency ? (inconsistentProperty:))
               $ mapMaybe trProperty core_props
 
     {-

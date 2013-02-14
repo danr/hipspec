@@ -4,9 +4,10 @@ module HipSpec.Trans.MakeProofs (runMakerM, makeProofs, translateLemma) where
 
 import Data.List (nub)
 
-import Induction.Structural
+import Induction.Structural hiding (Obligation)
+import qualified Induction.Structural as IS
 
-import HipSpec.Trans.ProofDatatypes
+import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property as Prop
 import HipSpec.Trans.Types
@@ -39,8 +40,8 @@ import Id
 import Outputable hiding (equals,text)
 import qualified Outputable as Outputable
 
-translateLemma :: Prop -> HaloM HipSpecSubtheory
-translateLemma lemma@Prop{..} = do
+translateLemma :: Property -> HaloM HipSpecSubtheory
+translateLemma lemma@Property{..} = do
     (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
         { provides    = Specific (Lemma propRepr)
@@ -72,11 +73,11 @@ trEquality' :: Equality -> HaloM Formula'
 trEquality' = liftM (uncurry (===)) . trEquality
 
 -- One subtheory with a conjecture with all dependencies
-type ProofProperty = Property HipSpecSubtheory
-type ProofTree     = Tree ProofProperty
+type ProofObligation = Obligation HipSpecSubtheory
+type ProofTree     = Tree ProofObligation
 
-makeProofs :: Params -> Prop -> MakerM ProofTree
-makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Prop{..}
+makeProofs :: Params -> Property -> MakerM ProofTree
+makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
     = requireAny <$>
         (sequence (mapMaybe induction induction_coords) `catchError` \err -> do
           lift $ cleanUpFailedCapture
@@ -127,24 +128,12 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Prop{..}
 
                 ((commentary,fs),ptrs) <- lift $ capturePtrs $ trObligation prop (dropHyps oblig)
 
-                return $ Leaf $ Property prop $ Subtheory
+                return $ Leaf $ Obligation prop $ Subtheory
                     { provides    = Specific Conjecture
                     , depends     = map Function propFunDeps ++ ptrs
                     , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
                     , formulae    = fs
                     }
-
-trTerm :: Term DataCon Var -> CoreExpr
-trTerm (Var x)    = C.Var x
-trTerm (Con c as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
-trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
-
-ghcStyle :: Style DataCon Var Type
-ghcStyle = Style
-    { linc = text . showOutputable
-    , linv = text . showOutputable
-    , lint = text . showOutputable
-    }
 
 data Loc = Hyp | Concl
 
@@ -154,14 +143,14 @@ makeVar (v :~ i) = do
     put us
     return (setVarUnique v u)
 
-trObligation :: Prop -> Obligation DataCon Var Type -> HaloM (String,[Formula'])
-trObligation Prop{..} obligation@(Obligation skolem hyps concl) =
+trObligation :: Property -> IS.Obligation DataCon Var Type -> HaloM (String,[Formula'])
+trObligation Property{..} obligation@(IS.Obligation skolem hyps concl) =
 
     local (addSkolems skolem_vars) $ do
 
-        (tr_hyps) <- mapM trHyp hyps
+        tr_hyps <- mapM trHyp hyps
 
-        (tr_concl) <- splitFormula <$> trPred Concl concl
+        tr_concl <- splitFormula <$> trPred Concl concl
 
         return
             ("Proof by structural induction\n" ++
@@ -184,11 +173,23 @@ trObligation Prop{..} obligation@(Obligation skolem hyps concl) =
         s = extendIdSubstList emptySubst
                 [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
-        propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq -> case eq of
-            e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
-                         substExpr (Outputable.text "trPred") s e2
+        propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq ->
+            case eq of
+                e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
+                             substExpr (Outputable.text "trPred") s e2
 
     trHyp :: Hypothesis DataCon Var Type -> HaloM Formula'
     trHyp (_,tms) = foralls <$> trPred Hyp tms
 
+trTerm :: Term DataCon Var -> CoreExpr
+trTerm (Var x)    = C.Var x
+trTerm (Con c as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
+trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
+
+ghcStyle :: Style DataCon Var Type
+ghcStyle = Style
+    { linc = text . showOutputable
+    , linv = text . showOutputable
+    , lint = text . showOutputable
+    }
 

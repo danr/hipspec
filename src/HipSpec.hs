@@ -58,31 +58,31 @@ getUpTo n p (x:xs) ys
 
 
 -- | The main loop
-deep :: HaloEnv                    -- ^ Environment to run HaloM
-     -> Params                     -- ^ Parameters to the program
-     -> (Msg -> IO ())             -- ^ Writer function
-     -> Theory                     -- ^ Translated theory
-     -> Sig                        -- ^ Configuration to QuickSpec
-     -> Context                    -- ^ The initial context
-     -> [Prop]                     -- ^ Initial equations
-     -> IO ([Prop],[Prop],Context) -- ^ Resulting theorems and unproved
+deep :: HaloEnv                            -- ^ Environment to run HaloM
+     -> Params                             -- ^ Parameters to the program
+     -> (Msg -> IO ())                     -- ^ Writer function
+     -> Theory                             -- ^ Translated theory
+     -> Sig                                -- ^ Configuration to QuickSpec
+     -> Context                            -- ^ The initial context
+     -> [Property]                         -- ^ Initial equations
+     -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
 deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
     loop ctx0 init_eqs [] [] False
   where
     showEqs = map (showEquation sig . propQSTerms)
 
-    loop :: Context                    -- ^ Prune state, to handle the congurece closure
-         -> [Prop]                     -- ^ Equations to process
-         -> [Prop]                     -- ^ Equations processed, but failed
-         -> [Prop]                     -- ^ Equations proved
-         -> Bool                       -- ^ Managed to prove something this round
-         -> IO ([Prop],[Prop],Context) -- ^ Resulting theorems and unproved
+    loop :: Context                            -- ^ Prune state, to handle the congurece closure
+         -> [Property]                         -- ^ Equations to process
+         -> [Property]                         -- ^ Equations processed, but failed
+         -> [Property]                         -- ^ Equations proved
+         -> Bool                               -- ^ Managed to prove something this round
+         -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
     loop ctx []  failed proved False = return (proved,failed,ctx)
     loop ctx  []  failed proved True  = do putStrLn "Loop!"
                                            loop ctx failed [] proved False
     loop ctx eqs failed proved retry = do
 
-      let discard :: Prop -> [Prop] -> Bool
+      let discard :: Property -> [Property] -> Bool
           discard eq = \failedacc ->
                             any (isomorphicTo (propQSTerms eq))
                                 (map propQSTerms failedacc)
@@ -113,7 +113,7 @@ deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
               let ctx' :: Context
                   ctx' = execEQ ctx (mapM_ (unify . propQSTerms) prunable)
 
-                  failed' :: [Prop]
+                  failed' :: [Property]
                   failed' = failed ++ failures
 
                   -- Interesting candidates
@@ -163,10 +163,10 @@ deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
       where singleton xs = length xs == 1
 
     -- For interesting candidates
-    instancesOf :: Context -> Prop -> [Prop] -> ([Prop],[Prop])
+    instancesOf :: Context -> Property -> [Property] -> ([Property],[Property])
     instancesOf ctx new = partition (instanceOf ctx new)
 
-    instanceOf :: Context -> Prop -> Prop -> Bool
+    instanceOf :: Context -> Property -> Property -> Bool
     instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
       evalEQ ctx (new --> cand)
       where
@@ -212,11 +212,11 @@ hipSpec file sig0 = do
         showEqs :: [Equation] -> [String]
         showEqs = map showEq
 
-        showProp :: Prop -> String
-        showProp = showEq . propQSTerms
+        showProperty :: Property -> String
+        showProperty = showEq . propQSTerms
 
-        showProps :: [Prop] -> [String]
-        showProps = map showProp
+        showProperties :: [Property] -> [String]
+        showProperties = map showProperty
 
         printNumberedEqs :: [Equation] -> IO ()
         printNumberedEqs eqs = forM_ (zip [1 :: Int ..] eqs) $ \(i, eq) ->
@@ -296,12 +296,12 @@ hipSpec file sig0 = do
         (filter (`notElem` map propName qslemmas) $ map propName proved)
         (map propName unproved)
         (map propName qslemmas)
-        (showProps qsunproved)
+        (showProperties qsunproved)
 
     printInfo unproved proved
 
     unless dont_print_unproved $
-        putStrLn $ "Unproved from QuickSpec: " ++ csv (showProps qsunproved)
+        putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
 
     case json of
         Just json_file -> do
