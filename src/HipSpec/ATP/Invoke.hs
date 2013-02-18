@@ -1,6 +1,5 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns #-}
-module HipSpec.ATP.Invoke (invokeATPs, Env(..)) where
-
+module HipSpec.ATP.Invoke (invokeATPs, Env(..), LinTheory(..), TheoryType(..)) where
 import Prelude hiding (mapM)
 import Control.Concurrent
 import Control.Concurrent.STM
@@ -32,11 +31,12 @@ import Halo.Util ((?))
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing,doesFileExist)
-import System.FilePath ((</>))
+import System.FilePath ((</>),(<.>))
 
 import Control.Concurrent.STM.Promise
 import Control.Concurrent.STM.Promise.Process
 
+data LinTheory = LinTheory (TheoryType -> String)
 
 data Env = Env
     { timeout         :: Int
@@ -65,24 +65,30 @@ filename :: Env -> Obligation (Proof a) -> (FilePath,FilePath)
 filename Env{z_encode} (Obligation Property{propName} p) = case p of
     Induction coords ix _ _ ->
         ((z_encode ? escape) propName
-        ,usv coords ++ "__" ++ show ix ++ ".tptp")
+        ,usv coords ++ "__" ++ show ix)
   where
     usv = intercalate "_" . map show
 
-promiseProof :: Env -> Obligation (Proof String) -> Int -> Prover
+promiseProof :: Env -> Obligation (Proof LinTheory) -> Int -> Prover
              -> IO (Promise [Obligation (Proof Result)])
 promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
+
+    let LinTheory f = proof_content proof
+        theory      = f proverTheoryType
 
     filepath <- case store of
         Nothing  -> return Nothing
         Just dir -> do
             let (path,file) = filename env ob
+                ext = case proverTheoryType of
+                        TPTP -> "tptp"
+                        SMT  -> "smt"
                 d = dir </> path
-                f = d </> file
+                f = d </> file <.> ext
             exists <- doesFileExist f
             unless exists $ do
                 createDirectoryIfMissing True d
-                writeFile f (proof_content proof)
+                writeFile f theory
             return (Just f)
 
     when (proverCannotStdin && isNothing filepath) $
@@ -98,7 +104,7 @@ promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{.
                        " should not open a file, but it did!"
 
         inputStr | proverCannotStdin = ""
-                 | otherwise         = proof_content proof
+                 | otherwise         = theory
 
     promise <- processPromise proverCmd (proverArgs filepath' timelimit) inputStr
 
@@ -117,7 +123,7 @@ promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{.
         , result = fmap update <$> result promise
         }
 
-invokeATPs :: Tree (Obligation (Proof String)) -> Env -> IO [Obligation (Proof Result)]
+invokeATPs :: Tree (Obligation (Proof LinTheory)) -> Env -> IO [Obligation (Proof Result)]
 invokeATPs tree env@Env{..} = do
 
     {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
@@ -127,7 +133,7 @@ invokeATPs tree env@Env{..} = do
         putStrLn "\n"
         -}
 
-    let make_promises :: Obligation (Proof String)
+    let make_promises :: Obligation (Proof LinTheory)
                       -> IO (Tree (Promise [Obligation (Proof Result)]))
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 

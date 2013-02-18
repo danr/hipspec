@@ -23,6 +23,7 @@ import Halo.Shared
 import Halo.FOL.Abstract
 import Halo.FOL.Dump
 import Halo.FOL.Linearise
+import Halo.FOL.LineariseSMT
 import Halo.FOL.Operations
 import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
@@ -37,6 +38,7 @@ import UniqSupply
 
 import Var
 
+-- remove ByInduction, express it as vars = []
 data InvokeResult
     = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], vars :: [String] }
     | ByPlain     { invoke_lemmas :: Maybe [String], provers :: [ProverName] }
@@ -72,10 +74,16 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
              , style_dollar_min = False
              }
 
-        toTPTP :: [HipSpecSubtheory] -> String
+        toTPTP :: [Clause'] -> String
         toTPTP
-            = (if readable_tptp then linStrStyleTPTP style_conf . fst . renameClauses
-                    else dumpTPTP)
+            | readable_tptp = linStrStyleTPTP style_conf . fst . renameClauses
+            | otherwise     = dumpTPTP
+
+        linTheory :: [HipSpecSubtheory] -> LinTheory
+        linTheory
+            = (\ cls -> LinTheory $ \ t -> case t of
+                    TPTP -> toTPTP cls
+                    SMT  -> linSMT cls)
             . map (clauseMapFormula typeGuardFormula)
             . (not min ? removeMins)
             . concatMap toClauses
@@ -86,12 +94,12 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
         fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
         fetcher = trim (subthys ++ lemma_theories)
 
-        fetch_and_make_tptp :: HipSpecSubtheory -> String
-        fetch_and_make_tptp conj = toTPTP $
+        fetch_and_linearise :: HipSpecSubtheory -> LinTheory
+        fetch_and_linearise conj = linTheory $
             conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-        proof_tree_tptp :: Tree (Obligation (Proof String))
-        proof_tree_tptp = fmap (fmap (fmap fetch_and_make_tptp)) proof_tree
+        proof_tree_lin :: Tree (Obligation (Proof LinTheory))
+        proof_tree_lin = fmap (fmap (fmap fetch_and_linearise)) proof_tree
 
     let env = Env
             { timeout         = timeout
@@ -102,7 +110,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             , z_encode        = z_encode_filenames
             }
 
-    result <- invokeATPs proof_tree_tptp env
+    result <- invokeATPs proof_tree_lin env
 
     let results =
 
@@ -130,7 +138,6 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             | prop <- props
             ]
 
-    -- print result
     forM_ result $ \ (Obligation prop proof) -> when (unknown (snd $ proof_content proof)) $ do
         putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)
             ++ " on " ++ show prop

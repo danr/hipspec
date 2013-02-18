@@ -7,6 +7,9 @@ import Data.Char
 import Data.List
 import Data.List.Split
 
+data TheoryType = TPTP | SMT
+  deriving (Eq,Ord,Show)
+
 data ProverName
     = E
     | Eproof
@@ -15,6 +18,7 @@ data ProverName
     | SPASS
     | Vampire
     | Z3
+    | Z3TPTP
   deriving (Eq,Ord)
 
 instance Show ProverName where
@@ -25,6 +29,7 @@ instance Show ProverName where
     show SPASS   = "spass"
     show Vampire = "vampire"
     show Z3      = "z3"
+    show Z3TPTP  = "z3 (tptp)"
 
 proverCanSpecifyLemmas :: Prover -> Bool
 proverCanSpecifyLemmas = isJust . proverParseLemmas
@@ -47,6 +52,7 @@ data Prover = Prover
     -- ^ should we ignore standard error from this prover?
     , proverParseLemmas   :: Maybe (String -> [Int])
     -- ^ this prover's method of parsing lemmas
+    , proverTheoryType    :: TheoryType
     }
 
 -- | A template for most provers:
@@ -64,6 +70,7 @@ template = Prover
     , proverShort         = error "stdProver: Fill in your prover's short"
     , proverSuppressErrs  = False
     , proverParseLemmas   = Nothing
+    , proverTheoryType    = TPTP
     }
 
 -- Should really use something more efficient than isInfixOf
@@ -92,7 +99,9 @@ allProvers =
     ,paradox
     ,spass
     ,vampire
-    ,z3]
+    ,z3smt
+    ,z3tptp
+    ]
 
 proversFromString :: String -> [Prover]
 proversFromString = mapMaybe (\ c -> lookup c shorts)
@@ -104,7 +113,7 @@ eprover :: Prover
 eprover = template
     { proverName          = E
     , proverCmd           = "eprover"
-    , proverArgs          = \_ _ -> words "-tAuto -xAuto --tptp3-format -s"
+    , proverArgs          = \ _ t -> words $ "-tAuto -xAuto --tptp3-format -s --cpu-limit=" ++ show t
     , proverShort         = 'e'
     }
 
@@ -122,19 +131,30 @@ eproof = template
  -- , proverArgs          = \s _ -> words "-tAuto -xAuto --tptp3-format" ++ [s]
  -- UGLY: eproof does not like to be terminated by us, so I use `timeout'
     , proverCmd           = "timeout"
-    , proverArgs          = \s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
+    , proverArgs          = \ s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
     , proverShort         = 'f'
     , proverParseLemmas   = Just lemmaParser
     , proverSuppressErrs  = True
     , proverCannotStdin   = True
     }
 
-z3 :: Prover
-z3 = template
+-- deprecated
+z3tptp :: Prover
+z3tptp = template
     { proverName          = Z3
     , proverCmd           = "z3"
-    , proverArgs          = \_ _ -> words "-tptp -nw /dev/stdin"
+    , proverArgs          = \ _ _ -> words "-tptp -nw /dev/stdin"
+    , proverShort         = 'Z'
+    }
+
+z3smt :: Prover
+z3smt = template
+    { proverName          = Z3
+    , proverCmd           = "z3"
+    , proverArgs          = \ _ _ -> words $ "-smt2 -nw /dev/stdin"
     , proverShort         = 'z'
+    , proverTheoryType    = SMT
+    , proverProcessOutput = searchOutput [("unsat",mkSuccess),("sat",Failure)]
     }
 
 paradox :: Prover
