@@ -20,6 +20,7 @@ deps()
 }
 
 $APT install $(deps "$@") libghc-quickcheck2-dev # QuickCheck is special
+cabal update
 $CABAL_INSTALL_DEPS "$@" # Install the rest via Hackage
 
 if ! $APT install hlint ; then
