@@ -28,6 +28,7 @@ data Property = Property
     , propVars     :: [(Var,Type)]
     , propName     :: String
     , propRepr     :: String
+    , propVarRepr  :: [String]
     , propQSTerms  :: Equation
     , propFunDeps  :: [Var]
     , propOops     :: Bool
@@ -43,8 +44,8 @@ instance Eq Property where
 equal :: Eq b => (a -> b) -> a -> a -> Bool
 equal = ((==) `on`)
 
-varsFromCoords :: Property -> [Int] -> [Var]
-varsFromCoords p cs = [ fst $ propVars p !! c | c <- cs ]
+varsFromCoords :: Property -> [Int] -> [String]
+varsFromCoords p cs = [ propVarRepr p !! c | c <- cs ]
 
 instance Show Property where
     show Property{..} = concat
@@ -66,6 +67,7 @@ inconsistentProperty = Property
     , propVars     = []
     , propName     = "inconsistencyCheck"
     , propRepr     = "inconsistecy check: this should never be provable"
+    , propVarRepr  = []
     , propQSTerms  = error "propQSTerms: inconsistentProp"
     , propFunDeps  = []
     , propOops     = True
@@ -99,6 +101,7 @@ trProperty (NonRec prop_name e) = do
         , propAssume   = assume
         , propVars     = [ (x,varType x) | x <- vars ]
         , propRepr     = show assume ++ " ==> " ++ show eq
+        , propVarRepr  = map showOutputable vars
         , propQSTerms  = error "trProperty : propQSTerms"
         , propFunDeps  = nub $ concatMap free (eq:assume)
         , propOops     = oops

@@ -59,17 +59,26 @@ data Params = Params
   deriving (Show,Data,Typeable)
 
 -- | If you are using a theorem prover that cannot stdin,
---   then put on output and z-encoding of filenames
+--   then put on output. If a prover can specify lemmas,
+--   add readable tptp
 sanitizeParams :: Params -> Params
-sanitizeParams params
-    | any proverCannotStdin (proversFromString (provers params))
-        = params
-            { z_encode_filenames = True
-            , output = if output params == Nothing
+sanitizeParams = add_readable . fix_stdin
+  where
+    add_readable params
+        | any proverCanSpecifyLemmas provers' = params { readable_tptp = True }
+        | otherwise = params
+      where
+        provers' = proversFromString (provers params)
+
+    fix_stdin params
+        | any proverCannotStdin provers' = params
+            { output = if output params == Nothing
                            then Just "proving"
                            else output params
             }
-    | otherwise = params
+        | otherwise = params
+      where
+        provers' = proversFromString (provers params)
 
 defParams :: Params
 defParams = Params
@@ -136,5 +145,5 @@ defParams = Params
     \                   888               888                       \n\
     \                   888               888                       \n\
     \\n\
-    \       hipspec v0.3.2 by Dan Rosén, danr@student.chalmers.se   \n"
+    \       hipspec v0.5 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"

@@ -18,13 +18,16 @@ data ProverName
   deriving (Eq,Ord)
 
 instance Show ProverName where
-    show E              = "eprover"
-    show Eproof         = "eproof"
-    show Equinox        = "equinox"
-    show Paradox        = "paradox"
-    show SPASS          = "spass"
-    show Vampire        = "vampire"
-    show Z3             = "z3"
+    show E       = "eprover"
+    show Eproof  = "eproof"
+    show Equinox = "equinox"
+    show Paradox = "paradox"
+    show SPASS   = "spass"
+    show Vampire = "vampire"
+    show Z3      = "z3"
+
+proverCanSpecifyLemmas :: Prover -> Bool
+proverCanSpecifyLemmas = isJust . proverParseLemmas
 
 data Prover = Prover
     { proverName          :: ProverName
@@ -145,8 +148,9 @@ vampire :: Prover
 vampire = template
     { proverName          = Vampire
     , proverCmd           = "vampire_lin32"
-    , proverArgs          = \_ t -> words ("--proof tptp --mode casc -t " ++ show t)
+    , proverArgs          = \_ t -> words ("--proof tptp --mode casc --output_axiom_names on -t " ++ show t)
     , proverShort         = 'v'
+    , proverParseLemmas   = Just eproofLemmaParser
     }
 
 spass :: Prover

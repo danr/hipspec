@@ -100,7 +100,7 @@ library
         pretty                        >= 1.0,
 
         -- Running Theorem Provers
-        stm-promise                   >= 0.1 && < 0.2,
+        stm-promise                   == 0.0.1,
         process                       >= 1.0.1.1,
         stm                           >= 2.0,
         directory                     >= 1.0,

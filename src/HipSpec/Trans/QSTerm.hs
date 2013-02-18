@@ -99,6 +99,7 @@ termsToProp str_marsh e1 e2 = Property
                  ]
     , propName = repr
     , propRepr = repr
+    , propVarRepr = map (show . fst) var_rename
     , propQSTerms = e1 :=: e2
     , propFunDeps = [ v
                     | c <- nub (funs e1 ++ funs e2)
@@ -223,10 +224,4 @@ trTerm lookup_fun lookup_var = go
 
 apps :: Term -> [Term] -> Term
 apps = foldl T.App
-
-
-
-
-
-
 

@@ -29,6 +29,7 @@ import Halo.FOL.Rename
 
 import Data.List
 import Data.Maybe
+import Data.Monoid
 
 import Control.Monad
 
@@ -37,7 +38,7 @@ import UniqSupply
 import Var
 
 data InvokeResult
-    = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], coords :: [Var] }
+    = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], vars :: [String] }
     | ByPlain     { invoke_lemmas :: Maybe [String], provers :: [ProverName] }
     | NoProof
   deriving (Eq,Ord)
@@ -115,9 +116,12 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
                 in  (,) prop $ case proofs' of
                         [] -> NoProof
                         grp:_ -> case grp of
-                            Induction [] _ _ _:_ -> ByPlain Nothing (nub $ map (fst . proof_content) grp)
-                            Induction cs _ _ _:_ -> ByInduction Nothing (nub $ map (fst . proof_content) grp)
-                                                                        (varsFromCoords prop cs)
+                            Induction [] _ _ _:_ -> ByPlain lemmas provers
+                            Induction cs _ _ _:_ -> ByInduction lemmas provers vars
+                              where vars = varsFromCoords prop cs
+                          where
+                            provers = nub $ map (fst . proof_content) grp
+                            lemmas  = fmap nub $ mconcat $ map (successLemmas . snd . proof_content) grp
 
             | prop <- props
             ]
@@ -137,15 +141,15 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
     return results
 
 writeInvRes write prop_name res = case res of
-    ByInduction lemmas provers coords -> write $ InductiveProof prop_name (view_lemmas lemmas)
-    ByPlain lemmas provers            -> write $ PlainProof prop_name (view_lemmas lemmas)
-    NoProof                           -> write $ FailedProof prop_name
+    ByInduction lemmas provers vars -> write $ InductiveProof prop_name (view_lemmas lemmas)
+    ByPlain lemmas provers          -> write $ PlainProof prop_name (view_lemmas lemmas)
+    NoProof                         -> write $ FailedProof prop_name
   where
     view_lemmas = fromMaybe []
 
 viewInvRes green prop_name res = case res of
-    ByInduction lemmas provers coords ->
-        bold_green ("Proved " ++ prop_name ++ " by induction on " ++ csv showOutputable coords)
+    ByInduction lemmas provers vars ->
+        bold_green ("Proved " ++ prop_name ++ " by induction on " ++ csv id vars)
             ++ view_provers provers ++ view_lemmas lemmas
     ByPlain lemmas provers ->
         colour green ("Proved " ++ prop_name ++ " without induction")
