@@ -40,13 +40,13 @@ import Id
 import Outputable hiding (equals,text)
 import qualified Outputable as Outputable
 
-translateLemma :: Property -> HaloM HipSpecSubtheory
-translateLemma lemma@Property{..} = do
+translateLemma :: Property -> Int -> HaloM HipSpecSubtheory
+translateLemma lemma@Property{..} lemma_num = do
     (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
-        { provides    = Specific (Lemma propRepr)
+        { provides    = Specific (Lemma lemma_num)
         , depends     = map Function propFunDeps ++ ptrs
-        , description = "Lemma " ++ propRepr ++ "\n" ++
+        , description = "Lemma " ++ propRepr ++ " (" ++ show lemma_num ++ ")\n" ++
                         "dependencies: " ++ unwords (map idToStr propFunDeps)
         , formulae    = [tr_lem]
         }

@@ -45,7 +45,7 @@ data Prover = Prover
     -- ^ short char for command line options
     , proverSuppressErrs  :: Bool
     -- ^ should we ignore standard error from this prover?
-    , proverParseLemmas   :: Maybe (String -> [String])
+    , proverParseLemmas   :: Maybe (String -> [Int])
     -- ^ this prover's method of parsing lemmas
     }
 
@@ -95,7 +95,10 @@ allProvers =
     ,z3]
 
 proversFromString :: String -> [Prover]
-proversFromString str = filter ((`elem` str) . proverShort) allProvers
+proversFromString = mapMaybe (\ c -> lookup c shorts)
+  where
+    shorts = [ (proverShort p,p) | p <- allProvers ]
+
 
 eprover :: Prover
 eprover = template
@@ -121,7 +124,7 @@ eproof = template
     , proverCmd           = "timeout"
     , proverArgs          = \s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
     , proverShort         = 'f'
-    , proverParseLemmas   = Just eproofLemmaParser
+    , proverParseLemmas   = Just lemmaParser
     , proverSuppressErrs  = True
     , proverCannotStdin   = True
     }
@@ -150,19 +153,20 @@ vampire = template
     , proverCmd           = "vampire_lin32"
     , proverArgs          = \_ t -> words ("--proof tptp --mode casc --output_axiom_names on -t " ++ show t)
     , proverShort         = 'v'
-    , proverParseLemmas   = Just eproofLemmaParser
+    , proverParseLemmas   = Just lemmaParser
     }
 
 spass :: Prover
 spass = template
     { proverName          = SPASS
     , proverCmd           = "SPASS"
-    , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=0 -PStatistic=0 -TimeLimit=" ++ show t)
+    , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=1 -PStatistic=0 -TimeLimit=" ++ show t)
     , proverProcessOutput = searchOutput
                                 [("Proof found.",mkSuccess)
                                 ,("Completion found.",Failure)
                                 ,("Ran out of time.",Failure)]
     , proverShort         = 's'
+    , proverParseLemmas   = Just lemmaParser
     }
 
 equinox :: Prover
@@ -175,11 +179,13 @@ equinox = template
     }
 
 -- | The parser eproof uses to parse TSTP lemmas
-eproofLemmaParser :: String -> [String]
-eproofLemmaParser = mapMaybe parseLemma . lines
+lemmaParser :: String -> [Int]
+lemmaParser = mapMaybe parseLemma . words
 
-parseLemma :: String -> Maybe String
-parseLemma s = case splitOn "Lemma{" s of
-    [_,l] -> Just (takeWhile (/= '}') l)
-    _     -> Nothing
+parseLemma :: String -> Maybe Int
+parseLemma s = do
+    [_,rest] <- return (splitOn "_Lemma_" s)
+    (n_str,'_':_) <- return (break (== '_') rest)
+    (n,"") <- listToMaybe (reads n_str)
+    return n
 

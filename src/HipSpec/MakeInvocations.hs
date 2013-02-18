@@ -59,7 +59,10 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
     us <- mkSplitUniqSupply 'c'
 
-    let (lemma_theories,_) = runHaloM halo_env (mapM translateLemma lemmas)
+    let enum_lemmas = zip [0..] lemmas
+
+        (lemma_theories,_) = runHaloM halo_env (mapM (uncurry $ flip translateLemma) enum_lemmas)
+
 
         ((proof_tree,_),_) = runMakerM halo_env us $ (tryAll <$> mapM (makeProofs params) props)
 
@@ -92,6 +95,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
     let env = Env
             { timeout         = timeout
+            , lemma_lookup    = \ n -> fmap propRepr (lookup n enum_lemmas)
             , store           = output
             , provers         = proversFromString provers
             , processes       = processes
@@ -127,8 +131,8 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             ]
 
     -- print result
-    forM_ result $ \ (Obligation prop proof) -> when (failure (snd $ proof_content proof)) $ do
-        putStrLn $ "Failure from " ++ show (fst $ proof_content proof)
+    forM_ result $ \ (Obligation prop proof) -> when (unknown (snd $ proof_content proof)) $ do
+        putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)
             ++ " on " ++ show prop
             ++ ":" ++ show (snd $ proof_content proof)
 

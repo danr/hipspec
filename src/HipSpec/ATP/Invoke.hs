@@ -40,6 +40,7 @@ import Control.Concurrent.STM.Promise.Process
 
 data Env = Env
     { timeout         :: Int
+    , lemma_lookup    :: Int -> Maybe String
     , store           :: Maybe FilePath
     , provers         :: [Prover]
     , processes       :: Int
@@ -50,17 +51,18 @@ type ProveM = ReaderT Env IO
 
 type Result = (ProverName,ProverResult)
 
-interpretResult :: Prover -> ProcessResult -> ProverResult
-interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
+interpretResult :: Env  -> Prover -> ProcessResult -> ProverResult
+interpretResult Env{lemma_lookup} Prover{..} pr@ProcessResult{..} = excode `seq`
     case proverProcessOutput stdout of
         s@Success{} -> case proverParseLemmas of
-            Just lemma_parser -> s { successLemmas = Just (lemma_parser stdout) }
+            Just lemma_parser -> s
+                { successLemmas = Just . mapMaybe lemma_lookup . lemma_parser $ stdout }
             Nothing -> s
         Failure -> Failure
         Unknown _ -> Unknown (show pr)
 
-filename :: Bool -> Obligation (Proof a) -> (FilePath,FilePath)
-filename z_encode (Obligation Property{propName} p) = case p of
+filename :: Env -> Obligation (Proof a) -> (FilePath,FilePath)
+filename Env{z_encode} (Obligation Property{propName} p) = case p of
     Induction coords ix _ _ ->
         ((z_encode ? escape) propName
         ,usv coords ++ "__" ++ show ix ++ ".tptp")
@@ -69,12 +71,12 @@ filename z_encode (Obligation Property{propName} p) = case p of
 
 promiseProof :: Env -> Obligation (Proof String) -> Int -> Prover
              -> IO (Promise [Obligation (Proof Result)])
-promiseProof Env{store,z_encode} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
+promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
 
     filepath <- case store of
         Nothing  -> return Nothing
         Just dir -> do
-            let (path,file) = filename z_encode ob
+            let (path,file) = filename env ob
                 d = dir </> path
                 f = d </> file
             exists <- doesFileExist f
@@ -102,7 +104,7 @@ promiseProof Env{store,z_encode} ob@(Obligation prop proof) timelimit prover@Pro
 
     let update :: ProcessResult -> [Obligation (Proof Result)]
         update r = [fmap (fmap (const $ res)) ob]
-          where res = (proverName,interpretResult prover r)
+          where res = (proverName,interpretResult env prover r)
 
     return Promise
         { spawn = do
@@ -134,7 +136,7 @@ invokeATPs tree env@Env{..} = do
 
     workers (Just (timeout * 1000 * 1000)) processes (interleave promise_tree)
 
-    res <- evalTree (any failure . map (snd . proof_content . ob_content)) promise_tree
+    res <- evalTree (any unknown . map (snd . proof_content . ob_content)) promise_tree
 
     -- print res
 

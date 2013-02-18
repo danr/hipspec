@@ -25,9 +25,6 @@ success :: ProverResult -> Bool
 success Success{} = True
 success _         = False
 
-failure :: ProverResult -> Bool
-failure = not . success
-
 unknown :: ProverResult -> Bool
 unknown Unknown{} = True
 unknown _         = False

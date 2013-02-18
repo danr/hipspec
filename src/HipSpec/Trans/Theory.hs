@@ -31,8 +31,8 @@ import HipSpec.Trans.Types
 import HipSpec.Trans.TypeGuards
 
 data HipSpecExtras
-    = Lemma String
-    -- ^ Lemma with a name
+    = Lemma Int
+    -- ^ Lemma with a number
     | Conjecture
     -- ^ The conjecture
     | Domain TyCon
@@ -161,14 +161,14 @@ mkMinRecAxioms ty_cons =
     ]
 
 instance Show HipSpecExtras where
-    show (Lemma s)      = "(Lemma " ++ s ++ ")"
+    show (Lemma s)      = "(Lemma " ++ show s ++ ")"
     show (Domain tc)    = "(Domain " ++ showOutputable tc ++ ")"
     show (ResultType v) = "(ResultType " ++ showOutputable v ++ ")"
     show PrimMinRec     = "PrimMinRec"
     show (MinRec tc)    = "(MinRec " ++ showOutputable tc ++ ")"
 
 instance Clausifiable HipSpecExtras where
-    mkClause (Lemma s) = namedClause ("Lemma{" ++ s ++ "}") lemma
+    mkClause (Lemma n) = namedClause ("{_Lemma_" ++ show n ++ "_}") lemma
     mkClause _         = clause axiom
 
 type HipSpecContent = Content HipSpecExtras
