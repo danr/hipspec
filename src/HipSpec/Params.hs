@@ -22,7 +22,7 @@ data Params = Params
 
     , processes           :: Int
     , batchsize           :: Int
-    , timeout             :: Int
+    , timeout             :: Double
     , provers             :: String
     , methods             :: String
     , readable_tptp       :: Bool

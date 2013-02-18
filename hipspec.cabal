@@ -35,6 +35,7 @@ library
         Halo.FOL.Abstract
         Halo.FOL.Internals.Internals
         Halo.FOL.Linearise
+        Halo.FOL.LineariseSMT
         Halo.FOL.Dump
         Halo.FOL.Operations
         Halo.FOL.RemoveMin

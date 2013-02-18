@@ -41,7 +41,7 @@ data Prover = Prover
     -- ^ system command to createProcess
     , proverCannotStdin   :: Bool
     -- ^ this prover cannot read from stdin, so instead read from file
-    , proverArgs          :: String -> Int -> [String]
+    , proverArgs          :: String -> Double -> [String]
     -- ^ given file name (if proverCannotStdin)
     --   and timeout in secs, args to createProcess
     , proverProcessOutput :: String  -> ProverResult
@@ -108,12 +108,14 @@ proversFromString = mapMaybe (\ c -> lookup c shorts)
   where
     shorts = [ (proverShort p,p) | p <- allProvers ]
 
+showCeil :: Double -> String
+showCeil = show . (ceiling :: Double -> Integer)
 
 eprover :: Prover
 eprover = template
     { proverName          = E
     , proverCmd           = "eprover"
-    , proverArgs          = \ _ t -> words $ "-tAuto -xAuto --tptp3-format -s --cpu-limit=" ++ show t
+    , proverArgs          = \ _ t -> words $ "-tAuto -xAuto --tptp3-format -s --cpu-limit=" ++ showCeil t
     , proverShort         = 'e'
     }
 
@@ -131,7 +133,7 @@ eproof = template
  -- , proverArgs          = \s _ -> words "-tAuto -xAuto --tptp3-format" ++ [s]
  -- UGLY: eproof does not like to be terminated by us, so I use `timeout'
     , proverCmd           = "timeout"
-    , proverArgs          = \ s t -> [show t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
+    , proverArgs          = \ s t -> [showCeil t] ++ words "eproof -tAuto -xAuto --tptp3-format" ++ [s]
     , proverShort         = 'f'
     , proverParseLemmas   = Just lemmaParser
     , proverSuppressErrs  = True
@@ -171,7 +173,7 @@ vampire :: Prover
 vampire = template
     { proverName          = Vampire
     , proverCmd           = "vampire_lin32"
-    , proverArgs          = \_ t -> words ("--proof tptp --mode casc --output_axiom_names on -t " ++ show t)
+    , proverArgs          = \_ t -> words ("--proof tptp --mode casc --output_axiom_names on -t " ++ showCeil t)
     , proverShort         = 'v'
     , proverParseLemmas   = Just lemmaParser
     }
@@ -180,7 +182,7 @@ spass :: Prover
 spass = template
     { proverName          = SPASS
     , proverCmd           = "SPASS"
-    , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=1 -PStatistic=0 -TimeLimit=" ++ show t)
+    , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=1 -PStatistic=0 -TimeLimit=" ++ showCeil t)
     , proverProcessOutput = searchOutput
                                 [("Proof found.",mkSuccess)
                                 ,("Completion found.",Failure)

@@ -39,7 +39,7 @@ import Control.Concurrent.STM.Promise.Process
 data LinTheory = LinTheory (TheoryType -> String)
 
 data Env = Env
-    { timeout         :: Int
+    { timeout         :: Double
     , lemma_lookup    :: Int -> Maybe String
     , store           :: Maybe FilePath
     , provers         :: [Prover]
@@ -69,7 +69,7 @@ filename Env{z_encode} (Obligation Property{propName} p) = case p of
   where
     usv = intercalate "_" . map show
 
-promiseProof :: Env -> Obligation (Proof LinTheory) -> Int -> Prover
+promiseProof :: Env -> Obligation (Proof LinTheory) -> Double -> Prover
              -> IO (Promise [Obligation (Proof Result)])
 promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
 
@@ -140,7 +140,7 @@ invokeATPs tree env@Env{..} = do
     promise_tree <- join <$> mapM make_promises tree
         -- ^ mapM over trees, but we get a tree of trees, so we need to use join
 
-    workers (Just (timeout * 1000 * 1000)) processes (interleave promise_tree)
+    workers (Just (round $ timeout * 1000 * 1000)) processes (interleave promise_tree)
 
     res <- evalTree (any unknown . map (snd . proof_content . ob_content)) promise_tree
 
