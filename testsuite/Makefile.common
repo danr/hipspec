@@ -13,7 +13,7 @@
 #    processes=4 indvars=3 make
 #
 GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp
+GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp -rtsopts
 
 ifeq ($(HIP_FLAGS),)
   HIP_FLAGS = -l
