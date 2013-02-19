@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-
 
-    The primitives: UNR and BAD
+    The primitives: UNR and BAD (or those two collapsed to bottom)
 
 -}
 module Halo.PrimCon where
@@ -24,11 +24,30 @@ import Halo.FOL.Abstract
 
 data PrimCon = BAD | UNR deriving (Show,Eq,Ord,Enum,Bounded,Data,Typeable)
 
-true,false,unr,bad :: Term'
+unrId,badId :: Id
+unrId = primId UNR
+badId = primId BAD
+
+
+true,false,unr,bad,bot :: Term'
 true  = con trueDataConId
 false = con falseDataConId
-unr   = con (primId UNR)
-bad   = con (primId BAD)
+unr   = con unrId
+bad   = con badId
+bot   = con bottom
+
+unrCon,badCon,botCon :: DataCon
+unrCon = primCon UNR
+badCon = primCon BAD
+botCon = primCon UNR     -- bottom is represented as UNR
+
+bottom :: Id
+bottom = primId UNR      -- bottom is represented as UNR
+
+unrExpr,badExpr,botExpr :: CoreExpr
+unrExpr = Var unrId
+badExpr = Var badId
+botExpr = Var bottom
 
 -- | Copied from TysWiredIn since it is not exported
 mkWiredInDataConName :: BuiltInSyntax -> Module -> FastString -> Unique
@@ -50,9 +69,6 @@ primName c = mkWiredInDataConName
 
 primId :: PrimCon -> Id
 primId = dataConWorkId . primCon
-
-primExpr :: PrimCon -> CoreExpr
-primExpr = Var . primId
 
 primCon :: PrimCon -> DataCon
 primCon c = data_con

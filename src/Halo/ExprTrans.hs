@@ -31,6 +31,7 @@ import Halo.Monad
 import Halo.PrimCon
 import Halo.Shared
 import Halo.Util
+import Halo.Conf
 
 import qualified Data.Map as M
 
@@ -41,12 +42,15 @@ import Control.Monad.Error
 trExpr :: CoreExpr -> HaloM Term'
 trExpr e = do
     HaloEnv{..} <- ask
-    let isPAP x = case M.lookup x arities of
+    let HaloConf{..} = conf
+        isPAP x = case M.lookup x arities of
                           Just i  -> i > 0
                           Nothing -> False
         isQuant x = x `M.notMember` arities
+
     case e of
-        _ | exprIsBottom e -> return bad
+        _ | exprIsBottom e && not collapse_to_bottom -> return bad
+          | exprIsBottom e && collapse_to_bottom     -> return bot
         Var x
             | x `elem` skolems  -> return (skolem x)
             | isPAP x           -> usePtr x >> return (ptr x)

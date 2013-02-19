@@ -149,7 +149,8 @@ mkEnv conf@HaloConf{..} ty_cons program =
 
         data_arities :: [(Var,Int)]
         data_arities =
-            [ (primId c,0) | c <- [UNR,BAD], unr_and_bad ] ++
+            [ (i,0) | i <- [unrId,badId], unr_and_bad && not collapse_to_bottom ] ++
+            [ (bottom,0) | unr_and_bad && collapse_to_bottom ] ++
             [ (dc_id,arity)
             | ty_con <- ty_cons
             , let dcs = tyConDataCons ty_con
