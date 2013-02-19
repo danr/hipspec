@@ -18,6 +18,9 @@ isEquals    = isInfixOfs [":=:","=:="] . showOutputable
 isGiven     :: Var -> Bool
 isGiven     = isInfixOfs ["Given","given","==>"] . showOutputable
 
+isTotal     :: Var -> Bool
+isTotal     = isInfixOfs ["Total","total"] . showOutputable
+
 isGivenBool :: Var -> Bool
 isGivenBool = isInfixOf "givenBool" . showOutputable
 

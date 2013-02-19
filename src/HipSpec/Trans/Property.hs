@@ -17,21 +17,24 @@ import Data.List (nub)
 import Data.Function (on)
 import Control.Arrow (second)
 
-data Equality = CoreExpr :== CoreExpr
+data Literal
+    = CoreExpr :== CoreExpr
+    | Total CoreExpr
 
-instance Show Equality where
+instance Show Literal where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
+    show (Total e)   = "Total(" ++ showOutputable e ++ ")"
 
 data Property = Property
-    { propEquality :: Equality
-    , propAssume   :: [Equality]
-    , propVars     :: [(Var,Type)]
-    , propName     :: String
-    , propRepr     :: String
-    , propVarRepr  :: [String]
-    , propQSTerms  :: Equation
-    , propFunDeps  :: [Var]
-    , propOops     :: Bool
+    { propLiteral :: Literal
+    , propAssume  :: [Literal]
+    , propVars    :: [(Var,Type)]
+    , propName    :: String
+    , propRepr    :: String
+    , propVarRepr :: [String]
+    , propQSTerms :: Equation
+    , propFunDeps :: [Var]
+    , propOops    :: Bool
     -- ^ It's an error if this property was provable
     }
 
@@ -50,7 +53,7 @@ varsFromCoords p cs = [ propVarRepr p !! c | c <- cs ]
 instance Show Property where
     show Property{..} = concat
         ["Property "
-        ,"{ propEquality = ", show propEquality
+        ,"{ propLiteral = ", show propLiteral
         ,", propAssume = ", show propAssume
         ,", propVars = ", showOutputable propVars
         ,", propName = ", show propName
@@ -62,19 +65,21 @@ instance Show Property where
 
 inconsistentProperty :: Property
 inconsistentProperty = Property
-    { propEquality = Var trueDataConId :== Var falseDataConId
-    , propAssume   = []
-    , propVars     = []
-    , propName     = "inconsistencyCheck"
-    , propRepr     = "inconsistecy check: this should never be provable"
-    , propVarRepr  = []
-    , propQSTerms  = error "propQSTerms: inconsistentProp"
-    , propFunDeps  = []
-    , propOops     = True
+    { propLiteral = Var trueDataConId :== Var falseDataConId
+    , propAssume  = []
+    , propVars    = []
+    , propName    = "inconsistencyCheck"
+    , propRepr    = "inconsistecy check: this should never be provable"
+    , propVarRepr = []
+    , propQSTerms = error "propQSTerms: inconsistentProp"
+    , propFunDeps = []
+    , propOops    = True
     }
 
-parseProperty :: CoreExpr -> Maybe (Equality,[Equality],Bool)
+-- The bool is the oops
+parseProperty :: CoreExpr -> Maybe (Literal,[Literal],Bool)
 parseProperty e = case second trimTyArgs (collectArgs e) of
+    (Var x,[l])   | isTotal x     -> Just (Total l,[],False)
     (Var x,[l,r]) | isEquals x    -> Just (l :== r,[],False)
     (Var x,[l])   | isProveBool x -> Just (l :== Var trueDataConId,[],False)
     (Var x,[p,q]) | isGiven x     -> do
@@ -90,20 +95,21 @@ trProperty :: CoreBind -> Maybe Property
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
 
-    (eq,assume,oops) <- parseProperty e0
+    (lit,assume,oops) <- parseProperty e0
 
     -- Free variables, but do not count =:=, proveBool, oops or arguments
-    let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) $ exprFVs lhs ++ exprFVs rhs
+    let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) (exprFVs lhs ++ exprFVs rhs)
+        free (Total e)     = filter (`notElem` (vars ++ ty_vars)) (exprFVs e)
 
     return $ Property
-        { propName     = idToStr prop_name
-        , propEquality = eq
-        , propAssume   = assume
-        , propVars     = [ (x,varType x) | x <- vars ]
-        , propRepr     = show assume ++ " ==> " ++ show eq
-        , propVarRepr  = map showOutputable vars
-        , propQSTerms  = error "trProperty : propQSTerms"
-        , propFunDeps  = nub $ concatMap free (eq:assume)
-        , propOops     = oops
+        { propName    = idToStr prop_name
+        , propLiteral = lit
+        , propAssume  = assume
+        , propVars    = [ (x,varType x) | x <- vars ]
+        , propRepr    = show assume ++ " ==> " ++ show lit
+        , propVarRepr = map showOutputable vars
+        , propQSTerms = error "trProperty : propQSTerms"
+        , propFunDeps = nub $ concatMap free (lit:assume)
+        , propOops    = oops
         }
 trProperty _ = Nothing

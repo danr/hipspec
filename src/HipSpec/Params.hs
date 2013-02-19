@@ -19,6 +19,7 @@ data Params = Params
     , json                :: Maybe FilePath
     , definitions         :: Bool
     , explore_theory      :: Bool
+    , bottoms             :: Bool
 
     , processes           :: Int
     , batchsize           :: Int
@@ -91,10 +92,11 @@ defParams = Params
     , json                = Nothing &= help "File to write statistics to (in json format)"
     , definitions         = False   &= name "d" &= help "Print translated QuickSpec function definitions"
     , explore_theory      = False   &= name "e" &= help "Print explored theory"
+    , bottoms             = False   &= name "b" &= help "Add bottoms"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"
-    , batchsize           = 1       &= name "b" &= help "Equations to process simultaneously (default 1)"
+    , batchsize           = 1       &= name "B" &= help "Equations to process simultaneously (default 1)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
     , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
     , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
@@ -105,9 +107,9 @@ defParams = Params
     , dont_print_unproved = False   &= name "u" &= help "Don't print unproved conjectures from QuickSpec"
     , min                 = False   &= name "m" &= help "Use min and minrec translation"
 
-    , case_lift_inner  = False &= groupname "\nTranslation settings"
-                               &= help "Lift all inner cases to top level"
-    , var_scrut_constr = False &= help "Make a constraint instead of inlining var scrutinees"
+    , case_lift_inner     = False &= groupname "\nTranslation settings"
+                                  &= help "Lift all inner cases to top level"
+    , var_scrut_constr    = False &= help "Make a constraint instead of inlining var scrutinees"
 
 
     , swap_repr           = False   &= groupname "\nEquation ordering"

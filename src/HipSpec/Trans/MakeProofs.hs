@@ -53,9 +53,9 @@ translateLemma lemma@Property{..} lemma_num = do
   where
     equals :: HaloM Formula'
     equals = do
-        (lhs,rhs) <- trEquality propEquality
-        assums <- mapM trEquality' propAssume
-        return $ foralls $ (min' lhs \/ min' rhs) ==> (assums ===> lhs === rhs)
+        (tr_lit,lit_mins) <- trLiteral propLiteral
+        (assums,_) <- mapAndUnzipM trLiteral propAssume
+        return $ foralls $ ors (map min' lit_mins) ==> (assums ===> tr_lit)
 
 type MakerM = StateT UniqSupply HaloM
 
@@ -66,18 +66,24 @@ runMakerM env us mm
         (Left err,_msg)
             -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
-trEquality :: Equality -> HaloM (Term',Term')
-trEquality (e1 :== e2) = liftM2 (,) (trExpr e1) (trExpr e2)
+-- The terms returned are terms appropriate to do min on
+trLiteral :: Literal -> HaloM (Formula',[Term'])
+trLiteral l = case l of
+    Total e -> do
+        e' <- trExpr e
+        return (cf e',[e'])
 
-trEquality' :: Equality -> HaloM Formula'
-trEquality' = liftM (uncurry (===)) . trEquality
+    e1 :== e2 -> do
+        e1' <- trExpr e1
+        e2' <- trExpr e2
+        return (e1' === e2',[e1',e2'])
 
 -- One subtheory with a conjecture with all dependencies
 type ProofObligation = Obligation (Proof HipSpecSubtheory)
 type ProofTree       = Tree ProofObligation
 
 makeProofs :: Params -> Property -> MakerM ProofTree
-makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
+makeProofs Params{methods,indvars,indparts,indhyps,inddepth,bottoms} prop@Property{..}
     = requireAny <$>
         (sequence (mapMaybe induction induction_coords) `catchError` \err -> do
           lift $ cleanUpFailedCapture
@@ -108,7 +114,7 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
 
     induction :: [Int] -> Maybe (MakerM ProofTree)
     induction coords = do
-        let obligs = subtermInduction tyEnv propVars coords
+        let obligs = subtermInduction (tyEnv bottoms) propVars coords
             n_obligs = length obligs
 
         -- If induction on these variables with this depth gives too many
@@ -170,19 +176,20 @@ trObligation Property{..} obligation@(IS.Obligation skolem hyps concl) =
 
     trPred :: Loc -> [Term DataCon Var] -> HaloM Formula'
     trPred loc tms = do
-        (lhs,rhs) <- trEquality propEquality'
-        assums <- mapM trEquality' propAssume'
+        (tr_lit,lit_mins) <- trLiteral propLiteral'
+        (assums,_) <- mapAndUnzipM trLiteral propAssume'
         return $ case loc of
-                Hyp   -> min' lhs \/ min' rhs ==> (assums ===> lhs === rhs)
-                Concl -> ands $ [minrec rhs,minrec lhs,rhs =/= lhs] ++ assums
+                Hyp   -> ors (map min' lit_mins) ==> (assums ===> tr_lit)
+                Concl -> ands $ map minrec lit_mins ++ [neg tr_lit] ++ assums
       where
         s = extendIdSubstList emptySubst
                 [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
 
-        propEquality':propAssume' = flip map (propEquality:propAssume) $ \ eq ->
+        propLiteral':propAssume' = flip map (propLiteral:propAssume) $ \ eq ->
             case eq of
                 e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
                              substExpr (Outputable.text "trPred") s e2
+                Total e   -> Total (substExpr (Outputable.text "trPred") s e)
 
     trHyp :: Hypothesis DataCon Var Type -> HaloM Formula'
     trHyp (_,tms) = foralls <$> trPred Hyp tms

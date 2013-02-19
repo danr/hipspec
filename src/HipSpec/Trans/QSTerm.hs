@@ -90,7 +90,7 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
 -- So far only works on arguments with monomorphic, non-exponential types
 termsToProp :: StrMarsh -> Term -> Term -> Property
 termsToProp str_marsh e1 e2 = Property
-    { propEquality  = termToExpr str_marsh var_rename_map e1 :==
+    { propLiteral   = termToExpr str_marsh var_rename_map e1 :==
                       termToExpr str_marsh var_rename_map e2
     , propAssume    = []
     , propVars = [ (setVarType v ty,ty)

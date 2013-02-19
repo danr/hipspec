@@ -90,6 +90,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
         calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
         calc_dependencies s = concatMap depends (s:lemma_theories)
+            ++ [ Specific BottomAxioms | bottoms ]
 
         fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
         fetcher = trim (subthys ++ lemma_theories)

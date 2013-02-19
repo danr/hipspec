@@ -75,6 +75,7 @@ template = Prover
 
 -- Should really use something more efficient than isInfixOf
 searchOutput :: [(String,ProverResult)] -> String -> ProverResult
+searchOutput _          ""     = Failure
 searchOutput []         output = Unknown output
 searchOutput ((s,r):xs) output
     | s `isInfixOf` output = r
@@ -88,6 +89,7 @@ statusSZS =
     ,("CounterSatisfiable",Failure)
     ,("Satisfiable",Failure)
     ,("Timeout",Failure)
+    ,("ResourceOut",Failure)
     ]
 
 allProvers :: [Prover]
@@ -143,7 +145,7 @@ eproof = template
 -- deprecated
 z3tptp :: Prover
 z3tptp = template
-    { proverName          = Z3
+    { proverName          = Z3TPTP
     , proverCmd           = "z3"
     , proverArgs          = \ _ _ -> words "-tptp -nw /dev/stdin"
     , proverShort         = 'Z'

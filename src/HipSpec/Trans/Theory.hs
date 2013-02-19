@@ -1,19 +1,24 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns #-}
 module HipSpec.Trans.Theory
     ( HipSpecExtras(..)
     , setExtraDependencies
+    , mkCFAxioms
     , mkMinRecAxioms
     , mkDomainAxioms
     , mkResultTypeAxioms
+    , bottomAxioms
     , HipSpecContent
     , HipSpecSubtheory
     , Theory(..)
     ) where
 
+import Control.Monad
+
 import CoreSyn
 import Var
 import Type
 import TysWiredIn
+import TysPrim
 import TyCon
 import DataCon
 import Outputable
@@ -22,9 +27,12 @@ import GHC (dataConType)
 import Halo.Names
 import Halo.Shared
 import Halo.Subtheory
+import Halo.PrimCon
 import Halo.Trim
 import Halo.Util
 import Halo.FOL.Abstract
+
+import HipSpec.Params
 
 import HipSpec.Trans.Property
 import HipSpec.Trans.Types
@@ -41,17 +49,81 @@ data HipSpecExtras
     -- ^ If a function f returns a finite type t, this axiom says
     --       forall x1, .., xn . isType(f(x1,..,xn),t)
     | PrimMinRec
-    -- ^ [hipspec only] Base theory about minrec
+    -- ^  Base theory about minrec
     | MinRec TyCon
-    -- ^ [hipspec only] Recursive min for a data type
+    -- ^  Recursive min for a data type
+    | BottomAxioms
+    -- ^ Axioms about bottom
+    | AppBottomAxioms
+    -- ^ App on bottom
+    | CF TyCon
+    -- ^ Crash-Free (finite+total) for a data type
   deriving
     (Eq,Ord)
 
+impliesOr :: Formula q v -> [Formula q v] -> Formula q v
+phi `impliesOr` [] = neg phi
+phi `impliesOr` xs = phi ==> ors xs
+
+-- | Make axioms about CF
+mkCFAxioms :: [TyCon] -> [HipSpecSubtheory]
+mkCFAxioms ty_cons = do
+    ty_con <- ty_cons
+    guard (not (isNewTyCon ty_con))
+    let dcs = tyConDataCons ty_con
+
+    return $ Subtheory
+        { provides    = Specific (CF ty_con)
+        , depends     = []
+        , description = "CF " ++ showOutputable ty_con
+        , formulae    = concat $
+            [
+                -- cf(K xs) ==> BigAnd_i (cf (x_i))
+                [ foralls $ cf kxbar ==> ands (map cf xbar')
+                | not (null xbar') ] ++
+
+                -- min(K xs) /\ not (cf (K xs))
+                --    ==> BigOr_i (min(x_i) /\ not (cf (x_i))
+                [ foralls $ (min' kxbar /\ neg (cf kxbar)) `impliesOr`
+                                 [ ands [neg (cf y),min' y] | y <- xbar' ]
+                ]
+
+            | dc <- dcs
+            , let (k,arg_types) = dcIdArgTypes dc
+                  args          = zipWith setVarType varNames arg_types
+                  xbar          = map qvar args
+                  is_primitive  = (`eqType` intPrimTy) . varType
+                  xbar'         = map qvar (filter (not . is_primitive) args)
+                  kxbar         = apply k xbar
+            ]
+        }
+
+bottomAxioms :: Params -> [HipSpecSubtheory]
+bottomAxioms Params{..}
+    | bottoms =
+        [ Subtheory
+            { provides    = Specific BottomAxioms
+            , depends     = []
+            , description = "Axioms for bottom"
+            , formulae    = [ neg (cf bot) ]
+            }
+        , Subtheory
+            { provides    = Specific AppBottomAxioms
+            , depends     = []
+            , description = "Axioms for app on bottom"
+            , formulae    =
+                [ forall' [x] $ app bot x' === bot ]
+            }
+
+        ]
+    | otherwise = []
+
 -- | Make data types depend on Domain axioms, and MinRec axioms if min is used.
 --   Make functions depend on finite result type axioms.
-setExtraDependencies :: Bool -> HipSpecSubtheory -> HipSpecSubtheory
-setExtraDependencies use_min s@(Subtheory{..}) = case provides of
-    Data ty_con -> s { depends = (use_min ? (Specific (MinRec ty_con) :)) $
+setExtraDependencies :: Params -> HipSpecSubtheory -> HipSpecSubtheory
+setExtraDependencies Params{..} s@(Subtheory{..}) = case provides of
+    Data ty_con -> s { depends = (min ? (Specific (MinRec ty_con) :)) $
+                                 (bottoms ? (Specific (CF ty_con) :)) $
                                  (Specific (Domain ty_con) : depends)
                      }
     Function f  -> s { depends = Specific (ResultType f) : depends }
@@ -97,8 +169,8 @@ mkResultTypeAxioms binds =
 --   @
 --     ! [U] : type(U,f_Bool) => (U = c_True | U = c_False)
 --   @
-mkDomainAxioms :: [TyCon] -> [HipSpecSubtheory]
-mkDomainAxioms ty_cons =
+mkDomainAxioms :: Params -> [TyCon] -> [HipSpecSubtheory]
+mkDomainAxioms Params{bottoms} ty_cons =
     [ let ty = dataConType dc0
           u  = setVarType x ty
           u' = qvar u
@@ -117,7 +189,7 @@ mkDomainAxioms ty_cons =
               , formulae    = domain_formulae
               }
     | ty_con <- ty_cons
-    , let dcs = tyConDataCons ty_con
+    , let dcs = tyConDataCons ty_con ++ [ botCon | bottoms ]
     , dc0:_ <- [dcs]
     ]
 
@@ -161,11 +233,14 @@ mkMinRecAxioms ty_cons =
     ]
 
 instance Show HipSpecExtras where
-    show (Lemma s)      = "(Lemma " ++ show s ++ ")"
-    show (Domain tc)    = "(Domain " ++ showOutputable tc ++ ")"
-    show (ResultType v) = "(ResultType " ++ showOutputable v ++ ")"
-    show PrimMinRec     = "PrimMinRec"
-    show (MinRec tc)    = "(MinRec " ++ showOutputable tc ++ ")"
+    show (Lemma s)       = "(Lemma " ++ show s ++ ")"
+    show (Domain tc)     = "(Domain " ++ showOutputable tc ++ ")"
+    show (ResultType v)  = "(ResultType " ++ showOutputable v ++ ")"
+    show PrimMinRec      = "PrimMinRec"
+    show (MinRec tc)     = "(MinRec " ++ showOutputable tc ++ ")"
+    show BottomAxioms    = "BottomAxioms"
+    show AppBottomAxioms = "AppBottomAxioms"
+    show (CF tc)         = "(CF " ++ showOutputable tc ++ ")"
 
 instance Clausifiable HipSpecExtras where
     mkClause (Lemma n) = namedClause ("{_Lemma_" ++ show n ++ "_}") lemma

@@ -126,12 +126,13 @@ processFile file = do
 
     let halo_conf :: HaloConf
         halo_conf = sanitizeConf $ HaloConf
-            { use_min           = min
-            , use_minrec        = min
-            , unr_and_bad       = False
-            , ext_eq            = True
-            , or_discr          = False
-            , var_scrut_constr  = var_scrut_constr
+            { use_min            = min
+            , use_minrec         = min
+            , unr_and_bad        = bottoms
+            , collapse_to_bottom = bottoms
+            , ext_eq             = True
+            , or_discr           = False
+            , var_scrut_constr   = var_scrut_constr
             }
 
         halo_env = mkEnv halo_conf ty_cons core_defns
@@ -147,16 +148,19 @@ processFile file = do
 
         app_theory = Subtheory
             { provides = AppTheory
-            , depends = [ AppOnMin ]
+            , depends = [ AppOnMin ] ++ [ Specific AppBottomAxioms | bottoms ]
             , description = "This theory uses the app symbol"
             , formulae = []
             }
 
-        subtheories = map (setExtraDependencies min) $ binds_thy ++
+        subtheories =
+            map (setExtraDependencies params) $ binds_thy ++
             mkResultTypeAxioms core_defns ++
             [ app_theory ] ++
+            bottomAxioms params ++
             concatMap ($ ty_cons)
-                [backgroundTheory halo_conf,mkDomainAxioms,mkMinRecAxioms]
+                ([mkCFAxioms | bottoms] ++
+                 [backgroundTheory halo_conf,mkDomainAxioms params,mkMinRecAxioms])
 
         theory = Theory subtheories
 
