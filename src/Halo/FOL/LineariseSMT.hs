@@ -1,5 +1,5 @@
 -- Linearises (pretty prints) our FOL representation into SMT
-module Halo.FOL.LineariseSMT (linSMT) where
+module Halo.FOL.LineariseSMT (linSMT,addUnsatCores) where
 
 import Outputable hiding (quote)
 
@@ -26,6 +26,11 @@ import Data.Maybe
 linSMT :: [Clause'] -> String
 linSMT = (++ "\n") . portableShowSDoc . linClauses
 
+addUnsatCores :: String -> String
+addUnsatCores s =
+    "(set-option :produce-unsat-cores true)\n" ++ s ++
+    "\n(get-unsat-core)\n"
+
 -- | Linearise a sort declaration
 --   We will only declare the sort D of our domain
 linDeclSort :: SDoc -> SDoc
@@ -37,7 +42,7 @@ linDeclFun :: SDoc -> [SDoc] -> SDoc -> SDoc
 linDeclFun name args res =
     parens (text "declare-fun" <+> name <+> parens (sep args) <+> res)
 
--- | Linearise the set of clauses
+-- | Linearise the set of clauses, producing unsat cores if the Bool is true
 linClauses :: [Clause'] -> SDoc
 linClauses cls = vcat $ concat
     [ [parens (text "set-option :print-success false")]
@@ -95,10 +100,18 @@ linClause :: Clause' -> SDoc
 linClause (Comment s)
     = text ("\n" ++ intercalate "\n" (map ("; " ++) (lines s)))
 linClause (Clause cl_name cl_type cl_formula)
-    = ((cl_name /= "x") ? ((text $ "; " ++ cl_name ++ "\n") <>))
-    $ parens $
-        (text "assert") <+>
-        (linForm $ (cl_type == Conjecture ? neg) cl_formula)
+    | cl_name == "x"
+        = parens $
+            (text "assert" <+>) $
+                (linForm $ (cl_type == Conjecture ? neg) cl_formula)
+    | otherwise
+        = parens $
+            (text "assert" <+>) $ parens $
+                text "!" <+>
+                (linForm $ (cl_type == Conjecture ? neg) cl_formula) <+>
+                text ":named" <+>
+                text cl_name
+
 
 -- | Linearise a formula.
 --   Second argument is if it should be enclosed in parentheses.
