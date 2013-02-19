@@ -1,0 +1,692 @@
+% abbrev.sty - make ascii symbols active commands in math mode.
+%
+% Original from Maarten Fokkinga, Feb 1991, after an idea of Jeremy Gibbons.
+
+%	There are two main parts
+%
+%	1.  ABBREVIATIONS	maps char sequences to commands 
+%				e.g.  |-   ==>   \barMinus
+%	    (generally not to be altered)
+%
+%	2.  MAPPING		maps commands to Latex commands
+%				e.g.  \barMinus  ==>   \vdash
+%	    (feel free to redefine these)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% 	2.  MAPPING
+
+
+\def\dquote{\text{\char'175}}                           % "
+\def\lquote{\text{`}}                                   % `
+\def\periodi{\mathrel{\PERIOD}}                         % .
+\def\periodii{\PERIOD\PERIOD}                           % ..
+\def\periodiii{\ldots}                                  % ...
+\def\slashEquals{\neq}                                  % /=
+\def\twiddleEquals{\cong}                               % ~=
+\def\lessthan{\LT}                                      % <
+\def\greaterthan{\GT}                                   % >
+\def\equalsGreater{\Rightarrow}                         % =>
+\def\equalsEqualsGreater{\Longrightarrow}               % ==>
+\def\equalsEqualsEqualsGreater{\Longrightarrow}         % ===>
+\def\lessEquals{\Leftarrow}                             % <=
+\def\lessEqualsEquals{\Longleftarrow}                   % <==
+\def\lessEqualsEqualsEquals{\Longleftarrow}             % <===
+\def\lessEqualsGreater{\Leftrightarrow}                 % <=>
+\def\lessEqualsEqualsGreater{\Longleftrightarrow}       % <==>
+\def\lessEqualsEqualsEqualsGreater{\Longleftrightarrow} % <===>
+\def\equalsEquals{\equiv}                               % ==
+\def\equalsEqualsEquals{&{}={}&}                        % ===
+\def\minusGreater{\rightarrow}                          % ->
+\def\minusMinusGreater{\longrightarrow}                 % -->
+\def\minusPeriodMinusGreater{\dot{\rightarrow}}         % -.->
+\def\lquoteMinusMinusGreater{\hookrightarrow}           % `-->
+\def\minusLittleO{\multimap}                            % -o
+\def\minusSlashMinusGreater{\not \rightarrow}           % -/->
+\def\lessMinus{\leftarrow}                              % <-
+\def\lessMinusMinus{\longleftarrow}                     % <--
+\def\lessBar{\triangleleft}                             % <|
+\def\lessBarGreater{\mathrel{\triangleleft\mspace{-3mu}\triangleright}} % <|>
+\def\minusLquote{\rightharpoonup}                       % -`
+\def\greaterLess{\times}                                % ><
+\def\lessPlusGreater{\oplus}                            % <+>
+\def\lessTimesGreater{\otimes}                          % <*>
+\def\colon{\COLON}                                      % :
+\def\colonColon{\mathbin{\COLON\COLON}}                 % ::
+\def\colonColonEquals{\mathbin{\mathord{\COLON}\mathord{\COLON}\mathord{=}}}
+                                                        % ::=
+\def\semicolon{\mathbin{\SEMICOLON}}                    % ;
+\def\justABar{\mathrel{\BAR}}                           % |
+\def\barBarMinus{\Vdash}                                % ||-
+\def\barEquals{\mathrel{\BAR\mspace{-8mu}\EQUALS}}      % |=
+\def\barMinus{\vdash}                                   % |-
+\def\minusBar{\dashv}                                   % -|
+\def\barMinusMinus#1{\vdash_{#1}}                       % |--
+\def\barMinusGreater{\mapsto}                           % |->
+\def\barMinusMinusGreater{\longmapsto}                  % |-->
+\def\barMinusMinusGreaterGreater{\mapsto\hspace*{-8pt}\rightarrow}
+                                                        % |-->>
+\def\barVeeBar{\Downarrow}                              % |v|
+\def\barCircBar{\Uparrow}                               % |^|
+\def\barGreater{\triangleright}                         % |>
+
+% Semantic brackets
+\def\lessLess{[\![}                                    % <<
+\def\lessLessLess{\left[\!\!\left[}                   % <<<
+\def\greaterGreater{]\!]}                              % >>
+\def\greaterGreaterGreater{\right]\!\!\right]}        % >>>
+
+\def\twiddleTwiddleGreater{\rightsquigarrow}            % ~~>
+\def\asterisk{\ASTERISK}                                % *
+\def\asteriskii{\overline{\ASTERISK}}                   % **
+\def\asteriskiii{\dagger}                               % ***
+\def\asteriskiv{\star}                                  % ****
+\def\asteriskv{\ddagger}                                % *****
+\def\plusPlus{\mathbin{\PLUS\hspace*{-4pt}\PLUS}}       % ++
+\def\bang{\mathalpha{\BANG}}                            % !
+\def\bangLittleW{\mathalpha{\BANG}^w}                   % !w
+\def\bangLittleC{\mathalpha{\BANG}^c}                   % !c
+\def\bangLittleI{\mathalpha{\BANG}^i}                   % !i
+\def\question{\mathalpha{\QUESTION}}                    % ?
+\def\greaterLittleI{\mathclose{\rangle}^{\!!i}}         % >i
+\def\greaterLittleW{\mathclose{\rangle}^{\!!w}}         % >w
+\def\greaterLittleC{\mathclose{\rangle}^{\!!c}}         % >c
+\def\greaterLittleL{\mathclose{\rangle}^{\!!l}}         % >l
+\def\slashBackslash{\wedge}                             % /\
+
+% Spacing
+\def\twiddlei{\TWIDDLE}                                 % ~
+\def\twiddleii{\;}                                      % ~~
+\def\twiddleiii{\quad}                                  % ~~~
+
+% These next ones are intended to work with prooftree.sty
+% E.g.
+%    \prooftree
+%      \Gamma |- \ol{\upsilon} ~~~
+%      ----------------------------------------{type}
+%      \Gamma |- {\tt type}\;\ol{a}\;{\tt in}\; t : \tau
+%      ~~~~~
+%      \begin{array}{c}
+%      \ol{a} = extfv(\upsilon) ~~~
+%      \Gamma |- \ol{\upsilon'} \\
+%      \Gamma, x : [\ol{a |-> \upsilon'}]\;\upsilon |- 
+%        [\ol{a |-> \upsilon'}]\;t : \tau
+%      \end{array}
+%      ----------------------------------------{aabs}
+%      \Gamma |- {\tt \backslash}(x\;{\tt ::}\;\upsilon) . t : 
+%        ([\ol{a |-> \upsilon'}]\;\upsilon) -> \tau
+%    \endprooftree \\
+
+\def\twiddleiv{\endprooftree\qquad\prooftree}           % ~~~~
+\def\twiddlev{\endprooftree\\ \\ \prooftree}            % ~~~~~...
+\def\rulename#1{\textsc{#1}}
+\def\minusv#1{\using\text{\rulename{#1}}\justifies}     % -----...
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% 	1.  ABBREVIATIONS
+%
+% Within mathmode, the command defined in the right column below is invoked
+% when you type the symbol sequence of the left column.
+% -- You may redefine any command in the left column!
+%    By default it just reproduces the sequence that invoked it.
+%    Of course, your redefinition may make it a n-parameter command.
+% -- Be sure to type spaces in between the symbols if you don't want to
+%    invoke the command that it abbreviates! Eg  ~ ~  is not equivalent
+%    to ~~ .
+%
+% "        invokes  \dquote
+% `        invokes  \lquote
+% `-->     invoked  \lquoteMinusMinusGreater
+% :        invokes  \colon
+% ::       invokes  \colonColon
+% :l:      invokes  \colonLColon
+% :k:      invokes  \colonKColon
+% :h:      invokes  \colonHColon
+% :0:      invokes  \colonZeroColon
+% :1:      invokes  \colonOneColon
+% ::=      invokes  \colonColonEquals
+% ;        invokes  \semicolon
+% ~        invokes  \twiddlei
+% ~~       invokes  \twiddleii
+% ~~~      invokes  \twiddleiii
+% ~~~~     invokes  \twiddleiv
+% ~~~~~... invokes  \twiddlev
+% ~=       invokes  \twiddleEquals
+% ~~>      invokes  \twiddleTwiddleGreater
+% /=       invokes  \slashEquals
+% =<       invokes  \equalsLess
+% =>       invokes  \equalsGreater
+% ==>      invokes  \equalsEqualsGreater
+% ==       invokes  \equalsEquals
+% ===      invokes  \equalsEqualsEquals
+% ====     invokes  \equalsiv
+% =====... invokes  \equalsv
+% |        invokes  \justABar
+% ||       invokes  \barBar
+% ||-      invokes  \barBarMinus
+% |>       invokes  \barGreater
+% |(       invokes  \barLpar
+% |)       invokes  \barRpar
+% |v|      invokes  \barVeeBar
+% |^|      invokes  \barCircBar
+% |-       invokes  \barMinus
+% |--      invokes  \barMinusMinus
+% |=       invokes  \barEquals
+% |->      invokes  \barMinusGreater
+% |-->     invokes  \barMinusMinusGreater
+% |-->>    invokes  \barMinusMinusGreaterGreater
+% <<       invokes  \lessLess
+% <<<      invokes  \lessLessLess
+% <=       invokes  \lessEquals
+% <=>      invokes  \lessEqualsGreater
+% <==>     invokes  \lessEqualsEqualsGreater
+% <==      invokes  \lessEqualsEquals
+% <+       invokes  \lessPlus
+% <+>      invokes  \lessPlusGreater
+% <*       invokes  \lessTimes
+% <*>      invokes  \lessTimesGreater
+% <-       invokes  \lessMinus
+% <--      invokes  \lessMinusMinus
+% <|       invokes  \lessBar
+% <|>      invokes  \lessBarGreater
+% ><       invokes  \greaterLess
+% >=       invokes  \greaterEquals
+% >-       invokes  \greaterMinus
+% >+       invokes  \greaterPlus
+% >i       invokes  \greaterLittleI
+% >w       invokes  \greaterLittleW
+% >c       invokes  \greaterLittleC
+% >l       invokes  \greaterLittleL
+% >>       invokes  \greaterGreater
+% >>>      invokes  \greaterGreaterGreater
+% -|       invokes  \minusBar
+% ->       invokes  \minusGreater
+% -->      invokes  \minusMinusGreater
+% -/->     invokes  \minusSlashMinusGreater
+% -.->     invokes  \minusPeriodMinusGreater
+% -`       invokes  \minusLquote
+% -o       invokes  \minusLittleO
+% --       invokes  \minusMinus
+% ---      invokes  \minusiii
+% ----     invokes  \minusiv
+% -----... invokes  \minusv
+% .        invokes  \periodi
+% ..       invokes  \periodii
+% ...      invokes  \periodiii
+% ....     invokes  \periodiv
+% *        invokes  \asterisk
+% **       invokes  \asteriskii
+% ***      invokes  \asteriskiii
+% ****     invokes  \asteriskiv
+% *****    invokes  \asteriskv
+% ******   invokes  \asteriskvi
+% *******  invokes  \asteriskvii
+% !        invokes  \bang
+% !w       invokes  \bangLittleW
+% !c       invokes  \bangLittleC
+% !i       invokes  \bankLittleI
+% ?        invokes  \question
+% ?w       invokes  \questionLittleW
+% ?c       invokes  \questionLittleC
+% ?i       invokes  \questionLittleI
+% ++       invokes  \plusPlus
+% +<       invokes  \plusLess
+% /        invokes  \slash
+% /\       invokes  \slashBackslash
+% //       invokes  \slashSlash
+% /<       invokes  \slashLess
+% />       invokes  \slashGreater
+% //>      invokes  \slashSlashGreater
+% //<      invokes  \slashSlashLess
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% SAVED SYMBOLS
+%
+%   "      is saved as  \DQUOTE
+%   `      is saved as  \LQUOTE
+%   ~      is saved as  \TWIDDLE
+%   .      is saved as  \PERIOD
+%   =      is saved as  \EQUALS
+%   -      is saved as  \MINUS
+%   *      is saved as  \ASTERISK
+%   /      is saved as  \SLASH
+%   |      is saved as  \BAR
+%   :      is saved as  \COLON
+%   ;      is saved as  \SEMICOLON
+%   <      is saved as  \LT
+%   >      is saved as  \GT
+%   +      is saved as  \PLUS
+%   !      is saved as  \BANG
+%   ?      is saved as  \QUESTION
+%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% MECHANISM FOR MAKING (SINGLE OR MULTIPLE CHAR) ABBREVIATIONS IN MATH MODE
+%
+% To make the symbol  .  active in math mode as   \compose   do following:
+%
+%     \mathchardef\P=\mathcode`.   % Save current meaning of  .  in  \P
+%     \mathcode`.="8000            % Make  .  active in math mode.
+%     {\catcode`.=\active
+%      \gdef.{\compose}            % Define  .  to be  \compose .
+%     }
+%
+% To get  <=  as abbreviation for   \leq   do following:
+%
+%     \mathchardef\@lt=\mathcode`< % Save  <  (only temporarily) in  \@lt .
+%     \mathcode`<="8000            % Make  <  active in math mode.
+%     {\catcode`<=\active
+%      \gdef<{\futurelet\@NEXT\@lessthan}
+%     }                            % Define  <  to be  \@lessthan
+%                                  % (after  \futurelet  has defined \@NEXT
+%                                  % to be what will come next).
+%    \def\@lessthan{%
+%       \ifx=\@NEXT                % If  \@NEXT (defined above) equals  = ,
+%           \def\@NEXT##1{\leq}    % REDEFINE \@NEXT (with ONE parameter!)
+%       \else                      % otherwise
+%           \def\@NEXT{\@lt}       % REDEFINE \@NEXT (with NO parameter!)
+%                                  % (remember,  \@lt  is the saved old  < );
+%       \fi                        %
+%       \@NEXT}                    % call the  \@NEXT  thus defined
+%                                  % (each parameter will consume one token).
+%
+% NOTE:
+% {<} always produces just  <   but due to the braces as an ORDinary symbol.
+% So {<}=  gives:  <lessthan-ORDinary-symbol>  <equals-relation-symbol>
+% and < =  gives:  <lessthan-RELation-symbol>  <equals-relation-symbol>
+% and  <=  gives:  \leq  .
+%
+% There can  be multiple-character abbreviations and any number of
+% alternatives; e.g., to get
+% <=> ,  <= ,  <> ,       <           as an abbreviation for respectively
+% \iff , \leq, \diamond , \lessthan   redefine \@lessthan as follows:
+%
+%  \def\@lessthan{%
+%     \ifx>\@NEXT \def\@NEXT##1{\diamond}\else
+%     \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessthanEqual}\else
+%                 \def\@NEXT{\@lt}\fi\fi\@NEXT}
+%  \def\@lessthanEqual{%
+%     \ifx>\@NEXT \def\@NEXT##1{\iff}\else
+%                 \def\@NEXT{\leq}\fi\@NEXT}
+%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% WARNING WARNING WARNING:
+%
+% TeX, and possibly some other macros that you use, use some symbols like
+% -,=,.. as if they are really mathchars, whereas by the abbreviations below
+% these symbols are macros. For example, plain TeX defines \Relbar by
+%      \def\Relbar{\mathrel=}
+% and then  \mathrel  complains that it is not followed by the right kind of
+% token (see TeX book p.358); we have to redefine  \Relbar  as
+%      \def\Relbar{\mathrel{=}}
+% Similarly for the plain TeX definition of  \models .
+% I don't know whether there will appear more of such definitions that are
+% screwed up by the abbreviations below ......
+
+\def\relbar{\mathrel{-}}
+\def\Relbar{\mathrel{=}}          % Plain TeX: \def\Relbar{\mathrel=}
+%% \def\models{\mathrel{|}\joinrel=} % Plain TeX:
+%% \def\models{\mathrel|\joinrel=}
+
+%% DQUOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Be carefull: dutch.sty (LaTeX2e) activates " too!
+\let\@DQUOTE="                         % Save  "   as  \@DQUOTE in text mode
+\mathchardef\DQUOTE=\mathcode`"        % Save  "   as  \DQUOTE in math mode
+\mathcode`"="8000
+{\catcode`"=\active
+  \gdef"{\ifmmode\dquote\else\@DQUOTE\fi}} % parameter deleted, aug95
+
+%% LQUOTE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\LQUOTE=\mathcode``
+\mathcode``="8000
+{\catcode``=\active\gdef`{\futurelet\@NEXT\@lquote}}
+\def\@lquote{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lquoteMinus}\else
+               \def\@NEXT{\lquote}\fi\@NEXT}
+\def\@lquoteMinus{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lquoteMinusMinus}\else
+               \def\@NEXT{\lquoteMinus}\fi\@NEXT}
+\def\@lquoteMinusMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\lquoteMinusMinusGreater}\else
+               \def\@NEXT{\lquoteMinusMinus}\fi\@NEXT}
+
+%% COLON %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\COLON=\mathcode`:        % Save  :   as  \COLON  in math mode
+\mathcode`:="8000
+{\catcode`:=\active\gdef:{\futurelet\@NEXT\@colon}}
+\def\@colon{%
+   \ifx:\@NEXT  \def\@NEXT##1{\futurelet\@NEXT\@colonColon}\else
+   \ifx l\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@colonL}\else
+   \ifx k\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@colonK}\else
+   \ifx h\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@colonH}\else
+   \ifx 0\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@colonZero}\else
+   \ifx 1\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@colonOne}\else
+                \def\@NEXT{\colon}\fi\fi\fi\fi\fi\fi\@NEXT}
+\def\@colonColon{%
+   \ifx=\@NEXT \def\@NEXT##1{\colonColonEquals}\else
+               \def\@NEXT{\colonColon}\fi\@NEXT}
+\def\@colonL{%
+   \ifx:\@NEXT \def\@NEXT##1{\colonLColon}\else
+               \def\@NEXT{\colonL}\fi\@NEXT}
+\def\@colonK{%
+   \ifx:\@NEXT \def\@NEXT##1{\colonKColon}\else
+               \def\@NEXT{\colonK}\fi\@NEXT}
+\def\@colonH{%
+   \ifx:\@NEXT \def\@NEXT##1{\colonHColon}\else
+               \def\@NEXT{\colonH}\fi\@NEXT}
+\def\@colonZero{%
+   \ifx:\@NEXT \def\@NEXT##1{\colonZeroColon}\else
+               \def\@NEXT{\colonZero}\fi\@NEXT}
+\def\@colonOne{%
+   \ifx:\@NEXT \def\@NEXT##1{\colonOneColon}\else
+               \def\@NEXT{\colonOne}\fi\@NEXT}
+
+%% SEMICOLON %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\SEMICOLON=\mathcode`;        % Save  :   as  \COLON  in math mode
+\mathcode`;="8000
+{\catcode`;=\active\gdef;{\semicolon}}
+
+%% PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\PERIOD=\mathcode`.        % Save  .   as  \PERIOD  in math mode
+\mathcode`.="8000
+{\catcode`.=\active\gdef.{\futurelet\@NEXT\@periodi}}
+\def\@periodi{%
+   \ifx.\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@periodii}\else
+               \def\@NEXT{\periodi}\fi\@NEXT}
+\def\@periodii{%
+   \ifx.\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@periodiii}\else
+               \def\@NEXT{\periodii}\fi\@NEXT}
+\def\@periodiii{%
+   \ifx.\@NEXT \def\@NEXT##1{\futurelet\@NEXT\periodiv}\else
+               \def\@NEXT{\periodiii}\fi\@NEXT}
+
+%% EQUALS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\EQUALS=\mathcode`=
+\mathcode`=="8000
+{\catcode`==\active \gdef={\futurelet\@NEXT\@equal}}
+\def\@equal{%
+   \ifx>\@NEXT \def\@NEXT##1{\equalsGreater}\else
+   \ifx<\@NEXT \def\@NEXT##1{\equalsLess}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@equalsEquals}\else
+   \ifx d\@NEXT\def\@NEXT##1{\futurelet\@NEXT\@equald}\else
+               \def\@NEXT{\EQUALS}\fi\fi\fi\fi\@NEXT}
+\def\@equalsEquals{%
+   \ifx>\@NEXT \def\@NEXT##1{\equalsEqualsGreater}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@equalsEqualsEquals}\else
+               \def\@NEXT{\equalsEquals}\fi\fi\@NEXT}
+\def\@equalsEqualsEquals{%
+   \ifx>\@NEXT \def\@NEXT##1{\equalsEqualsEqualsGreater}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@equalsiv}\else
+               \def\@NEXT{\equalsEqualsEquals}\fi\fi\@NEXT}
+\def\@equald{%
+   \ifx e\@NEXT\def\@NEXT##1{\futurelet\@NEXT\@equalde}\else
+               \def\@NEXT{\EQUALS d}\fi\@NEXT}
+\def\@equalde{%
+   \ifx f\@NEXT\def\@NEXT##1{\equalsdef}\else
+               \def\@NEXT{\EQUALS de}\fi\@NEXT}
+\def\@equalsiv{%
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@equalsv}\else
+               \def\@NEXT{\equalsiv}\fi\@NEXT}
+\def\@equalsv{%
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@equalsv}\else
+               \def\@NEXT{\equalsv}\fi\@NEXT}
+
+%% TWIDDLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% new twiddle (changed March 1992 by mmf)
+\let\@TWIDDLE=~                    % Save text twiddle as \@TWIDDLE
+\mathchardef\TWIDDLE=\mathcode`~   % Save  ~   as  \TWIDDLE  in math mode
+{\catcode`~=\active\gdef~{\futurelet\@NEXT\@twiddlei}}
+\mathcode`~="8000
+
+\def\@twiddlei{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddleii}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\twiddleEquals}\else
+               \def\@NEXT{\ifmmode\twiddlei\else\@TWIDi\fi}\fi\fi\@NEXT}
+\def\@twiddleii{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddleiii}\else
+   \ifx>\@NEXT \def\@NEXT##1{\futurelet\@NEXT\twiddleTwiddleGreater}\else
+               \def\@NEXT{\ifmmode\twiddleii\else\@TWIDii\fi}\fi\fi\@NEXT}
+\def\@twiddleiii{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddleiv}\else
+               \def\@NEXT{\ifmmode\twiddleiii\else\@TWIDiii\fi}\fi\@NEXT}
+\def\@twiddleiv{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddlev}\else
+               \def\@NEXT{\ifmmode\twiddleiv\else\@TWIDiv\fi}\fi\@NEXT}
+\def\@twiddleiv{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddlev}\else
+               \def\@NEXT{\ifmmode\twiddleiv\else\@TWIDiv\fi}\fi\@NEXT}
+\def\@twiddlev{%
+   \ifx~\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@twiddlev}\else
+               \def\@NEXT{\ifmmode\twiddlev\else\@TWIDv\fi}\fi\@NEXT}
+% WARNING: If not in math mode, ~~~~~... considered as ~~~~~
+
+\def\@TWIDi{\@TWIDDLE}
+\def\@TWIDii{\@TWIDDLE\@TWIDDLE}
+\def\@TWIDiii{\@TWIDDLE\@TWIDDLE\@TWIDDLE}
+\def\@TWIDiv{\@TWIDDLE\@TWIDDLE\@TWIDDLE\@TWIDDLE}
+\def\@TWIDv{\@TWIDDLE\@TWIDDLE\@TWIDDLE\@TWIDDLE\@TWIDDLE}
+
+%% MINUS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\MINUS=\mathcode`-
+\mathcode`-="8000
+{\catcode`-=\active \gdef-{\futurelet\@NEXT\@@@minus}}
+\def\@@@minus{%
+   \ifx>\@NEXT \def\@NEXT##1{\minusGreater}\else
+   \ifx/\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusSlash}\else
+   \ifx.\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusPeriod}\else
+   \ifx`\@NEXT \def\@NEXT##1{\minusLquote}\else
+   \ifx o\@NEXT \def\@NEXT##1{\minusLittleO}\else
+   \ifx|\@NEXT \def\@NEXT##1{\minusBar}\else
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusMinus}\else
+               \def\@NEXT{\MINUS}\fi\fi\fi\fi\fi\fi\fi\@NEXT}
+\def\@minusPeriod{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusPeriodMinus}\else
+               \def\@NEXT{\minusPeriod}\fi\@NEXT}
+\def\@minusPeriodMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\minusPeriodMinusGreater}\else
+               \def\@NEXT{\minusPeriodMinus}\fi\@NEXT}
+\def\@minusMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\minusMinusGreater}\else
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusiii}\else
+               \def\@NEXT{\minusMinus}\fi\fi\@NEXT}
+\def\@minusSlash{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusSlashMinus}\else
+               \def\@NEXT{\minusSlash}\fi\@NEXT}
+\def\@minusSlashMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\minusSlashMinusGreater}\else
+               \def\@NEXT{\minusSlashMinus}\fi\@NEXT}
+\def\@minusiii{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusiv}\else
+               \def\@NEXT{\minusiii}\fi\@NEXT}
+\def\@minusiv{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusv}\else
+               \def\@NEXT{\minusiv}\fi\@NEXT}
+\def\@minusv{%
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@minusv}\else
+               \def\@NEXT{\minusv}\fi\@NEXT}
+
+%% BAR %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\BAR=\mathcode`|
+\mathcode`|="8000
+{\catcode`|=\active \gdef|{\futurelet\@NEXT\@bar}}
+\def\@bar{%
+   \ifx|\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barBar}\else
+   \ifx(\@NEXT \def\@NEXT##1{\barLpar}\else
+   \ifx)\@NEXT \def\@NEXT##1{\barRpar}\else
+   \ifx>\@NEXT \def\@NEXT##1{\barGreater}\else
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barMinus}\else
+   \ifx v\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barVee}\else
+   \ifx^\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barCirc}\else
+   \ifx=\@NEXT \def\@NEXT##1{\barEquals}\else
+               \def\@NEXT{\justABar}\fi\fi\fi\fi\fi\fi\fi\fi\@NEXT}
+\def\@barBar{%
+   \ifx-\@NEXT \def\@NEXT##1{\barBarMinus}\else
+               \def\@NEXT{\barBar}\fi\@NEXT}
+\def\@barMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\barMinusGreater}\else
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barMinusMinus}\else
+               \def\@NEXT{\barMinus}\fi\fi\@NEXT}
+\def\@barVee{%
+   \ifx|\@NEXT \def\@NEXT##1{\barVeeBar}\else
+               \def\@NEXT{\barVee}\fi\@NEXT}
+\def\@barCirc{%
+   \ifx|\@NEXT \def\@NEXT##1{\barCircBar}\else
+               \def\@NEXT{\barCirc}\fi\@NEXT}
+\def\@barMinusMinus{%
+   \ifx>\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@barMinusMinusGreater}\else
+               \def\@NEXT{\barMinusMinus}\fi\@NEXT}
+\def\@barMinusMinusGreater{%
+   \ifx>\@NEXT \def\@NEXT##1{\barMinusMinusGreaterGreater}\else
+               \def\@NEXT{\barMinusMinusGreater}\fi\@NEXT}
+
+%% ASTERISK %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\ASTERISK=\mathcode`*
+\mathcode`*="8000
+{\catcode`*=\active \gdef*{\futurelet\@NEXT\@asterisk}}
+\def\@asterisk{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@asteriskii}\else
+               \def\@NEXT{\asterisk}\fi\@NEXT}
+\def\@asteriskii{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@asteriskiii}\else
+               \def\@NEXT{\asteriskii}\fi\@NEXT}
+\def\@asteriskiii{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@asteriskiv}\else
+               \def\@NEXT{\asteriskiii}\fi\@NEXT}
+\def\@asteriskiv{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@asteriskv}\else
+               \def\@NEXT{\asteriskiv}\fi\@NEXT}
+\def\@asteriskv{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@asteriskvi}\else
+               \def\@NEXT{\asteriskv}\fi\@NEXT}
+\def\@asteriskvi{%
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\asteriskvii}\else
+               \def\@NEXT{\asteriskvi}\fi\@NEXT}
+
+%% PLUS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\PLUS=\mathcode`+
+\mathcode`+="8000
+{\catcode`+=\active \gdef+{\futurelet\@NEXT\@@@plus}}
+\def\@@@plus{%
+   \ifx+\@NEXT \def\@NEXT##1{\plusPlus}\else
+   \ifx<\@NEXT \def\@NEXT##1{\plusLess}\else
+               \def\@NEXT{\PLUS}\fi\fi\@NEXT}
+
+%% BANG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\BANG=\mathcode`!
+\mathcode`!="8000
+{\catcode`!=\active \gdef!{\futurelet\@NEXT\@bang}}
+\def\@bang{%
+   \ifx w\@NEXT \def\@NEXT##1{\bangLittleW}\else
+   \ifx c\@NEXT \def\@NEXT##1{\bangLittleC}\else
+   \ifx i\@NEXT \def\@NEXT##1{\bangLittleI}\else
+                \def\@NEXT{\bang}\fi\fi\fi\@NEXT}
+
+%% QUESTION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\QUESTION=\mathcode`?
+\mathcode`?="8000
+{\catcode`?=\active \gdef?{\futurelet\@NEXT\@question}}
+\def\@question{%
+   \ifx w\@NEXT \def\@NEXT##1{\questionLittleW}\else
+   \ifx c\@NEXT \def\@NEXT##1{\questionLittleC}\else
+   \ifx i\@NEXT \def\@NEXT##1{\questionLittleI}\else
+                \def\@NEXT{\question}\fi\fi\fi\@NEXT}
+
+%% LT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\LT=\mathcode`<
+\mathcode`<="8000
+{\catcode`<=\active \gdef<{\futurelet\@NEXT\@lessthan}}
+\def\@lessthan{%
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessthanEqual}\else
+   \ifx+\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessPlus}\else
+   \ifx*\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessTimes}\else
+   \ifx<\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessLess}\else
+   \ifx|\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessBar}\else
+   \ifx-\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessMinus}\else
+               \def\@NEXT{\lessthan}\fi\fi\fi\fi\fi\fi\@NEXT}
+\def\@lessPlus{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessPlusGreater}\else
+               \def\@NEXT{\lessPlus}\fi\@NEXT}
+\def\@lessTimes{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessTimesGreater}\else
+               \def\@NEXT{\lessTimes}\fi\@NEXT}
+\def\@lessMinus{%
+   \ifx-\@NEXT \def\@NEXT##1{\lessMinusMinus}\else
+               \def\@NEXT{\lessMinus}\fi\@NEXT}
+\def\@lessBar{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessBarGreater}\else
+               \def\@NEXT{\lessBar}\fi\@NEXT}
+\def\@lessthanEqual{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessEqualsGreater}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessthanEqualEqual}\else
+               \def\@NEXT{\lessEquals}\fi\fi\@NEXT}
+\def\@lessthanEqualEqual{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessEqualsEqualsGreater}\else
+   \ifx=\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@lessthanEqualEqualEqual}\else
+               \def\@NEXT{\lessEqualsEquals}\fi\fi\@NEXT}
+\def\@lessthanEqualEqualEqual{%
+   \ifx>\@NEXT \def\@NEXT##1{\lessEqualsEqualEqualsGreater}\else
+               \def\@NEXT{\lessEqualsEqualsEquals}\fi\@NEXT}
+\def\@lessLess{%
+   \ifx<\@NEXT \def\@NEXT##1{\lessLessLess}\else
+               \def\@NEXT{\lessLess}\fi\@NEXT}
+
+%% GT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\GT=\mathcode`>
+\mathcode`>="8000
+{\catcode`>=\active \gdef>{\futurelet\@NEXT\@greaterthan}}
+\def\@greaterthan{%
+   \ifx=\@NEXT \def\@NEXT##1{\greaterEquals}\else
+   \ifx i\@NEXT \def\@NEXT##1{\greaterLittleI}\else
+   \ifx w\@NEXT \def\@NEXT##1{\greaterLittleW}\else
+   \ifx c\@NEXT \def\@NEXT##1{\greaterLittleC}\else
+   \ifx l\@NEXT \def\@NEXT##1{\greaterLittleL}\else
+   \ifx>\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@greaterGreater}\else
+   \ifx<\@NEXT \def\@NEXT##1{\greaterLess}\else
+   \ifx+\@NEXT \def\@NEXT##1{\greaterPlus}\else
+   \ifx-\@NEXT \def\@NEXT##1{\greaterMinus}\else
+               \def\@NEXT{\greaterthan}\fi\fi\fi\fi\fi\fi\fi\fi\fi\@NEXT}
+\def\@greaterGreater{%
+   \ifx>\@NEXT \def\@NEXT##1{\greaterGreaterGreater}\else
+               \def\@NEXT{\greaterGreater}\fi\@NEXT}
+
+%% SLASH %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mathchardef\SLASH=\mathcode`/
+\mathcode`/="8000
+{\catcode`/=\active  \gdef/{\futurelet\@NEXT\@slash}}
+\def\@slash{%
+   \ifx/\@NEXT \def\@NEXT##1{\futurelet\@NEXT\@slashSlash}\else
+   \ifx\ \@NEXT \def\@NEXT##1{\slashBackslash}\else
+   \ifx=\@NEXT \def\@NEXT##1{\slashEquals}\else
+   \ifx>\@NEXT \def\@NEXT##1{\slashGreater}\else
+   \ifx<\@NEXT \def\@NEXT##1{\slashLess}\else
+               \def\@NEXT{\SLASH}\fi\fi\fi\fi\fi\@NEXT}
+\def\@slashSlash{%
+   \ifx>\@NEXT \def\@NEXT##1{\slashSlashGreater}\else
+   \ifx<\@NEXT \def\@NEXT##1{\slashSlashLess}\else
+               \def\@NEXT{\slashSlash}\fi\fi\@NEXT}
+
+% eof
