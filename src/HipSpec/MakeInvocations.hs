@@ -81,9 +81,12 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
         linTheory :: [HipSpecSubtheory] -> LinTheory
         linTheory
-            = (\ cls -> LinTheory $ \ t -> case t of
-                    TPTP -> toTPTP cls
-                    SMT  -> linSMT cls)
+            = (\ cls -> LinTheory $ \ t ->
+                let smt_str = linSMT cls
+                in  case t of
+                        TPTP         -> toTPTP cls
+                        SMT          -> smt_str
+                        SMTUnsatCore -> addUnsatCores smt_str)
             . map (clauseMapFormula typeGuardFormula)
             . (not min ? removeMins)
             . concatMap toClauses
@@ -134,7 +137,9 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
                               where vars = varsFromCoords prop cs
                           where
                             provers = nub $ map (fst . proof_content) grp
-                            lemmas  = fmap nub $ mconcat $ map (successLemmas . snd . proof_content) grp
+                            lemmas  = fmap (nub . concat)
+                                    $ sequence
+                                    $ map (successLemmas . snd . proof_content) grp
 
             | prop <- props
             ]

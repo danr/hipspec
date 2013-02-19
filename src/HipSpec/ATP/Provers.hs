@@ -7,7 +7,7 @@ import Data.Char
 import Data.List
 import Data.List.Split
 
-data TheoryType = TPTP | SMT
+data TheoryType = TPTP | SMT | SMTUnsatCore
   deriving (Eq,Ord,Show)
 
 data ProverName
@@ -18,18 +18,18 @@ data ProverName
     | SPASS
     | Vampire
     | Z3
-    | Z3TPTP
+    | Z3UnsatCores
   deriving (Eq,Ord)
 
 instance Show ProverName where
-    show E       = "eprover"
-    show Eproof  = "eproof"
-    show Equinox = "equinox"
-    show Paradox = "paradox"
-    show SPASS   = "spass"
-    show Vampire = "vampire"
-    show Z3      = "z3"
-    show Z3TPTP  = "z3 (tptp)"
+    show E            = "eprover"
+    show Eproof       = "eproof"
+    show Equinox      = "equinox"
+    show Paradox      = "paradox"
+    show SPASS        = "spass"
+    show Vampire      = "vampire"
+    show Z3           = "z3"
+    show Z3UnsatCores = "z3"
 
 proverCanSpecifyLemmas :: Prover -> Bool
 proverCanSpecifyLemmas = isJust . proverParseLemmas
@@ -142,13 +142,15 @@ eproof = template
     , proverCannotStdin   = True
     }
 
--- deprecated
 z3tptp :: Prover
 z3tptp = template
-    { proverName          = Z3TPTP
+    { proverName          = Z3UnsatCores
     , proverCmd           = "z3"
-    , proverArgs          = \ _ _ -> words "-tptp -nw /dev/stdin"
+    , proverArgs          = \ _ _ -> words "-smt2 -nw /dev/stdin"
     , proverShort         = 'Z'
+    , proverTheoryType    = SMTUnsatCore
+    , proverProcessOutput = searchOutput [("unsat",mkSuccess),("sat",Failure)]
+    , proverParseLemmas   = Just lemmaParser
     }
 
 z3smt :: Prover

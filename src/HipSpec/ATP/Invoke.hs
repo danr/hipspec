@@ -81,8 +81,9 @@ promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{.
         Just dir -> do
             let (path,file) = filename env ob
                 ext = case proverTheoryType of
-                        TPTP -> "tptp"
-                        SMT  -> "smt"
+                        TPTP         -> "tptp"
+                        SMT          -> "smt"
+                        SMTUnsatCore -> "unsat-core" <.> "smt"
                 d = dir </> path
                 f = d </> file <.> ext
             exists <- doesFileExist f
