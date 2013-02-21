@@ -210,7 +210,7 @@ lemmaParser = mapMaybe parseLemma . words
 
 parseLemma :: String -> Maybe Int
 parseLemma s = do
-    [_,rest] <- return (splitOn "_Lemma_" s)
+    [_,rest] <- return (splitOn "lemma_" s)
     (n_str,'_':_) <- return (break (== '_') rest)
     (n,"") <- listToMaybe (reads n_str)
     return n

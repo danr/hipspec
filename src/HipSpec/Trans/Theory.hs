@@ -243,7 +243,7 @@ instance Show HipSpecExtras where
     show (CF tc)         = "(CF " ++ showOutputable tc ++ ")"
 
 instance Clausifiable HipSpecExtras where
-    mkClause (Lemma n) = namedClause ("_Lemma_" ++ show n ++ "_") lemma
+    mkClause (Lemma n) = namedClause ("lemma_" ++ show n ++ "_") lemma
     mkClause _         = clause axiom
 
 type HipSpecContent = Content HipSpecExtras
