@@ -60,9 +60,11 @@ library
         HipSpec.ATP.Provers
         HipSpec.ATP.Results
         HipSpec.BuiltinTypes
+        HipSpec.Heuristics.Associativity
         HipSpec.Init
         HipSpec.MakeInvocations
         HipSpec.Params
+        HipSpec.MainLoop
         HipSpec.Messages
         HipSpec.StringMarshal
         HipSpec.Trans.MakeProofs
