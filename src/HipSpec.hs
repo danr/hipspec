@@ -19,6 +19,10 @@ import HipSpec.Init
 import HipSpec.MakeInvocations
 import HipSpec.Messages hiding (equations)
 
+import HipSpec.MainLoop
+
+import HipSpec.Heuristics.Associativity
+
 import HipSpec.Params
 
 import Halo.Monad
@@ -47,150 +51,6 @@ import qualified Data.ByteString.Lazy as B
 import System.IO
 import Text.Printf
 
--- | Get up to n elements satisfying the predicate, those skipped, and the rest
---   (satisfies p,does not satisfy p (at most n),the rest)
-getUpTo :: Int -> (a -> [a] -> Bool) -> [a] -> [a] -> ([a],[a],[a])
-getUpTo 0 _ xs     _  = ([],[],xs)
-getUpTo _ _ []     _  = ([],[],[])
-getUpTo n p (x:xs) ys
-   | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
-   | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
-
-
--- | The main loop
-deep :: HaloEnv                            -- ^ Environment to run HaloM
-     -> Params                             -- ^ Parameters to the program
-     -> (Msg -> IO ())                     -- ^ Writer function
-     -> Theory                             -- ^ Translated theory
-     -> Sig                                -- ^ Configuration to QuickSpec
-     -> Context                            -- ^ The initial context
-     -> [Property]                         -- ^ Initial equations
-     -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
-    loop ctx0 init_eqs [] [] False
-  where
-    showEqs = map (showEquation sig . propQSTerms)
-
-    loop :: Context                            -- ^ Prune state, to handle the congurece closure
-         -> [Property]                         -- ^ Equations to process
-         -> [Property]                         -- ^ Equations processed, but failed
-         -> [Property]                         -- ^ Equations proved
-         -> Bool                               -- ^ Managed to prove something this round
-         -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-    loop ctx []  failed proved False = return (proved,failed,ctx)
-    loop ctx  []  failed proved True  = do putStrLn "Loop!"
-                                           loop ctx failed [] proved False
-    loop ctx eqs failed proved retry = do
-
-      let discard :: Property -> [Property] -> Bool
-          discard eq = \failedacc ->
-                            any (isomorphicTo (propQSTerms eq))
-                                (map propQSTerms failedacc)
-                         || evalEQ ctx (unifiable (propQSTerms eq))
-
-          (renamings,try,next) = getUpTo batchsize discard eqs failed
-
-      unless (null renamings) $ do
-
-        let shown = showEqs renamings
-
-        -- write $ Discard shown
-
-        putStrLn $
-          let n = length renamings
-          in if (n > 4)
-                then "Discarding " ++ show n ++ " renamings and subsumptions."
-                else "Discarding renamings and subsumptions: " ++ csv shown
-
-      res <- tryProve halo_env params write try theory proved
-
-      let (successes,without_induction,failures) = partitionInvRes res
-          prunable = successes ++ without_induction
-
-      if null prunable
-          then loop ctx next (failed ++ failures) proved retry
-          else do
-              let ctx' :: Context
-                  ctx' = execEQ ctx (mapM_ (unify . propQSTerms) prunable)
-
-                  failed' :: [Property]
-                  failed' = failed ++ failures
-
-                  -- Interesting candidates
-                  (cand,failed_wo_cand)
-                      = first (nubSortedOn propQSTerms . concat)
-                      $ flip runState failed'
-                      $ forM prunable
-                      $ \prop -> do
-                           failed <- get
-                           let (cand,failed') = instancesOf ctx prop failed
-                           put failed'
-                           return cand
-
-              if interesting_cands
-                  then do
-                      unless (null cand) $ do
-                        let shown = showEqs cand
-                        write $ Candidates $ shown
-                        putStrLn $ "Interesting candidates: " ++ csv shown
-                      loop ctx' (cand ++ next) failed_wo_cand
-                               (proved ++ successes) True
-
-                  else loop ctx' next failed' (proved ++ successes) True
-
-
-    -- Renaming
-    isomorphicTo :: Equation -> Equation -> Bool
-    e1 `isomorphicTo` e2 =
-      case matchEqSkeleton e1 e2 of
-        Nothing -> False
-        Just xs -> function xs && function (map swap xs)
-
-    matchEqSkeleton :: Equation -> Equation -> Maybe [(Symbol, Symbol)]
-    matchEqSkeleton (t :=: u) (t' :=: u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-
-    matchSkeleton :: Term -> Term -> Maybe [(Symbol, Symbol)]
-    matchSkeleton (T.Const f) (T.Const g) | f == g = return []
-    matchSkeleton (T.Var x) (T.Var y) = return [(x, y)]
-    matchSkeleton (T.App t u) (T.App t' u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-    matchSkeleton _ _ = Nothing
-
-    -- Relation is a function
-    function :: (Ord a, Eq b) => [(a, b)] -> Bool
-    function = all singleton . groupBy ((==) `on` fst) . nub . sortBy (comparing fst)
-      where singleton xs = length xs == 1
-
-    -- For interesting candidates
-    instancesOf :: Context -> Property -> [Property] -> ([Property],[Property])
-    instancesOf ctx new = partition (instanceOf ctx new)
-
-    instanceOf :: Context -> Property -> Property -> Bool
-    instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
-      evalEQ ctx (new --> cand)
-      where
-        (t :=: u) --> (v :=: w) = do
-          v =:= w
-          t =?= u
-
--- Associativity is too good to overlook! -------------------------------------
-
--- If term is a function applied to two terms, Just return them
-unbin :: Term -> Maybe (Symbol,Term,Term)
-unbin (App (App (Const f) x) y) = Just (f,x,y)
-unbin _ = Nothing
-
--- True if equation is an associativity equation
-eqIsAssoc :: Equation -> Bool
-eqIsAssoc
-    ((unbin -> Just (f0,Var x0,unbin -> Just (g0,Var y0,Var z0)))
-     :=:
-     (unbin -> Just (f1,unbin -> Just (g1,Var x1,Var y1),Var z1)))
-  = and [ f0 == f1 , g0 == g1 , f0 == g0
-        , x0 == x1 , y0 == y1 , z0 == z1
-        , x0 /= y0 , y0 /= z0 ]
-eqIsAssoc _ = False
 
 -- Main library ---------------------------------------------------------------
 
@@ -278,7 +138,7 @@ hipSpec file sig0 = do
 
     putStrLn "Starting to prove..."
 
-    (qslemmas,qsunproved,ctx) <- deep halo_env params write theory sig ctx0 qsprops
+    (qslemmas,qsunproved,ctx) <- deep halo_env params write theory showEq ctx0 qsprops
 
     when explore_theory $ do
         let provable (t :=: u) = evalEQ ctx (t =?= u)
