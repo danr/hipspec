@@ -9,10 +9,10 @@ import Test.QuickSpec.Equation
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
-  Context, (=:=), (=?=), unify, unifiable, execEQ, evalEQ, initial)
+  Context, (=:=), (=?=), unify, equal, execEQ, evalEQ, initial)
 
 import HipSpec.Trans.Theory
-import HipSpec.Trans.Property
+import HipSpec.Trans.Property hiding (equal)
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
@@ -75,7 +75,7 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
             discard eq = \failedacc ->
                               any (isomorphicTo (propQSTerms eq))
                                   (map propQSTerms failedacc)
-                           || evalEQ ctx (unifiable (propQSTerms eq))
+                           || evalEQ ctx (equal (propQSTerms eq))
 
             (renamings,try,next) = getUpTo batchsize discard eqs failed
 
