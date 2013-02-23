@@ -108,5 +108,5 @@ library
         split                         >= 0.1,
 
         -- QuickSpec
-        quickspec                     == 0.9
+        quickspec                     == 0.9.1
 

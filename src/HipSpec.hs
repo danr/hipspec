@@ -2,7 +2,7 @@
 module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
-import Test.QuickSpec.Term hiding (depth)
+import Test.QuickSpec.Term hiding (depth, symbols)
 import qualified Test.QuickSpec.Term as T
 import Test.QuickSpec.Main
 import Test.QuickSpec.Equation
@@ -10,10 +10,10 @@ import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
-  Context, (=:=), (=?=), unify, unifiable, execEQ, evalEQ, initial)
+  Context, (=:=), (=?=), unify, equal, execEQ, evalEQ, initial)
 
 import HipSpec.Trans.Theory
-import HipSpec.Trans.Property
+import HipSpec.Trans.Property hiding (equal)
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
@@ -86,7 +86,7 @@ deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
           discard eq = \failedacc ->
                             any (isomorphicTo (propQSTerms eq))
                                 (map propQSTerms failedacc)
-                         || evalEQ ctx (unifiable (propQSTerms eq))
+                         || evalEQ ctx (equal (propQSTerms eq))
 
           (renamings,try,next) = getUpTo batchsize discard eqs failed
 
@@ -244,7 +244,7 @@ hipSpec file sig0 = do
         putStrLn "\nDefinitional equations:"
         printNumberedEqs def_eqs
 
-    classes <- fmap eraseClasses (generate sig)
+    classes <- fmap eraseClasses (generate (const totalGen) sig)
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
@@ -258,11 +258,11 @@ hipSpec file sig0 = do
 
         univ      = concat classes
         reps      = map (erase . head) classes
-        pruner    = prune (maxDepth sig) univ reps
+        pruner    = prune ctx0 reps
         prunedEqs = pruner (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
-        ctx_init  = initial (maxDepth sig) univ
+        ctx_init  = initial (maxDepth sig) (symbols sig) univ
         ctx0      = execEQ ctx_init (mapM_ unify def_eqs)
 
         definition (t :=: u) = evalEQ ctx0 (t =?= u)
@@ -282,8 +282,7 @@ hipSpec file sig0 = do
 
     when explore_theory $ do
         let provable (t :=: u) = evalEQ ctx (t =?= u)
-            explored_theory    = filter (not . definition) $ pruner
-                               $ filter provable (equations classes)
+            explored_theory    = pruner $ filter provable (equations classes)
         write $ ExploredTheory (showEqs explored_theory)
         putStrLn "\nExplored theory (proved correct):"
         printNumberedEqs explored_theory
