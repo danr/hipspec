@@ -116,7 +116,7 @@ hipSpec file sig0 = do
                                concatMap (uniqueCartesian . map erase)
                           else equations
 
-        univ      = concat classes
+        univ      = map head classes
         reps      = map (erase . head) classes
         pruner    = prune ctx0 reps
         prunedEqs = pruner (equations classes)
