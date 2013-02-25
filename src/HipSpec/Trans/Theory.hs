@@ -113,13 +113,15 @@ bottomAxioms Params{..}
             , description = "Axioms for app on bottom"
             , formulae    =
                 [ forall' [x] $ app bot x' === bot
-                , forall' [x] $ cf x' <=>
-                    forall' [y] (cf y' ==> cf (app x' y'))
+                , forall' [f] $ cf f' <==>
+                    forall' [x] (cf x' ==> cf (app f' x'))
                 ]
             }
 
         ]
     | otherwise = []
+  where
+    a <==> b = (a ==> b) /\ (b ==> a)
 
 -- | Make data types depend on Domain axioms, and MinRec axioms if min is used.
 --   Make functions depend on finite result type axioms.

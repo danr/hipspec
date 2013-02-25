@@ -54,9 +54,10 @@ deep :: HaloEnv                            -- ^ Environment to run HaloM
      -> (PEquation -> String)              -- ^ Showing Equations
      -> Context                            -- ^ The initial context
      -> [Property]                         -- ^ Initial equations
+     -> [Property]                         -- ^ Initial lemmas
      -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
-    loop ctx0 init_eqs [] [] False
+deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
+    loop ctx0 init_eqs [] init_lemmas False
   where
     show_eqs = map (show_eq . propQSTerms)
 
@@ -126,9 +127,9 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
 
 instanceOf :: Context -> Property -> Property -> Bool
 instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
-  evalPEQ ctx (new --> cand)
+    evalPEQ ctx (cand --> new)
   where
-    eq1 --> eq2 = unify eq2 >> equal eq1
+    eq1 --> eq2 = unify eq1 >> equal eq2
 
 -- can we discard the first equation given that the second has failed?
 isoDiscard :: PEquation -> PEquation -> Bool

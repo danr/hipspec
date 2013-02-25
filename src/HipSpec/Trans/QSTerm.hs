@@ -253,7 +253,6 @@ trTerm lookup_fun lookup_var = go
         H.QVar v    -> T.Var <$> lookup_var v
         _           -> Nothing
 
-
 apps :: Term -> [Term] -> Term
 apps = foldl T.App
 

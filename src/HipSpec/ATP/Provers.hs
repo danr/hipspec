@@ -75,7 +75,7 @@ template = Prover
 
 -- Should really use something more efficient than isInfixOf
 searchOutput :: [(String,ProverResult)] -> String -> ProverResult
-searchOutput _          ""     = Failure
+-- searchOutput _          ""     = Failure
 searchOutput []         output = Unknown output
 searchOutput ((s,r):xs) output
     | s `isInfixOf` output = r

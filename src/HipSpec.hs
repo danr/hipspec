@@ -100,9 +100,21 @@ hipSpec file sig0 = do
         putStrLn "\nDefinitional equations:"
         printNumberedEqs def_eqs
 
+    -- tot_list :: [(Symbol,Totality)]
     tot_list <- testTotality sig
 
+    let tot_props
+            = [ tot_prop
+              | (sym,totality) <- tot_list
+              , Just (v,True) <- [maybeLookupSym str_marsh sym]
+              , Just tot_prop <- [totalityProperty v totality]
+              ]
+
+    (unproved_tot,proved_tot) <-
+        parLoop halo_env params write theory tot_props []
+
     classes <- fmap eraseClasses (generate (const T.totalGen) sig)
+
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
@@ -148,7 +160,8 @@ hipSpec file sig0 = do
 
     putStrLn "Starting to prove..."
 
-    (qslemmas,qsunproved,ctx) <- deep halo_env params write theory showEq ctx0 qsprops
+    (qslemmas,qsunproved,ctx) <- deep halo_env params write theory showEq ctx0 qsprops proved_tot
+
 
 {-
     when explore_theory $ do
@@ -169,7 +182,7 @@ hipSpec file sig0 = do
         (map propName qslemmas)
         (showProperties qsunproved)
 
-    printInfo unproved proved
+    printInfo (unproved ++ unproved_tot) proved
 
     unless dont_print_unproved $
         putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)

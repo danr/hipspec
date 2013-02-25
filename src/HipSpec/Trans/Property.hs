@@ -1,22 +1,27 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards,NamedFieldPuns,PatternGuards #-}
 module HipSpec.Trans.Property
     ( Literal(..)
     , Property(..)
     , varsFromCoords
     , inconsistentProperty
     , trProperty
+    , totalityProperty
     ) where
 
 import HipSpec.Trans.SrcRep
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal)
 
+import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
+
 import Type
 import CoreSyn
 import Var
+import Id
 import TysWiredIn
 
 import Halo.Shared
+import Halo.Names (varNames)
 
 import Data.List (nub)
 import Data.Function (on)
@@ -121,3 +126,34 @@ trProperty (NonRec prop_name e) = do
         , propOops       = oops
         }
 trProperty _ = Nothing
+
+totalityProperty :: Var -> Totality -> Maybe Property
+totalityProperty v t = case t of
+    Partial  -> Nothing
+    Variable -> Nothing
+    PER.Total allowed_to_be_partial -> do
+        args <- m_args
+        return $ Property
+            { propName       = "Totality for " ++ show v
+            , propLiteral    = Total (apps (Var v) (map Var args))
+            , propAssume     = [ Total (Var arg)
+                               | (x,arg) <- zip [0..] args
+                         --      , x `notElem` allowed_to_be_partial
+                               ]
+            , propVars       = [ (x,varType x) | x <- args ]
+            , propRepr       = "Totality for " ++ show v
+            , propVarRepr    = map showOutputable args
+            , propQSTerms    = error "totalityProperty"
+            , propFunDeps    = [v]
+            , propOffsprings = return []
+            , propOops       = False
+            }
+      where
+        m_args = case realIdUnfolding v of
+            CoreUnfolding {uf_tmpl} -> case collectTyAndValBinders uf_tmpl of
+                (_,xs,_) -> Just (zipWith (\v x -> setVarType v (varType x)) varNames xs)
+            _ -> Nothing
+
+apps :: CoreExpr -> [CoreExpr] -> CoreExpr
+apps = foldl App
+
