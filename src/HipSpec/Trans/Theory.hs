@@ -112,7 +112,10 @@ bottomAxioms Params{..}
             , depends     = []
             , description = "Axioms for app on bottom"
             , formulae    =
-                [ forall' [x] $ app bot x' === bot ]
+                [ forall' [x] $ app bot x' === bot
+                , forall' [x] $ cf x' <=>
+                    forall' [y] (cf y' ==> cf (app x' y'))
+                ]
             }
 
         ]

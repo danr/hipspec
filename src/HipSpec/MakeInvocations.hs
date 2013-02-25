@@ -43,7 +43,7 @@ data InvokeResult
     = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], vars :: [String] }
     | ByPlain     { invoke_lemmas :: Maybe [String], provers :: [ProverName] }
     | NoProof
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Show)
 
 partitionInvRes :: [(a,InvokeResult)] -> ([a],[a],[a])
 partitionInvRes []          = ([],[],[])
@@ -116,6 +116,8 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
     result <- invokeATPs proof_tree_lin env
 
+    -- print result
+
     let results =
 
             [
@@ -143,6 +145,8 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
             | prop <- props
             ]
+
+    -- print results
 
     forM_ result $ \ (Obligation prop proof) -> when (unknown (snd $ proof_content proof)) $ do
         putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)

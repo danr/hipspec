@@ -1,15 +1,20 @@
 {-# LANGUAGE RecordWildCards #-}
-module HipSpec.Trans.Property where
+module HipSpec.Trans.Property
+    ( Literal(..)
+    , Property(..)
+    , varsFromCoords
+    , inconsistentProperty
+    , trProperty
+    ) where
 
 import HipSpec.Trans.SrcRep
-import Test.QuickSpec.Equation
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
+    (Total,equal)
 
 import Type
 import CoreSyn
 import Var
 import TysWiredIn
-import CoreFVs
-import UniqSet
 
 import Halo.Shared
 
@@ -26,15 +31,16 @@ instance Show Literal where
     show (Total e)   = "Total(" ++ showOutputable e ++ ")"
 
 data Property = Property
-    { propLiteral :: Literal
-    , propAssume  :: [Literal]
-    , propVars    :: [(Var,Type)]
-    , propName    :: String
-    , propRepr    :: String
-    , propVarRepr :: [String]
-    , propQSTerms :: Equation
-    , propFunDeps :: [Var]
-    , propOops    :: Bool
+    { propLiteral    :: Literal
+    , propAssume     :: [Literal]
+    , propVars       :: [(Var,Type)]
+    , propName       :: String
+    , propRepr       :: String
+    , propVarRepr    :: [String]
+    , propQSTerms    :: PEquation
+    , propOffsprings :: IO [Property]
+    , propFunDeps    :: [Var]
+    , propOops       :: Bool
     -- ^ It's an error if this property was provable
     }
 
@@ -65,15 +71,16 @@ instance Show Property where
 
 inconsistentProperty :: Property
 inconsistentProperty = Property
-    { propLiteral = Var trueDataConId :== Var falseDataConId
-    , propAssume  = []
-    , propVars    = []
-    , propName    = "inconsistencyCheck"
-    , propRepr    = "inconsistecy check: this should never be provable"
-    , propVarRepr = []
-    , propQSTerms = error "propQSTerms: inconsistentProp"
-    , propFunDeps = []
-    , propOops    = True
+    { propLiteral    = Var trueDataConId :== Var falseDataConId
+    , propAssume     = []
+    , propVars       = []
+    , propName       = "inconsistencyCheck"
+    , propRepr       = "inconsistecy check: this should never be provable"
+    , propVarRepr    = []
+    , propQSTerms    = error "propQSTerms: inconsistentProp"
+    , propOffsprings = return []
+    , propFunDeps    = []
+    , propOops       = True
     }
 
 -- The bool is the oops
@@ -99,17 +106,18 @@ trProperty (NonRec prop_name e) = do
 
     -- Free variables, but do not count =:=, proveBool, oops or arguments
     let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) (exprFVs lhs ++ exprFVs rhs)
-        free (Total e)     = filter (`notElem` (vars ++ ty_vars)) (exprFVs e)
+        free (Total e')    = filter (`notElem` (vars ++ ty_vars)) (exprFVs e')
 
     return $ Property
-        { propName    = idToStr prop_name
-        , propLiteral = lit
-        , propAssume  = assume
-        , propVars    = [ (x,varType x) | x <- vars ]
-        , propRepr    = show assume ++ " ==> " ++ show lit
-        , propVarRepr = map showOutputable vars
-        , propQSTerms = error "trProperty : propQSTerms"
-        , propFunDeps = nub $ concatMap free (lit:assume)
-        , propOops    = oops
+        { propName       = idToStr prop_name
+        , propLiteral    = lit
+        , propAssume     = assume
+        , propVars       = [ (x,varType x) | x <- vars ]
+        , propRepr       = show assume ++ " ==> " ++ show lit
+        , propVarRepr    = map showOutputable vars
+        , propQSTerms    = error "trProperty : propQSTerms"
+        , propFunDeps    = nub $ concatMap free (lit:assume)
+        , propOffsprings = return []
+        , propOops       = oops
         }
 trProperty _ = Nothing

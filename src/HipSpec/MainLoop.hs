@@ -8,11 +8,11 @@ import Test.QuickSpec.Main
 import Test.QuickSpec.Equation
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Utils.Typed
-import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
-  Context, (=:=), (=?=), unify, equal, execEQ, evalEQ, initial)
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning(
+  Context, unify, equal, execPEQ, evalPEQ, initial, PEquation(..))
 
 import HipSpec.Trans.Theory
-import HipSpec.Trans.Property hiding (equal)
+import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
@@ -51,7 +51,7 @@ deep :: HaloEnv                            -- ^ Environment to run HaloM
      -> Params                             -- ^ Parameters to the program
      -> (Msg -> IO ())                     -- ^ Writer function
      -> Theory                             -- ^ Translated theory
-     -> (Equation -> String)               -- ^ Showing Equations
+     -> (PEquation -> String)              -- ^ Showing Equations
      -> Context                            -- ^ The initial context
      -> [Property]                         -- ^ Initial equations
      -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
@@ -72,12 +72,13 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
     loop ctx eqs failed proved retry = do
 
         let discard :: Property -> [Property] -> Bool
-            discard eq = \failedacc ->
-                              any (isomorphicTo (propQSTerms eq))
-                                  (map propQSTerms failedacc)
-                           || evalEQ ctx (equal (propQSTerms eq))
+            discard eq failedacc
+                = any (isoDiscard (propQSTerms eq))
+                      (map propQSTerms failedacc)
+                || evalPEQ ctx (equal (propQSTerms eq))
 
-            (renamings,try,next) = getUpTo batchsize discard eqs failed
+            (renamings,try,next_without_offsprings)
+                = getUpTo batchsize discard eqs failed
 
         unless (null renamings) $ do
 
@@ -91,10 +92,15 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
         res <- tryProve halo_env params write try theory proved
 
         let (successes,without_induction,failures) = partitionInvRes res
+
+        offsprings <- concatMapM propOffsprings (successes ++ without_induction)
+
+        let next = offsprings ++ next_without_offsprings
+
             prunable = successes ++ without_induction
 
             ctx' :: Context
-            ctx' = execEQ ctx (mapM_ (unify . propQSTerms) prunable)
+            ctx' = execPEQ ctx (mapM_ (unify . propQSTerms) prunable)
 
             failed' :: [Property]
             failed' = failed ++ failures
@@ -120,11 +126,16 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs =
 
 instanceOf :: Context -> Property -> Property -> Bool
 instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
-  evalEQ ctx (new --> cand)
+  evalPEQ ctx (new --> cand)
   where
-    (t :=: u) --> (v :=: w) = do
-      v =:= w
-      t =?= u
+    eq1 --> eq2 = unify eq2 >> equal eq1
+
+-- can we discard the first equation given that the second has failed?
+isoDiscard :: PEquation -> PEquation -> Bool
+isoDiscard (pre1 :\/: eq1) (pre2 :\/: eq2)
+    = eq1 `isomorphicTo` eq2 && pre1 `isSubsetOf` pre2
+  where
+    a `isSubsetOf` b = null (a \\ b)
 
 -- Renaming
 isomorphicTo :: Equation -> Equation -> Bool
@@ -146,7 +157,11 @@ e1 `isomorphicTo` e2 =
 
     -- Relation is a function
     function :: (Ord a, Eq b) => [(a, b)] -> Bool
-    function = all singleton . groupBy ((==) `on` fst) . nub . sortBy (comparing fst)
+    function
+        = all singleton
+        . groupBy ((==) `on` fst)
+        . nub
+        . sortBy (comparing fst)
       where singleton xs = length xs == 1
 
 -- | Get up to n elements satisfying the predicate, those skipped, and the rest

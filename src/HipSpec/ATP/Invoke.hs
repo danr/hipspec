@@ -107,7 +107,8 @@ promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{.
         inputStr | proverCannotStdin = ""
                  | otherwise         = theory
 
-    promise <- processPromise proverCmd (proverArgs filepath' timelimit) inputStr
+    promise <- length inputStr `seq`
+        processPromise proverCmd (proverArgs filepath' timelimit) inputStr
 
     let update :: ProcessResult -> [Obligation (Proof Result)]
         update r = [fmap (fmap (const $ res)) ob]

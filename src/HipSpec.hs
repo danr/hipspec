@@ -2,15 +2,17 @@
 module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
-import Test.QuickSpec.Term hiding (depth, symbols)
 import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Main
 import Test.QuickSpec.Equation
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
-import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
-  Context, (=:=), (=?=), unify, equal, execEQ, evalEQ, initial)
+import Test.QuickSpec.TestTotality
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning
+    ( execPEQ, evalPEQ, unify, equal
+    , initial, Context
+    , PEquation(..)
+    , showPEquation )
 
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
@@ -25,22 +27,17 @@ import HipSpec.Heuristics.Associativity
 
 import HipSpec.Params
 
-import Halo.Monad
 import Halo.Util
 import Halo.Subtheory
 import Halo.FOL.RemoveMin
 
 import Data.List
 import Data.Ord
-import Data.Tuple
-import Data.Function
 import Data.Maybe
 import qualified Data.Map as M
 
 import Control.Monad
-import Control.Monad.State
 
-import System.Console.CmdArgs hiding (summary)
 import Language.Haskell.TH
 
 import Data.Monoid (mappend)
@@ -48,7 +45,6 @@ import Data.Monoid (mappend)
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
-import System.IO
 import Text.Printf
 
 
@@ -66,10 +62,10 @@ hipSpec file sig0 = do
 
     let sig = signature sig0 `mappend` withTests 100
 
-        showEq :: Equation -> String
-        showEq = showEquation sig
+        showEq :: PEquation -> String
+        showEq = showPEquation sig
 
-        showEqs :: [Equation] -> [String]
+        showEqs :: [PEquation] -> [String]
         showEqs = map showEq
 
         showProperty :: Property -> String
@@ -78,7 +74,7 @@ hipSpec file sig0 = do
         showProperties :: [Property] -> [String]
         showProperties = map showProperty
 
-        printNumberedEqs :: [Equation] -> IO ()
+        printNumberedEqs :: [PEquation] -> IO ()
         printNumberedEqs eqs = forM_ (zip [1 :: Int ..] eqs) $ \(i, eq) ->
             printf "%3d: %s\n" i (showEq eq)
 
@@ -104,31 +100,45 @@ hipSpec file sig0 = do
         putStrLn "\nDefinitional equations:"
         printNumberedEqs def_eqs
 
-    classes <- fmap eraseClasses (generate (const totalGen) sig)
+    tot_list <- testTotality sig
+
+    classes <- fmap eraseClasses (generate (const T.totalGen) sig)
 
     let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
-        classToEqs :: [[Tagged Term]] -> [Equation]
-        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
-                   . if quadratic
-                          then sort . map (uncurry (:=:)) .
-                               concatMap (uniqueCartesian . map erase)
-                          else equations
+        classToEqs :: [[Tagged T.Term]] -> [Equation]
+        classToEqs
+            = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
+            . if quadratic
+                   then sort . map (uncurry (:=:)) .
+                        concatMap (uniqueCartesian . map erase)
+                   else equations
 
-        univ      = map head classes
-        reps      = map (erase . head) classes
-        pruner    = prune ctx0 reps
-        prunedEqs = pruner (equations classes)
-        eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+        ctx_init   = initial (maxDepth sig) tot_list univ
+        univ       = map head classes
+        reps       = map (erase . head) classes
 
-        ctx_init  = initial (maxDepth sig) (symbols sig) univ
-        ctx0      = execEQ ctx_init (mapM_ unify def_eqs)
+        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
 
-        definition (t :=: u) = evalEQ ctx0 (t =?= u)
+        pruner     = pprune ctx0
 
-        qsprops   = filter (not . definition . propQSTerms)
-                  $ map (eqToProp str_marsh) eqs
+        prunedEqs
+            = map untotalise
+            . pruner
+            . map totalise
+            . equations
+            $ classes
+
+        eqs        = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+
+
+        definition = evalPEQ ctx0 . equal
+
+        qsprops    = filter (not . definition . propQSTerms)
+                   $ map (eqToProp str_marsh) eqs
+
+        peqs       = map totalise eqs
 
     when quickspec $ writeFile (file ++ "_QuickSpecOutput.txt") $
         "All stuff from QuickSpec:\n" ++
@@ -140,12 +150,14 @@ hipSpec file sig0 = do
 
     (qslemmas,qsunproved,ctx) <- deep halo_env params write theory showEq ctx0 qsprops
 
+{-
     when explore_theory $ do
-        let provable (t :=: u) = evalEQ ctx (t =?= u)
-            explored_theory    = pruner $ filter provable (equations classes)
+        let provable        = evalPEQ ctx . equal
+            explored_theory = pruner $ filter provable (equations classes)
         write $ ExploredTheory (showEqs explored_theory)
         putStrLn "\nExplored theory (proved correct):"
         printNumberedEqs explored_theory
+        -}
 
     write StartingUserLemmas
 
@@ -167,4 +179,13 @@ hipSpec file sig0 = do
             msgs <- read
             B.writeFile json_file (encode msgs)
         Nothing -> return ()
+
+pprune :: Context -> [PEquation] -> [PEquation]
+pprune ctx = evalPEQ ctx . filterM (fmap not . unify)
+
+totalise :: Equation -> PEquation
+totalise eq = [] :\/: eq
+
+untotalise :: PEquation -> Equation
+untotalise ([] :\/: eq) = eq
 

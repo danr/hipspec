@@ -2,6 +2,7 @@
 module HipSpec.Prelude
     ( module Test.QuickCheck
     , module Data.Typeable
+    , module Test.QuickSpec.Approximate
     , Prop
     , (=:=)
     , proveBool
@@ -12,6 +13,7 @@ module HipSpec.Prelude
     , oops) where
 
 import Test.QuickCheck hiding (Prop, (==>))
+import Test.QuickSpec.Approximate
 import Data.Typeable
 
 infix 1 =:=

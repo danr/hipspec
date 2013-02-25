@@ -7,10 +7,11 @@
 module HipSpec.Trans.QSTerm where
 
 
-import Test.QuickSpec.Term (Term, Symbol)
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
+    (Total,equal,vars)
 import qualified Test.QuickSpec.Utils.Typeable as Ty
 
 import Test.QuickSpec.Signature hiding (vars)
@@ -20,7 +21,6 @@ import Halo.Shared
 import Halo.Util
 
 import HipSpec.StringMarshal
-import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.Unify
 
@@ -35,11 +35,9 @@ import GHC
 import Id
 import Kind
 import Name
-import Outputable hiding (trace)
 import SrcLoc
 import Type
 import Type as GhcType
-import TysPrim
 import Unique
 import Var
 
@@ -47,9 +45,8 @@ import Control.Monad
 
 import qualified Halo.FOL.Internals.Internals as H
 
-import Data.Maybe
-
 -- import Debug.Trace
+trace :: a -> b -> b
 trace = flip const
 
 typeRepToType :: StrMarsh -> Ty.TypeRep -> Type
@@ -78,50 +75,84 @@ termToExpr str_marsh var_rename_map = go
 
     err (name -> s) = error $ "QuickSpec's " ++ s ++ " never got a variable"
 
+lookupSym :: StrMarsh -> Symbol -> (Var,Bool)
+lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
+  where
+    err = error err_str
+    err_str = "Cannot translate QuickSpec's " ++ s ++
+             " to Core representation! Debug the string marshallings" ++
+             " with --db-str-marsh "
+
+termsToProp :: StrMarsh -> Term -> Term -> Property
+termsToProp str_marsh e1 e2 = (mk_prop [])
+    { propOffsprings = forM occuring_vars $ \ partial_one -> do
+            return (mk_prop [partial_one])
+            -- OBS: Add Nick's testing
+    }
+
+  where
+    mk_prop :: [Symbol] -> Property
+    mk_prop partials = Property
+        { propLiteral    = lit
+        , propAssume     = map (Total . term_to_expr . T.Var)
+                         . filter (`notElem` partials)
+                         $ occuring_vars
+        , propVars       = prop_vars
+        , propName       = partial_precond ++ repr
+        , propRepr       = partial_precond ++ repr
+        , propVarRepr    = map (show . fst) var_rename
+        , propQSTerms    = partials :\/: e1 :=: e2
+        , propOffsprings = return []
+        , propFunDeps    = fundeps
+        , propOops       = False
+        }
+      where
+        partial_precond = case partials of
+          [] -> ""
+          xs -> intercalate ", " (map (("partial " ++) . show) xs) ++ " => "
+
+    occuring_vars :: [Symbol]
+    occuring_vars = nub (vars e1 ++ vars e2)
+
+    term_to_expr = termToExpr str_marsh var_rename_map
+
+    lit = term_to_expr e1 :== term_to_expr e2
+
+    prop_vars = [ (setVarType v ty,ty)
+                | (x,v) <- var_rename
+                , let ty = typeRepToType str_marsh (symbolType x)
+                ]
+
+    repr = show (e1 :=: e2)
+
+    fundeps  =
+        [ v
+        | c <- nub (funs e1 ++ funs e2)
+        , let (v,is_function_not_constructor) = lookupSym str_marsh c
+        , is_function_not_constructor
+        ]
+
+    var_rename     =
+        [ (x,setVarType v ty)
+        | x <- occuring_vars
+        , let ty = typeRepToType str_marsh (symbolType x)
+        | v <- varNames
+        ]
+
+    var_rename_map = M.fromList var_rename
+
+removeOne :: [a] -> [(a,[a])]
+removeOne []     = []
+removeOne (x:xs) = (x,xs):map (second (x:)) (removeOne xs)
+
 maybeLookupSym :: StrMarsh -> Symbol -> Maybe (Var,Bool)
 maybeLookupSym (strToVar,_) (name -> s) = M.lookup s strToVar
 
-lookupSym :: StrMarsh -> Symbol -> (Var,Bool)
-lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
-  where err = error $ "Cannot translate QuickSpec's " ++ s
-                   ++ " to Core representation! Debug the string marshallings"
-                   ++ " with --db-str-marsh "
-
--- So far only works on arguments with monomorphic, non-exponential types
-termsToProp :: StrMarsh -> Term -> Term -> Property
-termsToProp str_marsh e1 e2 = Property
-    { propLiteral   = termToExpr str_marsh var_rename_map e1 :==
-                      termToExpr str_marsh var_rename_map e2
-    , propAssume    = []
-    , propVars = [ (setVarType v ty,ty)
-                 | (x,v) <- var_rename
-                 , let ty = typeRepToType str_marsh (symbolType x)
-                 ]
-    , propName = repr
-    , propRepr = repr
-    , propVarRepr = map (show . fst) var_rename
-    , propQSTerms = e1 :=: e2
-    , propFunDeps = [ v
-                    | c <- nub (funs e1 ++ funs e2)
-                    , let (v,is_function_not_constructor) = lookupSym str_marsh c
-                    , is_function_not_constructor
-                    ]
-    , propOops    = False
-    }
-  where
-    repr           = show (e1 :=: e2)
-    var_rename     = [ (x,setVarType v ty)
-                     | x <- nub (vars e1 ++ vars e2)
-                     , let ty = typeRepToType str_marsh (symbolType x)
-                     | v <- varNames
-                     ]
-    var_rename_map = M.fromList var_rename
-
 definitionalEquations
-    :: Signature a => StrMarsh -> (Var -> [H.Formula Var Var]) -> a -> [Equation]
+    :: Signature a => StrMarsh -> (Var -> [H.Formula Var Var]) -> a -> [PEquation]
 definitionalEquations str_marsh lookup_var sig =
     trace ("Sig syms: " ++ show sig_syms) $
-    concatMap fetch_sym sig_syms
+    concatMap (map add_all_partial . fetch_sym) sig_syms
   where
     sig_syms :: [Symbol]
     sig_syms = nubSortedOn name $ sigSyms sig
@@ -139,6 +170,9 @@ definitionalEquations str_marsh lookup_var sig =
       where
         nm = showOutputable (nameOccName (idName v))
         res = M.lookup nm sig_syms_map
+
+    add_all_partial :: Equation -> PEquation
+    add_all_partial eq@(e1 :=: e2) = nub (vars e1 ++ vars e2) :\/: eq
 
     fetch_sym :: Symbol -> [Equation]
     fetch_sym s = case maybeLookupSym str_marsh s of
@@ -188,8 +222,6 @@ tryMatchTypes str_marsh sig =
 
     type_repr :: (Type,Symbol) -> String
     type_repr (t,s) = showOutputable t ++ ":" ++ show s ++ ", \n"
-
-    swap (x,y) = (y,x)
 
     go qs = take 1 . runMatches [ (q,varType q) | q <- qs ]
 
