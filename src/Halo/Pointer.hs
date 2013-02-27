@@ -23,7 +23,7 @@ mkPtr HaloConf{ext_eq} h arity = Subtheory
     , description = "Pointer axiom to " ++ showOutputable h
     , formulae    =
         let lhs = apps (ptr h) as'
-            rhs = fun h as'
+            rhs = apply h as'
         in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
     }
   where
