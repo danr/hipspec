@@ -1,7 +1,8 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
-module HipSpec.Init where
+module HipSpec.Init (processFile) where
 
-import HipSpec.Params
+import HipSpec.Monad
+
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
 import HipSpec.Trans.SrcRep
@@ -29,24 +30,22 @@ import UniqSupply
 import TysWiredIn
 
 import Control.Monad
-import System.Console.CmdArgs hiding (summary)
 
-processFile :: FilePath -> IO (Theory,HaloEnv,[Property],StrMarsh,Params)
-processFile file = do
+processFile :: FilePath -> (([Property],StrMarsh) -> HS a) -> HS a
+processFile file k = do
 
-    params@Params{..} <- sanitizeParams <$> cmdArgs defParams
+    params@Params{..} <- getParams
 
     let ds_conf = DesugarConf
             { debug_float_out = False
             , core2core_pass  = True
             }
 
-    (modguts,dflags) <- desugar ds_conf file
+    (modguts,dflags) <- liftIO $ desugar ds_conf file
 
     let init_core_binds = mg_binds modguts
 
-
-    let -- Some stuff in this pile of junk contains non-translatable code.
+        -- Some stuff in this pile of junk contains non-translatable code.
         -- I shouldn't fetch all dependencies :( Only necessary. Meep.
         junk v = any (`isInfixOf` showOutputable (varType v)) $
                      [ "Test." , "GHC.Class" ] ++
@@ -82,11 +81,11 @@ processFile file = do
 
     -- putStrLn debug_unfoldings
 
-    us <- mkSplitUniqSupply 'f'
+    us <- liftIO $ mkSplitUniqSupply 'f'
 
     ((lifted_program,_msgs_lift),_us) <-
         (\binds -> caseLetLift binds case_lift_inner us)
-        <$> lambdaLift dflags unlifted_program
+        <$> liftIO (lambdaLift dflags unlifted_program)
 
     {-
     flip mapM_ lifted_program $ \cb -> case cb of
@@ -94,7 +93,7 @@ processFile file = do
         _ -> return ()
     -}
 
-    str_marsh <- makeStringMarshallings db_str_marsh ty_cons lifted_program
+    str_marsh <- liftIO $ makeStringMarshallings db_str_marsh ty_cons lifted_program
 
     let isPropBinder (NonRec x _) | isPropType x = True
         isPropBinder _ = False
@@ -105,23 +104,24 @@ processFile file = do
 
         (core_props,core_defns) = partition isPropBinder $ flattenBindGroups lifted_program
 
-    when dump_props $ do
-        putStrLn "== PROPS =="
-        putStrLn $ showOutputable core_props
+    liftIO $ do
+        when dump_props $ do
+            putStrLn "== PROPS =="
+            putStrLn $ showOutputable core_props
 
-    when dump_defns $ do
-        putStrLn "== DEFNS =="
-        putStrLn $ showOutputable core_defns
+        when dump_defns $ do
+            putStrLn "== DEFNS =="
+            putStrLn $ showOutputable core_defns
 
-    when dump_types $ do
-        putStrLn "== TYPES =="
-        flip mapM_ (core_defns ++ core_props) $ \ binder -> do
-            putStrLn ""
-            putStrLn $ "Is prop binder:" ++ show (isPropBinder binder)
-            flip mapM_ (flattenBinds [binder]) $ \ (v,_) -> do
-                putStrLn $ showOutputable v ++ " :: " ++ showOutputable (varType v)
-                putStrLn $ "Prop type: " ++ show (isPropType v) ++
-                           ", junk: " ++ show (junk v)
+        when dump_types $ do
+            putStrLn "== TYPES =="
+            flip mapM_ (core_defns ++ core_props) $ \ binder -> do
+                putStrLn ""
+                putStrLn $ "Is prop binder:" ++ show (isPropBinder binder)
+                flip mapM_ (flattenBinds [binder]) $ \ (v,_) -> do
+                    putStrLn $ showOutputable v ++ " :: " ++ showOutputable (varType v)
+                    putStrLn $ "Prop type: " ++ show (isPropType v) ++
+                               ", junk: " ++ show (junk v)
 
     let halo_conf :: HaloConf
         halo_conf = sanitizeConf $ HaloConf
@@ -176,10 +176,11 @@ processFile file = do
     print binds_thy
     -}
 
-    when dump_subthys $ do
-        putStrLn "== SUBTHEORIES =="
+    liftIO $ do
+        when dump_subthys $ do
+            putStrLn "== SUBTHEORIES =="
 
-        mapM_ print subtheories
+            mapM_ print subtheories
 
     {-
 
@@ -201,4 +202,4 @@ processFile file = do
 
     -}
 
-    return (theory,halo_env,props,str_marsh,params)
+    initialize halo_env theory $ k (props,str_marsh)

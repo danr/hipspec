@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
+{-# LANGUAGE ViewPatterns,NamedFieldPuns #-}
 module HipSpec.MainLoop where
 
 import Test.QuickSpec.Term hiding (depth)
@@ -7,15 +7,12 @@ import Test.QuickSpec.Equation
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning(
   Context, unify, equal, execPEQ, evalPEQ, PEquation(..))
 
-import HipSpec.Trans.Theory
+import HipSpec.Monad
+
 import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.MakeInvocations
-import HipSpec.Messages hiding (equations)
 
-import HipSpec.Params
-
-import Halo.Monad hiding (write)
 import Halo.Util
 
 import Data.List
@@ -26,17 +23,12 @@ import Data.Function
 import Control.Monad
 
 -- | The main loop
-deep :: HaloEnv                            -- ^ Environment to run HaloM
-     -> Params                             -- ^ Parameters to the program
-     -> (Msg -> IO ())                     -- ^ Writer function
-     -> Theory                             -- ^ Translated theory
-     -> (PEquation -> String)              -- ^ Showing Equations
+deep :: (PEquation -> String)              -- ^ Showing Equations
      -> Context                            -- ^ The initial context
      -> [Property]                         -- ^ Initial equations
      -> [Property]                         -- ^ Initial lemmas
-     -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
-    loop ctx0 init_eqs [] init_lemmas False
+     -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
+deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
   where
     show_eqs = map (show_eq . propQSTerms)
 
@@ -45,11 +37,13 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
          -> [Property]                         -- ^ Equations processed, but failed
          -> [Property]                         -- ^ Equations proved
          -> Bool                               -- ^ Managed to prove something this round
-         -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
+         -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
     loop ctx []  failed proved False = return (proved,failed,ctx)
-    loop ctx []  failed proved True  = do putStrLn "Loop!"
+    loop ctx []  failed proved True  = do liftIO $ putStrLn "Loop!"
                                           loop ctx failed [] proved False
     loop ctx eqs failed proved retry = do
+
+        Params{interesting_cands,batchsize} <- getParams
 
         let discard :: Property -> [Property] -> Bool
             discard eq failedacc
@@ -65,15 +59,15 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
             let shown = show_eqs renamings
                 n     = length renamings
 
-            putStrLn $ if (n > 4)
+            liftIO $ putStrLn $ if (n > 4)
                 then "Discarding " ++ show n ++ " renamings and subsumptions."
                 else "Discarding renamings and subsumptions: " ++ csv shown
 
-        res <- tryProve halo_env params write try theory proved
+        res <- tryProve try proved
 
         let (successes,without_induction,failures) = partitionInvRes res
 
-        offsprings <- concatMapM propOffsprings (successes ++ without_induction)
+        offsprings <- liftIO $ concatMapM propOffsprings (successes ++ without_induction)
 
         let next = offsprings ++ next_without_offsprings
 
@@ -98,8 +92,8 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
 
                     unless (null cand) $ do
                         let shown = show_eqs cand
-                        write $ Candidates $ shown
-                        putStrLn $ "Interesting candidates: " ++ csv shown
+                        writeMsg $ Candidates $ shown
+                        liftIO $ putStrLn $ "Interesting candidates: " ++ csv shown
 
                     loop ctx' (cand ++ next) failed_wo_cand
                               (proved ++ successes) True

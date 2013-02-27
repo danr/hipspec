@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
@@ -19,13 +19,9 @@ import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
 import HipSpec.MakeInvocations
-import HipSpec.Messages hiding (equations)
-
+import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
-
 import HipSpec.Heuristics.Associativity
-
-import HipSpec.Params
 
 import Prelude hiding (read)
 
@@ -55,11 +51,9 @@ fileName :: ExpQ
 fileName = location >>= \(Loc f _ _ _ _) -> stringE f
 
 hipSpec :: Signature a => FilePath -> a -> IO ()
-hipSpec file sig0 = do
+hipSpec file sig0 = runHS $ do
 
-    (write0, read) <- mkWriter
-
-    write0 Started
+    writeMsg Started
 
     let sig = signature sig0 `mappend` withTests 100
 
@@ -76,116 +70,97 @@ hipSpec file sig0 = do
         printNumberedEqs eqs = forM_ (zip [1 :: Int ..] eqs) $ \(i, eq) ->
             printf "%3d: %s\n" i (showEq eq)
 
-    (theory,halo_env,props,str_marsh,params@Params{..}) <- processFile file
+    processFile file $ \ (props,str_marsh) -> do
 
-    let write = if isJust json then write0 else const (return ())
+        theory <- getTheory
+        Params{..} <- getParams
 
-    write FileProcessed
+        writeMsg FileProcessed
 
-    let getFunction s = case s of
-            Subtheory (Function v) _ _ _ ->
-                let Subtheory _ _ _ fs = removeMinsSubthy s
-                in  Just (v,fs)
-            _ -> Nothing
+        let getFunction s = case s of
+                Subtheory (Function v) _ _ _ ->
+                    let Subtheory _ _ _ fs = removeMinsSubthy s
+                    in  Just (v,fs)
+                _ -> Nothing
 
-        func_map = M.fromList (mapMaybe getFunction (subthys theory))
+            func_map = M.fromList (mapMaybe getFunction (subthys theory))
 
-        lookup_func x = fromMaybe [] (M.lookup x func_map)
+            lookup_func x = fromMaybe [] (M.lookup x func_map)
 
-        def_eqs = definitionalEquations str_marsh lookup_func sig
+            def_eqs = definitionalEquations str_marsh lookup_func sig
 
-    when definitions $ do
-        putStrLn "\nDefinitional equations:"
-        printNumberedEqs def_eqs
+        when definitions $ liftIO $ do
+            putStrLn "\nDefinitional equations:"
+            printNumberedEqs def_eqs
 
-    -- tot_list :: [(Symbol,Totality)]
-    tot_list <- testTotality sig
+        tot_list <- liftIO $ testTotality sig
 
-    let tot_props
-            = [ tot_prop
-              | (sym,totality) <- tot_list
-              , Just (v,True) <- [maybeLookupSym str_marsh sym]
-              , Just tot_prop <- [totalityProperty v totality]
-              ]
+        let tot_props
+                = [ tot_prop
+                  | (sym,totality) <- tot_list
+                  , Just (v,True) <- [maybeLookupSym str_marsh sym]
+                  , Just tot_prop <- [totalityProperty v totality]
+                  ]
 
-    (unproved_tot,proved_tot) <-
-        parLoop halo_env params write theory tot_props []
+        (unproved_tot,proved_tot) <- parLoop tot_props []
 
-    classes <- fmap eraseClasses (generate (const T.totalGen) sig)
+        classes <- liftIO $ fmap eraseClasses (generate (const T.totalGen) sig)
 
+        let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
+            swapEq (t :=: u) = u :=: t
 
-    let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
-        swapEq (t :=: u) = u :=: t
+            classToEqs :: [[Tagged T.Term]] -> [Equation]
+            classToEqs
+                = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
+                . if quadratic
+                       then sort . map (uncurry (:=:)) .
+                            concatMap (uniqueCartesian . map erase)
+                       else equations
 
-        classToEqs :: [[Tagged T.Term]] -> [Equation]
-        classToEqs
-            = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
-            . if quadratic
-                   then sort . map (uncurry (:=:)) .
-                        concatMap (uniqueCartesian . map erase)
-                   else equations
+            ctx_init   = initial (maxDepth sig) tot_list univ
+            univ       = map head classes
 
-        ctx_init   = initial (maxDepth sig) tot_list univ
-        univ       = map head classes
+            ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
 
-        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
+            pruner     = pprune ctx0
 
-        pruner     = pprune ctx0
+            prunedEqs
+                = map untotalise
+                . pruner
+                . map totalise
+                . equations
+                $ classes
 
-        prunedEqs
-            = map untotalise
-            . pruner
-            . map totalise
-            . equations
-            $ classes
-
-        eqs        = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+            eqs        = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
 
-        definition = evalPEQ ctx0 . equal
+            definition = evalPEQ ctx0 . equal
 
-        qsprops    = filter (not . definition . propQSTerms)
-                   $ map (eqToProp str_marsh) eqs
+            qsprops    = filter (not . definition . propQSTerms)
+                       $ map (eqToProp str_marsh) eqs
 
-    when quickspec $ writeFile (file ++ "_QuickSpecOutput.txt") $
-        "All stuff from QuickSpec:\n" ++
-        intercalate "\n" (map show (classToEqs classes))
+        (qslemmas,qsunproved,_ctx) <- deep showEq ctx0 qsprops proved_tot
 
-    write $ QuickSpecDone (length classes) (length eqs)
+        writeMsg StartingUserLemmas
 
-    putStrLn "Starting to prove..."
+        (unproved,proved) <- parLoop props qslemmas
 
-    (qslemmas,qsunproved,_ctx) <- deep halo_env params write theory showEq ctx0 qsprops proved_tot
+        writeMsg $ Finished
+            (filter (`notElem` map propName qslemmas) $ map propName proved)
+            (map propName unproved)
+            (map propName qslemmas)
+            (showProperties qsunproved)
 
-{-
-    when explore_theory $ do
-        let provable        = evalPEQ ctx . equal
-            explored_theory = pruner $ filter provable (equations classes)
-        write $ ExploredTheory (showEqs explored_theory)
-        putStrLn "\nExplored theory (proved correct):"
-        printNumberedEqs explored_theory
-        -}
+        printInfo (unproved ++ unproved_tot) proved
 
-    write StartingUserLemmas
+        unless dont_print_unproved $ liftIO $
+            putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
 
-    (unproved,proved) <- parLoop halo_env params write theory props qslemmas
-
-    write $ Finished
-        (filter (`notElem` map propName qslemmas) $ map propName proved)
-        (map propName unproved)
-        (map propName qslemmas)
-        (showProperties qsunproved)
-
-    printInfo (unproved ++ unproved_tot) proved
-
-    unless dont_print_unproved $
-        putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
-
-    case json of
-        Just json_file -> do
-            msgs <- read
-            B.writeFile json_file (encode msgs)
-        Nothing -> return ()
+        case json of
+            Just json_file -> do
+                msgs <- getMsgs
+                liftIO $ B.writeFile json_file (encode msgs)
+            Nothing -> return ()
 
 pprune :: Context -> [PEquation] -> [PEquation]
 pprune ctx = evalPEQ ctx . filterM (fmap not . unify)
