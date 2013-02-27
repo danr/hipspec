@@ -1,50 +1,29 @@
 {-# LANGUAGE RecordWildCards,PatternGuards,ViewPatterns #-}
 module HipSpec.MainLoop where
 
-import Test.QuickSpec
 import Test.QuickSpec.Term hiding (depth)
 import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Main
 import Test.QuickSpec.Equation
-import Test.QuickSpec.Generate
-import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning(
-  Context, unify, equal, execPEQ, evalPEQ, initial, PEquation(..))
+  Context, unify, equal, execPEQ, evalPEQ, PEquation(..))
 
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
-import HipSpec.Init
 import HipSpec.MakeInvocations
 import HipSpec.Messages hiding (equations)
 
 import HipSpec.Params
 
-import Halo.Monad
+import Halo.Monad hiding (write)
 import Halo.Util
-import Halo.Subtheory
-import Halo.FOL.RemoveMin
 
 import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
-import Data.Maybe
-import qualified Data.Map as M
 
 import Control.Monad
-import Control.Monad.State
-
-import System.Console.CmdArgs hiding (summary)
-import Language.Haskell.TH
-
-import Data.Monoid (mappend)
-
-import Data.Aeson (encode)
-import qualified Data.ByteString.Lazy as B
-
-import System.IO
-import Text.Printf
 
 -- | The main loop
 deep :: HaloEnv                            -- ^ Environment to run HaloM
@@ -115,7 +94,7 @@ deep halo_env params@Params{..} write theory show_eq ctx0 init_eqs init_lemmas =
                             = first (sortBy (comparing propQSTerms))
                             $ partition p failed'
                           where
-                            p fail = or [ instanceOf ctx prop fail | prop <- prunable ]
+                            p fail' = or [ instanceOf ctx prop fail' | prop <- prunable ]
 
                     unless (null cand) $ do
                         let shown = show_eqs cand

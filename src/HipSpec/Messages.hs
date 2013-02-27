@@ -37,7 +37,7 @@ mkWriter = do
 
     msgs <- newTVarIO []
 
-    let read = fmap reverse $ atomically $ readTVar msgs
+    let obtain = fmap reverse $ atomically $ readTVar msgs
 
         write m = do
             t1 <- getCurrentTime
@@ -45,5 +45,5 @@ mkWriter = do
                 t = fromRat (toRational (diffUTCTime t1 t0))
             atomically $ modTVar msgs ((t,m):)
 
-    return (write,read)
+    return (write,obtain)
 

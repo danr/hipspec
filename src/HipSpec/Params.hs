@@ -32,7 +32,7 @@ data Params = Params
     , fof                 :: Bool
     , comments            :: Bool
     , dont_print_unproved :: Bool
-    , min                 :: Bool
+    , use_min             :: Bool
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
@@ -105,7 +105,7 @@ defParams = Params
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , dont_print_unproved = False   &= name "u" &= help "Don't print unproved conjectures from QuickSpec"
-    , min                 = False   &= name "m" &= help "Use min and minrec translation"
+    , use_min             = False   &= name "m" &= help "Use min and minrec translation"
 
     , case_lift_inner     = False &= groupname "\nTranslation settings"
                                   &= help "Lift all inner cases to top level"

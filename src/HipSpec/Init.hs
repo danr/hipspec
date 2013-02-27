@@ -1,7 +1,6 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
 module HipSpec.Init where
 
-import HipSpec.BuiltinTypes
 import HipSpec.Params
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
@@ -74,7 +73,7 @@ processFile file = do
                                   -}
 
 
-        (unfoldings,debug_unfoldings) = fetch (not . junk) init_core_binds
+        (unfoldings,_debug_unfoldings) = fetch (not . junk) init_core_binds
 
         unlifted_program = unfoldings ++ init_core_binds
 
@@ -119,15 +118,15 @@ processFile file = do
         flip mapM_ (core_defns ++ core_props) $ \ binder -> do
             putStrLn ""
             putStrLn $ "Is prop binder:" ++ show (isPropBinder binder)
-            flip mapM_ (flattenBinds [binder]) $ \ (v,e) -> do
+            flip mapM_ (flattenBinds [binder]) $ \ (v,_) -> do
                 putStrLn $ showOutputable v ++ " :: " ++ showOutputable (varType v)
                 putStrLn $ "Prop type: " ++ show (isPropType v) ++
                            ", junk: " ++ show (junk v)
 
     let halo_conf :: HaloConf
         halo_conf = sanitizeConf $ HaloConf
-            { use_min            = min
-            , use_minrec         = min
+            { use_min            = use_min
+            , use_minrec         = use_min
             , unr_and_bad        = bottoms
             , collapse_to_bottom = bottoms
             , ext_eq             = True
@@ -137,7 +136,7 @@ processFile file = do
 
         halo_env = mkEnv halo_conf ty_cons core_defns
 
-        (binds_thy,msg) = case runHaloMsafe halo_env (trBinds core_defns) of
+        (binds_thy,_msg) = case runHaloMsafe halo_env (trBinds core_defns) of
             (Left err,msg')    -> (error $ "HipSpec.Init, halo says: " ++ err,msg')
             (Right (m,_),msg') -> (m,msg')
 
@@ -201,7 +200,5 @@ processFile file = do
             putStrLn " -- \n "
 
     -}
-
-
 
     return (theory,halo_env,props,str_marsh,params)

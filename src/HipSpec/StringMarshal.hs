@@ -7,25 +7,16 @@
 -}
 module HipSpec.StringMarshal where
 
-import HipSpec.BuiltinTypes
-
 import Halo.Shared
-import Halo.Util
 
 import qualified Data.Map as M
 import Data.Map (Map)
 
 import Name hiding (varName)
-import OccName hiding (varName)
-import RdrName
-import Annotations
 import BasicTypes
 import CoreSyn
 import DataCon
-import GhcMonad
 import GHC
-import HscTypes
-import Serialized
 import TyCon
 import TysWiredIn
 import Var
@@ -59,7 +50,7 @@ makeStringMarshallings debug ty_cons core_binds = do
         ] ++
         [ do dbmsg $ "Bultin constructor: " ++ name_str ++ " -> " ++ showOutputable dc
              return (name_str,(v,False))
-        | (n,dc) <- [("True", trueDataCon)
+        | (_,dc) <- [("True", trueDataCon)
                     ,("False",falseDataCon)
                     ,("[]",   nilDataCon)
                     ,(":",    consDataCon)

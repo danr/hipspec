@@ -11,11 +11,10 @@ import Halo.FOL.Abstract
 import Halo.FOL.Internals.Internals
 import Halo.Util
 import Halo.Shared
-import Halo.Names
+import Halo.Names (varNames)
 
 import HipSpec.Trans.Types
 
-import Data.List
 import Data.Maybe
 import Data.Generics.Geniplate
 
@@ -67,9 +66,6 @@ typeGuardFormula = transform $ \fm ->
 
 typeGuardSkolem :: Var -> Maybe Formula'
 typeGuardSkolem v = do
-    let ty = varType v
     (ty_quant,phi) <- makeGuard skolem v
     return $ forall' ty_quant phi
-  where
-    ty = varType v
 

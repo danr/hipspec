@@ -1,5 +1,11 @@
 {-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns #-}
-module HipSpec.MakeInvocations where
+module HipSpec.MakeInvocations
+    ( tryProve
+    , InvokeResult(..)
+    , partitionInvRes
+    , parLoop
+    , printInfo
+    ) where
 
 import HipSpec.ATP.Invoke
 import HipSpec.ATP.Provers
@@ -14,13 +20,12 @@ import HipSpec.Messages
 
 import Control.Concurrent.STM.Promise.Tree
 
-import Halo.Monad
+import Halo.Monad hiding (write)
 import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
-import Halo.Shared
 
-import Halo.FOL.Abstract
+import Halo.FOL.Abstract hiding (definitions)
 import Halo.FOL.Dump
 import Halo.FOL.Linearise
 import Halo.FOL.LineariseSMT
@@ -30,13 +35,10 @@ import Halo.FOL.Rename
 
 import Data.List
 import Data.Maybe
-import Data.Monoid
 
 import Control.Monad
 
 import UniqSupply
-
-import Var
 
 -- remove ByInduction, express it as vars = []
 data InvokeResult
@@ -88,7 +90,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
                         SMT          -> smt_str
                         SMTUnsatCore -> addUnsatCores smt_str)
             . map (clauseMapFormula typeGuardFormula)
-            . (not min ? removeMins)
+            . (not use_min ? removeMins)
             . concatMap toClauses
 
         calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
@@ -128,18 +130,20 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
                                 ]
 
                     check grp@(Induction _ _ nums _:_) = all (\ n -> any ((n ==) . ind_num) grp) [0..nums-1]
+                    check [] = error "MakeInvocations: check (impossible)"
 
                     proofs' = filter check proofs
 
                 in  (,) prop $ case proofs' of
                         [] -> NoProof
                         grp:_ -> case grp of
-                            Induction [] _ _ _:_ -> ByPlain lemmas provers
-                            Induction cs _ _ _:_ -> ByInduction lemmas provers vars
+                            [] -> error "MakeInvocations: results (impossible)"
+                            Induction [] _ _ _:_ -> ByPlain lemmas_used provers_used
+                            Induction cs _ _ _:_ -> ByInduction lemmas_used provers_used vars
                               where vars = varsFromCoords prop cs
                           where
-                            provers = nub $ map (fst . proof_content) grp
-                            lemmas  = fmap (nub . concat)
+                            provers_used = nub $ map (fst . proof_content) grp
+                            lemmas_used  = fmap (nub . concat)
                                     $ sequence
                                     $ map (successLemmas . snd . proof_content) grp
 
@@ -161,13 +165,15 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
 
     return results
 
+writeInvRes :: (Msg -> IO ()) -> String -> InvokeResult -> IO ()
 writeInvRes write prop_name res = case res of
-    ByInduction lemmas provers vars -> write $ InductiveProof prop_name (view_lemmas lemmas)
-    ByPlain lemmas provers          -> write $ PlainProof prop_name (view_lemmas lemmas)
-    NoProof                         -> write $ FailedProof prop_name
+    ByInduction lemmas _provers _vars -> write $ InductiveProof prop_name (view_lemmas lemmas)
+    ByPlain lemmas _provers           -> write $ PlainProof prop_name (view_lemmas lemmas)
+    NoProof                           -> write $ FailedProof prop_name
   where
     view_lemmas = fromMaybe []
 
+viewInvRes :: Colour -> String -> InvokeResult -> String
 viewInvRes green prop_name res = case res of
     ByInduction lemmas provers vars ->
         bold_green ("Proved " ++ prop_name ++ " by induction on " ++ csv id vars)
@@ -232,4 +238,3 @@ printInfo unproved proved = do
 
     unless (null mistakes) $ putStrLn $ bold $ colour Red $
         "Proved " ++ show (length mistakes) ++ " oops: " ++ pr True mistakes
-

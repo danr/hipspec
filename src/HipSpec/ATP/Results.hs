@@ -1,8 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module HipSpec.ATP.Results where
 
-import Data.List
-import Data.Maybe
 import Data.Function
 
 -- Result from a prover invocation --------------------------------------------

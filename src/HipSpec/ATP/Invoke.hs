@@ -1,20 +1,16 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns #-}
 module HipSpec.ATP.Invoke (invokeATPs, Env(..), LinTheory(..), TheoryType(..)) where
+
 import Prelude hiding (mapM)
-import Control.Concurrent
-import Control.Concurrent.STM
 import Control.Concurrent.STM.Promise
 import Control.Concurrent.STM.Promise.Workers
 import Control.Concurrent.STM.Promise.Tree
+import Control.Concurrent.STM.Promise.Process
 import Control.Monad hiding (mapM)
 import Data.Traversable (mapM)
 import Control.Applicative
-import Control.Monad.Reader hiding (mapM)
-import Control.Monad.State hiding (mapM)
 
 import Halo.Util
-
-import Control.Arrow ((***),first,second)
 
 import Data.List
 import Data.Maybe
@@ -27,14 +23,9 @@ import HipSpec.Trans.Property
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
 
-import Halo.Util ((?))
-
-import System.IO.Unsafe (unsafeInterleaveIO)
 import System.Directory (createDirectoryIfMissing,doesFileExist)
 import System.FilePath ((</>),(<.>))
 
-import Control.Concurrent.STM.Promise
-import Control.Concurrent.STM.Promise.Process
 
 data LinTheory = LinTheory (TheoryType -> String)
 
@@ -46,8 +37,6 @@ data Env = Env
     , processes       :: Int
     , z_encode        :: Bool
     }
-
-type ProveM = ReaderT Env IO
 
 type Result = (ProverName,ProverResult)
 
@@ -71,10 +60,10 @@ filename Env{z_encode} (Obligation Property{propName} p) = case p of
 
 promiseProof :: Env -> Obligation (Proof LinTheory) -> Double -> Prover
              -> IO (Promise [Obligation (Proof Result)])
-promiseProof env@Env{store} ob@(Obligation prop proof) timelimit prover@Prover{..} = do
+promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{..} = do
 
-    let LinTheory f = proof_content proof
-        theory      = f proverTheoryType
+    let LinTheory lin = proof_content proof
+        theory        = lin proverTheoryType
 
     filepath <- case store of
         Nothing  -> return Nothing

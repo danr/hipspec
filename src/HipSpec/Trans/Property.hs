@@ -131,13 +131,13 @@ totalityProperty :: Var -> Totality -> Maybe Property
 totalityProperty v t = case t of
     Partial  -> Nothing
     Variable -> Nothing
-    PER.Total allowed_to_be_partial -> do
+    PER.Total _allowed_to_be_partial -> do
         args <- m_args
         return $ Property
             { propName       = "Totality for " ++ show v
             , propLiteral    = Total (apps (Var v) (map Var args))
             , propAssume     = [ Total (Var arg)
-                               | (x,arg) <- zip [0..] args
+                               | (_x,arg) <- zip ([0..] :: [Int]) args
                          --      , x `notElem` allowed_to_be_partial
                                ]
             , propVars       = [ (x,varType x) | x <- args ]
@@ -151,7 +151,7 @@ totalityProperty v t = case t of
       where
         m_args = case realIdUnfolding v of
             CoreUnfolding {uf_tmpl} -> case collectTyAndValBinders uf_tmpl of
-                (_,xs,_) -> Just (zipWith (\v x -> setVarType v (varType x)) varNames xs)
+                (_,xs,_) -> Just (zipWith (\u x -> setVarType u (varType x)) varNames xs)
             _ -> Nothing
 
 apps :: CoreExpr -> [CoreExpr] -> CoreExpr

@@ -27,6 +27,8 @@ import HipSpec.Heuristics.Associativity
 
 import HipSpec.Params
 
+import Prelude hiding (read)
+
 import Halo.Util
 import Halo.Subtheory
 import Halo.FOL.RemoveMin
@@ -47,7 +49,6 @@ import qualified Data.ByteString.Lazy as B
 
 import Text.Printf
 
-
 -- Main library ---------------------------------------------------------------
 
 fileName :: ExpQ
@@ -64,9 +65,6 @@ hipSpec file sig0 = do
 
         showEq :: PEquation -> String
         showEq = showPEquation sig
-
-        showEqs :: [PEquation] -> [String]
-        showEqs = map showEq
 
         showProperty :: Property -> String
         showProperty = showEq . propQSTerms
@@ -129,7 +127,6 @@ hipSpec file sig0 = do
 
         ctx_init   = initial (maxDepth sig) tot_list univ
         univ       = map head classes
-        reps       = map (erase . head) classes
 
         ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
 
@@ -150,8 +147,6 @@ hipSpec file sig0 = do
         qsprops    = filter (not . definition . propQSTerms)
                    $ map (eqToProp str_marsh) eqs
 
-        peqs       = map totalise eqs
-
     when quickspec $ writeFile (file ++ "_QuickSpecOutput.txt") $
         "All stuff from QuickSpec:\n" ++
         intercalate "\n" (map show (classToEqs classes))
@@ -160,8 +155,7 @@ hipSpec file sig0 = do
 
     putStrLn "Starting to prove..."
 
-    (qslemmas,qsunproved,ctx) <- deep halo_env params write theory showEq ctx0 qsprops proved_tot
-
+    (qslemmas,qsunproved,_ctx) <- deep halo_env params write theory showEq ctx0 qsprops proved_tot
 
 {-
     when explore_theory $ do
@@ -201,4 +195,6 @@ totalise eq = [] :\/: eq
 
 untotalise :: PEquation -> Equation
 untotalise ([] :\/: eq) = eq
+untotalise _ = error "Untotalize on a non-total PEquation"
+
 
