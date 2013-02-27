@@ -15,8 +15,14 @@ source-repository head
     type: git
     location: git://github.com/danr/hipspec.git
 
+flag Werror
+    default: False
+    manual: True
+
 library
     ghc-options:    -threaded -Wall -rtsopts -package ghc
+    if flag(Werror)
+        ghc-options: -Werror
     hs-source-dirs: src halo/src
 
     exposed-modules:

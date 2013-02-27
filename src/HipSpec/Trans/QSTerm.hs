@@ -7,7 +7,6 @@
 module HipSpec.Trans.QSTerm where
 
 
-import Test.QuickSpec.Term (Term, Symbol)
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
@@ -20,7 +19,6 @@ import Halo.Shared
 import Halo.Util
 
 import HipSpec.StringMarshal
-import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.Unify
 
@@ -35,11 +33,9 @@ import GHC
 import Id
 import Kind
 import Name
-import Outputable hiding (trace)
 import SrcLoc
 import Type
 import Type as GhcType
-import TysPrim
 import Unique
 import Var
 
@@ -47,9 +43,8 @@ import Control.Monad
 
 import qualified Halo.FOL.Internals.Internals as H
 
-import Data.Maybe
-
 -- import Debug.Trace
+trace :: b -> c -> c
 trace = flip const
 
 typeRepToType :: StrMarsh -> Ty.TypeRep -> Type
@@ -188,8 +183,6 @@ tryMatchTypes str_marsh sig =
 
     type_repr :: (Type,Symbol) -> String
     type_repr (t,s) = showOutputable t ++ ":" ++ show s ++ ", \n"
-
-    swap (x,y) = (y,x)
 
     go qs = take 1 . runMatches [ (q,varType q) | q <- qs ]
 

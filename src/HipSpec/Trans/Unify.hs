@@ -13,6 +13,7 @@ import Type
 import Halo.Shared
 
 -- import Debug.Trace
+trace :: b -> c -> c
 trace = flip const
 
 data Constraint = TyVar :=: Type
@@ -29,7 +30,7 @@ runMatches qs types = observeAll (match qs types)
 match :: Ord q => [(q,Type)] -> [(Type,s)] -> Logic (Map q s)
 match = go []
   where
-    go cs []         _     = return M.empty
+    go _  []         _     = return M.empty
     go cs ((q,t):qs) types = do
 
         ((_t,s),types',cs') <- extractBy (\ (t',_) -> t `instanceOf` t') types
@@ -42,6 +43,7 @@ match = go []
 
         return $ M.insert q s rest
 
+conflict :: [Constraint] -> Bool
 conflict cs =
     let res = conflict' cs
     in  trace ("conflict " ++ show cs ++ " = " ++ show res) res
@@ -50,6 +52,7 @@ conflict' :: [Constraint] -> Bool
 conflict' []     = False
 conflict' (c:cs) = any (c `conflicting`) cs || conflict' cs
 
+conflicting :: Constraint -> Constraint -> Bool
 (a :=: t1) `conflicting` (b :=: t2) = a == b && not (t1 `eqType` t2)
 
 

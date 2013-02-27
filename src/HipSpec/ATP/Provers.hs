@@ -3,7 +3,6 @@ module HipSpec.ATP.Provers where
 import HipSpec.ATP.Results
 
 import Data.Maybe
-import Data.Char
 import Data.List
 import Data.List.Split
 

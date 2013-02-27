@@ -36,12 +36,10 @@ import UniqSupply
 import DataCon
 import Type
 import Var
-import Id
-import Outputable hiding (equals,text)
 import qualified Outputable as Outputable
 
 translateLemma :: Property -> Int -> HaloM HipSpecSubtheory
-translateLemma lemma@Property{..} lemma_num = do
+translateLemma Property{..} lemma_num = do
     (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
         { provides    = Specific (Lemma lemma_num)
@@ -79,7 +77,7 @@ type ProofTree       = Tree ProofObligation
 makeProofs :: Params -> Property -> MakerM ProofTree
 makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
     = requireAny <$>
-        (sequence (mapMaybe induction induction_coords) `catchError` \err -> do
+        (sequence (mapMaybe induction induction_coords) `catchError` \ _ -> do
           lift $ cleanUpFailedCapture
           return [])
   where
@@ -144,13 +142,13 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth} prop@Property{..}
 data Loc = Hyp | Concl
 
 makeVar :: Tagged Var -> MakerM Var
-makeVar (v :~ i) = do
+makeVar (v :~ _) = do
     (u,us) <- takeUniqFromSupply <$> get
     put us
     return (setVarUnique v u)
 
 trObligation :: Property -> IS.Obligation DataCon Var Type -> HaloM (String,[Formula'])
-trObligation Property{..} obligation@(IS.Obligation skolem hyps concl) =
+trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) =
 
     local (addSkolems skolem_vars) $ do
 
@@ -166,7 +164,7 @@ trObligation Property{..} obligation@(IS.Obligation skolem hyps concl) =
 
   where
 
-    skolem_vars = map fst skolem
+    skolem_vars = map fst skolems
 
     trPred :: Loc -> [Term DataCon Var] -> HaloM Formula'
     trPred loc tms = do

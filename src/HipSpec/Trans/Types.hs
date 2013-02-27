@@ -15,6 +15,7 @@ module HipSpec.Trans.Types
     ( tyEnv
     , finiteFunctionResult
     , finiteType
+    , unitTests
     ) where
 
 
@@ -25,7 +26,6 @@ import Induction.Structural
 import Type
 import DataCon
 import TyCon hiding (data_con)
-import Outputable
 import TysWiredIn
 import TysPrim
 import BasicTypes
@@ -78,7 +78,7 @@ finiteFunctionResult ty =
 --
 --   Counterexamples: [()], [Bool], [a], Either a Bool, m a ...
 finiteType :: Type -> Bool
-finiteType ty = finType [] ty
+finiteType = finType []
   where
     --
     finType :: [Type] -> Type -> Bool

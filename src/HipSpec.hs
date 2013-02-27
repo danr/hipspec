@@ -4,7 +4,7 @@ module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 import Test.QuickSpec
 import Test.QuickSpec.Term hiding (depth, symbols)
 import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Main
+import Test.QuickSpec.Main hiding (definitions)
 import Test.QuickSpec.Equation
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -21,7 +21,8 @@ import HipSpec.Messages hiding (equations)
 
 import HipSpec.Params
 
-import Halo.Monad
+import Prelude hiding (read)
+import Halo.Monad hiding (write)
 import Halo.Util
 import Halo.Subtheory
 import Halo.FOL.RemoveMin
@@ -36,7 +37,6 @@ import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.State
 
-import System.Console.CmdArgs hiding (summary)
 import Language.Haskell.TH
 
 import Data.Monoid (mappend)
@@ -44,7 +44,6 @@ import Data.Monoid (mappend)
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
-import System.IO
 import Text.Printf
 
 -- | Get up to n elements satisfying the predicate, those skipped, and the rest
@@ -78,8 +77,8 @@ deep halo_env params@Params{..} write theory sig ctx0 init_eqs =
          -> Bool                               -- ^ Managed to prove something this round
          -> IO ([Property],[Property],Context) -- ^ Resulting theorems and unproved
     loop ctx []  failed proved False = return (proved,failed,ctx)
-    loop ctx  []  failed proved True  = do putStrLn "Loop!"
-                                           loop ctx failed [] proved False
+    loop ctx []  failed proved True  = do putStrLn "Loop!"
+                                          loop ctx failed [] proved False
     loop ctx eqs failed proved retry = do
 
       let discard :: Property -> [Property] -> Bool

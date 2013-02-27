@@ -13,20 +13,15 @@ module HipSpec.Trans.Theory
 import CoreSyn
 import Var
 import Type
-import TysWiredIn
 import TyCon
-import DataCon
-import Outputable
 import GHC (dataConType)
 
 import Halo.Names
 import Halo.Shared
 import Halo.Subtheory
-import Halo.Trim
 import Halo.Util
 import Halo.FOL.Abstract
 
-import HipSpec.Trans.Property
 import HipSpec.Trans.Types
 import HipSpec.Trans.TypeGuards
 
@@ -54,7 +49,7 @@ setExtraDependencies use_min s@(Subtheory{..}) = case provides of
     Data ty_con -> s { depends = (use_min ? (Specific (MinRec ty_con) :)) $
                                  (Specific (Domain ty_con) : depends)
                      }
-    Function f  -> s { depends = Specific (ResultType f) : depends }
+    Function fn -> s { depends = Specific (ResultType fn) : depends }
     _           -> s
 
 -- | Make an axiom for every function f
@@ -66,21 +61,21 @@ setExtraDependencies use_min s@(Subtheory{..}) = case provides of
 --      ! [X1,..,Xn] . type(f(X1,..,Xn),tr)
 mkResultTypeAxioms :: [CoreBind] -> [HipSpecSubtheory]
 mkResultTypeAxioms binds =
-    [ let (args_ty,res_ty)  = splitFunTys (repType' (varType f))
+    [ let (args_ty,res_ty)  = splitFunTys (repType' (varType fn))
           us                = zipWith setVarType varNames args_ty
-          fus               = apply f (map qvar us)
+          fus               = apply fn (map qvar us)
           (ty_qs,res_ty_tm) = trType res_ty
           res_ty_formulae   =
               [ forall' (ty_qs ++ us) $ min' fus ==> isType fus res_ty_tm
               | finiteType res_ty
               ]
       in  Subtheory
-              { provides    = Specific (ResultType f)
+              { provides    = Specific (ResultType fn)
               , depends     = []
-              , description = "Result type axiom for " ++ showOutputable f
+              , description = "Result type axiom for " ++ showOutputable fn
               , formulae    = res_ty_formulae
               }
-    | (f,e) <- flattenBinds binds
+    | (fn,_) <- flattenBinds binds
     ]
 
 -- | Make axioms expressing how the domain for a data type looks like
@@ -166,6 +161,7 @@ instance Show HipSpecExtras where
     show (ResultType v) = "(ResultType " ++ showOutputable v ++ ")"
     show PrimMinRec     = "PrimMinRec"
     show (MinRec tc)    = "(MinRec " ++ showOutputable tc ++ ")"
+    show Conjecture     = "Conjecture"
 
 instance Clausifiable HipSpecExtras where
     mkClause (Lemma n) = namedClause ("lemma_" ++ show n ++ "_") lemma

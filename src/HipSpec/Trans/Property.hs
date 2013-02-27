@@ -8,8 +8,6 @@ import Type
 import CoreSyn
 import Var
 import TysWiredIn
-import CoreFVs
-import UniqSet
 
 import Halo.Shared
 

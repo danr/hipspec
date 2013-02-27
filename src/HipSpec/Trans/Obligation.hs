@@ -1,16 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 module HipSpec.Trans.Obligation where
 
-import Data.Function
-import Data.List
-
-import Var
-
-import HipSpec.Trans.Theory (HipSpecContent,HipSpecSubtheory)
-
-import Halo.Subtheory
-import Halo.FOL.Abstract
-
 import HipSpec.Trans.Property
 
 data Obligation a = Obligation
