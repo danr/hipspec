@@ -7,20 +7,19 @@ module HipSpec.MakeInvocations
     , printInfo
     ) where
 
+import HipSpec.Monad
 import HipSpec.ATP.Invoke
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
-import HipSpec.Params
 import HipSpec.Trans.MakeProofs
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.TypeGuards
-import HipSpec.Messages
 
 import Control.Concurrent.STM.Promise.Tree
 
-import Halo.Monad hiding (write)
+import Halo.Monad
 import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
@@ -56,19 +55,23 @@ partitionInvRes ((x,ir):xs) = case ir of
   where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: HaloEnv -> Params -> (Msg -> IO ()) -> [Property] -> Theory -> [Property]
-         -> IO [(Property,InvokeResult)]
-tryProve _        _                   _     []    _          _      = return []
-tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
+tryProve :: [Property] -> [Property] -> HS [(Property,InvokeResult)]
+tryProve []    _      = return []
+tryProve props lemmas = do
 
-    us <- mkSplitUniqSupply 'c'
+    us <- liftIO $ mkSplitUniqSupply 'c'
+
+    Theory{..} <- getTheory
+    params@Params{..} <- getParams
+    halo_env <- getHaloEnv
 
     let enum_lemmas = zip [0..] lemmas
 
-        (lemma_theories,_) = runHaloM halo_env (mapM (uncurry $ flip translateLemma) enum_lemmas)
+        (lemma_theories,_) = runHaloM halo_env $
+            mapM (uncurry $ flip translateLemma) enum_lemmas
 
-
-        ((proof_tree,_),_) = runMakerM halo_env us $ (tryAll <$> mapM (makeProofs params) props)
+        ((proof_tree,_),_) = runMakerM halo_env us $
+            tryAll <$> mapM (makeProofs params) props
 
         style_conf = StyleConf
              { style_comments   = comments
@@ -106,7 +109,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
         proof_tree_lin :: Tree (Obligation (Proof LinTheory))
         proof_tree_lin = fmap (fmap (fmap fetch_and_linearise)) proof_tree
 
-    let env = Env
+        env = Env
             { timeout         = timeout
             , lemma_lookup    = \ n -> fmap propRepr (lookup n enum_lemmas)
             , store           = output
@@ -115,7 +118,7 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             , z_encode        = z_encode_filenames
             }
 
-    result <- invokeATPs proof_tree_lin env
+    result <- liftIO $ invokeATPs proof_tree_lin env
 
     let results =
 
@@ -147,24 +150,25 @@ tryProve halo_env params@(Params{..}) write props Theory{..} lemmas = do
             | prop <- props
             ]
 
-    forM_ result $ \ (Obligation prop proof) -> when (unknown (snd $ proof_content proof)) $ do
-        putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)
-            ++ " on " ++ show prop
-            ++ ":" ++ show (snd $ proof_content proof)
+    forM_ result $ \ (Obligation prop proof) ->
+        when (unknown (snd $ proof_content proof)) $ liftIO $ do
+            putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)
+                ++ " on " ++ show prop
+                ++ ":" ++ show (snd $ proof_content proof)
 
     forM_ results $ \ (prop,invres) -> do
 
-        writeInvRes write (propName prop) invres
+        writeInvRes (propName prop) invres
 
-        putStrLn $ viewInvRes Green (propName prop) invres
+        liftIO $ putStrLn $ viewInvRes Green (propName prop) invres
 
     return results
 
-writeInvRes :: (Msg -> IO ()) -> String -> InvokeResult -> IO ()
-writeInvRes write prop_name res = case res of
-    ByInduction lemmas _provers _vars -> write $ InductiveProof prop_name (view_lemmas lemmas)
-    ByPlain lemmas _provers           -> write $ PlainProof prop_name (view_lemmas lemmas)
-    NoProof                           -> write $ FailedProof prop_name
+writeInvRes :: String -> InvokeResult -> HS ()
+writeInvRes prop_name res = case res of
+    ByInduction lemmas _provers _vars -> writeMsg $ InductiveProof prop_name (view_lemmas lemmas)
+    ByPlain lemmas _provers           -> writeMsg $ PlainProof prop_name (view_lemmas lemmas)
+    NoProof                           -> writeMsg $ FailedProof prop_name
   where
     view_lemmas = fromMaybe []
 
@@ -191,13 +195,15 @@ viewInvRes green prop_name res = case res of
         Just [x] -> ", using " ++ x
         Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
 
-parLoop :: HaloEnv -> Params -> (Msg -> IO ()) -> Theory -> [Property] -> [Property] -> IO ([Property],[Property])
-parLoop halo_env params write thy props lemmas = do
+parLoop :: [Property] -> [Property] -> HS ([Property],[Property])
+parLoop props lemmas = do
+
+    params <- getParams
 
     (proved,without_induction,unproved) <-
-         partitionInvRes <$> tryProve halo_env params write props thy lemmas
+         partitionInvRes <$> tryProve props lemmas
 
-    unless (null without_induction) $
+    unless (null without_induction) $ liftIO $
          putStrLn $ unwords (map (showProperty True) without_induction)
                  ++ " provable without induction"
 
@@ -205,9 +211,9 @@ parLoop halo_env params write thy props lemmas = do
 
          then return (unproved,lemmas++proved++without_induction)
 
-         else do putStrLn $ "Adding " ++ show (length proved)
+         else do liftIO $ putStrLn $ "Adding " ++ show (length proved)
                          ++ " lemmas: " ++ intercalate ", " (map propName proved)
-                 parLoop halo_env params write thy unproved
+                 parLoop unproved
                          (lemmas ++ proved ++ without_induction)
 
 showProperty :: Bool -> Property -> String
@@ -216,16 +222,8 @@ showProperty proved Property{..}
     | propOops && not proved = colour Green propName
     | otherwise              = propName
 
-printInfo :: [Property] -> [Property] -> IO ()
-printInfo unproved proved = do
-
-    let pr b xs | null xs   = "(none)"
-                | otherwise = intercalate "\n\t" (map (showProperty b) xs)
-
-        len :: [Property] -> Int
-        len = length . filter (not . propOops)
-
-        mistakes = filter propOops proved
+printInfo :: [Property] -> [Property] -> HS ()
+printInfo unproved proved = liftIO $ do
 
     putStrLn ("Proved: "   ++ pr True proved)
     putStrLn ("Unproved: " ++ pr False unproved)
@@ -233,3 +231,13 @@ printInfo unproved proved = do
 
     unless (null mistakes) $ putStrLn $ bold $ colour Red $
         "Proved " ++ show (length mistakes) ++ " oops: " ++ pr True mistakes
+
+  where
+    pr b xs | null xs   = "(none)"
+            | otherwise = intercalate "\n\t" (map (showProperty b) xs)
+
+    len :: [Property] -> Int
+    len = length . filter (not . propOops)
+
+    mistakes = filter propOops proved
+

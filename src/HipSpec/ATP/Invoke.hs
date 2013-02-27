@@ -113,6 +113,8 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
         , result = fmap update <$> result promise
         }
 
+-- TODO: make this in the HS monad and send messages
+
 invokeATPs :: Tree (Obligation (Proof LinTheory)) -> Env -> IO [Obligation (Proof Result)]
 invokeATPs tree env@Env{..} = do
 

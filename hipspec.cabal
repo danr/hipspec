@@ -63,6 +63,7 @@ library
         HipSpec.Heuristics.Associativity
         HipSpec.Init
         HipSpec.MakeInvocations
+        HipSpec.Monad
         HipSpec.Params
         HipSpec.MainLoop
         HipSpec.Messages
@@ -80,7 +81,8 @@ library
     build-depends:
         -- Shared
         base                          >= 4    && < 5,
-        mtl                           >= 2.0,
+        mtl                           >= 2.1.2,
+        transformers                  >= 0.3,
         containers                    >= 0.3,
         geniplate                     >= 0.6,
         time,
