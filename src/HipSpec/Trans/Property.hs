@@ -134,14 +134,14 @@ totalityProperty v t = case t of
     PER.Total _allowed_to_be_partial -> do
         args <- m_args
         return $ Property
-            { propName       = "Totality for " ++ show v
+            { propName       = "Totality for " ++ showOutputable v
             , propLiteral    = Total (apps (Var v) (map Var args))
             , propAssume     = [ Total (Var arg)
                                | (_x,arg) <- zip ([0..] :: [Int]) args
                          --      , x `notElem` allowed_to_be_partial
                                ]
             , propVars       = [ (x,varType x) | x <- args ]
-            , propRepr       = "Totality for " ++ show v
+            , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
             , propQSTerms    = error "totalityProperty"
             , propFunDeps    = [v]
