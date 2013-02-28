@@ -23,7 +23,7 @@ import HipSpec.Trans.Property
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
 
-import System.Directory (createDirectoryIfMissing,doesFileExist)
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>),(<.>))
 
 
@@ -75,10 +75,8 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
                         SMTUnsatCore -> "unsat-core" <.> "smt"
                 d = dir </> path
                 f = d </> file <.> ext
-            exists <- doesFileExist f
-            unless exists $ do
-                createDirectoryIfMissing True d
-                writeFile f theory
+            createDirectoryIfMissing True d
+            writeFile f theory
             return (Just f)
 
     when (proverCannotStdin && isNothing filepath) $
