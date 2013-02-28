@@ -28,7 +28,7 @@ deep :: Context                            -- ^ The initial context
      -> [Property]                         -- ^ Initial equations
      -> [Property]                         -- ^ Initial lemmas
      -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
+deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
   where
     show_eqs = map propRepr
 
