@@ -95,12 +95,10 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
     mk_prop :: [Symbol] -> Property
     mk_prop partials = Property
         { propLiteral    = lit
-        , propAssume     = map (Total . term_to_expr . T.Var)
-                         . filter (`notElem` partials)
-                         $ occuring_vars
+        , propAssume     = map (Total . term_to_expr . T.Var) totals
         , propVars       = prop_vars
-        , propName       = partial_precond ++ repr
-        , propRepr       = partial_precond ++ repr
+        , propName       = repr
+        , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
         , propOrigin     = PEquation (partials :\/: e1 :=: e2)
         , propOffsprings = return []
@@ -108,9 +106,8 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
         , propOops       = False
         }
       where
-        partial_precond = case partials of
-          [] -> ""
-          xs -> intercalate ", " (map (("partial " ++) . show) xs) ++ " => "
+        repr = show_eq (partials :\/: e1 :=: e2)
+        totals = filter (`notElem` partials) $ occuring_vars
 
     occuring_vars :: [Symbol]
     occuring_vars = nub (vars e1 ++ vars e2)
@@ -124,7 +121,6 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
                 , let ty = typeRepToType str_marsh (symbolType x)
                 ]
 
-    repr = show_eq ([] :\/: e1 :=: e2)
 
     fundeps  =
         [ v
