@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards,NamedFieldPuns,TypeOperators,
-             ParallelListComp,ViewPatterns #-}
+             ParallelListComp,ViewPatterns,ScopedTypeVariables #-}
 module HipSpec.Trans.MakeProofs (runMakerM, makeProofs, translateLemma) where
 
 import Data.List (nub)
@@ -38,7 +38,7 @@ import Type
 import Var
 import qualified Outputable as Outputable
 
-translateLemma :: Property -> Int -> HaloM HipSpecSubtheory
+translateLemma :: Property eq -> Int -> HaloM HipSpecSubtheory
 translateLemma Property{..} lemma_num = do
     (tr_lem,ptrs) <- capturePtrs equals
     return $ Subtheory
@@ -77,10 +77,10 @@ trLiteral l = case l of
         return (e1' === e2',[e1',e2'])
 
 -- One subtheory with a conjecture with all dependencies
-type ProofObligation = Obligation (Proof HipSpecSubtheory)
-type ProofTree       = Tree ProofObligation
+type ProofObligation eq = Obligation eq (Proof HipSpecSubtheory)
+type ProofTree eq       = Tree (ProofObligation eq)
 
-makeProofs :: Params -> Property -> MakerM ProofTree
+makeProofs :: forall eq . Params -> Property eq -> MakerM (ProofTree eq)
 makeProofs Params{methods,indvars,indparts,indhyps,inddepth,bottoms} prop@Property{..}
     = requireAny <$>
         (sequence (mapMaybe induction induction_coords) `catchError` \ _ -> do
@@ -110,7 +110,7 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth,bottoms} prop@Proper
         stop_depth  | 'i' `elem` methods = inddepth
                     | otherwise          = 0
 
-    induction :: [Int] -> Maybe (MakerM ProofTree)
+    induction :: [Int] -> Maybe (MakerM (ProofTree eq))
     induction coords = do
         let obligs = subtermInduction (tyEnv bottoms) propVars coords
             n_obligs = length obligs
@@ -153,7 +153,8 @@ makeVar (v :~ _) = do
     put us
     return (setVarUnique v u)
 
-trObligation :: Property -> IS.Obligation DataCon Var Type -> HaloM (String,[Formula'])
+trObligation :: Property eq -> IS.Obligation DataCon Var Type
+             -> HaloM (String,[Formula'])
 trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) =
 
     local (addSkolems skolem_vars) $ do

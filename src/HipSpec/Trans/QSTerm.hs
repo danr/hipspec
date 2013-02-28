@@ -4,7 +4,12 @@
    Translating from QuickSpec -> Core
 
 -}
-module HipSpec.Trans.QSTerm where
+module HipSpec.Trans.QSTerm
+    ( eqToProp
+    , peqToProp
+    , maybeLookupSym
+    , definitionalEquations
+    ) where
 
 
 import Test.QuickSpec.Term as T
@@ -83,16 +88,16 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
              " to Core representation! Debug the string marshallings" ++
              " with --db-str-marsh "
 
-termsToProp :: (PEquation -> String)              -- ^ Showing Equations
-            -> StrMarsh -> Term -> Term -> Property
-termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
+-- TODO: remove code duplication between this and eqToProp
+peqToProp :: (PEquation -> String) -> StrMarsh -> PEquation -> Property PEquation
+peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
     { propOffsprings = forM occuring_vars $ \ partial_one -> do
             return (mk_prop [partial_one])
             -- OBS: Add Nick's testing
     }
 
   where
-    mk_prop :: [Symbol] -> Property
+    mk_prop :: [Symbol] -> Property PEquation
     mk_prop partials = Property
         { propLiteral    = lit
         , propAssume     = map (Total . term_to_expr . T.Var) totals
@@ -100,7 +105,7 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
         , propName       = repr
         , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
-        , propOrigin     = PEquation (partials :\/: e1 :=: e2)
+        , propOrigin     = Equation (partials :\/: e1 :=: e2)
         , propOffsprings = return []
         , propFunDeps    = fundeps
         , propOops       = False
@@ -121,7 +126,6 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
                 , let ty = typeRepToType str_marsh (symbolType x)
                 ]
 
-
     fundeps  =
         [ v
         | c <- nub (funs e1 ++ funs e2)
@@ -138,9 +142,51 @@ termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
 
     var_rename_map = M.fromList var_rename
 
-removeOne :: [a] -> [(a,[a])]
-removeOne []     = []
-removeOne (x:xs) = (x,xs):map (second (x:)) (removeOne xs)
+-- TODO: remove code duplication between this and peqToProp
+eqToProp :: (Equation -> String) -> StrMarsh -> Equation -> Property Equation
+eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
+    { propLiteral    = lit
+    , propAssume     = []
+    , propVars       = prop_vars
+    , propName       = repr
+    , propRepr       = repr
+    , propVarRepr    = map (show . fst) var_rename
+    , propOrigin     = Equation eq
+    , propOffsprings = return []
+    , propFunDeps    = fundeps
+    , propOops       = False
+    }
+  where
+
+    repr = show_eq eq
+
+    occuring_vars :: [Symbol]
+    occuring_vars = nub (vars e1 ++ vars e2)
+
+    term_to_expr = termToExpr str_marsh var_rename_map
+
+    lit = term_to_expr e1 :== term_to_expr e2
+
+    prop_vars = [ (setVarType v ty,ty)
+                | (x,v) <- var_rename
+                , let ty = typeRepToType str_marsh (symbolType x)
+                ]
+
+    fundeps  =
+        [ v
+        | c <- nub (funs e1 ++ funs e2)
+        , let (v,is_function_not_constructor) = lookupSym str_marsh c
+        , is_function_not_constructor
+        ]
+
+    var_rename     =
+        [ (x,setVarType v ty)
+        | x <- occuring_vars
+        , let ty = typeRepToType str_marsh (symbolType x)
+        | v <- varNames
+        ]
+
+    var_rename_map = M.fromList var_rename
 
 maybeLookupSym :: StrMarsh -> Symbol -> Maybe (Var,Bool)
 maybeLookupSym (strToVar,_) (name -> s) = M.lookup s strToVar
@@ -179,12 +225,6 @@ definitionalEquations str_marsh lookup_var sig =
             concatMap (trFormula type_matcher maybeLookupVar)
                       (lookup_var v)
         _ -> []
-
-eqToProp :: (PEquation -> String) -> StrMarsh -> Equation -> Property
-eqToProp show_eq str_marsh (t :=: u) = termsToProp show_eq str_marsh t u
-
-csv :: [String] -> String
-csv = intercalate ", "
 
 -- | A bunch of _local_ variable names to quantify over
 varNames :: [Var]

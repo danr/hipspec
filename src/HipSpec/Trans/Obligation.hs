@@ -3,8 +3,8 @@ module HipSpec.Trans.Obligation where
 
 import HipSpec.Trans.Property
 
-data Obligation a = Obligation
-    { ob_property :: Property
+data Obligation eq a = Obligation
+    { ob_property :: Property eq
     , ob_content  :: a
     }
   deriving (Functor,Show)

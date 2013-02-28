@@ -67,6 +67,7 @@ library
         HipSpec.Params
         HipSpec.MainLoop
         HipSpec.Messages
+        HipSpec.Reasoning
         HipSpec.StringMarshal
         HipSpec.Trans.MakeProofs
         HipSpec.Trans.Obligation

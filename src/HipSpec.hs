@@ -2,18 +2,29 @@
 module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
+
 import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Equation
+import Test.QuickSpec.Equation (Equation(..), equations)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.TestTotality
-import Test.QuickSpec.Reasoning.PartialEquationalReasoning
-    ( execPEQ, evalPEQ, unify, equal
-    , initial, Context
-    , PEquation(..)
-    , showPEquation )
 
+{-
+import Test.QuickSpec.Reasoning.NaiveEquationalReasoning
+    ()
+    -}
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning
+    (PEquation(..), evalPEQ, execPEQ, showPEquation)
+
+{-
+import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
+-}
+import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
+
+import HipSpec.Reasoning
+
+import HipSpec.StringMarshal
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
@@ -43,7 +54,9 @@ import Data.Monoid (mappend)
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
+{-
 import Text.Printf
+-}
 
 -- Main library ---------------------------------------------------------------
 
@@ -57,18 +70,18 @@ hipSpec file sig0 = runHS $ do
 
     let sig = signature sig0 `mappend` withTests 100
 
+{-
         showEq :: PEquation -> String
         showEq = showPEquation sig
 
         showProperty :: Property -> String
         showProperty = propName
 
-        showProperties :: [Property] -> [String]
-        showProperties = map showProperty
 
         printNumberedEqs :: [PEquation] -> IO ()
         printNumberedEqs eqs = forM_ (zip [1 :: Int ..] eqs) $ \(i, eq) ->
             printf "%3d: %s\n" i (showEq eq)
+            -}
 
     processFile file $ \ (props,str_marsh) -> do
 
@@ -89,90 +102,119 @@ hipSpec file sig0 = runHS $ do
 
             def_eqs = definitionalEquations str_marsh lookup_func sig
 
+{-
         when definitions $ liftIO $ do
             putStrLn "\nDefinitional equations:"
             printNumberedEqs def_eqs
+            -}
 
-        tot_list <- liftIO $ testTotality sig
+        abcde <- initialisePEQ sig str_marsh def_eqs
+        uncurry4 (remaining props) abcde
 
-        let tot_props
-                = [ tot_prop
-                  | (sym,totality) <- tot_list
-                  , Just (v,True) <- [maybeLookupSym str_marsh sym]
-                  , Just tot_prop <- [totalityProperty v totality]
-                  ]
+remaining :: EQR eq ctx cc
+          => [Property eq]
+          -> ctx
+          -> [Property eq]
+          -> [Property eq]
+          -> [Property eq]
+          -> HS ()
+remaining props ctx0 qsprops already_proved already_failures = do
 
-        (unproved_tot,proved_tot) <- parLoop tot_props []
+    Params{..} <- getParams
 
-        classes <- liftIO $ fmap eraseClasses (generate (const T.totalGen) sig)
+    (qslemmas,qsunproved,_ctx) <- deep ctx0 qsprops already_proved
 
-        let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
-            swapEq (t :=: u) = u :=: t
+    writeMsg StartingUserLemmas
 
-            classToEqs :: [[Tagged T.Term]] -> [Equation]
-            classToEqs
-                = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
-                . if quadratic
-                       then sort . map (uncurry (:=:)) .
-                            concatMap (uniqueCartesian . map erase)
-                       else equations
+    (unproved,proved) <- parLoop props qslemmas
 
-            ctx_init   = initial (maxDepth sig) tot_list univ
-            univ       = map head classes
+    let showProperties = map propName
 
-            ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
+    writeMsg $ Finished
+        (filter (`notElem` map propName qslemmas) $ map propName proved)
+        (map propName unproved)
+        (map propName qslemmas)
+        (showProperties qsunproved)
 
-            pruner     = pprune ctx0
+    printInfo (unproved ++ already_failures) proved
 
-            prunedEqs
-                = map untotalise
-                . pruner
-                . map totalise
-                . equations
-                $ classes
+    unless dont_print_unproved $ liftIO $
+        putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
 
-            eqs        = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+    case json of
+        Just json_file -> do
+            msgs <- getMsgs
+            liftIO $ B.writeFile json_file (encode msgs)
+        Nothing -> return ()
 
-            qsprops    = filter (not . is_def)
-                       $ map (eqToProp showEq str_marsh) eqs
-              where
-                definition = evalPEQ ctx0 . equal
+initialisePEQ :: Sig -> StrMarsh -> [PEquation]
+              -> HS (PER.Context,[Property PEquation],[Property PEquation],[Property PEquation])
+initialisePEQ sig str_marsh def_eqs = do
 
-                is_def p = case propPEquation p of
-                    Just peq -> definition peq
-                    _        -> False
+    Params{..} <- getParams
 
-        (qslemmas,qsunproved,_ctx) <- deep ctx0 qsprops proved_tot
+    tot_list <- liftIO $ testTotality sig
 
-        writeMsg StartingUserLemmas
+    let tot_props
+            = [ tot_prop
+              | (sym,totality) <- tot_list
+              , Just (v,True) <- [maybeLookupSym str_marsh sym]
+              , Just tot_prop <- [totalityProperty v totality]
+              ]
 
-        (unproved,proved) <- parLoop props qslemmas
+    (unproved_tot,proved_tot) <- parLoop tot_props []
 
-        writeMsg $ Finished
-            (filter (`notElem` map propName qslemmas) $ map propName proved)
-            (map propName unproved)
-            (map propName qslemmas)
-            (showProperties qsunproved)
+    classes <- liftIO $ fmap eraseClasses (generate (const T.totalGen) sig)
 
-        printInfo (unproved ++ unproved_tot) proved
+    let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
+        swapEq (t :=: u) = u :=: t
 
-        unless dont_print_unproved $ liftIO $
-            putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
+        classToEqs :: [[Tagged T.Term]] -> [Equation]
+        classToEqs
+            = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
+            . if quadratic
+                   then sort . map (uncurry (:=:)) .
+                        concatMap (uniqueCartesian . map erase)
+                   else equations
 
-        case json of
-            Just json_file -> do
-                msgs <- getMsgs
-                liftIO $ B.writeFile json_file (encode msgs)
-            Nothing -> return ()
+        ctx_init   = PER.initial (maxDepth sig) tot_list univ
+        univ       = map head classes
 
-pprune :: Context -> [PEquation] -> [PEquation]
-pprune ctx = evalPEQ ctx . filterM (fmap not . unify)
+        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
+
+        pruner     = pprune ctx0
+
+        prunedEqs
+            = pruner
+            . map totalise
+            . equations
+            $ classes
+
+        eqs        = prepend_pruned ? (prunedEqs ++)
+                   $ map totalise (classToEqs classes)
+
+        qsprops    = filter (not . is_def)
+                   $ map (peqToProp (showPEquation sig) str_marsh) eqs
+          where
+            definition = evalPEQ ctx0 . equal
+
+            is_def p = case propEquation p of
+                Just eq -> definition eq
+                _       -> False
+
+    return (ctx0,qsprops,proved_tot,unproved_tot)
+
+pprune :: PER.Context -> [PEquation] -> [PEquation]
+pprune ctx = evalPEQ ctx . filterM (fmap not . PER.unify)
 
 totalise :: Equation -> PEquation
 totalise eq = [] :\/: eq
 
+{-
 untotalise :: PEquation -> Equation
 untotalise ([] :\/: eq) = eq
 untotalise _ = error "Untotalize on a non-total PEquation"
+-}
 
-
+uncurry4 :: (a -> b -> c -> d -> e) -> ((a,b,c,d) -> e)
+uncurry4 f (a,b,c,d) = f a b c d

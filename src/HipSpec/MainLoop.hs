@@ -1,43 +1,38 @@
-{-# LANGUAGE ViewPatterns,NamedFieldPuns #-}
+{-# LANGUAGE ViewPatterns,NamedFieldPuns,ScopedTypeVariables #-}
 module HipSpec.MainLoop where
 
-import Test.QuickSpec.Term hiding (depth)
-import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Equation
-import Test.QuickSpec.Reasoning.PartialEquationalReasoning(
-  Context, unify, equal, execPEQ, evalPEQ, PEquation(..))
+import HipSpec.Reasoning
 
 import HipSpec.Monad
 
 import HipSpec.Trans.Property
-import HipSpec.Trans.QSTerm
 import HipSpec.MakeInvocations
 
 import Halo.Util
 
 import Data.List
 import Data.Ord
-import Data.Tuple
-import Data.Function
 import Data.Maybe
 
 import Control.Monad
 
 -- | The main loop
-deep :: Context                            -- ^ The initial context
-     -> [Property]                         -- ^ Initial equations
-     -> [Property]                         -- ^ Initial lemmas
-     -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
+deep :: forall eq ctx cc .
+        (EQR eq ctx cc)                      -- ^ The equality reasoner
+     => ctx                                  -- ^ The initial context
+     -> [Property eq]                        -- ^ Initial equations
+     -> [Property eq]                        -- ^ Initial lemmas
+     -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
 deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
   where
     show_eqs = map propRepr
 
-    loop :: Context                            -- ^ Prune state, to handle the congurece closure
-         -> [Property]                         -- ^ Equations to process
-         -> [Property]                         -- ^ Equations processed, but failed
-         -> [Property]                         -- ^ Equations proved
-         -> Bool                               -- ^ Managed to prove something this round
-         -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
+    loop :: ctx                                  -- ^ Prune state, to handle the congurece closure
+         -> [Property eq]                        -- ^ Equations to process
+         -> [Property eq]                        -- ^ Equations processed, but failed
+         -> [Property eq]                        -- ^ Equations proved
+         -> Bool                                 -- ^ Managed to prove something this round
+         -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
     loop ctx []  failed proved False = return (proved,failed,ctx)
     loop ctx []  failed proved True  = do liftIO $ putStrLn "Loop!"
                                           loop ctx failed [] proved False
@@ -45,11 +40,11 @@ deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
 
         Params{interesting_cands,batchsize} <- getParams
 
-        let discard :: Property -> [Property] -> Bool
-            discard prop failedacc = case propPEquation prop of
-                Just peq
-                    -> any (isoDiscard peq) (mapMaybe propPEquation failedacc)
-                    || evalPEQ ctx (equal peq)
+        let discard :: Property eq -> [Property eq] -> Bool
+            discard prop failedacc = case propEquation prop of
+                Just eq
+                    -> any (isoDiscard eq) (mapMaybe propEquation failedacc)
+                    || evalEQR ctx (equal eq)
                 _ -> False
 
             (renamings,try,next_without_offsprings)
@@ -74,10 +69,10 @@ deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
 
             prunable = successes ++ without_induction
 
-            ctx' :: Context
-            ctx' = execPEQ ctx (mapM_ unify (mapMaybe propPEquation prunable))
+            ctx' :: ctx
+            ctx' = execEQR ctx (mapM_ unify (mapMaybe propEquation prunable))
 
-            failed' :: [Property]
+            failed' :: [Property eq]
             failed' = failed ++ failures
 
         case () of
@@ -99,46 +94,10 @@ deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
                     loop ctx' (cand ++ next) failed_wo_cand
                               (proved ++ successes) True
 
-instanceOf :: Context -> Property -> Property -> Bool
-instanceOf ctx (propPEquation -> Just new) (propPEquation -> Just cand) =
-    evalPEQ ctx (cand --> new)
-  where
-    eq1 --> eq2 = unify eq1 >> equal eq2
-instanceOf _ _ _ = False
-
--- can we discard the first equation given that the second has failed?
-isoDiscard :: PEquation -> PEquation -> Bool
-isoDiscard (pre1 :\/: eq1) (pre2 :\/: eq2)
-    = eq1 `isomorphicTo` eq2 && pre1 `isSubsetOf` pre2
-  where
-    a `isSubsetOf` b = null (a \\ b)
-
--- Renaming
-isomorphicTo :: Equation -> Equation -> Bool
-e1 `isomorphicTo` e2 =
-  case matchEqSkeleton e1 e2 of
-    Nothing -> False
-    Just xs -> function xs && function (map swap xs)
-  where
-    matchEqSkeleton :: Equation -> Equation -> Maybe [(Symbol, Symbol)]
-    matchEqSkeleton (t :=: u) (t' :=: u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-
-    matchSkeleton :: Term -> Term -> Maybe [(Symbol, Symbol)]
-    matchSkeleton (T.Const f) (T.Const g) | f == g = return []
-    matchSkeleton (T.Var x) (T.Var y) = return [(x, y)]
-    matchSkeleton (T.App t u) (T.App t' u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-    matchSkeleton _ _ = Nothing
-
-    -- Relation is a function
-    function :: (Ord a, Eq b) => [(a, b)] -> Bool
-    function
-        = all singleton
-        . groupBy ((==) `on` fst)
-        . nub
-        . sortBy (comparing fst)
-      where singleton xs = length xs == 1
+    instanceOf :: ctx -> Property eq -> Property eq -> Bool
+    instanceOf ctx (propEquation -> Just new) (propEquation -> Just cand) =
+        evalEQR ctx (unify cand >> equal new)
+    instanceOf _ _ _ = False
 
 -- | Get up to n elements satisfying the predicate, those skipped, and the rest
 --   (satisfies p,does not satisfy p (at most n),the rest)
@@ -148,3 +107,7 @@ getUpTo _ _ []     _  = ([],[],[])
 getUpTo n p (x:xs) ys
    | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
    | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
+
+csv :: [String] -> String
+csv = intercalate ", "
+

@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns, ScopedTypeVariables #-}
 module HipSpec.ATP.Invoke (invokeATPs, Env(..), LinTheory(..), TheoryType(..)) where
 
 import Prelude hiding (mapM)
@@ -50,7 +50,7 @@ interpretResult Env{lemma_lookup} Prover{..} pr@ProcessResult{..} = excode `seq`
         Failure -> Failure
         Unknown _ -> Unknown (show pr)
 
-filename :: Env -> Obligation (Proof a) -> (FilePath,FilePath)
+filename :: Env -> Obligation eq (Proof a) -> (FilePath,FilePath)
 filename Env{z_encode} (Obligation Property{propName} p) = case p of
     Induction coords ix _ _ ->
         ((z_encode ? escape) propName
@@ -58,8 +58,9 @@ filename Env{z_encode} (Obligation Property{propName} p) = case p of
   where
     usv = intercalate "_" . map show
 
-promiseProof :: Env -> Obligation (Proof LinTheory) -> Double -> Prover
-             -> IO (Promise [Obligation (Proof Result)])
+promiseProof :: forall eq .
+                Env -> Obligation eq (Proof LinTheory) -> Double -> Prover
+             -> IO (Promise [Obligation eq (Proof Result)])
 promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{..} = do
 
     let LinTheory lin = proof_content proof
@@ -97,7 +98,7 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
     promise <- length inputStr `seq`
         processPromise proverCmd (proverArgs filepath' timelimit) inputStr
 
-    let update :: ProcessResult -> [Obligation (Proof Result)]
+    let update :: ProcessResult -> [Obligation eq (Proof Result)]
         update r = [fmap (fmap (const $ res)) ob]
           where res = (proverName,interpretResult env prover r)
 
@@ -114,7 +115,7 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
 
 -- TODO: make this in the HS monad and send messages
 
-invokeATPs :: Tree (Obligation (Proof LinTheory)) -> Env -> IO [Obligation (Proof Result)]
+invokeATPs :: Tree (Obligation eq (Proof LinTheory)) -> Env -> IO [Obligation eq (Proof Result)]
 invokeATPs tree env@Env{..} = do
 
     {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
@@ -124,8 +125,8 @@ invokeATPs tree env@Env{..} = do
         putStrLn "\n"
         -}
 
-    let make_promises :: Obligation (Proof LinTheory)
-                      -> IO (Tree (Promise [Obligation (Proof Result)]))
+    let make_promises :: Obligation eq (Proof LinTheory)
+                      -> IO (Tree (Promise [Obligation eq (Proof Result)]))
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree

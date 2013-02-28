@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns, ScopedTypeVariables #-}
 module HipSpec.MakeInvocations
     ( tryProve
     , InvokeResult(..)
@@ -55,7 +55,7 @@ partitionInvRes ((x,ir):xs) = case ir of
   where (a,b,c) = partitionInvRes xs
 
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: [Property] -> [Property] -> HS [(Property,InvokeResult)]
+tryProve :: forall eq . [Property eq] -> [Property eq] -> HS [(Property eq,InvokeResult)]
 tryProve []    _      = return []
 tryProve props lemmas = do
 
@@ -107,7 +107,7 @@ tryProve props lemmas = do
         fetch_and_linearise conj = linTheory $
             conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-        proof_tree_lin :: Tree (Obligation (Proof LinTheory))
+        proof_tree_lin :: Tree (Obligation eq (Proof LinTheory))
         proof_tree_lin = fmap (fmap (fmap fetch_and_linearise)) proof_tree
 
         env = Env
@@ -200,7 +200,7 @@ viewInvRes green prop_name res = case res of
         Just [x] -> ", using " ++ x
         Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
 
-parLoop :: [Property] -> [Property] -> HS ([Property],[Property])
+parLoop :: [Property eq] -> [Property eq] -> HS ([Property eq],[Property eq])
 parLoop props lemmas = do
 
     params <- getParams
@@ -221,13 +221,13 @@ parLoop props lemmas = do
                  parLoop unproved
                          (lemmas ++ proved ++ without_induction)
 
-showProperty :: Bool -> Property -> String
+showProperty :: Bool -> Property eq -> String
 showProperty proved Property{..}
     | propOops && proved     = bold (colour Red propName)
     | propOops && not proved = colour Green propName
     | otherwise              = propName
 
-printInfo :: [Property] -> [Property] -> HS ()
+printInfo :: forall eq . [Property eq] -> [Property eq] -> HS ()
 printInfo unproved proved = liftIO $ do
 
     putStrLn ("Proved: "   ++ pr True proved)
@@ -241,7 +241,7 @@ printInfo unproved proved = liftIO $ do
     pr b xs | null xs   = "(none)"
             | otherwise = intercalate "\n\t" (map (showProperty b) xs)
 
-    len :: [Property] -> Int
+    len :: [Property eq] -> Int
     len = length . filter (not . propOops)
 
     mistakes = filter propOops proved

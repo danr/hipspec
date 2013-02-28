@@ -31,7 +31,7 @@ import TysWiredIn
 
 import Control.Monad
 
-processFile :: FilePath -> (([Property],StrMarsh) -> HS a) -> HS a
+processFile :: FilePath -> (([Property eq],StrMarsh) -> HS a) -> HS a
 processFile file k = do
 
     params@Params{..} <- getParams

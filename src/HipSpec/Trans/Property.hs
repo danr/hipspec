@@ -3,7 +3,7 @@ module HipSpec.Trans.Property
     ( Literal(..)
     , Property(..)
     , Origin(..)
-    , propPEquation
+    , propEquation
     , varsFromCoords
     , inconsistentProperty
     , trProperty
@@ -37,31 +37,31 @@ instance Show Literal where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
     show (Total e)   = "Total(" ++ showOutputable e ++ ")"
 
-data Origin
-    = PEquation PEquation
+data Origin eq
+    = Equation eq
     | Totality Totality
     | Elsewhere
   deriving (Eq,Ord)
 
-propPEquation :: Property -> Maybe PEquation
-propPEquation (propOrigin -> PEquation peq) = Just peq
-propPEquation _                             = Nothing
+propEquation :: Property eq -> Maybe eq
+propEquation (propOrigin -> Equation eq) = Just eq
+propEquation _                           = Nothing
 
-data Property = Property
+data Property eq = Property
     { propLiteral    :: Literal
     , propAssume     :: [Literal]
     , propVars       :: [(Var,Type)]
     , propName       :: String
     , propRepr       :: String
     , propVarRepr    :: [String]
-    , propOrigin     :: Origin
-    , propOffsprings :: IO [Property]
+    , propOrigin     :: Origin eq
+    , propOffsprings :: IO [Property eq]
     , propFunDeps    :: [Var]
     , propOops       :: Bool
     -- ^ It's an error if this property was provable
     }
 
-instance Eq Property where
+instance Eq (Property eq) where
     (==) = equal propName .&&. equal (map fst . propVars)
 
 (.&&.) :: (a -> b -> Bool) -> (a -> b -> Bool) -> a -> b -> Bool
@@ -70,10 +70,10 @@ instance Eq Property where
 equal :: Eq b => (a -> b) -> a -> a -> Bool
 equal = ((==) `on`)
 
-varsFromCoords :: Property -> [Int] -> [String]
+varsFromCoords :: Property eq -> [Int] -> [String]
 varsFromCoords p cs = [ propVarRepr p !! c | c <- cs ]
 
-instance Show Property where
+instance Show (Property eq) where
     show Property{..} = concat
         ["Property "
         ,"{ propLiteral = ", show propLiteral
@@ -86,7 +86,7 @@ instance Show Property where
         ,"}"
         ]
 
-inconsistentProperty :: Property
+inconsistentProperty :: Property eq
 inconsistentProperty = Property
     { propLiteral    = Var trueDataConId :== Var falseDataConId
     , propAssume     = []
@@ -115,7 +115,7 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
         return (u,(b :== Var trueDataConId):as,o)
     _ -> Nothing
 
-trProperty :: CoreBind -> Maybe Property
+trProperty :: CoreBind -> Maybe (Property eq)
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
 
@@ -139,7 +139,7 @@ trProperty (NonRec prop_name e) = do
         }
 trProperty _ = Nothing
 
-totalityProperty :: Var -> Totality -> Maybe Property
+totalityProperty :: Var -> Totality -> Maybe (Property eq)
 totalityProperty v t = case t of
     Partial  -> Nothing
     Variable -> Nothing
