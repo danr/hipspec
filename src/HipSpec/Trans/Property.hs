@@ -1,7 +1,9 @@
-{-# LANGUAGE RecordWildCards,NamedFieldPuns,PatternGuards #-}
+{-# LANGUAGE RecordWildCards,NamedFieldPuns,PatternGuards,ViewPatterns #-}
 module HipSpec.Trans.Property
     ( Literal(..)
     , Property(..)
+    , Origin(..)
+    , propPEquation
     , varsFromCoords
     , inconsistentProperty
     , trProperty
@@ -35,6 +37,16 @@ instance Show Literal where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
     show (Total e)   = "Total(" ++ showOutputable e ++ ")"
 
+data Origin
+    = PEquation PEquation
+    | Totality Totality
+    | Elsewhere
+  deriving (Eq,Ord)
+
+propPEquation :: Property -> Maybe PEquation
+propPEquation (propOrigin -> PEquation peq) = Just peq
+propPEquation _                             = Nothing
+
 data Property = Property
     { propLiteral    :: Literal
     , propAssume     :: [Literal]
@@ -42,7 +54,7 @@ data Property = Property
     , propName       :: String
     , propRepr       :: String
     , propVarRepr    :: [String]
-    , propQSTerms    :: PEquation
+    , propOrigin     :: Origin
     , propOffsprings :: IO [Property]
     , propFunDeps    :: [Var]
     , propOops       :: Bool
@@ -82,7 +94,7 @@ inconsistentProperty = Property
     , propName       = "inconsistencyCheck"
     , propRepr       = "inconsistecy check: this should never be provable"
     , propVarRepr    = []
-    , propQSTerms    = error "propQSTerms: inconsistentProp"
+    , propOrigin     = Elsewhere
     , propOffsprings = return []
     , propFunDeps    = []
     , propOops       = True
@@ -120,7 +132,7 @@ trProperty (NonRec prop_name e) = do
         , propVars       = [ (x,varType x) | x <- vars ]
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
-        , propQSTerms    = error "trProperty : propQSTerms"
+        , propOrigin     = Elsewhere
         , propFunDeps    = nub $ concatMap free (lit:assume)
         , propOffsprings = return []
         , propOops       = oops
@@ -143,7 +155,7 @@ totalityProperty v t = case t of
             , propVars       = [ (x,varType x) | x <- args ]
             , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
-            , propQSTerms    = error "totalityProperty"
+            , propOrigin     = Totality t
             , propFunDeps    = [v]
             , propOffsprings = return []
             , propOops       = False

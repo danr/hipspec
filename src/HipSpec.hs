@@ -61,7 +61,7 @@ hipSpec file sig0 = runHS $ do
         showEq = showPEquation sig
 
         showProperty :: Property -> String
-        showProperty = showEq . propQSTerms
+        showProperty = propName
 
         showProperties :: [Property] -> [String]
         showProperties = map showProperty
@@ -133,13 +133,16 @@ hipSpec file sig0 = runHS $ do
 
             eqs        = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
+            qsprops    = filter (not . is_def)
+                       $ map (eqToProp showEq str_marsh) eqs
+              where
+                definition = evalPEQ ctx0 . equal
 
-            definition = evalPEQ ctx0 . equal
+                is_def p = case propPEquation p of
+                    Just peq -> definition peq
+                    _        -> False
 
-            qsprops    = filter (not . definition . propQSTerms)
-                       $ map (eqToProp str_marsh) eqs
-
-        (qslemmas,qsunproved,_ctx) <- deep showEq ctx0 qsprops proved_tot
+        (qslemmas,qsunproved,_ctx) <- deep ctx0 qsprops proved_tot
 
         writeMsg StartingUserLemmas
 

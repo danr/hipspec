@@ -83,8 +83,9 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
              " to Core representation! Debug the string marshallings" ++
              " with --db-str-marsh "
 
-termsToProp :: StrMarsh -> Term -> Term -> Property
-termsToProp str_marsh e1 e2 = (mk_prop [])
+termsToProp :: (PEquation -> String)              -- ^ Showing Equations
+            -> StrMarsh -> Term -> Term -> Property
+termsToProp show_eq str_marsh e1 e2 = (mk_prop [])
     { propOffsprings = forM occuring_vars $ \ partial_one -> do
             return (mk_prop [partial_one])
             -- OBS: Add Nick's testing
@@ -101,7 +102,7 @@ termsToProp str_marsh e1 e2 = (mk_prop [])
         , propName       = partial_precond ++ repr
         , propRepr       = partial_precond ++ repr
         , propVarRepr    = map (show . fst) var_rename
-        , propQSTerms    = partials :\/: e1 :=: e2
+        , propOrigin     = PEquation (partials :\/: e1 :=: e2)
         , propOffsprings = return []
         , propFunDeps    = fundeps
         , propOops       = False
@@ -123,7 +124,7 @@ termsToProp str_marsh e1 e2 = (mk_prop [])
                 , let ty = typeRepToType str_marsh (symbolType x)
                 ]
 
-    repr = show (e1 :=: e2)
+    repr = show_eq ([] :\/: e1 :=: e2)
 
     fundeps  =
         [ v
@@ -183,8 +184,8 @@ definitionalEquations str_marsh lookup_var sig =
                       (lookup_var v)
         _ -> []
 
-eqToProp :: StrMarsh -> Equation -> Property
-eqToProp str_marsh (t :=: u) = termsToProp str_marsh t u
+eqToProp :: (PEquation -> String) -> StrMarsh -> Equation -> Property
+eqToProp show_eq str_marsh (t :=: u) = termsToProp show_eq str_marsh t u
 
 csv :: [String] -> String
 csv = intercalate ", "

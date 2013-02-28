@@ -19,18 +19,18 @@ import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
+import Data.Maybe
 
 import Control.Monad
 
 -- | The main loop
-deep :: (PEquation -> String)              -- ^ Showing Equations
-     -> Context                            -- ^ The initial context
+deep :: Context                            -- ^ The initial context
      -> [Property]                         -- ^ Initial equations
      -> [Property]                         -- ^ Initial lemmas
      -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
+deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
   where
-    show_eqs = map (show_eq . propQSTerms)
+    show_eqs = map propRepr
 
     loop :: Context                            -- ^ Prune state, to handle the congurece closure
          -> [Property]                         -- ^ Equations to process
@@ -46,10 +46,11 @@ deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
         Params{interesting_cands,batchsize} <- getParams
 
         let discard :: Property -> [Property] -> Bool
-            discard eq failedacc
-                = any (isoDiscard (propQSTerms eq))
-                      (map propQSTerms failedacc)
-                || evalPEQ ctx (equal (propQSTerms eq))
+            discard prop failedacc = case propPEquation prop of
+                Just peq
+                    -> any (isoDiscard peq) (mapMaybe propPEquation failedacc)
+                    || evalPEQ ctx (equal peq)
+                _ -> False
 
             (renamings,try,next_without_offsprings)
                 = getUpTo batchsize discard eqs failed
@@ -74,7 +75,7 @@ deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
             prunable = successes ++ without_induction
 
             ctx' :: Context
-            ctx' = execPEQ ctx (mapM_ (unify . propQSTerms) prunable)
+            ctx' = execPEQ ctx (mapM_ unify (mapMaybe propPEquation prunable))
 
             failed' :: [Property]
             failed' = failed ++ failures
@@ -85,7 +86,7 @@ deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
                | otherwise -> do
                     -- Interesting candidates
                     let (cand,failed_wo_cand)
-                            = first (sortBy (comparing propQSTerms))
+                            = first (sortBy (comparing propOrigin))
                             $ partition p failed'
                           where
                             p fail' = or [ instanceOf ctx prop fail' | prop <- prunable ]
@@ -99,10 +100,11 @@ deep show_eq ctx0 init_eqs init_lemmas = loop ctx0 init_eqs init_lemmas [] False
                               (proved ++ successes) True
 
 instanceOf :: Context -> Property -> Property -> Bool
-instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
+instanceOf ctx (propPEquation -> Just new) (propPEquation -> Just cand) =
     evalPEQ ctx (cand --> new)
   where
     eq1 --> eq2 = unify eq1 >> equal eq2
+instanceOf _ _ _ = False
 
 -- can we discard the first equation given that the second has failed?
 isoDiscard :: PEquation -> PEquation -> Bool
