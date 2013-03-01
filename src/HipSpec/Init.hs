@@ -18,6 +18,7 @@ import Halo.Util
 import Halo.Shared
 import Halo.Fetch
 import Halo.Subtheory
+import Halo.RemoveDefault
 
 import Data.List
 import Data.Maybe
@@ -81,11 +82,15 @@ processFile file k = do
 
     -- putStrLn debug_unfoldings
 
-    us <- liftIO $ mkSplitUniqSupply 'f'
+    us0 <- liftIO $ mkSplitUniqSupply 'f'
 
-    ((lifted_program,_msgs_lift),_us) <-
-        (\binds -> caseLetLift binds case_lift_inner us)
+    ((lifted_program_with_defaults,_msgs_lift),us1) <-
+        (\binds -> caseLetLift binds case_lift_inner us0)
         <$> liftIO (lambdaLift dflags unlifted_program)
+
+    let (lifted_program,_us2)
+            | bottoms   = initUs us1 (removeDefaults lifted_program_with_defaults)
+            | otherwise = (lifted_program_with_defaults,us1)
 
     {-
     flip mapM_ lifted_program $ \cb -> case cb of

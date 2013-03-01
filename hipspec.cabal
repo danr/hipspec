@@ -51,6 +51,7 @@ library
         Halo.Lift
         Halo.Monad
         Halo.PrimCon
+        Halo.RemoveDefault
         Halo.Shared
         Halo.Subtheory
         Halo.Binds
