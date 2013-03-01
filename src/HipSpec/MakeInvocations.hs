@@ -3,8 +3,8 @@ module HipSpec.MakeInvocations
     ( tryProve
     , InvokeResult(..)
     , partitionInvRes
-    , parLoop
-    , printInfo
+--    , parLoop
+--    , printInfo
     ) where
 
 import HipSpec.Monad
@@ -33,7 +33,6 @@ import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
 
 import Data.List
-import Data.Maybe
 
 import Control.Monad
 
@@ -56,8 +55,8 @@ partitionInvRes ((x,ir):xs) = case ir of
 
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: forall eq . [Property eq] -> [Property eq] -> HS [(Property eq,InvokeResult)]
-tryProve []    _      = return []
-tryProve props lemmas = do
+tryProve []    _       = return []
+tryProve props lemmas0 = do
 
     us <- liftIO $ mkSplitUniqSupply 'c'
 
@@ -65,7 +64,11 @@ tryProve props lemmas = do
     params@Params{..} <- getParams
     halo_env <- getHaloEnv
 
-    let enum_lemmas = zip [0..] lemmas
+    let lemmas
+            | isolate = filter (not . isUserStated) lemmas0
+            | otherwise = lemmas0
+
+        enum_lemmas = zip [0..] lemmas
 
         (lemma_theories,_) = runHaloM halo_env $
             mapM (uncurry $ flip translateLemma) enum_lemmas
@@ -119,7 +122,7 @@ tryProve props lemmas = do
             , z_encode        = z_encode_filenames
             }
 
-    result <- liftIO $ invokeATPs proof_tree_lin env
+    result <- invokeATPs proof_tree_lin env
 
     -- print result
 
@@ -165,41 +168,15 @@ tryProve props lemmas = do
 
         writeInvRes (propName prop) invres
 
-        liftIO $ putStrLn $ viewInvRes Green (propName prop) invres
-
     return results
 
 writeInvRes :: String -> InvokeResult -> HS ()
 writeInvRes prop_name res = case res of
-    ByInduction lemmas _provers _vars -> writeMsg $ InductiveProof prop_name (view_lemmas lemmas)
-    ByPlain lemmas _provers           -> writeMsg $ PlainProof prop_name (view_lemmas lemmas)
-    NoProof                           -> writeMsg $ FailedProof prop_name
-  where
-    view_lemmas = fromMaybe []
+    ByInduction lemmas provers vars -> writeMsg $ InductiveProof prop_name lemmas (map show provers) vars
+    ByPlain lemmas provers          -> writeMsg $ InductiveProof prop_name lemmas (map show provers) []
+    NoProof                         -> writeMsg $ FailedProof prop_name
 
-viewInvRes :: Colour -> String -> InvokeResult -> String
-viewInvRes green prop_name res = case res of
-    ByInduction lemmas provers vars ->
-        bold_green ("Proved " ++ prop_name ++ " by induction on " ++ csv id vars)
-            ++ view_provers provers ++ view_lemmas lemmas
-    ByPlain lemmas provers ->
-        colour green ("Proved " ++ prop_name ++ " without induction")
-            ++ view_provers provers ++ view_lemmas lemmas
-    NoProof -> "Failed to prove " ++ prop_name
-  where
-    bold_green = bold . colour green
-
-    csv :: (a -> String) -> [a] -> String
-    csv f = intercalate "," . map f
-
-    view_provers ps = " using " ++ csv show ps
-
-    view_lemmas mx = case mx of
-        Nothing  -> ""
-        Just []  -> ", using no lemmas"
-        Just [x] -> ", using " ++ x
-        Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
-
+{-
 parLoop :: [Property eq] -> [Property eq] -> HS ([Property eq],[Property eq])
 parLoop props lemmas = do
 
@@ -220,7 +197,9 @@ parLoop props lemmas = do
                          ++ " lemmas: " ++ intercalate ", " (map propName proved)
                  parLoop unproved
                          (lemmas ++ proved ++ without_induction)
+                         -}
 
+{-
 showProperty :: Bool -> Property eq -> String
 showProperty proved Property{..}
     | propOops && proved     = bold (colour Red propName)
@@ -246,3 +225,4 @@ printInfo unproved proved = liftIO $ do
 
     mistakes = filter propOops proved
 
+-}

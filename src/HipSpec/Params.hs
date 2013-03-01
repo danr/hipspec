@@ -14,8 +14,8 @@ import HipSpec.ATP.Provers
 data Params = Params
     { files               :: [FilePath]
     , output              :: Maybe FilePath
+    , verbosity           :: Int
     , z_encode_filenames  :: Bool
-    , warnings            :: Bool
     , json                :: Maybe FilePath
     , definitions         :: Bool
     , explore_theory      :: Bool
@@ -84,8 +84,8 @@ sanitizeParams = add_readable . fix_stdin
 defParams :: Params
 defParams = Params
     { files               = []      &= args   &= typFile
-    , warnings            = False   &= help "Show warnings from translation"
     , output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
+    , verbosity           = 100                 &= opt "Verbosity (default 100)."
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
@@ -149,3 +149,4 @@ defParams = Params
     \\n\
     \       hipspec v0.5 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"
+

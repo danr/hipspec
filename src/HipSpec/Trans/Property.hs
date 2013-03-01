@@ -4,6 +4,8 @@ module HipSpec.Trans.Property
     , Property(..)
     , Origin(..)
     , propEquation
+    , isUserStated
+    , isFromQS
     , varsFromCoords
     , inconsistentProperty
     , trProperty
@@ -40,12 +42,21 @@ instance Show Literal where
 data Origin eq
     = Equation eq
     | Totality Totality
-    | Elsewhere
+    | UserStated
+    | Builtin
   deriving (Eq,Ord)
 
 propEquation :: Property eq -> Maybe eq
 propEquation (propOrigin -> Equation eq) = Just eq
 propEquation _                           = Nothing
+
+isUserStated :: Property eq -> Bool
+isUserStated (propOrigin -> UserStated) = True
+isUserStated _                          = False
+
+isFromQS :: Property eq -> Bool
+isFromQS (propOrigin -> Equation{}) = True
+isFromQS _                          = False
 
 data Property eq = Property
     { propLiteral    :: Literal
@@ -94,7 +105,7 @@ inconsistentProperty = Property
     , propName       = "inconsistencyCheck"
     , propRepr       = "inconsistecy check: this should never be provable"
     , propVarRepr    = []
-    , propOrigin     = Elsewhere
+    , propOrigin     = Builtin
     , propOffsprings = return []
     , propFunDeps    = []
     , propOops       = True
@@ -132,7 +143,7 @@ trProperty (NonRec prop_name e) = do
         , propVars       = [ (x,varType x) | x <- vars ]
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
-        , propOrigin     = Elsewhere
+        , propOrigin     = UserStated
         , propFunDeps    = nub $ concatMap free (lit:assume)
         , propOffsprings = return []
         , propOops       = oops

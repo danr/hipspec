@@ -22,10 +22,10 @@ import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
+import HipSpec.Monad
 
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>),(<.>))
-
 
 data LinTheory = LinTheory (TheoryType -> String)
 
@@ -60,13 +60,13 @@ filename Env{z_encode} (Obligation Property{propName} p) = case p of
 
 promiseProof :: forall eq .
                 Env -> Obligation eq (Proof LinTheory) -> Double -> Prover
-             -> IO (Promise [Obligation eq (Proof Result)])
-promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{..} = do
+             -> HS (Promise [Obligation eq (Proof Result)])
+promiseProof env@Env{store} ob@(Obligation p proof) timelimit prover@Prover{..} = do
 
     let LinTheory lin = proof_content proof
         theory        = lin proverTheoryType
 
-    filepath <- case store of
+    filepath <- liftIO $ case store of
         Nothing  -> return Nothing
         Just dir -> do
             let (path,file) = filename env ob
@@ -80,7 +80,7 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
             writeFile f theory
             return (Just f)
 
-    when (proverCannotStdin && isNothing filepath) $
+    when (proverCannotStdin && isNothing filepath) $ liftIO $
         putStrLn $
             "*** " ++ show proverName ++
             " must read its input from a file, run with --output ***"
@@ -95,8 +95,17 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
         inputStr | proverCannotStdin = ""
                  | otherwise         = theory
 
-    promise <- length inputStr `seq`
-        processPromise proverCmd (proverArgs filepath' timelimit) inputStr
+    w <- getWriteMsgFun
+
+    let simp = toSimple proof
+
+        callback = w . ProverResult (propName p) simp . stdout
+
+    promise <- length inputStr `seq` (liftIO $
+        processPromiseCallback
+            callback
+            proverCmd
+            (proverArgs filepath' timelimit) inputStr)
 
     let update :: ProcessResult -> [Obligation eq (Proof Result)]
         update r = [fmap (fmap (const $ res)) ob]
@@ -104,18 +113,18 @@ promiseProof env@Env{store} ob@(Obligation _prop proof) timelimit prover@Prover{
 
     return Promise
         { spawn = do
-            -- putStrLn $ "Spawning " ++ propName p ++ ": "
-            -- putStrLn inputStr
+            w $ Spawning (propName p) simp
+            w $ SpawningWithTheory (propName p) simp theory
             spawn promise
         , cancel = do
-            -- putStrLn $ "Cancelling " ++ propName p ++ "!"
+            w $ Cancelling (propName p) simp
             cancel promise
         , result = fmap update <$> result promise
         }
 
 -- TODO: make this in the HS monad and send messages
 
-invokeATPs :: Tree (Obligation eq (Proof LinTheory)) -> Env -> IO [Obligation eq (Proof Result)]
+invokeATPs :: Tree (Obligation eq (Proof LinTheory)) -> Env -> HS [Obligation eq (Proof Result)]
 invokeATPs tree env@Env{..} = do
 
     {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
@@ -126,15 +135,18 @@ invokeATPs tree env@Env{..} = do
         -}
 
     let make_promises :: Obligation eq (Proof LinTheory)
-                      -> IO (Tree (Promise [Obligation eq (Proof Result)]))
+                      -> HS (Tree (Promise [Obligation eq (Proof Result)]))
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree
         -- ^ mapM over trees, but we get a tree of trees, so we need to use join
 
-    workers (Just (round $ timeout * 1000 * 1000)) processes (interleave promise_tree)
+    liftIO $ workers (Just (round $ timeout * 1000 * 1000))
+                     processes
+                     (interleave promise_tree)
 
-    res <- evalTree (any unknown . map (snd . proof_content . ob_content)) promise_tree
+    res <- liftIO $ evalTree (any unknown . map (snd . proof_content . ob_content))
+                             promise_tree
 
     -- print res
 

@@ -76,11 +76,6 @@ hipSpec file sig0 = runHS $ do
 
         showProperty :: Property -> String
         showProperty = propName
-
-
-        printNumberedEqs :: [PEquation] -> IO ()
-        printNumberedEqs eqs = forM_ (zip [1 :: Int ..] eqs) $ \(i, eq) ->
-            printf "%3d: %s\n" i (showEq eq)
             -}
 
     processFile file $ \ (props,str_marsh) -> do
@@ -102,11 +97,7 @@ hipSpec file sig0 = runHS $ do
 
             def_eqs = definitionalEquations str_marsh lookup_func sig
 
-{-
-        when definitions $ liftIO $ do
-            putStrLn "\nDefinitional equations:"
-            printNumberedEqs def_eqs
-            -}
+        -- writeMsg $ DefinitionalEquations (map show def_eqs)
 
         abcde <- initialisePEQ sig str_marsh def_eqs
         uncurry4 (remaining props) abcde
@@ -122,24 +113,17 @@ remaining props ctx0 qsprops already_proved already_failures = do
 
     Params{..} <- getParams
 
-    (qslemmas,qsunproved,_ctx) <- deep ctx0 qsprops already_proved
-
-    writeMsg StartingUserLemmas
-
-    (unproved,proved) <- parLoop props qslemmas
+    (proved,unproved,_ctx) <- deep ctx0 (qsprops ++ props) already_failures already_proved
 
     let showProperties = map propName
+        notQS  = filter (not . isFromQS)
+        fromQS = filter isFromQS
 
     writeMsg $ Finished
-        (filter (`notElem` map propName qslemmas) $ map propName proved)
-        (map propName unproved)
-        (map propName qslemmas)
-        (showProperties qsunproved)
-
-    printInfo (unproved ++ already_failures) proved
-
-    unless dont_print_unproved $ liftIO $
-        putStrLn $ "Unproved from QuickSpec: " ++ csv (showProperties qsunproved)
+        (showProperties $ notQS proved)
+        (showProperties $ notQS unproved)
+        (showProperties $ fromQS proved)
+        (showProperties $ fromQS unproved)
 
     case json of
         Just json_file -> do
@@ -147,9 +131,9 @@ remaining props ctx0 qsprops already_proved already_failures = do
             liftIO $ B.writeFile json_file (encode msgs)
         Nothing -> return ()
 
-initialisePEQ :: Sig -> StrMarsh -> [PEquation]
+initialisePEQ :: PER.Context -> Sig -> StrMarsh -> [PEquation]
               -> HS (PER.Context,[Property PEquation],[Property PEquation],[Property PEquation])
-initialisePEQ sig str_marsh def_eqs = do
+initialisePEQ ctx0 sig str_marsh def_eqs = do
 
     Params{..} <- getParams
 
@@ -162,7 +146,7 @@ initialisePEQ sig str_marsh def_eqs = do
               , Just tot_prop <- [totalityProperty v totality]
               ]
 
-    (unproved_tot,proved_tot) <- parLoop tot_props []
+    (proved_tot,unproved_tot,_ctx) <- deep ctx0 tot_props [] []
 
     classes <- liftIO $ fmap eraseClasses (generate (const T.totalGen) sig)
 

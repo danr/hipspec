@@ -21,22 +21,23 @@ deep :: forall eq ctx cc .
         (EQR eq ctx cc)                      -- ^ The equality reasoner
      => ctx                                  -- ^ The initial context
      -> [Property eq]                        -- ^ Initial equations
+     -> [Property eq]                        -- ^ Initial failures
      -> [Property eq]                        -- ^ Initial lemmas
      -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
-deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
+deep = loop False
   where
     show_eqs = map propRepr
 
-    loop :: ctx                                  -- ^ Prune state, to handle the congurece closure
+    loop :: Bool                                 -- ^ Managed to prove something this round
+         -> ctx                                  -- ^ Prune state, to handle the congurece closure
          -> [Property eq]                        -- ^ Equations to process
          -> [Property eq]                        -- ^ Equations processed, but failed
          -> [Property eq]                        -- ^ Equations proved
-         -> Bool                                 -- ^ Managed to prove something this round
          -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
-    loop ctx []  failed proved False = return (proved,failed,ctx)
-    loop ctx []  failed proved True  = do liftIO $ putStrLn "Loop!"
-                                          loop ctx failed [] proved False
-    loop ctx eqs failed proved retry = do
+    loop False ctx []  failed proved = return (proved,failed,ctx)
+    loop True  ctx []  failed proved = do writeMsg Loop
+                                          loop False ctx failed [] proved
+    loop retry ctx eqs failed proved = do
 
         Params{interesting_cands,batchsize} <- getParams
 
@@ -76,8 +77,8 @@ deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
             failed' = failed ++ failures
 
         case () of
-            () | null prunable         -> loop ctx next (failed ++ failures) proved retry
-               | not interesting_cands -> loop ctx' next failed' (proved ++ successes) True
+            () | null prunable         -> loop retry ctx next (failed ++ failures) proved
+               | not interesting_cands -> loop True ctx' next failed' (proved ++ successes)
                | otherwise -> do
                     -- Interesting candidates
                     let (cand,failed_wo_cand)
@@ -91,8 +92,7 @@ deep ctx0 init_eqs init_lemmas = loop ctx0 init_eqs [] init_lemmas False
                         writeMsg $ Candidates $ shown
                         liftIO $ putStrLn $ "Interesting candidates: " ++ csv shown
 
-                    loop ctx' (cand ++ next) failed_wo_cand
-                              (proved ++ successes) True
+                    loop True ctx' (cand ++ next) failed_wo_cand (proved ++ successes)
 
     instanceOf :: ctx -> Property eq -> Property eq -> Bool
     instanceOf ctx (propEquation -> Just new) (propEquation -> Just cand) =

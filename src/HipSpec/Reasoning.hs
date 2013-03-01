@@ -43,6 +43,19 @@ class
 
     isoDiscard :: eq -> eq -> Bool
 
+data NoCC eq = NoCC
+
+instance Show eq => EQR eq (NoCC eq) Identity where
+    runEQR NoCC m = (runIdentity m,NoCC)
+
+    unify _ = Identity False
+
+    equal _ = Identity False
+
+    isoDiscard _ _ = False
+
+    showEquation _ eq = show eq
+
 instance EQR PEquation PER.Context PER.PEQ where
     runEQR = PER.runPEQ
 
