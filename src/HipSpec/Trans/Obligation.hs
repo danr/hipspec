@@ -6,29 +6,19 @@ import GHC.Generics
 import Data.Aeson
 
 data Obligation eq a = Obligation
-    { ob_property :: Property eq
+    { ob_prop     :: Property eq
+    , ob_info     :: ObInfo
     , ob_content  :: a
-    }
-  deriving (Functor,Show)
-
-data Proof a = Induction
-    { ind_coords    :: [Int]
-    , ind_num       :: Int
-    , ind_nums      :: Int
-    , proof_content :: a
     -- ^ This will be a theory, TPTP string or prover results
     }
   deriving (Functor,Show)
 
-data SimpleProof = SInduction
-    { sind_coords :: [Int]
-    , sind_num    :: Int
-    , sind_nums   :: Int
+data ObInfo = Induction
+    { ind_coords :: [Int]
+    , ind_num    :: Int
+    , ind_nums   :: Int
     }
   deriving (Eq, Ord, Show, Generic)
 
-instance ToJSON SimpleProof
-
-toSimple :: Proof a -> SimpleProof
-toSimple (Induction a b c _) = SInduction a b c
+instance ToJSON ObInfo
 

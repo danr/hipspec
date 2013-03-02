@@ -24,10 +24,10 @@ data Msg
 
     -- Invoke
 
-    | Spawning            { prop_name :: String, prop_proof :: SimpleProof }
-    | SpawningWithTheory  { prop_name :: String, prop_proof :: SimpleProof, theory_string :: String }
-    | Cancelling          { prop_name :: String, prop_proof :: SimpleProof }
-    | ProverResult        { prop_name :: String, prop_proof :: SimpleProof, std_out :: String }
+    | Spawning            { prop_name :: String, prop_ob_info :: ObInfo }
+    | SpawningWithTheory  { prop_name :: String, prop_ob_info :: ObInfo, theory_string :: String }
+    | Cancelling          { prop_name :: String, prop_ob_info :: ObInfo }
+    | ProverResult        { prop_name :: String, prop_ob_info :: ObInfo, std_out :: String }
 
     -- HipSpec
 
@@ -48,15 +48,18 @@ data Msg
 csv :: [String] -> String
 csv = intercalate ","
 
-showProof :: SimpleProof -> String
-showProof (SInduction{..}) =
-    "coords: " ++ csv (map show sind_coords) ++ " " ++
-    show sind_num ++ "/" ++ show sind_nums
+showObInfo :: ObInfo -> String
+showObInfo (Induction{..}) =
+    "coords: " ++ csv (map show ind_coords) ++ " " ++
+    show ind_num ++ "/" ++ show ind_nums
 
 showMsg :: Msg -> String
 showMsg m = case m of
-    Started -> "HipSpec started."
-    Discarded eqs -> "Discarded: " ++ csv eqs
+    Started        -> "HipSpec started."
+    Discarded eqs
+        | length eqs > 4 -> "Discarded " ++ show (length eqs) ++
+                            " renamings and subsumptions."
+        | otherwise      -> "Discarded: " ++ csv eqs
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
     InductiveProof{..} ->
@@ -68,17 +71,17 @@ showMsg m = case m of
 
     FailedProof{..} -> "Failed to prove " ++ prop_name
 
-    Spawning{..}           -> "Spawning "   ++ prop_name ++ " " ++ showProof prop_proof
-    SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showProof prop_proof ++ "on :\n" ++ reindent theory_string
-    Cancelling{..}         -> "Cancelling " ++ prop_name ++ " " ++ showProof prop_proof
-    ProverResult{..}       -> "Finished "   ++ prop_name ++ " " ++ showProof prop_proof ++ ":\n" ++ reindent std_out
+    Spawning{..}           -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info
+    SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ "on :\n" ++ reindent theory_string
+    Cancelling{..}         -> "Cancelling " ++ prop_name ++ " " ++ showObInfo prop_ob_info
+    ProverResult{..}       -> "Finished "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
 
     Loop                   -> "Loop!"
 
-    FileProcessed -> "File processed."
+    FileProcessed             -> "File processed."
     DefinitionalEquations eqs -> "Definitional equations:\n" ++ numberedEqs eqs
     QuickSpecDone classes eqs -> "QuickSpec done, " ++ show classes ++ " classes, " ++ show eqs ++ " equations."
-    StartingUserLemmas -> "Starting to prove user lemmas."
+    StartingUserLemmas        -> "Starting to prove user lemmas."
 
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, NamedFieldPuns, ScopedTypeVariables #-}
-module HipSpec.ATP.Invoke (invokeATPs, Env(..), LinTheory(..), TheoryType(..)) where
+module HipSpec.ATP.Invoke (invokeATPs, Env(..), LinTheory(..), TheoryType(..), Result) where
 
 import Prelude hiding (mapM)
 import Control.Concurrent.STM.Promise
@@ -50,20 +50,20 @@ interpretResult Env{lemma_lookup} Prover{..} pr@ProcessResult{..} = excode `seq`
         Failure -> Failure
         Unknown _ -> Unknown (show pr)
 
-filename :: Env -> Obligation eq (Proof a) -> (FilePath,FilePath)
-filename Env{z_encode} (Obligation Property{propName} p) = case p of
-    Induction coords ix _ _ ->
+filename :: Env -> Obligation eq a -> (FilePath,FilePath)
+filename Env{z_encode} (Obligation Property{propName} info _) = case info of
+    Induction coords ix _ ->
         ((z_encode ? escape) propName
         ,usv coords ++ "__" ++ show ix)
   where
     usv = intercalate "_" . map show
 
 promiseProof :: forall eq .
-                Env -> Obligation eq (Proof LinTheory) -> Double -> Prover
-             -> HS (Promise [Obligation eq (Proof Result)])
-promiseProof env@Env{store} ob@(Obligation p proof) timelimit prover@Prover{..} = do
+                Env -> Obligation eq LinTheory -> Double -> Prover
+             -> HS (Promise [Obligation eq Result])
+promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 
-    let LinTheory lin = proof_content proof
+    let LinTheory lin = ob_content
         theory        = lin proverTheoryType
 
     filepath <- liftIO $ case store of
@@ -97,9 +97,7 @@ promiseProof env@Env{store} ob@(Obligation p proof) timelimit prover@Prover{..} 
 
     w <- getWriteMsgFun
 
-    let simp = toSimple proof
-
-        callback = w . ProverResult (propName p) simp . stdout
+    let callback = w . ProverResult (propName ob_prop) ob_info . stdout
 
     promise <- length inputStr `seq` (liftIO $
         processPromiseCallback
@@ -107,35 +105,28 @@ promiseProof env@Env{store} ob@(Obligation p proof) timelimit prover@Prover{..} 
             proverCmd
             (proverArgs filepath' timelimit) inputStr)
 
-    let update :: ProcessResult -> [Obligation eq (Proof Result)]
-        update r = [fmap (fmap (const $ res)) ob]
+    let update :: ProcessResult -> [Obligation eq Result]
+        update r = [fmap (const res) ob]
           where res = (proverName,interpretResult env prover r)
 
     return Promise
         { spawn = do
-            w $ Spawning (propName p) simp
-            w $ SpawningWithTheory (propName p) simp theory
+            w $ Spawning (propName ob_prop) ob_info
+            w $ SpawningWithTheory (propName ob_prop) ob_info theory
             spawn promise
         , cancel = do
-            w $ Cancelling (propName p) simp
+            w $ Cancelling (propName ob_prop) ob_info
             cancel promise
         , result = fmap update <$> result promise
         }
 
 -- TODO: make this in the HS monad and send messages
 
-invokeATPs :: Tree (Obligation eq (Proof LinTheory)) -> Env -> HS [Obligation eq (Proof Result)]
+invokeATPs :: Tree (Obligation eq LinTheory) -> Env -> HS [Obligation eq Result]
 invokeATPs tree env@Env{..} = do
 
-    {- putStrLn (showTree $ fmap (propName . prop_prop) tree)
-
-    void $ flip mapM tree $ \ (Obligation prop s) -> do
-        putStrLn $ propName prop ++ ": " ++ "\n" ++ s
-        putStrLn "\n"
-        -}
-
-    let make_promises :: Obligation eq (Proof LinTheory)
-                      -> HS (Tree (Promise [Obligation eq (Proof Result)]))
+    let make_promises :: Obligation eq LinTheory
+                      -> HS (Tree (Promise [Obligation eq Result]))
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree
@@ -145,8 +136,7 @@ invokeATPs tree env@Env{..} = do
                      processes
                      (interleave promise_tree)
 
-    res <- liftIO $ evalTree (any unknown . map (snd . proof_content . ob_content))
-                             promise_tree
+    res <- liftIO $ evalTree (any unknown . map (snd . ob_content)) promise_tree
 
     -- print res
 

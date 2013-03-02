@@ -51,14 +51,7 @@ mainLoop = loop False
             (renamings,try,next_without_offsprings)
                 = getUpTo batchsize discard eqs failed
 
-        unless (null renamings) $ do
-
-            let shown = show_eqs renamings
-                n     = length renamings
-
-            liftIO $ putStrLn $ if (n > 4)
-                then "Discarding " ++ show n ++ " renamings and subsumptions."
-                else "Discarding renamings and subsumptions: " ++ csv shown
+        unless (null renamings) $ writeMsg $ Discarded (show_eqs renamings)
 
         res <- tryProve try proved
 
@@ -87,10 +80,7 @@ mainLoop = loop False
                           where
                             p fail' = or [ instanceOf ctx prop fail' | prop <- prunable ]
 
-                    unless (null cand) $ do
-                        let shown = show_eqs cand
-                        writeMsg $ Candidates $ shown
-                        liftIO $ putStrLn $ "Interesting candidates: " ++ csv shown
+                    unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 
                     loop True ctx' (cand ++ next) failed_wo_cand (proved ++ successes)
 
@@ -107,7 +97,4 @@ getUpTo _ _ []     _  = ([],[],[])
 getUpTo n p (x:xs) ys
    | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
    | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
-
-csv :: [String] -> String
-csv = intercalate ", "
 

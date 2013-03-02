@@ -77,7 +77,7 @@ trLiteral l = case l of
         return (e1' === e2',[e1',e2'])
 
 -- One subtheory with a conjecture with all dependencies
-type ProofObligation eq = Obligation eq (Proof HipSpecSubtheory)
+type ProofObligation eq = Obligation eq HipSpecSubtheory
 type ProofTree eq       = Tree (ProofObligation eq)
 
 makeProofs :: forall eq . Params -> Property eq -> MakerM (ProofTree eq)
@@ -133,11 +133,14 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth,bottoms} prop@Proper
 
                 ((commentary,fs),ptrs) <- lift $ capturePtrs $ trObligation prop (dropHyps oblig)
 
-                return $ Leaf $ Obligation prop $ Induction
-                    { ind_coords    = coords
-                    , ind_num       = n
-                    , ind_nums      = n_obligs
-                    , proof_content = Subtheory
+                return $ Leaf $ Obligation
+                    { ob_prop = prop
+                    , ob_info = Induction
+                        { ind_coords    = coords
+                        , ind_num       = n
+                        , ind_nums      = n_obligs
+                        }
+                    , ob_content = Subtheory
                         { provides    = Specific Conjecture
                         , depends     = map Function propFunDeps ++ ptrs
                         , description = "Conjecture for " ++ propName ++ "\n" ++ commentary

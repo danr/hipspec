@@ -109,8 +109,8 @@ tryProve props lemmas0 = do
         fetch_and_linearise conj = linTheory $
             conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-        proof_tree_lin :: Tree (Obligation eq (Proof LinTheory))
-        proof_tree_lin = fmap (fmap (fmap fetch_and_linearise)) proof_tree
+        proof_tree_lin :: Tree (Obligation eq LinTheory)
+        proof_tree_lin = fmap (fmap fetch_and_linearise) proof_tree
 
         env = Env
             { timeout         = timeout
@@ -121,47 +121,53 @@ tryProve props lemmas0 = do
             , z_encode        = z_encode_filenames
             }
 
-    result <- invokeATPs proof_tree_lin env
+    result :: [Obligation eq Result] <- invokeATPs proof_tree_lin env
 
     -- print result
 
-    let results =
+    let check :: [Obligation eq Result] -> Bool
+        check grp@(Obligation _ (Induction _ _ nums) _:_) =
+            all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
+        check [] = error "MakeInvocations: check (impossible)"
+
+        results :: [(Property eq,InvokeResult)]
+        results =
 
             [
-                let proofs = groupSortedOn ind_coords
-                                [ proof | Obligation prop' proof <- result
-                                        , prop == prop'
-                                        , success (snd $ proof_content proof)
+                let proofs :: [[Obligation eq Result]]
+                    proofs
+                        = filter check
+                        $ groupSortedOn (ind_coords . ob_info)
+                                [ ob | ob@Obligation{..} <- result
+                                     , prop == ob_prop
+                                     , success (snd $ ob_content)
                                 ]
 
-                    check grp@(Induction _ _ nums _:_) = all (\ n -> any ((n ==) . ind_num) grp) [0..nums-1]
-                    check [] = error "MakeInvocations: check (impossible)"
-
-                    proofs' = filter check proofs
-
-                in  (,) prop $ case proofs' of
+                in  (,) prop $ case proofs of
                         [] -> NoProof
                         grp:_ -> case grp of
                             [] -> error "MakeInvocations: results (impossible)"
-                            Induction [] _ _ _:_ -> ByPlain lemmas_used provers_used
-                            Induction cs _ _ _:_ -> ByInduction lemmas_used provers_used vars
+                            Obligation _ (Induction [] _ _) _:_
+                                -> ByPlain lemmas_used provers_used
+                            Obligation _ (Induction cs _ _) _:_
+                                -> ByInduction lemmas_used provers_used vars
                               where vars = varsFromCoords prop cs
                           where
-                            provers_used = nub $ map (fst . proof_content) grp
+                            provers_used = nub $ map (fst . ob_content) grp
                             lemmas_used  = fmap (nub . concat)
                                     $ sequence
-                                    $ map (successLemmas . snd . proof_content) grp
+                                    $ map (successLemmas . snd . ob_content) grp
 
             | prop <- props
             ]
 
     -- print results
 
-    forM_ result $ \ (Obligation prop proof) ->
-        when (unknown (snd $ proof_content proof)) $ liftIO $ do
-            putStrLn $ "Unknown from " ++ show (fst $ proof_content proof)
-                ++ " on " ++ show prop
-                ++ ":" ++ show (snd $ proof_content proof)
+    forM_ result $ \ Obligation{..} ->
+        when (unknown (snd $ ob_content)) $ liftIO $ do
+            putStrLn $ "Unknown from " ++ show (fst $ ob_content)
+                ++ " on " ++ show ob_prop
+                ++ ":" ++ show (snd $ ob_content)
 
     forM_ results $ \ (prop,invres) -> do
 
