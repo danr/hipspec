@@ -123,8 +123,6 @@ tryProve props lemmas0 = do
 
     result :: [Obligation eq Result] <- invokeATPs proof_tree_lin env
 
-    -- print result
-
     let check :: [Obligation eq Result] -> Bool
         check grp@(Obligation _ (Induction _ _ nums) _:_) =
             all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
@@ -160,8 +158,6 @@ tryProve props lemmas0 = do
 
             | prop <- props
             ]
-
-    -- print results
 
     forM_ result $ \ Obligation{..} ->
         when (unknown (snd $ ob_content)) $ liftIO $ do
