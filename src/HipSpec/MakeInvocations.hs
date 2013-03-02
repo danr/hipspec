@@ -60,9 +60,8 @@ tryProve props lemmas0 = do
 
     us <- liftIO $ mkSplitUniqSupply 'c'
 
-    Theory{..} <- getTheory
-    params@Params{..} <- getParams
-    halo_env <- getHaloEnv
+    Info{..} <- getInfo
+    let Params{..} = params
 
     let lemmas
             | isolate = filter (not . isUserStated) lemmas0
@@ -104,7 +103,7 @@ tryProve props lemmas0 = do
             ++ [ Specific BottomAxioms | bottoms ]
 
         fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
-        fetcher = trim (subthys ++ lemma_theories)
+        fetcher = trim (subthys theory ++ lemma_theories)
 
         fetch_and_linearise :: HipSpecSubtheory -> LinTheory
         fetch_and_linearise conj = linTheory $

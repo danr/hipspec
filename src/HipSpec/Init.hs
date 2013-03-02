@@ -32,8 +32,10 @@ import TysWiredIn
 
 import Control.Monad
 
-processFile :: FilePath -> (([Property eq],StrMarsh) -> HS a) -> HS a
-processFile file k = do
+import HipSpec.Void
+
+processFile :: FilePath -> ([Property Void] -> HS a) -> HS a
+processFile file cont = do
 
     params@Params{..} <- getParams
 
@@ -207,4 +209,10 @@ processFile file k = do
 
     -}
 
-    initialize halo_env theory $ k (props,str_marsh)
+    initialize
+        (\ hs_info -> hs_info
+            { theory = theory
+            , halo_env = halo_env
+            , str_marsh = str_marsh
+            })
+        (cont props)

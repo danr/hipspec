@@ -13,13 +13,15 @@ import Test.QuickSpec.Reasoning.PartialEquationalReasoning
 import qualified Test.QuickSpec.Equation as Equation
 import Test.QuickSpec.Equation (Equation(..))
 
-
 import Control.Monad
+import Control.Monad.Identity
 
 import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
+
+import HipSpec.Void
 
 class
     (Ord eq,Monad cc) => EQR eq ctx cc
@@ -43,18 +45,22 @@ class
 
     isoDiscard :: eq -> eq -> Bool
 
+--    fromEquation :: Equation -> eq
+
 data NoCC eq = NoCC
 
-instance Show eq => EQR eq (NoCC eq) Identity where
+instance EQR Void (NoCC Void) Identity where
     runEQR NoCC m = (runIdentity m,NoCC)
 
-    unify _ = Identity False
+    unify _ = return False
 
-    equal _ = Identity False
+    equal _ = return False
 
     isoDiscard _ _ = False
 
     showEquation _ eq = show eq
+
+  --  fromEquation _ = ()
 
 instance EQR PEquation PER.Context PER.PEQ where
     runEQR = PER.runPEQ
@@ -70,6 +76,8 @@ instance EQR PEquation PER.Context PER.PEQ where
       where
         a `isSubsetOf` b = null (a \\ b)
 
+  --  fromEquation eq = [] :\/: eq
+
 instance EQR Equation NER.Context NER.EQ where
     runEQR = NER.runEQ
 
@@ -80,6 +88,8 @@ instance EQR Equation NER.Context NER.EQ where
     showEquation = Equation.showEquation
 
     isoDiscard = isomorphicTo
+
+--     fromEquation = id
 
 -- Renaming
 isomorphicTo :: Equation -> Equation -> Bool

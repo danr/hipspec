@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,NamedFieldPuns,PatternGuards,ViewPatterns #-}
+{-# LANGUAGE RecordWildCards,NamedFieldPuns,PatternGuards,ViewPatterns,DeriveFunctor #-}
 module HipSpec.Trans.Property
     ( Literal(..)
     , Property(..)
@@ -31,6 +31,8 @@ import Data.List (nub)
 import Data.Function (on)
 import Control.Arrow (second)
 
+import HipSpec.Void
+
 data Literal
     = CoreExpr :== CoreExpr
     | Total CoreExpr
@@ -44,7 +46,7 @@ data Origin eq
     | Totality Totality
     | UserStated
     | Builtin
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Functor)
 
 propEquation :: Property eq -> Maybe eq
 propEquation (propOrigin -> Equation eq) = Just eq
@@ -71,6 +73,7 @@ data Property eq = Property
     , propOops       :: Bool
     -- ^ It's an error if this property was provable
     }
+  deriving Functor
 
 instance Eq (Property eq) where
     (==) = equal propName .&&. equal (map fst . propVars)
@@ -126,7 +129,7 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
         return (u,(b :== Var trueDataConId):as,o)
     _ -> Nothing
 
-trProperty :: CoreBind -> Maybe (Property eq)
+trProperty :: CoreBind -> Maybe (Property Void)
 trProperty (NonRec prop_name e) = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
 
@@ -150,7 +153,7 @@ trProperty (NonRec prop_name e) = do
         }
 trProperty _ = Nothing
 
-totalityProperty :: Var -> Totality -> Maybe (Property eq)
+totalityProperty :: Var -> Totality -> Maybe (Property Void)
 totalityProperty v t = case t of
     Partial  -> Nothing
     Variable -> Nothing

@@ -1,35 +1,28 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards,NamedFieldPuns #-}
 module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 
 import Test.QuickSpec
 
-import qualified Test.QuickSpec.Term as T
+import Test.QuickSpec.Main (prune)
+import Test.QuickSpec.Term (totalGen,Term)
 import Test.QuickSpec.Equation (Equation(..), equations)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.TestTotality
 
-{-
-import Test.QuickSpec.Reasoning.NaiveEquationalReasoning
-    ()
-    -}
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning
-    (PEquation(..), evalPEQ, execPEQ, showPEquation)
+    (PEquation(..), {- evalPEQ, -} showPEquation)
 
-{-
 import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
--}
 import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
 import HipSpec.Reasoning
+import HipSpec.Void
 
-import HipSpec.StringMarshal
-import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
-import HipSpec.MakeInvocations
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
 import HipSpec.Heuristics.Associativity
@@ -37,15 +30,9 @@ import HipSpec.Heuristics.Associativity
 import Prelude hiding (read)
 
 import Halo.Util
-import Halo.Subtheory
-import Halo.FOL.RemoveMin
 
 import Data.List
 import Data.Ord
-import Data.Maybe
-import qualified Data.Map as M
-
-import Control.Monad
 
 import Language.Haskell.TH
 
@@ -53,6 +40,7 @@ import Data.Monoid (mappend)
 
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
+
 
 {-
 import Text.Printf
@@ -64,56 +52,42 @@ fileName :: ExpQ
 fileName = location >>= \(Loc f _ _ _ _) -> stringE f
 
 hipSpec :: Signature a => FilePath -> a -> IO ()
-hipSpec file sig0 = runHS $ do
+hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
     writeMsg Started
 
-    let sig = signature sig0 `mappend` withTests 100
-
-{-
-        showEq :: PEquation -> String
-        showEq = showPEquation sig
-
-        showProperty :: Property -> String
-        showProperty = propName
-            -}
-
-    processFile file $ \ (props,str_marsh) -> do
-
-        theory <- getTheory
-        Params{..} <- getParams
+    processFile file $ \ props -> do
 
         writeMsg FileProcessed
 
-        let getFunction s = case s of
-                Subtheory (Function v) _ _ _ ->
-                    let Subtheory _ _ _ fs = removeMinsSubthy s
-                    in  Just (v,fs)
-                _ -> Nothing
+        (eqs,univ) <- runQuickSpec
 
-            func_map = M.fromList (mapMaybe getFunction (subthys theory))
+        Info{str_marsh,sig} <- getInfo
 
-            lookup_func x = fromMaybe [] (M.lookup x func_map)
+        let qsprops = map (peqToProp (showPEquation sig) str_marsh)
+                          (map totalise eqs)
 
-            def_eqs = definitionalEquations str_marsh lookup_func sig
+        (proved_tot,unproved_tot,per_ctx) <- proveTotality univ
 
-        -- writeMsg $ DefinitionalEquations (map show def_eqs)
+        let peqs = map (fmap absurd)
 
-        abcde <- initialisePEQ sig str_marsh def_eqs
-        uncurry4 (remaining props) abcde
+        runMainLoop
+            per_ctx
+            (qsprops ++ peqs props)
+            (peqs proved_tot)
+            (peqs unproved_tot)
 
-remaining :: EQR eq ctx cc
-          => [Property eq]
-          -> ctx
-          -> [Property eq]
-          -> [Property eq]
-          -> [Property eq]
-          -> HS ()
-remaining props ctx0 qsprops already_proved already_failures = do
+runMainLoop :: EQR eq ctx cc
+            => ctx
+            -> [Property eq]
+            -> [Property eq]
+            -> [Property eq]
+            -> HS ()
+runMainLoop ctx props already_proved already_failures = do
 
     Params{..} <- getParams
 
-    (proved,unproved,_ctx) <- deep ctx0 (qsprops ++ props) already_failures already_proved
+    (proved,unproved,_ctx) <- mainLoop ctx props already_failures already_proved
 
     let showProperties = map propName
         notQS  = filter (not . isFromQS)
@@ -131,11 +105,43 @@ remaining props ctx0 qsprops already_proved already_failures = do
             liftIO $ B.writeFile json_file (encode msgs)
         Nothing -> return ()
 
-initialisePEQ :: PER.Context -> Sig -> StrMarsh -> [PEquation]
-              -> HS (PER.Context,[Property PEquation],[Property PEquation],[Property PEquation])
-initialisePEQ ctx0 sig str_marsh def_eqs = do
 
-    Params{..} <- getParams
+runQuickSpec :: HS ([Equation],[Tagged Term])
+runQuickSpec = do
+
+    Info{..} <- getInfo
+    let Params{..} = params
+
+    classes <- liftIO $ fmap eraseClasses (generate (const totalGen) sig)
+
+    let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
+        swapEq (t :=: u) = u :=: t
+
+        classToEqs :: [[Tagged Term]] -> [Equation]
+        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
+                   . if quadratic
+                          then sort . map (uncurry (:=:)) .
+                               concatMap (uniqueCartesian . map erase)
+                          else equations
+
+        univ      = map head classes
+        ctx_init  = NER.initial (maxDepth sig) (symbols sig) univ
+
+        reps      = map (erase . head) classes
+
+        pruner    = prune ctx_init reps  -- this one or similar for explore theory
+        prunedEqs = pruner (equations classes)
+        eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+
+
+    writeMsg $ QuickSpecDone (length classes) (length eqs)
+
+    return (eqs,univ)
+
+proveTotality :: [Tagged Term] -> HS ([Property Void],[Property Void],PER.Context)
+proveTotality univ = do
+
+    Info{..} <- getInfo
 
     tot_list <- liftIO $ testTotality sig
 
@@ -146,59 +152,58 @@ initialisePEQ ctx0 sig str_marsh def_eqs = do
               , Just tot_prop <- [totalityProperty v totality]
               ]
 
-    (proved_tot,unproved_tot,_ctx) <- deep ctx0 tot_props [] []
+    (proved_tot,unproved_tot,NoCC) <- mainLoop NoCC tot_props [] []
 
-    classes <- liftIO $ fmap eraseClasses (generate (const T.totalGen) sig)
+    let ctx_init   = PER.initial (maxDepth sig) tot_list univ
 
-    let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
-        swapEq (t :=: u) = u :=: t
-
-        classToEqs :: [[Tagged T.Term]] -> [Equation]
-        classToEqs
-            = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
-            . if quadratic
-                   then sort . map (uncurry (:=:)) .
-                        concatMap (uniqueCartesian . map erase)
-                   else equations
-
-        ctx_init   = PER.initial (maxDepth sig) tot_list univ
-        univ       = map head classes
-
-        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
-
-        pruner     = pprune ctx0
-
-        prunedEqs
-            = pruner
-            . map totalise
-            . equations
-            $ classes
-
-        eqs        = prepend_pruned ? (prunedEqs ++)
-                   $ map totalise (classToEqs classes)
-
-        qsprops    = filter (not . is_def)
-                   $ map (peqToProp (showPEquation sig) str_marsh) eqs
-          where
-            definition = evalPEQ ctx0 . equal
-
-            is_def p = case propEquation p of
-                Just eq -> definition eq
-                _       -> False
-
-    return (ctx0,qsprops,proved_tot,unproved_tot)
-
-pprune :: PER.Context -> [PEquation] -> [PEquation]
-pprune ctx = evalPEQ ctx . filterM (fmap not . PER.unify)
+    return (proved_tot,unproved_tot,ctx_init)
 
 totalise :: Equation -> PEquation
 totalise eq = [] :\/: eq
 
 {-
-untotalise :: PEquation -> Equation
-untotalise ([] :\/: eq) = eq
-untotalise _ = error "Untotalize on a non-total PEquation"
+        let qsprops = {- filter (not . definition . propQSTerms) $ -}
+                       map (peqToProp (showPEquation sig) str_marsh) (map totalise eqs)
+                       -}
+
+{-
+pprune :: PER.Context -> [PEquation] -> [PEquation]
+pprune ctx = evalPEQ ctx . filterM (fmap not . PER.unify)
 -}
 
-uncurry4 :: (a -> b -> c -> d -> e) -> ((a,b,c,d) -> e)
-uncurry4 f (a,b,c,d) = f a b c d
+-- add these definitional equalities
+--        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
+
+--        pruner     = pprune ctx0 -- this one for explore theory
+
+-- assert this in the initial context....
+-- for peqs
+{-
+getDefEqs :: -> HS [PEquation]
+getDefEqs  = do
+
+    Info{..} <- getInfo
+
+    let getFunction s = case s of
+            Subtheory (Function v) _ _ _ ->
+                let Subtheory _ _ _ fs = removeMinsSubthy s
+                in  Just (v,fs)
+            _ -> Nothing
+
+        func_map = M.fromList (mapMaybe getFunction (subthys theory))
+
+        lookup_func x = fromMaybe [] (M.lookup x func_map)
+
+        def_eqs = definitionalEquations str_marsh lookup_func sig
+
+    writeMsg $ DefinitionalEquations (map show def_eqs)
+
+{-
+    let definition (t :=: u) = evalEQ ctx0 (t =?= u)
+
+        qsprops   = filter (not . definition . propQSTerms)
+                  $ map (eqToProp str_marsh) eqs
+                  -}
+
+    return def_eqs
+    -}

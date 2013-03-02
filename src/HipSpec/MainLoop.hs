@@ -1,5 +1,5 @@
 {-# LANGUAGE ViewPatterns,NamedFieldPuns,ScopedTypeVariables #-}
-module HipSpec.MainLoop where
+module HipSpec.MainLoop (mainLoop) where
 
 import HipSpec.Reasoning
 
@@ -17,14 +17,14 @@ import Data.Maybe
 import Control.Monad
 
 -- | The main loop
-deep :: forall eq ctx cc .
+mainLoop :: forall eq ctx cc .
         (EQR eq ctx cc)                      -- ^ The equality reasoner
      => ctx                                  -- ^ The initial context
      -> [Property eq]                        -- ^ Initial equations
      -> [Property eq]                        -- ^ Initial failures
      -> [Property eq]                        -- ^ Initial lemmas
      -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
-deep = loop False
+mainLoop = loop False
   where
     show_eqs = map propRepr
 

@@ -3,11 +3,11 @@ module HipSpec.Monad
     ( HS()
     , runHS
     , writeMsg
+    , getParams
+    , HSInfo(..)
+    , getInfo
     , getMsgs
     , getWriteMsgFun
-    , getParams
-    , getTheory
-    , getHaloEnv
     , liftIO
     , Msg(..)
     , Params(..)
@@ -25,32 +25,45 @@ import Halo.Monad
 import HipSpec.Messages
 import HipSpec.Params
 import HipSpec.Trans.Theory
+import HipSpec.StringMarshal
+import Test.QuickSpec.Signature
 
 import Control.Concurrent.MVar
 
+-- Accessible state
+data HSInfo = Info
+    { params    :: Params
+    , sig       :: Sig
+    , theory    :: Theory
+    , halo_env  :: HaloEnv
+    , str_marsh :: StrMarsh
+    }
+
 data HSEnv = HSEnv
-    { halo_env    :: HaloEnv
-    , theory      :: Theory
-    , params      :: Params
+    { hs_info     :: HSInfo
     , write_fun   :: Msg -> IO ()
     , get_msg_fun :: IO [(Double,Msg)]
     , write_mutex :: MVar ()
     }
 
-newtype HS a = HS { unHS :: ReaderT HSEnv IO a }
+newtype HS a = HS (ReaderT HSEnv IO a)
   deriving (Functor,Applicative,Monad,MonadIO)
 
-runHS :: HS a -> IO a
-runHS (HS m) = do
+runHS :: Sig -> HS a -> IO a
+runHS sig_ (HS m) = do
     params_ <- sanitizeParams <$> cmdArgs defParams
     (write_fn, get_msg_fn) <- case json params_ of
         Nothing -> return (\ _ -> return (), return [])
         _ -> mkWriter
     mtx <- newMVar ()
     runReaderT m HSEnv
-        { halo_env    = error "halo_env uninitialized"
-        , theory      = error "theory uninitalized"
-        , params      = params_
+        { hs_info = Info
+            { params      = params_
+            , halo_env    = error "halo_env uninitialized"
+            , theory      = error "theory uninitalized"
+            , str_marsh   = error "str_marsh uninitialied"
+            , sig         = sig_
+            }
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn
         , write_mutex = mtx
@@ -58,7 +71,7 @@ runHS (HS m) = do
 
 getWriteMsgFun :: HS (Msg -> IO ())
 getWriteMsgFun = HS $ do
-    v <- asks (verbosity . params)
+    v <- asks (verbosity . params . hs_info)
     w <- asks write_fun
     mtx <- asks write_mutex
     return $ \ m -> when (msgVerbosity m <= v) $ liftIO $ do
@@ -77,18 +90,15 @@ getMsgs = HS $ do
     g <- asks get_msg_fun
     liftIO g
 
-getTheory :: HS Theory
-getTheory = HS $ asks theory
+getInfo :: HS HSInfo
+getInfo = HS $ asks hs_info
 
 getParams :: HS Params
-getParams = HS $ asks params
+getParams = HS $ asks (params . hs_info)
 
-getHaloEnv :: HS HaloEnv
-getHaloEnv = HS $ asks halo_env
-
-initialize :: HaloEnv -> Theory -> HS a -> HS a
-initialize e t = HS . local (\ hse -> hse
-    { halo_env = e
-    , theory   = t
-    }) . unHS
+initialize :: (HSInfo -> HSInfo) -> HS a -> HS a
+initialize k (HS m) = HS $
+    local
+        (\ hse -> hse { hs_info = k (hs_info hse) })
+        m
 

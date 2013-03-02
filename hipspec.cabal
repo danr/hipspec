@@ -70,6 +70,7 @@ library
         HipSpec.Messages
         HipSpec.Reasoning
         HipSpec.StringMarshal
+        HipSpec.Void
         HipSpec.Trans.MakeProofs
         HipSpec.Trans.Obligation
         HipSpec.Trans.Property
