@@ -18,7 +18,7 @@ import Control.Monad
 
 -- | The main loop
 mainLoop :: forall eq ctx cc .
-        (EQR eq ctx cc)                      -- ^ The equality reasoner
+        EQR eq ctx cc                        -- The equality reasoner
      => ctx                                  -- ^ The initial context
      -> [Property eq]                        -- ^ Initial equations
      -> [Property eq]                        -- ^ Initial failures

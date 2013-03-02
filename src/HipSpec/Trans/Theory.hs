@@ -206,7 +206,7 @@ mkMinRecAxioms ty_cons =
                     xs              = take arity varNames
                     kxs             = apply k (map qvar xs)
               , i <- [0..arity-1]
-              -- ^ vacuous if arity == 0
+              -- vacuous if arity == 0
               , let xi              = qvar (xs !! i)
               ]
 

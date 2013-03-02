@@ -60,7 +60,6 @@ library
         HipSpec.ATP.Invoke
         HipSpec.ATP.Provers
         HipSpec.ATP.Results
-        HipSpec.BuiltinTypes
         HipSpec.Heuristics.Associativity
         HipSpec.Init
         HipSpec.MakeInvocations

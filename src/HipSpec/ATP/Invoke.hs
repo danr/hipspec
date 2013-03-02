@@ -139,7 +139,7 @@ invokeATPs tree env@Env{..} = do
         make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
     promise_tree <- join <$> mapM make_promises tree
-        -- ^ mapM over trees, but we get a tree of trees, so we need to use join
+        -- mapM over trees, but we get a tree of trees, so we need to use join
 
     liftIO $ workers (Just (round $ timeout * 1000 * 1000))
                      processes

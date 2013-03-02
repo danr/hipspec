@@ -90,12 +90,12 @@ makeProofs Params{methods,indvars,indparts,indhyps,inddepth,bottoms} prop@Proper
     induction_coords :: [[Int]]
     induction_coords = nub $
         [ concat (replicate depth var_ixs)
-        -- ^ For each variable, repeat it to the depth
+        -- For each variable, repeat it to the depth
         | var_ixs <- var_pow
-        -- ^ Consider all sets of variables
+        -- Consider all sets of variables
         , length var_ixs <= indvars
         , 'p' `elem` methods || length var_ixs > 0
-        -- ^ Don't do induction on too many variables
+        -- Don't do induction on too many variables
         , depth <- [start_depth..stop_depth]
         ]
       where
