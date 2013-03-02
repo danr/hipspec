@@ -88,7 +88,7 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
                 , (j,ks) <- zip disjoints (drop 1 (tails disjoints))
                 , k <- ks
                 , not (symbol j == badId && symbol k == unrId)
-                  -- ^ don't need to express that unr /= bad over and over
+                  -- don't need to express that unr /= bad over and over
                 ]
 
      -- Pointers, to each non-nullary constructor k

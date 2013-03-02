@@ -83,9 +83,7 @@ ifM mb t f = do
 
 -- | Pair up a list with its previous and next elements
 --
--- @
---     selections "abc" = [("",'a',"bc"),("a",'b',"c"),("ab",'c',"")]
--- @
+-- > selections "abc" = [("",'a',"bc"),("a",'b',"c"),("ab",'c',"")]
 selections :: [a] -> [([a],a,[a])]
 selections xs = map (fromSplit . (`splitAt` xs)) [0..length xs-1]
   where fromSplit (as,b:bs) = (as,b,bs)
@@ -93,25 +91,19 @@ selections xs = map (fromSplit . (`splitAt` xs)) [0..length xs-1]
 
 -- | Pair up a list with the element and the rest of the elements
 --
--- @
---     inspect "abc" = [('a',"bc"),('b',"ac"),('c',"ab")]
--- @
+-- > inspect "abc" = [('a',"bc"),('b',"ac"),('c',"ab")]
 inspect :: [a] -> [(a,[a])]
 inspect = map (\(i,x,r) -> (x,i++r)) . selections
 
 -- | Pair up a list with its previous elements
 --
--- @
---     withPrevious "abc" = [('a',""),('b',"a"),('c',"ab")]
--- @
+-- > withPrevious "abc" = [('a',""),('b',"a"),('c',"ab")]
 withPrevious :: [a] -> [(a,[a])]
 withPrevious xs = zip xs (inits xs)
 
 -- | Non-reflexive and non-symmetric cartesian product
 --
--- @
---     uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
--- @
+-- > uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
 uniqueCartesian :: [a] -> [(a,a)]
 uniqueCartesian as = concat [ zip (repeat x) xs | (x,xs) <- inspect as ]
 
