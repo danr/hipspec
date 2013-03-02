@@ -77,6 +77,14 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
             (peqs proved_tot)
             (peqs unproved_tot)
 
+        Params{json} <- getParams
+
+        case json of
+            Just json_file -> do
+                msgs <- getMsgs
+                liftIO $ B.writeFile json_file (encode msgs)
+            Nothing -> return ()
+
 runMainLoop :: EQR eq ctx cc
             => ctx
             -> [Property eq]
@@ -84,8 +92,6 @@ runMainLoop :: EQR eq ctx cc
             -> [Property eq]
             -> HS ()
 runMainLoop ctx props already_proved already_failures = do
-
-    Params{..} <- getParams
 
     (proved,unproved,_ctx) <- mainLoop ctx props already_failures already_proved
 
@@ -98,13 +104,6 @@ runMainLoop ctx props already_proved already_failures = do
         (showProperties $ notQS unproved)
         (showProperties $ fromQS proved)
         (showProperties $ fromQS unproved)
-
-    case json of
-        Just json_file -> do
-            msgs <- getMsgs
-            liftIO $ B.writeFile json_file (encode msgs)
-        Nothing -> return ()
-
 
 runQuickSpec :: HS ([Equation],[Tagged Term])
 runQuickSpec = do
