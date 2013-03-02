@@ -1,11 +1,5 @@
 {-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns, ScopedTypeVariables #-}
-module HipSpec.MakeInvocations
-    ( tryProve
-    , InvokeResult(..)
-    , partitionInvRes
---    , parLoop
---    , printInfo
-    ) where
+module HipSpec.MakeInvocations (tryProve) where
 
 import HipSpec.Monad
 import HipSpec.ATP.Invoke
@@ -33,30 +27,18 @@ import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
 
 import Data.List
+import Data.Either
+import Data.Maybe
 
 import Control.Monad
 
 import UniqSupply
 
--- remove ByInduction, express it as vars = []
-data InvokeResult
-    = ByInduction { invoke_lemmas :: Maybe [String], provers :: [ProverName], vars :: [String] }
-    | ByPlain     { invoke_lemmas :: Maybe [String], provers :: [ProverName] }
-    | NoProof
-  deriving (Eq,Ord,Show)
-
-partitionInvRes :: [(a,InvokeResult)] -> ([a],[a],[a])
-partitionInvRes []          = ([],[],[])
-partitionInvRes ((x,ir):xs) = case ir of
-    ByInduction{} -> (x:a,b,c)
-    ByPlain{}     -> (a,x:b,c)
-    NoProof{}     -> (a,b,x:c)
-  where (a,b,c) = partitionInvRes xs
-
 -- | Try to prove some properties in a theory, given some lemmas
-tryProve :: forall eq . [Property eq] -> [Property eq] -> HS [(Property eq,InvokeResult)]
-tryProve []    _       = return []
-tryProve props lemmas0 = do
+tryProve :: forall eq . [Property eq] -> [Theorem eq]
+         -> HS ([Theorem eq],[Property eq])
+tryProve []    _                         = return ([],[])
+tryProve props (map thm_prop -> lemmas0) = do
 
     us <- liftIO $ mkSplitUniqSupply 'c'
 
@@ -114,7 +96,6 @@ tryProve props lemmas0 = do
 
         env = Env
             { timeout         = timeout
-            , lemma_lookup    = \ n -> fmap propRepr (lookup n enum_lemmas)
             , store           = output
             , provers         = proversFromString provers
             , processes       = processes
@@ -128,8 +109,8 @@ tryProve props lemmas0 = do
             all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
         check [] = error "MakeInvocations: check (impossible)"
 
-        results :: [(Property eq,InvokeResult)]
-        results =
+        results :: ([Theorem eq],[Property eq])
+        results = partitionEithers
 
             [
                 let proofs :: [[Obligation eq Result]]
@@ -141,20 +122,23 @@ tryProve props lemmas0 = do
                                      , success (snd $ ob_content)
                                 ]
 
-                in  (,) prop $ case proofs of
-                        [] -> NoProof
+                in  case proofs of
+                        [] -> Right prop
                         grp:_ -> case grp of
                             [] -> error "MakeInvocations: results (impossible)"
-                            Obligation _ (Induction [] _ _) _:_
-                                -> ByPlain lemmas_used provers_used
                             Obligation _ (Induction cs _ _) _:_
-                                -> ByInduction lemmas_used provers_used vars
-                              where vars = varsFromCoords prop cs
-                          where
-                            provers_used = nub $ map (fst . ob_content) grp
-                            lemmas_used  = fmap (nub . concat)
-                                    $ sequence
-                                    $ map (successLemmas . snd . ob_content) grp
+                                -> Left $ Theorem
+                                    { thm_prop = prop
+                                    , thm_proof = ByInduction (varsFromCoords prop cs)
+                                    , thm_provers = nub $ map (fst . ob_content) grp
+                                    , thm_lemmas
+                                        = fmap ( map (fromJust . flip lookup enum_lemmas)
+                                               . nub
+                                               . concat
+                                               )
+                                        $ sequence
+                                        $ map (successLemmas . snd . ob_content) grp
+                                    }
 
             | prop <- props
             ]
@@ -165,15 +149,19 @@ tryProve props lemmas0 = do
                 ++ " on " ++ show ob_prop
                 ++ ":" ++ show (snd $ ob_content)
 
+{-
     forM_ results $ \ (prop,invres) -> do
 
         writeInvRes (propName prop) invres
+        -}
 
     return results
 
+{-_
 writeInvRes :: String -> InvokeResult -> HS ()
 writeInvRes prop_name res = case res of
     ByInduction lemmas provers vars -> writeMsg $ InductiveProof prop_name lemmas (map show provers) vars
     ByPlain lemmas provers          -> writeMsg $ InductiveProof prop_name lemmas (map show provers) []
     NoProof                         -> writeMsg $ FailedProof prop_name
+-}
 

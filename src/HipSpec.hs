@@ -20,6 +20,7 @@ import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 import HipSpec.Reasoning
 import HipSpec.Void
 
+import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property
 import HipSpec.Trans.QSTerm
 import HipSpec.Init
@@ -74,7 +75,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
         runMainLoop
             per_ctx
             (qsprops ++ peqs props)
-            (peqs proved_tot)
+            (map (fmap absurd) proved_tot)
             (peqs unproved_tot)
 
         Params{json} <- getParams
@@ -88,7 +89,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 runMainLoop :: EQR eq ctx cc
             => ctx
             -> [Property eq]
-            -> [Property eq]
+            -> [Theorem eq]
             -> [Property eq]
             -> HS ()
 runMainLoop ctx props already_proved already_failures = do
@@ -100,9 +101,9 @@ runMainLoop ctx props already_proved already_failures = do
         fromQS = filter isFromQS
 
     writeMsg $ Finished
-        (showProperties $ notQS proved)
+        (showProperties $ notQS $ map thm_prop proved)
         (showProperties $ notQS unproved)
-        (showProperties $ fromQS proved)
+        (showProperties $ fromQS $ map thm_prop proved)
         (showProperties $ fromQS unproved)
 
 runQuickSpec :: HS ([Equation],[Tagged Term])
@@ -137,7 +138,7 @@ runQuickSpec = do
 
     return (eqs,univ)
 
-proveTotality :: [Tagged Term] -> HS ([Property Void],[Property Void],PER.Context)
+proveTotality :: [Tagged Term] -> HS ([Theorem Void],[Property Void],PER.Context)
 proveTotality univ = do
 
     Info{..} <- getInfo

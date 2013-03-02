@@ -31,7 +31,6 @@ data LinTheory = LinTheory (TheoryType -> String)
 
 data Env = Env
     { timeout         :: Double
-    , lemma_lookup    :: Int -> Maybe String
     , store           :: Maybe FilePath
     , provers         :: [Prover]
     , processes       :: Int
@@ -40,12 +39,12 @@ data Env = Env
 
 type Result = (ProverName,ProverResult)
 
-interpretResult :: Env  -> Prover -> ProcessResult -> ProverResult
-interpretResult Env{lemma_lookup} Prover{..} pr@ProcessResult{..} = excode `seq`
+interpretResult :: Prover -> ProcessResult -> ProverResult
+interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
     case proverProcessOutput stdout of
         s@Success{} -> case proverParseLemmas of
             Just lemma_parser -> s
-                { successLemmas = Just . mapMaybe lemma_lookup . lemma_parser $ stdout }
+                { successLemmas = Just . lemma_parser $ stdout }
             Nothing -> s
         Failure -> Failure
         Unknown _ -> Unknown (show pr)
@@ -107,7 +106,7 @@ promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 
     let update :: ProcessResult -> [Obligation eq Result]
         update r = [fmap (const res) ob]
-          where res = (proverName,interpretResult env prover r)
+          where res = (proverName,interpretResult prover r)
 
     return Promise
         { spawn = do

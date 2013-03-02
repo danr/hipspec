@@ -7,7 +7,7 @@ import Data.Function
 
 data ProverResult
     = Success
-         { successLemmas :: Maybe [String]
+         { successLemmas :: Maybe [Int]
          -- ^ Just lemmas used if prover is capable of producing a proof
          }
     | Failure

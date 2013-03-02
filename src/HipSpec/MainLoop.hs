@@ -6,6 +6,7 @@ import HipSpec.Reasoning
 import HipSpec.Monad
 
 import HipSpec.Trans.Property
+import HipSpec.Trans.Obligation
 import HipSpec.MakeInvocations
 
 import Halo.Util
@@ -18,22 +19,22 @@ import Control.Monad
 
 -- | The main loop
 mainLoop :: forall eq ctx cc .
-        EQR eq ctx cc                        -- The equality reasoner
-     => ctx                                  -- ^ The initial context
-     -> [Property eq]                        -- ^ Initial equations
-     -> [Property eq]                        -- ^ Initial failures
-     -> [Property eq]                        -- ^ Initial lemmas
-     -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
+        EQR eq ctx cc                       -- The equality reasoner
+     => ctx                                 -- ^ The initial context
+     -> [Property eq]                       -- ^ Initial equations
+     -> [Property eq]                       -- ^ Initial failures
+     -> [Theorem eq]                        -- ^ Initial lemmas
+     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
 mainLoop = loop False
   where
     show_eqs = map propRepr
 
-    loop :: Bool                                 -- ^ Managed to prove something this round
-         -> ctx                                  -- ^ Prune state, to handle the congurece closure
-         -> [Property eq]                        -- ^ Equations to process
-         -> [Property eq]                        -- ^ Equations processed, but failed
-         -> [Property eq]                        -- ^ Equations proved
-         -> HS ([Property eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
+    loop :: Bool                                -- ^ Managed to prove something this round
+         -> ctx                                 -- ^ Prune state, to handle the congurece closure
+         -> [Property eq]                       -- ^ Equations to process
+         -> [Property eq]                       -- ^ Equations processed, but failed
+         -> [Theorem eq]                        -- ^ Equations proved
+         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
     loop False ctx []  failed proved = return (proved,failed,ctx)
     loop True  ctx []  failed proved = do writeMsg Loop
                                           loop False ctx failed [] proved
@@ -53,24 +54,22 @@ mainLoop = loop False
 
         unless (null renamings) $ writeMsg $ Discarded (show_eqs renamings)
 
-        res <- tryProve try proved
+        (new_thms,failures) <- tryProve try proved
 
-        let (successes,without_induction,failures) = partitionInvRes res
+        let successes = filter (not . definitionalTheorem) new_thms
 
-        offsprings <- liftIO $ concatMapM propOffsprings (successes ++ without_induction)
+        offsprings <- liftIO $ concatMapM (propOffsprings . thm_prop) new_thms
 
         let next = offsprings ++ next_without_offsprings
 
-            prunable = successes ++ without_induction
-
             ctx' :: ctx
-            ctx' = execEQR ctx (mapM_ unify (mapMaybe propEquation prunable))
+            ctx' = execEQR ctx (mapM_ unify (mapMaybe (propEquation . thm_prop) new_thms))
 
             failed' :: [Property eq]
             failed' = failed ++ failures
 
         case () of
-            () | null prunable         -> loop retry ctx next (failed ++ failures) proved
+            () | null new_thms         -> loop retry ctx next (failed ++ failures) proved
                | not interesting_cands -> loop True ctx' next failed' (proved ++ successes)
                | otherwise -> do
                     -- Interesting candidates
@@ -78,7 +77,9 @@ mainLoop = loop False
                             = first (sortBy (comparing propOrigin))
                             $ partition p failed'
                           where
-                            p fail' = or [ instanceOf ctx prop fail' | prop <- prunable ]
+                            p fail' = or
+                                [ instanceOf ctx (thm_prop thm) fail'
+                                | thm <- new_thms ]
 
                     unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 
