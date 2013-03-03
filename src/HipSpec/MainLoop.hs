@@ -1,129 +1,93 @@
-{-# LANGUAGE ViewPatterns,NamedFieldPuns #-}
-module HipSpec.MainLoop where
+{-# LANGUAGE ViewPatterns,NamedFieldPuns,ScopedTypeVariables #-}
+module HipSpec.MainLoop (mainLoop) where
 
-import Test.QuickSpec.Term hiding (depth)
-import qualified Test.QuickSpec.Term as T
-import Test.QuickSpec.Equation
-import Test.QuickSpec.Reasoning.NaiveEquationalReasoning(
-  Context, (=:=), (=?=), unify, execEQ, evalEQ, EQ)
+import HipSpec.Reasoning
 
 import HipSpec.Monad
 
 import HipSpec.Trans.Property
-import HipSpec.Trans.QSTerm
+import HipSpec.Trans.Obligation
 import HipSpec.MakeInvocations
 
 import Halo.Util
 
 import Data.List
 import Data.Ord
-import Data.Tuple
-import Data.Function
+import Data.Maybe
 
 import Control.Monad
 
 -- | The main loop
-deep :: (Equation -> String)               -- ^ Showing Equations
-     -> Context                            -- ^ The initial context
-     -> [Property]                         -- ^ Initial equations
-     -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-deep show_eq ctx0 init_eqs = loop ctx0 init_eqs [] [] False
+mainLoop :: forall eq ctx cc .
+        EQR eq ctx cc                       -- The equality reasoner
+     => ctx                                 -- ^ The initial context
+     -> [Property eq]                       -- ^ Initial conjectures
+     -> [Theorem eq]                        -- ^ Initial lemmas
+     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
+mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
   where
-    show_eqs = map (show_eq . propQSTerms)
+    show_eqs = map propRepr
 
-    loop :: Context                            -- ^ Prune state, to handle the congurece closure
-         -> [Property]                         -- ^ Equations to process
-         -> [Property]                         -- ^ Equations processed, but failed
-         -> [Property]                         -- ^ Equations proved
-         -> Bool                               -- ^ Managed to prove something this round
-         -> HS ([Property],[Property],Context) -- ^ Resulting theorems and unproved
-    loop ctx []  failed proved False = return (proved,failed,ctx)
-    loop ctx []  failed proved True  = do liftIO $ putStrLn "Loop!"
-                                          loop ctx failed [] proved False
-    loop ctx eqs failed proved retry = do
+    loop :: Bool                                -- ^ Managed to prove something this round
+         -> ctx                                 -- ^ Prune state, to handle the congurece closure
+         -> [Property eq]                       -- ^ Equations processed, but failed
+         -> [Property eq]                       -- ^ Equations to process
+         -> [Theorem eq]                        -- ^ Equations proved
+         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
+    loop False ctx []  failed proved = return (proved,failed,ctx)
+    loop True  ctx []  failed proved = do writeMsg Loop
+                                          loop False ctx failed [] proved
+    loop retry ctx eqs failed proved = do
 
         Params{interesting_cands,batchsize} <- getParams
 
-        let discard :: Property -> [Property] -> Bool
-            discard eq = \failedacc ->
-                              any (isomorphicTo (propQSTerms eq))
-                                  (map propQSTerms failedacc)
-                           || evalEQ ctx (unifiable (propQSTerms eq))
+        let discard :: Property eq -> [Property eq] -> Bool
+            discard prop failedacc = case propEquation prop of
+                Just eq
+                    -> any (isoDiscard eq) (mapMaybe propEquation failedacc)
+                    || evalEQR ctx (equal eq)
+                _ -> False
 
-            (renamings,try,next) = getUpTo batchsize discard eqs failed
+            (renamings,try,next_without_offsprings)
+                = getUpTo batchsize discard eqs failed
 
-        unless (null renamings) $ do
+        unless (null renamings) $ writeMsg $ Discarded (show_eqs renamings)
 
-            let shown = show_eqs renamings
-                n     = length renamings
+        (new_thms,failures) <- tryProve try proved
 
-            liftIO $ putStrLn $ if (n > 4)
-                then "Discarding " ++ show n ++ " renamings and subsumptions."
-                else "Discarding renamings and subsumptions: " ++ csv shown
+        let successes = filter (not . definitionalTheorem) new_thms
 
-        res <- tryProve try proved
+        offsprings <- liftIO $ concatMapM (propOffsprings . thm_prop) new_thms
 
-        let (successes,without_induction,failures) = partitionInvRes res
-            prunable = successes ++ without_induction
+        let next = offsprings ++ next_without_offsprings
 
-            ctx' :: Context
-            ctx' = execEQ ctx (mapM_ (unify . propQSTerms) prunable)
+            ctx' :: ctx
+            ctx' = execEQR ctx (mapM_ unify (mapMaybe (propEquation . thm_prop) new_thms))
 
-            failed' :: [Property]
+            failed' :: [Property eq]
             failed' = failed ++ failures
 
         case () of
-            () | null prunable         -> loop ctx next (failed ++ failures) proved retry
-               | not interesting_cands -> loop ctx' next failed' (proved ++ successes) True
+            () | null new_thms         -> loop retry ctx next (failed ++ failures) proved
+               | not interesting_cands -> loop True ctx' next failed' (proved ++ successes)
                | otherwise -> do
                     -- Interesting candidates
                     let (cand,failed_wo_cand)
-                            = first (sortBy (comparing propQSTerms))
+                            = first (sortBy (comparing propOrigin))
                             $ partition p failed'
                           where
-                            p fail' = or [ instanceOf ctx prop fail' | prop <- prunable ]
+                            p fail' = or
+                                [ instanceOf ctx (thm_prop thm) fail'
+                                | thm <- new_thms ]
 
-                    unless (null cand) $ do
-                        let shown = show_eqs cand
-                        writeMsg $ Candidates $ shown
-                        liftIO $ putStrLn $ "Interesting candidates: " ++ csv shown
+                    unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 
-                    loop ctx' (cand ++ next) failed_wo_cand
-                              (proved ++ successes) True
+                    loop True ctx' (cand ++ next) failed_wo_cand (proved ++ successes)
 
-instanceOf :: Context -> Property -> Property -> Bool
-instanceOf ctx (propQSTerms -> new) (propQSTerms -> cand) =
-  evalEQ ctx (new --> cand)
-  where
-    (t :=: u) --> (v :=: w) = do
-      _ <- v =:= w
-      t =?= u
-
-unifiable :: Equation -> EQ Bool
-unifiable (u :=: v) = u =?= v
-
--- Renaming
-isomorphicTo :: Equation -> Equation -> Bool
-e1 `isomorphicTo` e2 =
-  case matchEqSkeleton e1 e2 of
-    Nothing -> False
-    Just xs -> function xs && function (map swap xs)
-  where
-    matchEqSkeleton :: Equation -> Equation -> Maybe [(Symbol, Symbol)]
-    matchEqSkeleton (t :=: u) (t' :=: u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-
-    matchSkeleton :: Term -> Term -> Maybe [(Symbol, Symbol)]
-    matchSkeleton (T.Const f) (T.Const g) | f == g = return []
-    matchSkeleton (T.Var x) (T.Var y) = return [(x, y)]
-    matchSkeleton (T.App t u) (T.App t' u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-    matchSkeleton _ _ = Nothing
-
-    -- Relation is a function
-    function :: (Ord a, Eq b) => [(a, b)] -> Bool
-    function = all singleton . groupBy ((==) `on` fst) . nub . sortBy (comparing fst)
-      where singleton xs = length xs == 1
+    instanceOf :: ctx -> Property eq -> Property eq -> Bool
+    instanceOf ctx (propEquation -> Just new) (propEquation -> Just cand) =
+        evalEQR ctx (unify cand >> equal new)
+    instanceOf _ _ _ = False
 
 -- | Get up to n elements satisfying the predicate, those skipped, and the rest
 --   (satisfies p,does not satisfy p (at most n),the rest)

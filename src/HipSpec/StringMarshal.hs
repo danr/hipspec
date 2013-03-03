@@ -1,11 +1,15 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards,ViewPatterns #-}
 {-
 
     Find appropriate translations of QuickSpec strings to core
     bindings, data constructors or type constructors.
 
 -}
-module HipSpec.StringMarshal where
+module HipSpec.StringMarshal
+    ( StrMarsh
+    , maybeLookupSym
+    , makeStringMarshallings
+    ) where
 
 import Halo.Shared
 
@@ -21,8 +25,13 @@ import TyCon
 import TysWiredIn
 import Var
 
+import Test.QuickSpec.Term
+
 type StrMarsh = (Map String (Var,Bool) -- True: function, False: data constructor
                 ,Map String TyCon)
+
+maybeLookupSym :: StrMarsh -> Symbol -> Maybe (Var,Bool)
+maybeLookupSym (strToVar,_) (name -> s) = M.lookup s strToVar
 
 makeStringMarshallings :: Bool -> [TyCon] -> [CoreBind] -> IO StrMarsh
 makeStringMarshallings debug ty_cons core_binds = do

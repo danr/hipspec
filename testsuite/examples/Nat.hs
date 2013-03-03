@@ -24,7 +24,7 @@ prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
 prop_mul_comm x y z = x * y =:= y * x
 
 main = hipSpec $(fileName)
-    [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
+    [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
     , fun0 "Z" Z
     , fun1 "S" S
     , fun2 "+" (+)
@@ -39,6 +39,11 @@ instance Enum Nat where
 
 instance Arbitrary Nat where
   arbitrary = sized arbSized
+
+instance Partial Nat where
+  unlifted Z = return Z
+  unlifted (S x) = fmap S (lifted x)
+
 
 arbSized s = do
   x <- choose (0,round (sqrt (toEnum s)))

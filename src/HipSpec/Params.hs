@@ -14,11 +14,12 @@ import HipSpec.ATP.Provers
 data Params = Params
     { files               :: [FilePath]
     , output              :: Maybe FilePath
+    , verbosity           :: Int
     , z_encode_filenames  :: Bool
-    , warnings            :: Bool
     , json                :: Maybe FilePath
     , definitions         :: Bool
     , explore_theory      :: Bool
+    , bottoms             :: Bool
 
     , processes           :: Int
     , batchsize           :: Int
@@ -41,7 +42,6 @@ data Params = Params
     , quadratic           :: Bool
     , interesting_cands   :: Bool
     , assoc_important     :: Bool
-    , quickspec           :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -83,18 +83,19 @@ sanitizeParams = add_readable . fix_stdin
 defParams :: Params
 defParams = Params
     { files               = []      &= args   &= typFile
-    , warnings            = False   &= help "Show warnings from translation"
     , output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
+    , verbosity           = 100                 &= opt "Verbosity (default 100)."
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= help "File to write statistics to (in json format)"
     , definitions         = False   &= name "d" &= help "Print translated QuickSpec function definitions"
     , explore_theory      = False   &= name "e" &= help "Print explored theory"
+    , bottoms             = False   &= name "b" &= help "Add bottoms"
 
     , processes           = 2       &= groupname "\nProving settings"
                                     &= name "N" &= help "Prover processes (default 2)"
-    , batchsize           = 1       &= name "b" &= help "Equations to process simultaneously (default 1)"
+    , batchsize           = 1       &= name "B" &= help "Equations to process simultaneously (default 1)"
     , timeout             = 1       &= name "t" &= help "Timeout of provers in seconds (default 1)"
     , provers             = "e"     &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (p)aradox, any other in upper case is rally paradox and the lower case version"
     , methods             = "pi"                &= help "Methods to use (p)lain definition equality, (i)nduction (default pi)"
@@ -105,9 +106,9 @@ defParams = Params
     , dont_print_unproved = False   &= name "u" &= help "Don't print unproved conjectures from QuickSpec"
     , use_min             = False   &= name "m" &= help "Use min and minrec translation"
 
-    , case_lift_inner  = False &= groupname "\nTranslation settings"
-                               &= help "Lift all inner cases to top level"
-    , var_scrut_constr = False &= help "Make a constraint instead of inlining var scrutinees"
+    , case_lift_inner     = False &= groupname "\nTranslation settings"
+                                  &= help "Lift all inner cases to top level"
+    , var_scrut_constr    = False &= help "Make a constraint instead of inlining var scrutinees"
 
 
     , swap_repr           = False   &= groupname "\nEquation ordering"
@@ -116,7 +117,6 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
-    , quickspec           = False   &= name "Q" &= help "Print conjectures from QuickSpec"
 
     , inddepth            = 1       &= name "D" &= groupname "\nStructural induction"
                                     &= help "Maximum depth                   (default 1)"
@@ -147,3 +147,4 @@ defParams = Params
     \\n\
     \       hipspec v0.5 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"
+

@@ -1,26 +1,23 @@
 {-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables #-}
-{-|
-
-   Translating from QuickSpec -> Core
-
--}
-module HipSpec.Trans.QSTerm where
+-- | Translating from QuickSpec -> Core
+module HipSpec.Trans.QSTerm
+    ( typeRepToType
+    , eqToProp
+    , peqToProp
+    ) where
 
 
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
+import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
+    (Total,equal,vars)
 import qualified Test.QuickSpec.Utils.Typeable as Ty
 
-import Test.QuickSpec.Signature hiding (vars)
-import qualified Test.QuickSpec.Utils.TypeRel as TypeRel
-
 import Halo.Shared
-import Halo.Util
 
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
-import HipSpec.Trans.Unify
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -41,12 +38,6 @@ import Var
 
 import Control.Monad
 
-import qualified Halo.FOL.Internals.Internals as H
-
--- import Debug.Trace
-trace :: b -> c -> c
-trace = flip const
-
 typeRepToType :: StrMarsh -> Ty.TypeRep -> Type
 typeRepToType (_,strToTyCon) = go
   where
@@ -55,7 +46,7 @@ typeRepToType (_,strToTyCon) = go
     go t = let (ty_con,ts) = Ty.splitTyConApp t
                _tr r = tyConName ty_con ++ " ~> " ++ portableShowSDoc (pprSourceTyCon r)
            in  fromMaybe a
-                (fmap (\r -> {- trace (tr r) -} r `GhcType.mkTyConApp` map go ts)
+                (fmap (\r -> r `GhcType.mkTyConApp` map go ts)
                       (M.lookup (tyConName ty_con) strToTyCon))
     a :: Type
     a = mkTyVarTy $ mkTyVar
@@ -73,84 +64,116 @@ termToExpr str_marsh var_rename_map = go
 
     err (name -> s) = error $ "QuickSpec's " ++ s ++ " never got a variable"
 
-maybeLookupSym :: StrMarsh -> Symbol -> Maybe (Var,Bool)
-maybeLookupSym (strToVar,_) (name -> s) = M.lookup s strToVar
-
 lookupSym :: StrMarsh -> Symbol -> (Var,Bool)
 lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
-  where err = error $ "Cannot translate QuickSpec's " ++ s
-                   ++ " to Core representation! Debug the string marshallings"
-                   ++ " with --db-str-marsh "
-
--- So far only works on arguments with monomorphic, non-exponential types
-termsToProp :: StrMarsh -> Term -> Term -> Property
-termsToProp str_marsh e1 e2 = Property
-    { propEquality  = termToExpr str_marsh var_rename_map e1 :==
-                      termToExpr str_marsh var_rename_map e2
-    , propAssume    = []
-    , propVars = [ (setVarType v ty,ty)
-                 | (x,v) <- var_rename
-                 , let ty = typeRepToType str_marsh (symbolType x)
-                 ]
-    , propName = repr
-    , propRepr = repr
-    , propVarRepr = map (show . fst) var_rename
-    , propQSTerms = e1 :=: e2
-    , propFunDeps = [ v
-                    | c <- nub (funs e1 ++ funs e2)
-                    , let (v,is_function_not_constructor) = lookupSym str_marsh c
-                    , is_function_not_constructor
-                    ]
-    , propOops    = False
-    }
   where
-    repr           = show (e1 :=: e2)
-    var_rename     = [ (x,setVarType v ty)
-                     | x <- nub (vars e1 ++ vars e2)
-                     , let ty = typeRepToType str_marsh (symbolType x)
-                     | v <- varNames
-                     ]
+    err = error err_str
+    err_str = "Cannot translate QuickSpec's " ++ s ++
+             " to Core representation! Debug the string marshallings" ++
+             " with --db-str-marsh "
+
+-- TODO: remove code duplication between this and eqToProp
+peqToProp :: (PEquation -> String) -> StrMarsh -> PEquation -> Property PEquation
+peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
+    { propOffsprings = forM occuring_vars $ \ partial_one -> do
+            return (mk_prop [partial_one])
+            -- OBS: Add Nick's testing
+    }
+
+  where
+    mk_prop :: [Symbol] -> Property PEquation
+    mk_prop partials = Property
+        { propLiteral    = lit
+        , propAssume     = map (Total . term_to_expr . T.Var) totals
+        , propVars       = prop_vars
+        , propName       = repr
+        , propRepr       = repr
+        , propVarRepr    = map (show . fst) var_rename
+        , propOrigin     = Equation (partials :\/: e1 :=: e2)
+        , propOffsprings = return []
+        , propFunDeps    = fundeps
+        , propOops       = False
+        }
+      where
+        repr = show_eq (partials :\/: e1 :=: e2)
+        totals = filter (`notElem` partials) $ occuring_vars
+
+    occuring_vars :: [Symbol]
+    occuring_vars = nub (vars e1 ++ vars e2)
+
+    term_to_expr = termToExpr str_marsh var_rename_map
+
+    lit = term_to_expr e1 :== term_to_expr e2
+
+    prop_vars = [ (setVarType v ty,ty)
+                | (x,v) <- var_rename
+                , let ty = typeRepToType str_marsh (symbolType x)
+                ]
+
+    fundeps  =
+        [ v
+        | c <- nub (funs e1 ++ funs e2)
+        , let (v,is_function_not_constructor) = lookupSym str_marsh c
+        , is_function_not_constructor
+        ]
+
+    var_rename     =
+        [ (x,setVarType v ty)
+        | x <- occuring_vars
+        , let ty = typeRepToType str_marsh (symbolType x)
+        | v <- varNames
+        ]
+
     var_rename_map = M.fromList var_rename
 
-definitionalEquations
-    :: Signature a => StrMarsh -> (Var -> [H.Formula Var Var]) -> a -> [Equation]
-definitionalEquations str_marsh lookup_var sig =
-    trace ("Sig syms: " ++ show sig_syms) $
-    concatMap fetch_sym sig_syms
+-- TODO: remove code duplication between this and peqToProp
+eqToProp :: (Equation -> String) -> StrMarsh -> Equation -> Property Equation
+eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
+    { propLiteral    = lit
+    , propAssume     = []
+    , propVars       = prop_vars
+    , propName       = repr
+    , propRepr       = repr
+    , propVarRepr    = map (show . fst) var_rename
+    , propOrigin     = Equation eq
+    , propOffsprings = return []
+    , propFunDeps    = fundeps
+    , propOops       = False
+    }
   where
-    sig_syms :: [Symbol]
-    sig_syms = nubSortedOn name $ sigSyms sig
 
-    type_matcher :: [Var] -> [Var -> Maybe Symbol]
-    type_matcher = tryMatchTypes str_marsh sig
+    repr = show_eq eq
 
-    sig_syms_map :: Map String Symbol
-    sig_syms_map = M.fromList [ (name s,s) | s <- sig_syms ]
+    occuring_vars :: [Symbol]
+    occuring_vars = nub (vars e1 ++ vars e2)
 
-    maybeLookupVar :: Var -> Maybe Symbol
-    maybeLookupVar v =
-        trace ("maybeLookupVar " ++ nm ++ " = " ++ show (fmap name res)) $ res
+    term_to_expr = termToExpr str_marsh var_rename_map
 
-      where
-        nm = showOutputable (nameOccName (idName v))
-        res = M.lookup nm sig_syms_map
+    lit = term_to_expr e1 :== term_to_expr e2
 
-    fetch_sym :: Symbol -> [Equation]
-    fetch_sym s = case maybeLookupSym str_marsh s of
-        Just (v,True) ->
-            trace ("Trying " ++ showOutputable v ++ " with "
-                             ++ show (length (lookup_var v)) ++ " formulas.") $
-            concatMap (trFormula type_matcher maybeLookupVar)
-                      (lookup_var v)
-        _ -> []
+    prop_vars = [ (setVarType v ty,ty)
+                | (x,v) <- var_rename
+                , let ty = typeRepToType str_marsh (symbolType x)
+                ]
 
-eqToProp :: StrMarsh -> Equation -> Property
-eqToProp str_marsh (t :=: u) = termsToProp str_marsh t u
+    fundeps  =
+        [ v
+        | c <- nub (funs e1 ++ funs e2)
+        , let (v,is_function_not_constructor) = lookupSym str_marsh c
+        , is_function_not_constructor
+        ]
 
-csv :: [String] -> String
-csv = intercalate ", "
+    var_rename     =
+        [ (x,setVarType v ty)
+        | x <- occuring_vars
+        , let ty = typeRepToType str_marsh (symbolType x)
+        | v <- varNames
+        ]
+
+    var_rename_map = M.fromList var_rename
 
 -- | A bunch of _local_ variable names to quantify over
+--   TODO: Make this reflect the QS Variables
 varNames :: [Var]
 varNames =
    [ mkLocalId
@@ -159,62 +182,4 @@ varNames =
    | i <- [0..]
    | n <- [1..] >>= flip replicateM "xyzwvu"
    ]
-
-sigSyms :: Signature a => a -> [Symbol]
-sigSyms = map (some (sym . unConstant)) . TypeRel.toList . constants . signature
-
-sigVars :: Signature a => a -> [Symbol]
-sigVars = map (some (sym . unVariable)) . TypeRel.toList . variables . signature
-
-tryMatchTypes :: Signature a => StrMarsh -> a -> [Var] -> [Var -> Maybe Symbol]
-tryMatchTypes str_marsh sig =
-    trace (concatMap type_repr types_init) $
-    \ qs_init ->
-       let res = fmap (flip M.lookup) res_map
-           res_map = (go qs_init types_init)
-       in  trace ("tryMatchTypes: " ++ showOutputable qs_init ++ " = "
-                    ++ show (fmap (map snd . M.toList) res_map)) res
-
-  where
-    vs = sigVars sig
-
-    types_init :: [(Type,Symbol)]
-    types_init = [ (typeRepToType str_marsh (symbolType v),v) | v <- vs ]
-
-    type_repr :: (Type,Symbol) -> String
-    type_repr (t,s) = showOutputable t ++ ":" ++ show s ++ ", \n"
-
-    go qs = take 1 . runMatches [ (q,varType q) | q <- qs ]
-
-trFormula :: ([Var] -> [Var -> Maybe Symbol])
-          -> (v -> Maybe Symbol) -> H.Formula Var v -> [Equation]
-trFormula mk_lv lf phi = case phi of
-    H.Forall vs (H.Equal t1 t2) -> do
-        lv <- mk_lv vs
-        tr lv t1 t2
-    H.Equal t1 t2 -> tr (const Nothing) t1 t2
-    _ -> []
-  where
-    tr lv t1 t2 = do
-        e1 <- maybeToList (trTerm lf lv t1)
-        e2 <- maybeToList (trTerm lf lv t2)
-        return (e1 :=: e2)
-
-trTerm :: forall v q . (v -> Maybe Symbol) -> (q -> Maybe Symbol) -> H.Term q v -> Maybe T.Term
-trTerm lookup_fun lookup_var = go
-  where
-    lf = fmap T.Const . lookup_fun
-
-    go :: H.Term q v -> Maybe T.Term
-    go t = case t of
-        H.Fun f ts  -> apps <$> lf f <*> mapM go ts
-        H.Ctor c ts -> apps <$> lf c <*> mapM go ts
-        H.App t1 t2 -> T.App <$> go t1 <*> go t2
-        H.Ptr f     -> lf f
-        H.QVar v    -> T.Var <$> lookup_var v
-        _           -> Nothing
-
-
-apps :: Term -> [Term] -> Term
-apps = foldl T.App
 

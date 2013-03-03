@@ -18,8 +18,8 @@ module HipSpec.Trans.Types
     , unitTests
     ) where
 
-
 import Halo.Shared
+import Halo.PrimCon (botCon)
 
 import Induction.Structural
 
@@ -31,9 +31,15 @@ import TysPrim
 import BasicTypes
 
 -- | Type environment for structural induction
-tyEnv :: TyEnv DataCon Type
-tyEnv ty | isAlgType ty = Just (uncurry instTyCon $ splitTyConApp ty)
-         | otherwise    = Nothing
+tyEnv :: Bool -> TyEnv DataCon Type
+tyEnv add_bottom ty
+    | isAlgType ty = fmap add_bottom_con $ Just (uncurry instTyCon (splitTyConApp ty))
+    | otherwise    = Nothing
+  where
+    add_bottom_con :: [(DataCon,[Arg Type])] -> [(DataCon,[Arg Type])]
+    add_bottom_con
+        | add_bottom = ((botCon,[]):)
+        | otherwise  = id
 
 -- | Instantiates a TyCon with its type arguments, e.g.
 --   List Nat returns [(Nil,[]),(Cons,[NonRec Nat,Rec (List Nat)])]

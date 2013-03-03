@@ -2,17 +2,18 @@
 module HipSpec.ATP.Results where
 
 import Data.Function
+import Control.Concurrent.STM.Promise.Process (ProcessResult)
 
 -- Result from a prover invocation --------------------------------------------
 
 data ProverResult
     = Success
-         { successLemmas :: Maybe [String]
+         { successLemmas :: Maybe [Int]
          -- ^ Just lemmas used if prover is capable of producing a proof
          }
     | Failure
     -- ^ Failure: Timeout/Satisfiable
-    | Unknown String
+    | Unknown ProcessResult
     -- ^ Unrecognised output. For debugging
 
 -- | Make a Success result, but register nothing about lemmas

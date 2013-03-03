@@ -1,16 +1,19 @@
-{-# LANGUAGE OverlappingInstances, FlexibleInstances,FlexibleContexts,GADTs #-}
+{-# LANGUAGE OverlappingInstances, FlexibleInstances, FlexibleContexts, GADTs #-}
 module HipSpec.Prelude
-    (module Test.QuickCheck
-    ,module Data.Typeable
-    ,Prop
-    ,(=:=)
-    ,proveBool
-    ,given
-    ,givenBool
-    ,(==>)
-    ,oops) where
+    ( module Test.QuickCheck
+    , module Data.Typeable
+    , module Test.QuickSpec.Approximate
+    , Prop
+    , (=:=)
+    , proveBool
+    , given
+    , givenBool
+    , total
+    , (==>)
+    , oops) where
 
 import Test.QuickCheck hiding (Prop, (==>))
+import Test.QuickSpec.Approximate
 import Data.Typeable
 
 infix 1 =:=
@@ -20,7 +23,11 @@ infixr 0 ==>
 data Prop a where
     Given :: Prop b -> Prop a -> Prop a
     (:=:) :: a -> a -> Prop a
-    Oops :: Prop a -> Prop a
+    Oops  :: Prop a -> Prop a
+    Total :: a -> Prop a
+
+total :: a -> Prop a
+total = Total
 
 given :: Prop b -> Prop a -> Prop a
 given = Given
@@ -43,10 +50,9 @@ oops = Oops
 instance (Eq a,Show a,Show (a -> b),Arbitrary a,Testable (Prop b)) => Testable (Prop (a -> b)) where
   property (lhs :=: rhs) = forAll arbitrary $ \x -> property (lhs x :=: rhs x)
   property (Oops p)      = expectFailure (property p)
-  property Given{}       = error "Cannot test ==>"
+  property _             = error "Cannot test"
 
 instance Eq a => Testable (Prop a) where
   property (lhs :=: rhs) = property (lhs == rhs)
   property (Oops p)      = expectFailure (property p)
-  property Given{}       = error "Cannot test ==>"
-
+  property _             = error "Cannot test"

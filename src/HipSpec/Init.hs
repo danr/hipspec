@@ -18,6 +18,7 @@ import Halo.Util
 import Halo.Shared
 import Halo.Fetch
 import Halo.Subtheory
+import Halo.RemoveDefault
 
 import Data.List
 import Data.Maybe
@@ -31,10 +32,12 @@ import TysWiredIn
 
 import Control.Monad
 
-processFile :: FilePath -> (([Property],StrMarsh) -> HS a) -> HS a
-processFile file k = do
+import HipSpec.Void
 
-    Params{..} <- getParams
+processFile :: FilePath -> ([Property Void] -> HS a) -> HS a
+processFile file cont = do
+
+    params@Params{..} <- getParams
 
     let ds_conf = DesugarConf
             { debug_float_out = False
@@ -81,11 +84,15 @@ processFile file k = do
 
     -- putStrLn debug_unfoldings
 
-    us <- liftIO $ mkSplitUniqSupply 'f'
+    us0 <- liftIO $ mkSplitUniqSupply 'f'
 
-    ((lifted_program,_msgs_lift),_us) <-
-        (\binds -> caseLetLift binds case_lift_inner us)
+    ((lifted_program_with_defaults,_msgs_lift),us1) <-
+        (\binds -> caseLetLift binds case_lift_inner us0)
         <$> liftIO (lambdaLift dflags unlifted_program)
+
+    let (lifted_program,_us2)
+            | bottoms   = initUs us1 (removeDefaults lifted_program_with_defaults)
+            | otherwise = (lifted_program_with_defaults,us1)
 
     {-
     flip mapM_ lifted_program $ \cb -> case cb of
@@ -125,12 +132,13 @@ processFile file k = do
 
     let halo_conf :: HaloConf
         halo_conf = sanitizeConf $ HaloConf
-            { use_min           = use_min
-            , use_minrec        = use_min
-            , unr_and_bad       = False
-            , ext_eq            = True
-            , or_discr          = False
-            , var_scrut_constr  = var_scrut_constr
+            { use_min            = use_min
+            , use_minrec         = use_min
+            , unr_and_bad        = bottoms
+            , collapse_to_bottom = bottoms
+            , ext_eq             = True
+            , or_discr           = False
+            , var_scrut_constr   = var_scrut_constr
             }
 
         halo_env = mkEnv halo_conf ty_cons core_defns
@@ -146,16 +154,19 @@ processFile file k = do
 
         app_theory = Subtheory
             { provides = AppTheory
-            , depends = [ AppOnMin ]
+            , depends = [ AppOnMin ] ++ [ Specific AppBottomAxioms | bottoms ]
             , description = "This theory uses the app symbol"
             , formulae = []
             }
 
-        subtheories = map (setExtraDependencies use_min) $ binds_thy ++
+        subtheories =
+            map (setExtraDependencies params) $ binds_thy ++
             mkResultTypeAxioms core_defns ++
             [ app_theory ] ++
+            bottomAxioms params ++
             concatMap ($ ty_cons)
-                [backgroundTheory halo_conf,mkDomainAxioms,mkMinRecAxioms]
+                ([mkCFAxioms | bottoms] ++
+                 [backgroundTheory halo_conf,mkDomainAxioms params,mkMinRecAxioms])
 
         theory = Theory subtheories
 
@@ -198,5 +209,10 @@ processFile file k = do
 
     -}
 
-    initialize halo_env theory $ k (props,str_marsh)
-
+    initialize
+        (\ hs_info -> hs_info
+            { theory = theory
+            , halo_env = halo_env
+            , str_marsh = str_marsh
+            })
+        (cont props)
