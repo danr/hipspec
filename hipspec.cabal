@@ -74,6 +74,7 @@ library
         HipSpec.Trans.Obligation
         HipSpec.Trans.Property
         HipSpec.Trans.QSTerm
+        HipSpec.Trans.DefinitionalEquations
         HipSpec.Trans.SrcRep
         HipSpec.Trans.Theory
         HipSpec.Trans.TypeGuards

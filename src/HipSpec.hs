@@ -27,6 +27,8 @@ import HipSpec.Init
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
 import HipSpec.Heuristics.Associativity
+import HipSpec.Trans.DefinitionalEquations
+import HipSpec.StringMarshal (maybeLookupSym)
 
 import Prelude hiding (read)
 
@@ -76,9 +78,9 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 let qsconjs = map (eqToProp (showEquation sig) str_marsh) eqs
 
-                    ctxt_init = NER.initial (maxDepth sig) (symbols sig) univ
+                    ctx_init = NER.initial (maxDepth sig) (symbols sig) univ
 
-                runMainLoop ctxt_init (qsconjs ++ map (fmap absurd) user_props) []
+                runMainLoop ctx_init (qsconjs ++ map (fmap absurd) user_props) []
 
         Params{json} <- getParams
 
@@ -88,8 +90,11 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
                 liftIO $ B.writeFile json_file (encode msgs)
             Nothing -> return ()
 
-runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS ()
-runMainLoop ctx initial_props initial_thms = do
+runMainLoop :: (MakeEquation eq,EQR eq ctx cc)
+            => ctx -> [Property eq] -> [Theorem eq] -> HS ()
+runMainLoop ctx_init initial_props initial_thms = do
+
+    ctx <- pruneWithDefEqs ctx_init
 
     (theorems,conjectures,_ctx) <- mainLoop ctx initial_props initial_thms
 
@@ -175,25 +180,6 @@ pprune ctx = evalPEQ ctx . filterM (fmap not . PER.unify)
 
 -- assert this in the initial context....
 -- for peqs
-{-
-getDefEqs :: -> HS [PEquation]
-getDefEqs  = do
-
-    Info{..} <- getInfo
-
-    let getFunction s = case s of
-            Subtheory (Function v) _ _ _ ->
-                let Subtheory _ _ _ fs = removeMinsSubthy s
-                in  Just (v,fs)
-            _ -> Nothing
-
-        func_map = M.fromList (mapMaybe getFunction (subthys theory))
-
-        lookup_func x = fromMaybe [] (M.lookup x func_map)
-
-        def_eqs = definitionalEquations str_marsh lookup_func sig
-
-    writeMsg $ DefinitionalEquations (map show def_eqs)
 
 {-
     let definition (t :=: u) = evalEQ ctx0 (t =?= u)
@@ -202,5 +188,3 @@ getDefEqs  = do
                   $ map (eqToProp str_marsh) eqs
                   -}
 
-    return def_eqs
-    -}
