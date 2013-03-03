@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric,RecordWildCards, ExistentialQuantification #-}
+{-# LANGUAGE DeriveGeneric, RecordWildCards, NamedFieldPuns #-}
 module HipSpec.Messages where
 
 import Data.Aeson
@@ -10,6 +10,8 @@ import Numeric
 import Text.Printf
 import Data.List
 import HipSpec.Trans.Obligation
+import HipSpec.Params
+import Halo.Util
 
 data Msg
     = Started
@@ -61,8 +63,8 @@ showObInfo (Induction{..}) =
     "coords: " ++ csv (map show ind_coords) ++ " " ++
     show ind_num ++ "/" ++ show ind_nums
 
-showMsg :: Msg -> String
-showMsg msg = case msg of
+showMsg :: Params -> Msg -> String
+showMsg Params{no_colour,reverse_video} msg = case msg of
     Started        -> "HipSpec started."
     Discarded eqs
         | length eqs > 4 -> "Discarded " ++ show (length eqs) ++
@@ -70,10 +72,10 @@ showMsg msg = case msg of
         | otherwise      -> "Discarded: " ++ csv eqs
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
-    InductiveProof{..} ->
-        "Proved " ++ prop_name ++ (case vars of
+    InductiveProof{..} -> green ((not (null vars) ? bold)
+        ("Proved " ++ prop_name ++ (case vars of
                 [] -> " without induction"
-                _  -> " by induction on " ++ csv vars)
+                _  -> " by induction on " ++ csv vars)))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
 
@@ -105,6 +107,8 @@ showMsg msg = case msg of
     non_null :: String -> String -> String
     non_null s m | null s    = ""
                  | otherwise = m
+
+    green = not no_colour ? colour (if reverse_video then Green else Blue)
 
     numberedEqs :: [String] -> String
     numberedEqs  = unlines . zipWith (printf "%4d: %s") [(1 :: Int)..]

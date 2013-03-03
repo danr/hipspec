@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, NamedFieldPuns #-}
 module HipSpec.Monad
     ( HS()
     , runHS
@@ -71,13 +71,13 @@ runHS sig_ (HS m) = do
 
 getWriteMsgFun :: HS (Msg -> IO ())
 getWriteMsgFun = HS $ do
-    v <- asks (verbosity . params . hs_info)
+    prms@Params{verbosity} <- asks (params . hs_info)
     w <- asks write_fun
     mtx <- asks write_mutex
-    return $ \ m -> when (msgVerbosity m <= v) $ liftIO $ do
+    return $ \ m -> when (msgVerbosity m <= verbosity) $ liftIO $ do
         w m
         () <- takeMVar mtx
-        putStrLn (showMsg m)
+        putStrLn (showMsg prms m)
         putMVar mtx ()
 
 writeMsg :: Msg -> HS ()

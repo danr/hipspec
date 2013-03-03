@@ -12,9 +12,11 @@ import System.Console.CmdArgs
 import HipSpec.ATP.Provers
 
 data Params = Params
-    { files               :: [FilePath]
-    , output              :: Maybe FilePath
+    -- { files               :: [FilePath]
+    { output              :: Maybe FilePath
     , verbosity           :: Int
+    , no_colour           :: Bool
+    , reverse_video       :: Bool
     , z_encode_filenames  :: Bool
     , json                :: Maybe FilePath
     , definitions         :: Bool
@@ -33,6 +35,7 @@ data Params = Params
     , comments            :: Bool
     , dont_print_unproved :: Bool
     , use_min             :: Bool
+
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
@@ -82,9 +85,11 @@ sanitizeParams = add_readable . fix_stdin
 
 defParams :: Params
 defParams = Params
-    { files               = []      &= args   &= typFile
-    , output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
-    , verbosity           = 100                 &= opt "Verbosity (default 100)."
+    -- { files               = []      &= args   &= typFile
+    { output              = Nothing &= name "o" &= opt "proving" &= typDir &= help "Save tptp files in a directory (default proving)"
+    , verbosity           = 100                 &= help "Verbosity (default 100)."
+    , no_colour           = False               &= help "Don't print in colour"
+    , reverse_video       = False   &= name "rv" &= help "Reverse video (i.e. assume that the terminal background is black)"
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
     , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
