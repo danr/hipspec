@@ -42,12 +42,14 @@ type Result = (ProverName,ProverResult)
 interpretResult :: Prover -> ProcessResult -> ProverResult
 interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
     case proverProcessOutput stdout of
-        s@Success{} -> case proverParseLemmas of
-            Just lemma_parser -> s
-                { successLemmas = Just . lemma_parser $ stdout }
-            Nothing -> s
-        Failure -> Failure
-        Unknown _ -> Unknown (show pr)
+        Just True  -> Success (get_lemmas stdout)
+        Just False -> Failure
+        Nothing    -> Unknown pr
+  where
+    get_lemmas = case proverParseLemmas of
+        Just lemma_parser -> Just . lemma_parser
+        Nothing           -> const Nothing
+
 
 filename :: Env -> Obligation eq a -> (FilePath,FilePath)
 filename Env{z_encode} (Obligation Property{propName} info _) = case info of

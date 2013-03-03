@@ -28,6 +28,14 @@ data Msg
     | SpawningWithTheory  { prop_name :: String, prop_ob_info :: ObInfo, theory_string :: String }
     | Cancelling          { prop_name :: String, prop_ob_info :: ObInfo }
     | ProverResult        { prop_name :: String, prop_ob_info :: ObInfo, std_out :: String }
+    | UnknownResult
+        { prop_name :: String
+        , prop_ob_info :: ObInfo
+        , used_prover :: String
+        , m_stdout :: String
+        , m_stderr :: String
+        , m_excode :: String
+        }
 
     -- HipSpec
 
@@ -54,7 +62,7 @@ showObInfo (Induction{..}) =
     show ind_num ++ "/" ++ show ind_nums
 
 showMsg :: Msg -> String
-showMsg m = case m of
+showMsg msg = case msg of
     Started        -> "HipSpec started."
     Discarded eqs
         | length eqs > 4 -> "Discarded " ++ show (length eqs) ++
@@ -75,6 +83,12 @@ showMsg m = case m of
     SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ "on :\n" ++ reindent theory_string
     Cancelling{..}         -> "Cancelling " ++ prop_name ++ " " ++ showObInfo prop_ob_info
     ProverResult{..}       -> "Finished "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
+    UnknownResult{..}      ->
+        "Unknown result from " ++ used_prover ++ " on " ++
+        prop_name ++ " " ++ showObInfo prop_ob_info ++
+        ", exit code: " ++ m_excode ++
+        (non_null m_stdout $ "\n    stdout:\n" ++ reindent (reindent m_stdout)) ++
+        (non_null m_stderr $ "\n    stderr:\n" ++ reindent (reindent m_stderr))
 
     Loop                   -> "Loop!"
 
@@ -88,11 +102,15 @@ showMsg m = case m of
         "Proved:\n" ++ indent (qs_proved ++ proved) ++
         "Unproved:\n " ++ indent (qs_unproved ++ unproved)
   where
+    non_null :: String -> String -> String
+    non_null s m | null s    = ""
+                 | otherwise = m
+
     numberedEqs :: [String] -> String
     numberedEqs  = unlines . zipWith (printf "%4d: %s") [(1 :: Int)..]
 
     indent :: [String] -> String
-    indent = unlines . map ("    "++)
+    indent = concatMap (("    "++) . (++"\n"))
 
     reindent :: String -> String
     reindent = indent . lines
@@ -109,6 +127,7 @@ msgVerbosity :: Msg -> Int
 msgVerbosity m = case m of
     ExploredTheory{}         -> 0  -- enabled by a flag
     Finished{}               -> 1  -- most interesting
+    UnknownResult{}          -> 10 -- a warning, really
     InductiveProof{vars=_:_} -> 20
     InductiveProof{vars=[]}  -> 30
     FailedProof{}            -> 40

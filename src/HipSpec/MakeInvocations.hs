@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns, ScopedTypeVariables #-}
 module HipSpec.MakeInvocations (tryProve) where
 
+
 import HipSpec.Monad
 import HipSpec.ATP.Invoke
 import HipSpec.ATP.Provers
@@ -12,6 +13,7 @@ import HipSpec.Trans.Property
 import HipSpec.Trans.TypeGuards
 
 import Control.Concurrent.STM.Promise.Tree
+import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
 import Halo.Monad
 import Halo.Subtheory
@@ -110,7 +112,7 @@ tryProve props (map thm_prop -> lemmas0) = do
         check [] = error "MakeInvocations: check (impossible)"
 
         results :: ([Theorem eq],[Property eq])
-        results = partitionEithers
+        results@(thms,conjs) = partitionEithers
 
             [
                 let proofs :: [[Obligation eq Result]]
@@ -143,17 +145,29 @@ tryProve props (map thm_prop -> lemmas0) = do
             | prop <- props
             ]
 
-    forM_ result $ \ Obligation{..} ->
-        when (unknown (snd $ ob_content)) $ liftIO $ do
-            putStrLn $ "Unknown from " ++ show (fst $ ob_content)
-                ++ " on " ++ show ob_prop
-                ++ ":" ++ show (snd $ ob_content)
+    forM_ result $ \ Obligation{..} -> do
+        let (prover,res) = ob_content
+        case res of
+            Unknown ProcessResult{..} ->
+                writeMsg $ UnknownResult
+                    { prop_name    = propName ob_prop
+                    , prop_ob_info = ob_info
+                    , used_prover  = show prover
+                    , m_stdout     = stdout
+                    , m_stderr     = stderr
+                    , m_excode     = show excode
+                    }
+            _ -> return ()
 
-{-
-    forM_ results $ \ (prop,invres) -> do
+    forM_ thms $ \ Theorem{..} -> case thm_proof of
+        ByInduction{..} -> writeMsg $ InductiveProof
+            { prop_name    = propName thm_prop
+            , used_lemmas  = fmap (map propName) thm_lemmas
+            , used_provers = map show thm_provers
+            , vars         = ind_vars
+            }
 
-        writeInvRes (propName prop) invres
-        -}
+    mapM_ (writeMsg . FailedProof . propName) conjs
 
     return results
 

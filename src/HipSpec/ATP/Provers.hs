@@ -1,7 +1,5 @@
 module HipSpec.ATP.Provers where
 
-import HipSpec.ATP.Results
-
 import Data.Maybe
 import Data.List
 import Data.List.Split
@@ -43,7 +41,7 @@ data Prover = Prover
     , proverArgs          :: String -> Double -> [String]
     -- ^ given file name (if proverCannotStdin)
     --   and timeout in secs, args to createProcess
-    , proverProcessOutput :: String  -> ProverResult
+    , proverProcessOutput :: String -> Maybe Bool
     -- ^ processes the output and time and gives a result
     , proverShort         :: Char
     -- ^ short char for command line options
@@ -72,36 +70,39 @@ template = Prover
     , proverTheoryType    = TPTP
     }
 
+proven,failure :: Bool
+proven  = True
+failure = False
+
 -- Should really use something more efficient than isInfixOf
-searchOutput :: [(String,ProverResult)] -> String -> ProverResult
--- searchOutput _          ""     = Failure
-searchOutput []         output = Unknown output
+searchOutput :: [(String,Bool)] -> String -> Maybe Bool
+searchOutput []         _      = Nothing
 searchOutput ((s,r):xs) output
-    | s `isInfixOf` output = r
+    | s `isInfixOf` output = Just r
     | otherwise            = searchOutput xs output
 
 
-statusSZS :: [(String,ProverResult)]
+statusSZS :: [(String,Bool)]
 statusSZS =
-    [("Theorem",mkSuccess)
-    ,("Unsatisfiable",mkSuccess)
-    ,("CounterSatisfiable",Failure)
-    ,("Satisfiable",Failure)
-    ,("Timeout",Failure)
-    ,("ResourceOut",Failure)
+    [("Theorem",proven)
+    ,("Unsatisfiable",proven)
+    ,("CounterSatisfiable",failure)
+    ,("Satisfiable",failure)
+    ,("Timeout",failure)
+    ,("ResourceOut",failure)
     ]
 
 allProvers :: [Prover]
 allProvers =
-    [eprover
-    ,eproof
-    ,eprover_win
-    ,equinox
-    ,paradox
-    ,spass
-    ,vampire
-    ,z3smt
-    ,z3tptp
+    [ eprover
+    , eproof
+    , eprover_win
+    , equinox
+    , paradox
+    , spass
+    , vampire
+    , z3smt
+    , z3tptp
     ]
 
 proversFromString :: String -> [Prover]
@@ -148,7 +149,7 @@ z3tptp = template
     , proverArgs          = \ _ _ -> words "-smt2 -nw /dev/stdin"
     , proverShort         = 'Z'
     , proverTheoryType    = SMTUnsatCore
-    , proverProcessOutput = searchOutput [("unsat",mkSuccess),("sat",Failure)]
+    , proverProcessOutput = searchOutput [("unsat",proven),("sat",failure)]
     , proverParseLemmas   = Just lemmaParser
     }
 
@@ -159,7 +160,7 @@ z3smt = template
     , proverArgs          = \ _ _ -> words $ "-smt2 -nw /dev/stdin"
     , proverShort         = 'z'
     , proverTheoryType    = SMT
-    , proverProcessOutput = searchOutput [("unsat",mkSuccess),("sat",Failure)]
+    , proverProcessOutput = searchOutput [("unsat",proven),("sat",failure)]
     }
 
 paradox :: Prover
@@ -187,9 +188,9 @@ spass = template
     , proverCmd           = "SPASS"
     , proverArgs          = \_ t -> words ("-Stdin -Auto -TPTP -PGiven=0 -PProblem=0 -DocProof=1 -PStatistic=0 -TimeLimit=" ++ showCeil t)
     , proverProcessOutput = searchOutput
-                                [("Proof found.",mkSuccess)
-                                ,("Completion found.",Failure)
-                                ,("Ran out of time.",Failure)]
+                                [("Proof found.",proven)
+                                ,("Completion found.",failure)
+                                ,("Ran out of time.",failure)]
     , proverShort         = 's'
     , proverParseLemmas   = Just lemmaParser
     }
