@@ -37,6 +37,8 @@ import Halo.Util
 import Data.List
 import Data.Ord
 
+import Control.Monad
+
 import Language.Haskell.TH
 
 import Data.Monoid (mappend)
@@ -58,9 +60,9 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
         Info{str_marsh,sig} <- getInfo
 
-        Params{bottoms} <- getParams
+        Params{bottoms,explore_theory} <- getParams
 
-        (eqs,univ) <- runQuickSpec
+        (eqs,univ,reps,classes) <- runQuickSpec
 
         if bottoms then do
 
@@ -69,10 +71,10 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 (ctx_init,tot_thms,tot_conjs) <- proveTotality univ
 
-                runMainLoop
-                    ctx_init
-                    (qsconjs ++ map (fmap absurd) (tot_conjs ++ user_props))
-                    (map (fmap absurd) tot_thms)
+                void $ runMainLoop
+                        ctx_init
+                        (qsconjs ++ map (fmap absurd) (tot_conjs ++ user_props))
+                        (map (fmap absurd) tot_thms)
 
             else do
 
@@ -80,7 +82,18 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                     ctx_init = NER.initial (maxDepth sig) (symbols sig) univ
 
-                runMainLoop ctx_init (qsconjs ++ map (fmap absurd) user_props) []
+                (ctx_with_def,ctx_final) <-
+                    runMainLoop ctx_init
+                                (qsconjs ++ map (fmap absurd) user_props)
+                                []
+
+                when explore_theory $ do
+                    let pruner   = prune ctx_with_def reps
+                        provable = evalEQR ctx_final . equal
+                        explored_theory
+                            = pruner $ filter provable (equations classes)
+                    writeMsg $ ExploredTheory $
+                        map (showEquation sig) explored_theory
 
         Params{json} <- getParams
 
@@ -91,12 +104,13 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
             Nothing -> return ()
 
 runMainLoop :: (MakeEquation eq,EQR eq ctx cc)
-            => ctx -> [Property eq] -> [Theorem eq] -> HS ()
+            => ctx -> [Property eq] -> [Theorem eq] -> HS (ctx,ctx)
 runMainLoop ctx_init initial_props initial_thms = do
 
-    ctx <- pruneWithDefEqs ctx_init
+    ctx_with_def <- pruneWithDefEqs ctx_init
 
-    (theorems,conjectures,_ctx) <- mainLoop ctx initial_props initial_thms
+    (theorems,conjectures,ctx_final) <-
+        mainLoop ctx_with_def initial_props initial_thms
 
     let showProperties = map propName
         notQS  = filter (not . isFromQS)
@@ -108,7 +122,9 @@ runMainLoop ctx_init initial_props initial_thms = do
         (showProperties $ fromQS $ map thm_prop theorems)
         (showProperties $ fromQS conjectures)
 
-runQuickSpec :: HS ([Equation],[Tagged Term])
+    return (ctx_with_def,ctx_final)
+
+runQuickSpec :: HS ([Equation],[Tagged Term],[Term],[[Tagged Term]])
 runQuickSpec = do
 
     Info{..} <- getInfo
@@ -138,7 +154,7 @@ runQuickSpec = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
-    return (eqs,univ)
+    return (eqs,univ,reps,classes)
 
 proveTotality :: [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
 proveTotality univ = do
@@ -162,29 +178,4 @@ proveTotality univ = do
 
 totalise :: Equation -> PEquation
 totalise eq = [] :\/: eq
-
-{-
-        let qsprops = {- filter (not . definition . propQSTerms) $ -}
-                       map (peqToProp (showPEquation sig) str_marsh) (map totalise eqs)
-                       -}
-
-{-
-pprune :: PER.Context -> [PEquation] -> [PEquation]
-pprune ctx = evalPEQ ctx . filterM (fmap not . PER.unify)
--}
-
--- add these definitional equalities
---        ctx0       = execPEQ ctx_init (mapM_ unify def_eqs)
-
---        pruner     = pprune ctx0 -- this one for explore theory
-
--- assert this in the initial context....
--- for peqs
-
-{-
-    let definition (t :=: u) = evalEQ ctx0 (t =?= u)
-
-        qsprops   = filter (not . definition . propQSTerms)
-                  $ map (eqToProp str_marsh) eqs
-                  -}
 
