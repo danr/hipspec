@@ -32,7 +32,7 @@ import TysWiredIn
 
 import Control.Monad
 
-import HipSpec.Void
+import Data.Void
 
 processFile :: FilePath -> ([Property Void] -> HS a) -> HS a
 processFile file cont = do

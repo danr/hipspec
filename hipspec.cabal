@@ -69,7 +69,6 @@ library
         HipSpec.Messages
         HipSpec.Reasoning
         HipSpec.StringMarshal
-        HipSpec.Void
         HipSpec.Trans.MakeProofs
         HipSpec.Trans.Obligation
         HipSpec.Trans.Property
@@ -92,6 +91,7 @@ library
         aeson,
         bytestring,
         logict,
+        void                          >= 0.5.3,
 
         -- Prelude
         QuickCheck                    >= 2.4,

@@ -31,7 +31,7 @@ import Data.List (nub)
 import Data.Function (on)
 import Control.Arrow (second)
 
-import HipSpec.Void
+import Data.Void
 
 data Literal
     = CoreExpr :== CoreExpr

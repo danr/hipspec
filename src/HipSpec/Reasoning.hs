@@ -21,7 +21,7 @@ import Data.Ord
 import Data.Tuple
 import Data.Function
 
-import HipSpec.Void
+import Data.Void
 
 class
     (Ord eq,Monad cc) => EQR eq ctx cc

@@ -18,7 +18,7 @@ import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
 import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
 import HipSpec.Reasoning
-import HipSpec.Void
+import Data.Void
 
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property
@@ -73,8 +73,8 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 void $ runMainLoop
                         ctx_init
-                        (qsconjs ++ map (fmap absurd) (tot_conjs ++ user_props))
-                        (map (fmap absurd) tot_thms)
+                        (qsconjs ++ map vacuous (tot_conjs ++ user_props))
+                        (map vacuous tot_thms)
 
             else do
 
@@ -84,7 +84,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 (ctx_with_def,ctx_final) <-
                     runMainLoop ctx_init
-                                (qsconjs ++ map (fmap absurd) user_props)
+                                (qsconjs ++ map vacuous user_props)
                                 []
 
                 when explore_theory $ do
