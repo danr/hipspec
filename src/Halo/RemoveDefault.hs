@@ -10,7 +10,7 @@
 
         f = \ x -> case x of
             True -> True
-            _ ->ore
+            _ -> case x of
                 False -> False
                 _ -> BAD
 
@@ -135,3 +135,4 @@ makeAlt rhs dc = do
   where
     dummy_var :: Type -> Unique -> Var
     dummy_var ty u = mkSysLocal (fsLit "d") u ty
+

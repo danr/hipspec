@@ -92,7 +92,7 @@ conflict cs = or
      ++ [ dataConWorkId con /= x
         | Equality (collectArgs -> (Var x,_)) con _ <- cs
         , isConLikeId x
-        -- ^ only if x is a constructor!
+        -- only if x is a constructor!
         ]
         -- Literal conflicts!
      ++ [ cheapEqExpr e1 e2 && i /= j

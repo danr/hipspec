@@ -71,11 +71,14 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
             | otherwise =
 
                 [ makeDisjoint halo_conf j k
-                | let disjoints = map fromTag $
+                | let primcons | collapse_to_bottom = [botCon]
+                               | otherwise          = [badCon,unrCon]
+
+                      disjoints = map fromTag $
                           [ (True,dc) | dc <- dcs ] ++
                           [ (False,prim_con)
                           | unr_and_bad
-                          , prim_con <- [primCon BAD,primCon UNR] ]
+                          , prim_con <- primcons ]
 
                       fromTag (min_guard,dc) = Disjoint{..}
                         where
@@ -84,7 +87,8 @@ tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
 
                 , (j,ks) <- zip disjoints (drop 1 (tails disjoints))
                 , k <- ks
-                , not (symbol j == primId BAD && symbol k == primId UNR)
+                , not (symbol j == badId && symbol k == unrId)
+                  -- don't need to express that unr /= bad over and over
                 ]
 
      -- Pointers, to each non-nullary constructor k
@@ -159,3 +163,4 @@ extEq = Subtheory
 
 dummyAny :: Subtheory s
 dummyAny = mkDummySubtheory (Data anyTyCon)
+

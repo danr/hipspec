@@ -66,8 +66,8 @@ linClType ty = case ty of
     Definition        -> text "definition"
     Conjecture        -> text "conjecture"
     NegatedConjecture -> text "axiom"
-                      -- ^ SPASS ignores fof negated_conjecture,
-                      --   so we write these as axiom instead
+                      -- SPASS ignores fof negated_conjecture,
+                      -- so we write these as axiom instead
     Question          -> text "question"
 
 -- | Linearise a formula.
@@ -193,7 +193,7 @@ data Style q v = Style
     , linQVar     :: q -> SDoc
     -- ^ Quantified variables
     , linApp      :: SDoc
-    -- ^ The app/@ symbol
+    -- ^ The app symbol
     , linMin      :: SDoc
     -- ^ The min symbol
     , linMinRec   :: SDoc
