@@ -3,25 +3,21 @@ HipSpec - the Haskell Inductive Prover meets QuickSpec
 
 [![Build Status](https://travis-ci.org/danr/hipspec.png?branch=master)](https://travis-ci.org/danr/hipspec)
 
-## Installation instructions
-
 HipSpec is only supported on GHC 7.4.1 and GHC 7.6.1. Patches
 for other versions are more than welcome.
 
-Make sure you have `quickspec` installed. It isn't yet on hackage,
-so the easiest way is to get it from github:
+## Installation instructions
 
-    git clone https://github.com/nick8325/quickspec
+Clone this repository with `--recursive`:
 
-Follow its instructions, but it all boils down to `cabal install`.
+    git clone https://github.com/danr/hipspec.git --recursive
 
 Have you already cloned this repo? Then get the submodules:
 
     git submodule update --init
 
-Not cloned yet? Then you can clone hipspec and submodules in one go with this flag:
-
-    git clone https://github.com/danr/hipspec.git --recursive
+If you later `git pull`, then be sure to issue `git submodule update`
+if the `halo` folder grins at you when issuing `git status`.
 
 If you now have hipspec and its submodules, install the library thusly:
 
@@ -31,16 +27,11 @@ If you now have hipspec and its submodules, install the library thusly:
 
 You will need to install at least one or more of the following theorem provers:
 
-  * [E
-    prover](http://www4.informatik.tu-muenchen.de/~schulz/E/E.html),
+  * [E prover](http://www4.informatik.tu-muenchen.de/~schulz/E/E.html),
     recommended, precompiled binaries [here](http://www4.informatik.tu-muenchen.de/~schulz/E/Download.html)
 
   * [z3](http://research.microsoft.com/en-us/um/redmond/projects/z3/),
     recommended, precompiled binaries [here](http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html)
-
-    NOTE: You will need an old version of z3 (3.2 or older), because later z3s
-    do not support TPTP format. Or send a patch which makes HipSpec print
-    in a native z3 format. (Much of the code is already in halo)
 
   * [vampire](http://www.vprover.org/)
 
@@ -57,25 +48,15 @@ as a theory exploration system.
 
 An example is given in [`testsuite/examples/Nat.hs`](https://github.com/danr/hipspec/blob/master/testsuite/examples/Nat.hs).
 
-Two important imports:
-
-    import HipSpec
-    import HipSpec.Prelude
-
 Make a `main` function which calls `hipSpec`. This function takes
-three parameters: the file name and a QuickSpec signature. Example:
-
-    main = hipSpec "Trees.hs" sig
-      where sig = ...
-
-If you think it's crazy that you have to write your filename,
-GHC can do it for you with Template Haskell. Slap this on the
-top of your file:
+three parameters: the file name and a QuickSpec signature.
+Since it's boring to write the file name, let's do it with TemplateHaskell.
+Example:
 
     {-# LANUGAGE TemplateHaskell -#}
 
-Now the HipSpec import gives you the fileName function which
-is appropriately used like this:
+    import HipSpec
+    import HipSpec.Prelude
 
     main = hipSpec $(fileName) sig
       where sig = ...
@@ -110,10 +91,14 @@ If this happens you can raise an [issue](https://github.com/danr/hipspec/issues)
 
 Now, we are good to go. Compile this and run:
 
-    $ ghc Trees.hs
+    $ ghc Trees.hs -threaded
     ...
     $ ./Trees
     ...
+
+### Bottoms (domain theoretic ones, that is)
+
+If you wish to prove properties with bottoms, add the `--bottoms` flag. Voila!
 
 ### Theory Exploration mode
 
@@ -124,7 +109,7 @@ short.
 ### Other options
 
 To make things run a bit faster, use optimisation and parallelism by
-passing the flags `-O2 -threaded -rtsopts` to `ghc`. Then run the
+passing the flags `-O2 -rtsopts` to `ghc`. Then run the
 executable with `+RTS -N2`, where `2` is the number of cores on your
 machine.
 
@@ -195,12 +180,11 @@ description for the theorem prover:
 
    * **`e`**: E prover
    * **`z`**: z3
-   * **`v`**: vampire
-   * **`s`**: SPASS
+   * **`Z`**: z3 with unsatisfiable cores, solver prints used lemmas
+   * **`v`**: vampire, prints used lemmas
+   * **`s`**: SPASS, prints used lemmas
+   * **`f`**: E-proof, prints used lemmas
    * **`x`**: equinox
-   * **`f`**: E-proof: prints which lemmas were used for each proof.
-
-To print which lemmas were used in each proof, run with `-p=f`.
 
 You can specify many at the same time, i.e. `--provers=zevs`, which
 will run z3, E prover, vampire 32-bit and SPASS, in that order, on
@@ -218,7 +202,8 @@ have, say, 8 cores and you want to use all of them, use `-N=8`:
 
 The default timeout is one second. It can be specified with the `-t` or
 `--timeout` flag. With `-t=5`, each theorem prover invocation will be 5 seconds
-long.
+long. The timeout can be issued as a double, so -t=0.1 can be used to get
+100 ms timeout.
 
 ### Output TPTP
 
