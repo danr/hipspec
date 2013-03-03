@@ -21,18 +21,17 @@ import Control.Monad
 mainLoop :: forall eq ctx cc .
         EQR eq ctx cc                       -- The equality reasoner
      => ctx                                 -- ^ The initial context
-     -> [Property eq]                       -- ^ Initial equations
-     -> [Property eq]                       -- ^ Initial failures
+     -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
      -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
-mainLoop = loop False
+mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
   where
     show_eqs = map propRepr
 
     loop :: Bool                                -- ^ Managed to prove something this round
          -> ctx                                 -- ^ Prune state, to handle the congurece closure
-         -> [Property eq]                       -- ^ Equations to process
          -> [Property eq]                       -- ^ Equations processed, but failed
+         -> [Property eq]                       -- ^ Equations to process
          -> [Theorem eq]                        -- ^ Equations proved
          -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
     loop False ctx []  failed proved = return (proved,failed,ctx)

@@ -42,13 +42,6 @@ import Data.Monoid (mappend)
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
-
-{-
-import Text.Printf
--}
-
--- Main library ---------------------------------------------------------------
-
 fileName :: ExpQ
 fileName = location >>= \(Loc f _ _ _ _) -> stringE f
 
@@ -57,7 +50,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
     writeMsg Started
 
-    processFile file $ \ props -> do
+    processFile file $ \ user_props -> do
 
         writeMsg FileProcessed
 
@@ -65,18 +58,17 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
         Info{str_marsh,sig} <- getInfo
 
-        let qsprops = map (peqToProp (showPEquation sig) str_marsh)
+        let qsconjs = map (peqToProp (showPEquation sig) str_marsh)
                           (map totalise eqs)
 
-        (proved_tot,unproved_tot,per_ctx) <- proveTotality univ
+        (tot_thms,tot_conjs,per_ctx) <- proveTotality univ
 
         let peqs = map (fmap absurd)
 
         runMainLoop
             per_ctx
-            (qsprops ++ peqs props)
-            (map (fmap absurd) proved_tot)
-            (peqs unproved_tot)
+            (qsconjs ++ peqs tot_conjs ++ peqs user_props)
+            (map (fmap absurd) tot_thms)
 
         Params{json} <- getParams
 
@@ -90,21 +82,20 @@ runMainLoop :: EQR eq ctx cc
             => ctx
             -> [Property eq]
             -> [Theorem eq]
-            -> [Property eq]
             -> HS ()
-runMainLoop ctx props already_proved already_failures = do
+runMainLoop ctx initial_props initial_thms = do
 
-    (proved,unproved,_ctx) <- mainLoop ctx props already_failures already_proved
+    (theorems,conjectures,_ctx) <- mainLoop ctx initial_props initial_thms
 
     let showProperties = map propName
         notQS  = filter (not . isFromQS)
         fromQS = filter isFromQS
 
     writeMsg $ Finished
-        (showProperties $ notQS $ map thm_prop proved)
-        (showProperties $ notQS unproved)
-        (showProperties $ fromQS $ map thm_prop proved)
-        (showProperties $ fromQS unproved)
+        (showProperties $ notQS $ map thm_prop theorems)
+        (showProperties $ notQS conjectures)
+        (showProperties $ fromQS $ map thm_prop theorems)
+        (showProperties $ fromQS conjectures)
 
 runQuickSpec :: HS ([Equation],[Tagged Term])
 runQuickSpec = do
@@ -152,7 +143,7 @@ proveTotality univ = do
               , Just tot_prop <- [totalityProperty v totality]
               ]
 
-    (proved_tot,unproved_tot,NoCC) <- mainLoop NoCC tot_props [] []
+    (proved_tot,unproved_tot,NoCC) <- mainLoop NoCC tot_props []
 
     let ctx_init   = PER.initial (maxDepth sig) tot_list univ
 
