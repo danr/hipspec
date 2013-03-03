@@ -54,21 +54,31 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
         writeMsg FileProcessed
 
-        (eqs,univ) <- runQuickSpec
-
         Info{str_marsh,sig} <- getInfo
 
-        let qsconjs = map (peqToProp (showPEquation sig) str_marsh)
-                          (map totalise eqs)
+        Params{bottoms} <- getParams
 
-        (tot_thms,tot_conjs,per_ctx) <- proveTotality univ
+        (eqs,univ) <- runQuickSpec
 
-        let peqs = map (fmap absurd)
+        if bottoms then do
 
-        runMainLoop
-            per_ctx
-            (qsconjs ++ peqs tot_conjs ++ peqs user_props)
-            (map (fmap absurd) tot_thms)
+                let qsconjs = map (peqToProp (showPEquation sig) str_marsh)
+                                  (map totalise eqs)
+
+                (ctx_init,tot_thms,tot_conjs) <- proveTotality univ
+
+                runMainLoop
+                    ctx_init
+                    (qsconjs ++ map (fmap absurd) (tot_conjs ++ user_props))
+                    (map (fmap absurd) tot_thms)
+
+            else do
+
+                let qsconjs = map (eqToProp (showEquation sig) str_marsh) eqs
+
+                    ctxt_init = NER.initial (maxDepth sig) (symbols sig) univ
+
+                runMainLoop ctxt_init (qsconjs ++ map (fmap absurd) user_props) []
 
         Params{json} <- getParams
 
@@ -78,11 +88,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
                 liftIO $ B.writeFile json_file (encode msgs)
             Nothing -> return ()
 
-runMainLoop :: EQR eq ctx cc
-            => ctx
-            -> [Property eq]
-            -> [Theorem eq]
-            -> HS ()
+runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS ()
 runMainLoop ctx initial_props initial_thms = do
 
     (theorems,conjectures,_ctx) <- mainLoop ctx initial_props initial_thms
@@ -129,7 +135,7 @@ runQuickSpec = do
 
     return (eqs,univ)
 
-proveTotality :: [Tagged Term] -> HS ([Theorem Void],[Property Void],PER.Context)
+proveTotality :: [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
 proveTotality univ = do
 
     Info{..} <- getInfo
@@ -145,9 +151,9 @@ proveTotality univ = do
 
     (proved_tot,unproved_tot,NoCC) <- mainLoop NoCC tot_props []
 
-    let ctx_init   = PER.initial (maxDepth sig) tot_list univ
+    let ctx_init = PER.initial (maxDepth sig) tot_list univ
 
-    return (proved_tot,unproved_tot,ctx_init)
+    return (ctx_init,proved_tot,unproved_tot)
 
 totalise :: Equation -> PEquation
 totalise eq = [] :\/: eq
