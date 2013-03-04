@@ -11,6 +11,8 @@ import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.TypeGuards
+import HipSpec.Trans.Lemma
+import HipSpec.Trans.MakerMonad
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))

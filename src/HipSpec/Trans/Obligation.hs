@@ -2,9 +2,16 @@
 module HipSpec.Trans.Obligation where
 
 import HipSpec.Trans.Property
+import HipSpec.Trans.Theory
 import HipSpec.ATP.Provers
 import GHC.Generics
 import Data.Aeson
+
+import Control.Concurrent.STM.Promise.Tree
+
+-- One subtheory with a conjecture with all dependencies
+type ProofObligation eq = Obligation eq HipSpecSubtheory
+type ProofTree eq       = Tree (ProofObligation eq)
 
 data Theorem eq = Theorem
     { thm_prop    :: Property eq
@@ -14,12 +21,15 @@ data Theorem eq = Theorem
     }
   deriving (Functor,Show)
 
-data Proof = ByInduction { ind_vars :: [String] }
+data Proof
+    = ByInduction   { ind_vars :: [String] }
+    | ByApproxLemma { ind_vars :: [String] }
   deriving Show
 
 definitionalTheorem :: Theorem eq -> Bool
 definitionalTheorem Theorem{..} = case thm_proof of
-    ByInduction{..} -> null ind_vars
+    ByInduction{..}   -> null ind_vars
+    ByApproxLemma{..} -> null ind_vars
 
 data Obligation eq a = Obligation
     { ob_prop     :: Property eq
@@ -29,11 +39,17 @@ data Obligation eq a = Obligation
     }
   deriving (Functor,Show)
 
-data ObInfo = Induction
-    { ind_coords :: [Int]
-    , ind_num    :: Int
-    , ind_nums   :: Int
-    }
+data ObInfo
+    = Induction
+        { ind_coords :: [Int]
+        , ind_num    :: Int
+        , ind_nums   :: Int
+        }
+    | ApproxLemma
+        { ind_coords :: [Int]
+        , ind_num    :: Int
+        , ind_nums   :: Int
+        }
   deriving (Eq,Ord,Show,Generic)
 
 instance ToJSON ObInfo

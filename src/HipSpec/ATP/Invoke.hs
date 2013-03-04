@@ -56,6 +56,9 @@ filename Env{z_encode} (Obligation Property{propName} info _) = case info of
     Induction coords ix _ ->
         ((z_encode ? escape) propName
         ,usv coords ++ "__" ++ show ix)
+    ApproxLemma coords ix _ ->
+        ((z_encode ? escape) propName
+        ,"approx__" ++ usv coords ++ "__" ++ show ix)
   where
     usv = intercalate "_" . map show
 

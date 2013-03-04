@@ -62,6 +62,9 @@ showObInfo :: ObInfo -> String
 showObInfo (Induction{..}) =
     "coords: " ++ csv (map show ind_coords) ++ " " ++
     show ind_num ++ "/" ++ show ind_nums
+showObInfo (ApproxLemma{..}) =
+    "coords: " ++ csv (map show ind_coords) ++ " " ++
+    show ind_num ++ "/" ++ show ind_nums
 
 showMsg :: Params -> Msg -> String
 showMsg Params{no_colour,reverse_video} msg = case msg of
