@@ -39,12 +39,12 @@ data Env = Env
 
 type Result = (ProverName,ProverResult)
 
-interpretResult :: Prover -> ProcessResult -> ProverResult
+interpretResult :: Prover -> ProcessResult -> Maybe ProverResult
 interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
     case proverProcessOutput stdout of
-        Just True  -> Success (get_lemmas stdout)
-        Just False -> Failure
-        Nothing    -> Unknown pr
+        Just True  -> Just (Success (get_lemmas stdout))
+        Just False -> Nothing
+        Nothing    -> Just (Unknown pr)
   where
     get_lemmas = case proverParseLemmas of
         Just lemma_parser -> Just . lemma_parser
@@ -106,9 +106,12 @@ promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
             proverCmd
             (proverArgs filepath' timelimit) inputStr)
 
-    let update :: ProcessResult -> [Obligation eq Result]
-        update r = [fmap (const res) ob]
-          where res = (proverName,interpretResult prover r)
+    let update :: PromiseResult ProcessResult -> PromiseResult [Obligation eq Result]
+        update Cancelled = Cancelled
+        update Unfinished = Unfinished
+        update (An r) = case interpretResult prover r of
+            Just res -> An [fmap (const (proverName,res)) ob]
+            Nothing  -> Cancelled
 
     return Promise
         { spawn = do
@@ -118,7 +121,7 @@ promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
         , cancel = do
             w $ Cancelling (propName ob_prop) ob_info
             cancel promise
-        , result = fmap update <$> result promise
+        , result = update <$> result promise
         }
 
 -- TODO: make this in the HS monad and send messages
@@ -137,13 +140,9 @@ invokeATPs tree env@Env{..} = do
                      processes
                      (interleave promise_tree)
 
-    res <- liftIO $ evalTree (any unknown . map (snd . ob_content)) promise_tree
+    (err,res) <- liftIO $ evalTree (any unknown . map (snd . ob_content)) promise_tree
 
-    -- print res
-
-    return $ case res of
-        Nothing    -> []
-        Just props -> props
+    return $ err ++ res
 
 escape :: String -> String
 escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))

@@ -11,8 +11,6 @@ data ProverResult
          { successLemmas :: Maybe [Int]
          -- ^ Just lemmas used if prover is capable of producing a proof
          }
-    | Failure
-    -- ^ Failure: Timeout/Satisfiable
     | Unknown ProcessResult
     -- ^ Unrecognised output. For debugging
 
@@ -33,6 +31,5 @@ instance Eq ProverResult where
 
 instance Show ProverResult where
   show (Success{..}) = "Success"
-  show Failure       = "Failure"
   show (Unknown s)   = "Unknown: " ++ show s
 
