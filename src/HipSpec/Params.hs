@@ -31,7 +31,7 @@ data Params = Params
     , readable_tptp       :: Bool
     , consistency         :: Bool
     , isolate             :: Bool
-    , fof                 :: Bool
+    , cnf                 :: Bool
     , comments            :: Bool
     , dont_print_unproved :: Bool
     , use_min             :: Bool
@@ -91,7 +91,7 @@ defParams = Params
     , no_colour           = False               &= help "Don't print in colour"
     , reverse_video       = False   &= name "rv" &= help "Reverse video (i.e. assume that the terminal background is black)"
     , comments            = False   &= name "C" &= help "Write comments in tptp file"
-    , fof                 = False   &= name "f" &= help "Write clauses in fof rather than cnf"
+    , cnf                 = False               &= help "Try to write clauses in cnf (does not work with SPASS)"
     , z_encode_filenames  = False   &= name "z" &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= help "File to write statistics to (in json format)"
     , definitions         = False   &= name "d" &= help "Print translated QuickSpec function definitions"
