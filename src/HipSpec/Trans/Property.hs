@@ -64,6 +64,7 @@ data Property eq = Property
     { propLiteral    :: Literal
     , propAssume     :: [Literal]
     , propVars       :: [(Var,Type)]
+    , propType       :: Type
     , propName       :: String
     , propRepr       :: String
     , propVarRepr    :: [String]
@@ -93,6 +94,7 @@ instance Show (Property eq) where
         ,"{ propLiteral = ", show propLiteral
         ,", propAssume = ", show propAssume
         ,", propVars = ", showOutputable propVars
+        ,", propType = ", showOutputable propType
         ,", propName = ", show propName
         ,", propRepr = ", show propRepr
         ,", propFunDeps = ", showOutputable propFunDeps
@@ -105,6 +107,7 @@ inconsistentProperty = Property
     { propLiteral    = Var trueDataConId :== Var falseDataConId
     , propAssume     = []
     , propVars       = []
+    , propType       = boolTy
     , propName       = "inconsistencyCheck"
     , propRepr       = "inconsistecy check: this should never be provable"
     , propVarRepr    = []
@@ -139,11 +142,15 @@ trProperty (NonRec prop_name e) = do
     let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) (exprFVs lhs ++ exprFVs rhs)
         free (Total e')    = filter (`notElem` (vars ++ ty_vars)) (exprFVs e')
 
+        get_typeable (lhs :== _) = lhs
+        get_typeable (Total e')  = e'
+
     return $ Property
         { propName       = idToStr prop_name
         , propLiteral    = lit
         , propAssume     = assume
         , propVars       = [ (x,varType x) | x <- vars ]
+        , propType       = exprType (get_typeable lit)
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
         , propOrigin     = UserStated
@@ -167,6 +174,7 @@ totalityProperty v t = case t of
                          --      , x `notElem` allowed_to_be_partial
                                ]
             , propVars       = [ (x,varType x) | x <- args ]
+            , propType       = snd $ splitFunTys $ varType v
             , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
             , propOrigin     = Totality t

@@ -78,8 +78,7 @@ data Loc = Hyp | Concl
 
 makeVar :: Tagged Var -> MakerM Var
 makeVar (v :~ _) = do
-    (u,us) <- takeUniqFromSupply <$> get
-    put us
+    u <- getUnique
     return (setVarUnique v u)
 
 trObligation :: Property eq -> IS.Obligation DataCon Var Type

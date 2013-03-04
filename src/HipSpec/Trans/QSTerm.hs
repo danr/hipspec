@@ -86,6 +86,7 @@ peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
         { propLiteral    = lit
         , propAssume     = map (Total . term_to_expr . T.Var) totals
         , propVars       = prop_vars
+        , propType       = typeRepToType str_marsh (error "how to get type of qs equation?")
         , propName       = repr
         , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
@@ -132,6 +133,7 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     { propLiteral    = lit
     , propAssume     = []
     , propVars       = prop_vars
+    , propType       = typeRepToType str_marsh (error "how to get type of qs equation?")
     , propName       = repr
     , propRepr       = repr
     , propVarRepr    = map (show . fst) var_rename

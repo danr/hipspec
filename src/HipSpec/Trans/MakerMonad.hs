@@ -15,3 +15,8 @@ runMakerM env us mm
         (Left err,_msg)
             -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
+getUnique :: MakerM Uniq
+getUnique =
+    (u,us) <- takeUniqFromSupply <$> get
+    put us
+    return u
