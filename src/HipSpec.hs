@@ -4,15 +4,17 @@ module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
 import Test.QuickSpec
 
 import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term)
-import Test.QuickSpec.Equation (Equation(..), equations)
+import Test.QuickSpec.Term (totalGen,Term,Expr,term)
+import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.TestTotality
+import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
+import qualified Test.QuickSpec.TestTree as TestTree
 
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning
-    (PEquation(..), {- evalPEQ, -} showPEquation)
+    (PEquation(..) {- evalPEQ, -})
 
 import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
 import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
@@ -62,14 +64,13 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
         Params{bottoms,explore_theory} <- getParams
 
-        (eqs,univ,reps,classes) <- runQuickSpec
+        (eqs,reps,classes) <- runQuickSpec
 
         if bottoms then do
 
-                let qsconjs = map (peqToProp (showPEquation sig) str_marsh)
-                                  (map totalise eqs)
+                let qsconjs = map (some (peqToProp sig str_marsh)) eqs
 
-                (ctx_init,tot_thms,tot_conjs) <- proveTotality univ
+                (ctx_init,tot_thms,tot_conjs) <- proveTotality reps
 
                 void $ runMainLoop
                         ctx_init
@@ -78,9 +79,10 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
             else do
 
-                let qsconjs = map (eqToProp (showEquation sig) str_marsh) eqs
+                let qsconjs = map (eqToProp (showEquation sig) str_marsh)
+                              (map (some eraseEquation) eqs)
 
-                    ctx_init = NER.initial (maxDepth sig) (symbols sig) univ
+                    ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
                 (ctx_with_def,ctx_final) <-
                     runMainLoop ctx_init
@@ -88,10 +90,10 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
                                 []
 
                 when explore_theory $ do
-                    let pruner   = prune ctx_with_def reps
+                    let pruner   = prune ctx_with_def (map erase reps) id
                         provable = evalEQR ctx_final . equal
                         explored_theory
-                            = pruner $ filter provable (equations classes)
+                            = pruner $ filter provable (map (some eraseEquation) (equations classes))
                     writeMsg $ ExploredTheory $
                         map (showEquation sig) explored_theory
 
@@ -124,36 +126,36 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     return (ctx_with_def,ctx_final)
 
-runQuickSpec :: HS ([Equation],[Tagged Term],[Term],[[Tagged Term]])
+runQuickSpec :: HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec = do
 
     Info{..} <- getInfo
     let Params{..} = params
 
-    classes <- liftIO $ fmap eraseClasses (generate (const totalGen) sig)
+    r <- liftIO $ generate (const totalGen) sig
 
-    let eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
+    let classes = concatMap (some2 (map (Some . O) . TestTree.classes)) (TypeMap.toList r)
+        eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
-        classToEqs :: [[Tagged Term]] -> [Equation]
-        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swapEq)))
+        classToEqs :: [Several Expr] -> [Some TypedEquation]
+        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swapEq) . some eraseEquation))
                    . if quadratic
-                          then sort . map (uncurry (:=:)) .
-                               concatMap (uniqueCartesian . map erase)
+                          then sortBy (comparing (some eraseEquation)) .
+                               concatMap (several (map (Some . uncurry (:==:)) . uniqueCartesian))
                           else equations
 
-        univ      = map head classes
-        ctx_init  = NER.initial (maxDepth sig) (symbols sig) univ
+        ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
 
-        reps      = map (erase . head) classes
+        reps = map (some2 (tagged term . head)) classes
 
-        pruner    = prune ctx_init reps
+        pruner    = prune ctx_init (map erase reps) (some eraseEquation)
         prunedEqs = pruner (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
-    return (eqs,univ,reps,classes)
+    return (eqs,reps,classes)
 
 proveTotality :: [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
 proveTotality univ = do
@@ -174,7 +176,3 @@ proveTotality univ = do
     let ctx_init = PER.initial (maxDepth sig) tot_list univ
 
     return (ctx_init,proved_tot,unproved_tot)
-
-totalise :: Equation -> PEquation
-totalise eq = [] :\/: eq
-

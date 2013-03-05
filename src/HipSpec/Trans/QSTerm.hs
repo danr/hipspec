@@ -10,9 +10,11 @@ module HipSpec.Trans.QSTerm
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
+import Test.QuickSpec.Signature(Sig)
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal,vars)
 import qualified Test.QuickSpec.Utils.Typeable as Ty
+import Test.QuickSpec.TestTotality
 
 import Halo.Shared
 
@@ -25,8 +27,8 @@ import Data.Maybe
 import Data.List
 import Data.Typeable as Typeable
 
-import CoreSyn as C
-import GHC
+import CoreSyn as C hiding (Expr)
+import GHC hiding (Sig)
 import Id
 import Kind
 import Name
@@ -73,14 +75,20 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
              " with --db-str-marsh "
 
 -- TODO: remove code duplication between this and eqToProp
-peqToProp :: (PEquation -> String) -> StrMarsh -> PEquation -> Property PEquation
-peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
-    { propOffsprings = forM occuring_vars $ \ partial_one -> do
-            return (mk_prop [partial_one])
-            -- OBS: Add Nick's testing
+peqToProp :: Typeable a => Sig -> StrMarsh -> TypedEquation a -> Property PEquation
+peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
+    { propOffsprings = fmap concat . forM occuring_vars $ \ partial_one -> do
+         isTrue <- testEquation sig e1 e2 partial_one
+         if isTrue then
+            return [mk_prop [partial_one]]
+           else
+            return []
     }
 
   where
+    t1 = term e1
+    t2 = term e2
+
     mk_prop :: [Symbol] -> Property PEquation
     mk_prop partials = Property
         { propLiteral    = lit
@@ -89,21 +97,21 @@ peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
         , propName       = repr
         , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
-        , propOrigin     = Equation (partials :\/: e1 :=: e2)
+        , propOrigin     = Equation (partials :\/: t1 :=: t2)
         , propOffsprings = return []
         , propFunDeps    = fundeps
         , propOops       = False
         }
       where
-        repr = show_eq (partials :\/: e1 :=: e2)
+        repr = showPEquation sig (partials :\/: t1 :=: t2)
         totals = filter (`notElem` partials) $ occuring_vars
 
     occuring_vars :: [Symbol]
-    occuring_vars = nub (vars e1 ++ vars e2)
+    occuring_vars = nub (vars t1 ++ vars t2)
 
     term_to_expr = termToExpr str_marsh var_rename_map
 
-    lit = term_to_expr e1 :== term_to_expr e2
+    lit = term_to_expr t1 :== term_to_expr t2
 
     prop_vars = [ (setVarType v ty,ty)
                 | (x,v) <- var_rename
@@ -112,7 +120,7 @@ peqToProp show_eq str_marsh (_ :\/: e1 :=: e2) = (mk_prop [])
 
     fundeps  =
         [ v
-        | c <- nub (funs e1 ++ funs e2)
+        | c <- nub (funs t1 ++ funs t2)
         , let (v,is_function_not_constructor) = lookupSym str_marsh c
         , is_function_not_constructor
         ]
