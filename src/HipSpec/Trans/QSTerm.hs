@@ -94,7 +94,7 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
         { propLiteral    = lit
         , propAssume     = map (Total . term_to_expr . T.Var) totals
         , propVars       = prop_vars
-        , propType       = typeRepToType str_marsh (error "how to get type of qs equation?")
+        , propType       = typeRepToType str_marsh (termType t1)
         , propName       = repr
         , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
@@ -141,7 +141,7 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     { propLiteral    = lit
     , propAssume     = []
     , propVars       = prop_vars
-    , propType       = typeRepToType str_marsh (error "how to get type of qs equation?")
+    , propType       = typeRepToType str_marsh (termType e1)
     , propName       = repr
     , propRepr       = repr
     , propVarRepr    = map (show . fst) var_rename
@@ -192,4 +192,11 @@ varNames =
    | i <- [0..]
    | n <- [1..] >>= flip replicateM "xyzwvu"
    ]
+
+termType :: Term -> Ty.TypeRep
+termType (T.Var s) = symbolType s
+termType (T.Const s) = symbolType s
+termType (T.App f _x) =
+    let (_, [_ty1, ty2]) = Ty.splitTyConApp (termType f)
+    in ty2
 

@@ -252,6 +252,5 @@ type HipSpecContent = Content HipSpecExtras
 
 type HipSpecSubtheory = Subtheory HipSpecExtras
 
-
 newtype Theory = Theory { subthys :: [HipSpecSubtheory] }
 

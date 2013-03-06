@@ -5,54 +5,99 @@ module HipSpec.Trans.ApproximationLemma(approximate) where
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property as Prop
-import HipSpec.Trans.Types
-import HipSpec.Trans.TypeGuards
-import HipSpec.Params
 
 import Control.Concurrent.STM.Promise.Tree
 
 import Halo.FOL.Abstract hiding (Term)
+import Halo.Binds
 import Halo.Monad
 import Halo.Util
-import Halo.Shared
 import Halo.Subtheory
 
-import Data.Maybe (mapMaybe)
-
 import Control.Monad.Reader
-import Control.Monad.State
 
-import qualified CoreSyn as C
-import CoreSyn (CoreExpr)
-import CoreSubst
-import UniqSupply
+import CoreSyn
 import DataCon
 import Type
 import Var
-import qualified Outputable as Outputable
-import Induction.Structural hiding (Obligation)
-import qualified Induction.Structural as IS
 
 import HipSpec.Trans.MakerMonad
 import HipSpec.Trans.Literal
 
-approximate :: forall eq . Property eq -> MakerM (Int,Property eq,Property eq)
-approximate prop@Property{..} = undefined
+import MkCore
+import TyCon
+import Id
+import Name
+import OccName as OccName
 
-{- the idea is if we have
+import qualified Data.Map as M
 
-    C => e1 = e2
+approximate :: forall eq . Property eq -> Maybe (MakerM (ProofTree eq))
+approximate prop@Property{..} = do
+    (e1,e2) <- propCoreExprEquation prop
+    (ty_con,_arg_tys) <- splitTyConApp_maybe propType
+    guard (isDataTyCon ty_con)
+    return $ do
+        (approx,rec,e) <- mkApproxFun ty_con
 
-   make a new variable y and prove
+        let arities = M.fromList [(approx,1),(rec,1)]
 
-    C & y = e1 => y = e2
+        ((fs,deps),ptrs) <- lift $ local (extendArities arities) $ do
 
-   and
+            (approx_thy:_,_) <- trBinds [e]
+            let approx_fs   = formulae approx_thy
+                approx_deps = filter (`notElem` map Function [approx,rec])
+                                     (depends approx_thy)
+            capturePtrs $ do
 
-    C & y = e2 => y = e1
+                hyp_fs  <- foralls . fst <$> trLiteral (App (Var rec) e1 :== App (Var rec) e2)
+                conc_fs <- foralls . fst <$> trLiteral (App (Var approx) e1 :== App (Var approx) e2)
 
--}
+                return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
 
+        return $ Leaf $ Obligation
+            { ob_prop = prop
+            , ob_info = ApproxLemma
+            , ob_content = Subtheory
+                { provides    = Specific Conjecture
+                , depends     = deps ++ ptrs ++ map Function propFunDeps
+                , description = "Approximation conjecture for " ++ propName
+                , formulae    = fs
+                }
+            }
 
+-- TODO: what about instantiation?
+mkApproxFun :: TyCon -> MakerM (Var,Var,CoreBind)
+mkApproxFun ty_con = do
+    approx <- mk_id "approx" fn_ty <$> makeUnique
+    rec    <- mk_id "rec" fn_ty <$> makeUnique
+    arg    <- mk_id "x" tycon_ty <$> makeUnique
 
+    alts <- mapM (alt rec) (tyConDataCons ty_con)
+
+    let body = mkCoreLams (ty_vars ++ [arg])
+                          (Case (Var arg) arg tycon_ty alts)
+
+    return (approx,rec,NonRec approx body)
+  where
+
+    alt :: Var -> DataCon -> MakerM (AltCon,[Var],CoreExpr)
+    alt rec dc = do
+        let dc_tys = dataConOrigArgTys dc
+        args <- sequence [ mk_id "y" ty <$> makeUnique | ty <- dc_tys ]
+        let body = mkCoreConApps dc $
+                        map varToCoreExpr ty_vars ++
+                        [ if varType arg `eqType` tycon_ty
+                            then mkVarApps (Var rec) (ty_vars ++ [arg])
+                            else Var arg
+                        | arg <- args ]
+        return (DataAlt dc,args,body)
+
+    ty_vars = tyConTyVars ty_con
+
+    -- approx :: forall tys . K tys -> K tys
+    tycon_ty = mkTyConApp ty_con (map mkTyVarTy ty_vars)
+    fn_ty    = mkForAllTys ty_vars (mkFunTy tycon_ty tycon_ty)
+
+    mk_id n ty u = mkLocalId (mkSystemName u (mkOccName OccName.varName n)) ty
 

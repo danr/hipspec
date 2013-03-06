@@ -1,10 +1,11 @@
 {-# LANGUAGE RecordWildCards,NamedFieldPuns,TypeOperators,
              ParallelListComp,ViewPatterns,ScopedTypeVariables #-}
-module HipSpec.Trans.MakerMonad (runMakerM, MakerM) where
+module HipSpec.Trans.MakerMonad (runMakerM, MakerM, makeUnique) where
 
 import Halo.Monad
 import Control.Monad.State
 import UniqSupply
+import Unique
 
 type MakerM = StateT UniqSupply HaloM
 
@@ -15,8 +16,9 @@ runMakerM env us mm
         (Left err,_msg)
             -> error $ "Halo.Trans.MakeProofs.runMakerM, halo says: " ++ err
 
-getUnique :: MakerM Uniq
-getUnique =
-    (u,us) <- takeUniqFromSupply <$> get
+makeUnique :: MakerM Unique
+makeUnique = do
+    (u,us) <- takeUniqFromSupply `fmap` get
     put us
     return u
+

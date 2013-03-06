@@ -69,6 +69,7 @@ library
         HipSpec.Messages
         HipSpec.Reasoning
         HipSpec.StringMarshal
+        HipSpec.Trans.ApproximationLemma
         HipSpec.Trans.DefinitionalEquations
         HipSpec.Trans.Induction
         HipSpec.Trans.Lemma

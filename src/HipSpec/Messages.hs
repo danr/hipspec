@@ -21,6 +21,7 @@ data Msg
     | Discarded      [String]
     | Candidates     [String]
     | InductiveProof { prop_name :: String, used_lemmas :: Maybe [String], used_provers :: [String], vars :: [String] }
+    | ApproxProof    { prop_name :: String, used_lemmas :: Maybe [String], used_provers :: [String] }
     | FailedProof    { prop_name :: String }
     | Loop
 
@@ -62,9 +63,7 @@ showObInfo :: ObInfo -> String
 showObInfo (Induction{..}) =
     "coords: " ++ csv (map show ind_coords) ++ " " ++
     show ind_num ++ "/" ++ show ind_nums
-showObInfo (ApproxLemma{..}) =
-    "coords: " ++ csv (map show ind_coords) ++ " " ++
-    show ind_num ++ "/" ++ show ind_nums
+showObInfo ApproxLemma = "approximation lemma"
 
 showMsg :: Params -> Msg -> String
 showMsg Params{no_colour,reverse_video} msg = case msg of
@@ -75,6 +74,10 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
         | otherwise      -> "Discarded: " ++ csv eqs
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
+    ApproxProof{..} -> green (bold
+        ("Proved " ++ prop_name ++ " by approximation lemma"))
+            ++ view_provers used_provers
+            ++ view_lemmas used_lemmas
     InductiveProof{..} -> green ((not (null vars) ? bold)
         ("Proved " ++ prop_name ++ (case vars of
                 [] -> " without induction"
@@ -85,7 +88,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     FailedProof{..} -> "Failed to prove " ++ prop_name
 
     Spawning{..}           -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info
-    SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ "on :\n" ++ reindent theory_string
+    SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
     Cancelling{..}         -> "Cancelling " ++ prop_name ++ " " ++ showObInfo prop_ob_info
     ProverResult{..}       -> "Finished "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
     UnknownResult{..}      ->
@@ -135,6 +138,7 @@ msgVerbosity m = case m of
     ExploredTheory{}         -> 0  -- enabled by a flag
     Finished{}               -> 1  -- most interesting
     UnknownResult{}          -> 10 -- a warning, really
+    ApproxProof{}            -> 20
     InductiveProof{vars=_:_} -> 20
     InductiveProof{vars=[]}  -> 30
     FailedProof{}            -> 40

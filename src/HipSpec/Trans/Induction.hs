@@ -20,12 +20,10 @@ import Halo.Subtheory
 import Data.Maybe (mapMaybe)
 
 import Control.Monad.Reader
-import Control.Monad.State
 
 import qualified CoreSyn as C
 import CoreSyn (CoreExpr)
 import CoreSubst
-import UniqSupply
 import DataCon
 import Type
 import Var
@@ -78,7 +76,7 @@ data Loc = Hyp | Concl
 
 makeVar :: Tagged Var -> MakerM Var
 makeVar (v :~ _) = do
-    u <- getUnique
+    u <- makeUnique
     return (setVarUnique v u)
 
 trObligation :: Property eq -> IS.Obligation DataCon Var Type

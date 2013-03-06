@@ -5,6 +5,7 @@ module HipSpec.Trans.MakeProofs (makeProofs) where
 import Data.List (nub)
 
 import HipSpec.Trans.MakerMonad
+import HipSpec.Trans.ApproximationLemma
 import HipSpec.Trans.Induction
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Property as Prop
@@ -13,20 +14,28 @@ import HipSpec.Params
 import Control.Concurrent.STM.Promise.Tree
 
 import Halo.Monad
-import Halo.Util
 
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe,maybeToList)
 
 import Control.Monad.Reader
 import Control.Monad.Error
 
-makeProofs :: forall eq . Params -> Property eq -> MakerM (ProofTree eq)
-makeProofs params@Params{methods,indvars,inddepth} prop@Property{propVars}
-    = requireAny <$>
-        (sequence (mapMaybe (induction params prop) induction_coords) `catchError` \ _ -> do
+import Debug.Trace
+
+makeProofs :: forall eq . Params -> Property eq -> MakerM (Maybe (ProofTree eq))
+makeProofs params@Params{methods,indvars,inddepth} prop@Property{propVars} = do
+    res <- sequence techniques `catchError` \ msg -> trace msg $ do
           lift $ cleanUpFailedCapture
-          return [])
+          return []
+    return $ case res of
+        [] -> Nothing
+        xs -> Just (requireAny xs)
   where
+    techniques :: [MakerM (ProofTree eq)]
+    techniques =
+        maybeToList (approximate prop) ++
+        mapMaybe (induction params prop) induction_coords
+
     induction_coords :: [[Int]]
     induction_coords = nub $
         [ concat (replicate depth var_ixs)

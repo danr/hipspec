@@ -4,6 +4,7 @@ module HipSpec.Trans.Property
     , Property(..)
     , Origin(..)
     , propEquation
+    , propCoreExprEquation
     , isUserStated
     , isFromQS
     , varsFromCoords
@@ -20,6 +21,7 @@ import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
 import Type
 import CoreSyn
+import CoreUtils (exprType)
 import Var
 import Id
 import TysWiredIn
@@ -47,6 +49,10 @@ data Origin eq
     | UserStated
     | Builtin
   deriving (Eq,Ord,Functor)
+
+propCoreExprEquation :: Property eq -> Maybe (CoreExpr,CoreExpr)
+propCoreExprEquation (propLiteral -> e1 :== e2) = Just (e1,e2)
+propCoreExprEquation _                          = Nothing
 
 propEquation :: Property eq -> Maybe eq
 propEquation (propOrigin -> Equation eq) = Just eq

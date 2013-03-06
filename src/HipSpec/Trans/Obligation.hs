@@ -23,13 +23,13 @@ data Theorem eq = Theorem
 
 data Proof
     = ByInduction   { ind_vars :: [String] }
-    | ByApproxLemma { ind_vars :: [String] }
+    | ByApproxLemma
   deriving Show
 
 definitionalTheorem :: Theorem eq -> Bool
 definitionalTheorem Theorem{..} = case thm_proof of
     ByInduction{..}   -> null ind_vars
-    ByApproxLemma{..} -> null ind_vars
+    ByApproxLemma     -> False
 
 data Obligation eq a = Obligation
     { ob_prop     :: Property eq
@@ -46,10 +46,6 @@ data ObInfo
         , ind_nums   :: Int
         }
     | ApproxLemma
-        { ind_coords :: [Int]
-        , ind_num    :: Int
-        , ind_nums   :: Int
-        }
   deriving (Eq,Ord,Show,Generic)
 
 instance ToJSON ObInfo

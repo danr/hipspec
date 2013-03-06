@@ -56,9 +56,9 @@ filename Env{z_encode} (Obligation Property{propName} info _) = case info of
     Induction coords ix _ ->
         ((z_encode ? escape) propName
         ,usv coords ++ "__" ++ show ix)
-    ApproxLemma coords ix _ ->
+    ApproxLemma ->
         ((z_encode ? escape) propName
-        ,"approx__" ++ usv coords ++ "__" ++ show ix)
+        ,"approx")
   where
     usv = intercalate "_" . map show
 
@@ -130,22 +130,24 @@ promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 -- TODO: make this in the HS monad and send messages
 
 invokeATPs :: Tree (Obligation eq LinTheory) -> Env -> HS [Obligation eq Result]
-invokeATPs tree env@Env{..} = do
+invokeATPs tree env@Env{..}
+    | null provers = return []
+    | otherwise = do
 
-    let make_promises :: Obligation eq LinTheory
-                      -> HS (Tree (Promise [Obligation eq Result]))
-        make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
+        let make_promises :: Obligation eq LinTheory
+                          -> HS (Tree (Promise [Obligation eq Result]))
+            make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
-    promise_tree <- join <$> mapM make_promises tree
-        -- mapM over trees, but we get a tree of trees, so we need to use join
+        promise_tree <- join <$> mapM make_promises tree
+            -- mapM over trees, but we get a tree of trees, so we need to use join
 
-    liftIO $ workers (Just (round $ timeout * 1000 * 1000))
-                     processes
-                     (interleave promise_tree)
+        liftIO $ workers (Just (round $ timeout * 1000 * 1000))
+                         processes
+                         (interleave promise_tree)
 
-    (err,res) <- liftIO $ evalTree (any unknown . map (snd . ob_content)) promise_tree
+        (err,res) <- liftIO $ evalTree (any unknown . map (snd . ob_content)) promise_tree
 
-    return $ err ++ res
+        return $ err ++ res
 
 escape :: String -> String
 escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))

@@ -13,9 +13,6 @@ import Test.QuickSpec.TestTotality
 import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
 import qualified Test.QuickSpec.TestTree as TestTree
 
-import Test.QuickSpec.Reasoning.PartialEquationalReasoning
-    (PEquation(..) {- evalPEQ, -})
-
 import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
 import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
