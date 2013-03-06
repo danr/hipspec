@@ -61,7 +61,7 @@ tryProve props (map thm_prop -> lemmas0) = do
 
         style_conf = StyleConf
              { style_comments   = comments
-             , style_cnf        = not fof
+             , style_cnf        = cnf
              , style_dollar_min = False
              }
 
