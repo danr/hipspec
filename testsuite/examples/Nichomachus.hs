@@ -30,7 +30,7 @@ prop_Nicomachus n = cubes n =:= sum n * sum n
 
 main :: IO ()
 main = hipSpec $(fileName)
-    [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
+    [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
     , fun0 "Z" Z
     , fun1 "S" S
     , fun2 "+" (+)
@@ -49,3 +49,7 @@ instance Arbitrary Nat where
   arbitrary = sized $ \s -> do
     x <- choose (0,round (sqrt (toEnum s)))
     return (toEnum x)
+
+instance Partial Nat where
+  unlifted Z = return Z
+  unlifted (S n) = fmap S (lifted n)
