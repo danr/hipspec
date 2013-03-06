@@ -50,6 +50,7 @@ linClauses cls = vcat $ concat
     , min_decl
     , minrec_decl
     , cf_decl
+    , is_type_decl
     , app_decl
     , constant_decls
     , function_decls
@@ -62,11 +63,14 @@ linClauses cls = vcat $ concat
     app_decl
         = [ linDeclFun linApp [linDomain,linDomain] linDomain | any appUsed cls ]
 
-    unary_pred p g = [ linDeclFun p [linDomain] linBool | any g cls ]
+    predicate n p g  = [ linDeclFun p (replicate n linDomain) linBool | any g cls ]
+    unary_pred  = predicate 1
+    binary_pred = predicate 2
 
     min_decl       = unary_pred linMin    minUsed
     minrec_decl    = unary_pred linMinRec minRecUsed
     cf_decl        = unary_pred linCF     cfUsed
+    is_type_decl   = binary_pred linIsType  isTypeUsed
 
     constant c     = linDeclFun c [] linDomain
     constants f ln = map (constant . ln) . S.toList . S.unions . map f $ cls
@@ -215,7 +219,7 @@ linSkolem   = text . ("a_" ++) . showVar
 linQuantVar :: Var -> SDoc
 linQuantVar = text . ("q_" ++) . showVar
 
--- | The app symbol
+-- | The app/@ symbol
 linApp      :: SDoc
 linApp      = text "app"
 

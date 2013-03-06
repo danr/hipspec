@@ -148,3 +148,6 @@ minRecUsed = predUsed MinRec
 
 cfUsed :: Ord v => Clause q v -> Bool
 cfUsed = predUsed CF
+
+isTypeUsed :: Ord v => Clause q v -> Bool
+isTypeUsed = predUsed IsType

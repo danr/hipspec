@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes, MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes, MultiParamTypeClasses, FlexibleInstances #-}
 module Halo.FOL.Internals.Internals where
 
 import Data.Generics.Geniplate
@@ -65,8 +65,9 @@ instanceTransformBi [t| forall q v . (Term q v    ,Term q v    ) |]
 instanceTransformBi [t| forall q v . (Term q v    ,Formula q v ) |]
 instanceTransformBi [t| forall q v . (Formula q v ,Formula q v ) |]
 
-instanceUniverseBi [t| forall q v . (Term q v   ,Term q v   ) |]
-instanceUniverseBi [t| forall q v . (Formula q v,Term q v   ) |]
-instanceUniverseBi [t| forall q v . (Formula q v,Formula q v) |]
-instanceUniverseBi [t| forall q v . (Clause q v ,Formula q v) |]
-instanceUniverseBi [t| forall q v . (Clause q v ,Term q v)    |]
+instanceUniverseBi [t| forall q v . (Term q v    ,Term q v   ) |]
+instanceUniverseBi [t| forall q v . (Formula q v ,Term q v   ) |]
+instanceUniverseBi [t| forall q v . (Formula q v ,Formula q v) |]
+instanceUniverseBi [t| forall q v . (Clause q v  ,Formula q v) |]
+instanceUniverseBi [t| forall q v . (Clause q v  ,Term q v)    |]
+instanceUniverseBi [t| forall q v . ([Clause q v],Term q v)    |]
