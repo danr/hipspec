@@ -20,6 +20,7 @@ import Data.List
 import Data.Ord
 import Data.Tuple
 import Data.Function
+import Data.Maybe
 
 import Data.Void
 
@@ -71,10 +72,7 @@ instance EQR PEquation PER.Context PER.PEQ where
 
     showEquation = PER.showPEquation
 
-    isoDiscard (pre1 :\/: eq1) (pre2 :\/: eq2)
-        = eq1 `isomorphicTo` eq2 && pre1 `isSubsetOf` pre2
-      where
-        a `isSubsetOf` b = null (a \\ b)
+    isoDiscard = partialIsomorphicTo
 
   --  fromEquation eq = [] :\/: eq
 
@@ -97,24 +95,34 @@ e1 `isomorphicTo` e2 =
   case matchEqSkeleton e1 e2 of
     Nothing -> False
     Just xs -> function xs && function (map swap xs)
-  where
-    matchEqSkeleton :: Equation -> Equation -> Maybe [(Symbol, Symbol)]
-    matchEqSkeleton (t :=: u) (t' :=: u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
 
-    matchSkeleton :: Term -> Term -> Maybe [(Symbol, Symbol)]
-    matchSkeleton (T.Const f) (T.Const g) | f == g = return []
-    matchSkeleton (T.Var x) (T.Var y) = return [(x, y)]
-    matchSkeleton (T.App t u) (T.App t' u') =
-      liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
-    matchSkeleton _ _ = Nothing
+partialIsomorphicTo :: PEquation -> PEquation -> Bool
+(pre1 :\/: e1) `partialIsomorphicTo` (pre2 :\/: e2) =
+  case matchEqSkeleton e1 e2 of
+    Nothing -> False
+    Just xs -> function xs && function (map swap xs) &&
+               rename pre1 `isSubsetOf` pre2
+      where
+        a `isSubsetOf` b = null (a \\ b)
+        rename = map (fromJust . flip lookup xs)
 
-    -- Relation is a function
-    function :: (Ord a, Eq b) => [(a, b)] -> Bool
-    function
-        = all singleton
-        . groupBy ((==) `on` fst)
-        . nub
-        . sortBy (comparing fst)
-      where singleton xs = length xs == 1
+matchEqSkeleton :: Equation -> Equation -> Maybe [(Symbol, Symbol)]
+matchEqSkeleton (t :=: u) (t' :=: u') =
+  liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
+
+matchSkeleton :: Term -> Term -> Maybe [(Symbol, Symbol)]
+matchSkeleton (T.Const f) (T.Const g) | f == g = return []
+matchSkeleton (T.Var x) (T.Var y) = return [(x, y)]
+matchSkeleton (T.App t u) (T.App t' u') =
+  liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
+matchSkeleton _ _ = Nothing
+
+-- Relation is a function
+function :: (Ord a, Eq b) => [(a, b)] -> Bool
+function
+    = all singleton
+    . groupBy ((==) `on` fst)
+    . nub
+    . sortBy (comparing fst)
+  where singleton xs = length xs == 1
 
