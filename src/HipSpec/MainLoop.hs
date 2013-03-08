@@ -23,7 +23,7 @@ mainLoop :: forall eq ctx cc .
      => ctx                                 -- ^ The initial context
      -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
-     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
+     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unthms
 mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
   where
     show_eqs = map propRepr
@@ -32,14 +32,14 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
          -> ctx                                 -- ^ Prune state, to handle the congurece closure
          -> [Property eq]                       -- ^ Equations processed, but failed
          -> [Property eq]                       -- ^ Equations to process
-         -> [Theorem eq]                        -- ^ Equations proved
-         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unproved
-    loop False ctx []  failed proved = return (proved,failed,ctx)
-    loop True  ctx []  failed proved = do writeMsg Loop
-                                          loop False ctx failed [] proved
-    loop retry ctx eqs failed proved = do
+         -> [Theorem eq]                        -- ^ Equations thms
+         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unthms
+    loop False ctx []  failed thms = return (thms,failed,ctx)
+    loop True  ctx []  failed thms = do writeMsg Loop
+                                        loop False ctx failed [] thms
+    loop retry ctx eqs failed thms = do
 
-        Params{interesting_cands,batchsize} <- getParams
+        Params{interesting_cands,batchsize,only_user_stated} <- getParams
 
         let discard :: Property eq -> [Property eq] -> Bool
             discard prop failedacc = case propEquation prop of
@@ -48,28 +48,28 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
                     || evalEQR ctx (equal eq)
                 _ -> False
 
-            (renamings,try,next_without_offsprings)
+            (renamings,try,next_eqs_without_offsprings)
                 = getUpTo batchsize discard eqs failed
 
         unless (null renamings) $ writeMsg $ Discarded (show_eqs renamings)
 
-        (new_thms,failures) <- tryProve try proved
+        (new_thms,new_failures) <- tryProve try thms
 
-        let successes = filter (not . definitionalTheorem) new_thms
+        offspring_eqs <- liftIO $ concatMapM (propOffsprings . thm_prop) new_thms
 
-        offsprings <- liftIO $ concatMapM (propOffsprings . thm_prop) new_thms
+        let ctx' = execEQR ctx (mapM_ unify (mapMaybe (propEquation . thm_prop) new_thms))
 
-        let next = offsprings ++ next_without_offsprings
+            eqs' = offspring_eqs ++ next_eqs_without_offsprings
 
-            ctx' :: ctx
-            ctx' = execEQR ctx (mapM_ unify (mapMaybe (propEquation . thm_prop) new_thms))
+            failed' = new_failures ++ failed
 
-            failed' :: [Property eq]
-            failed' = failed ++ failures
+            thms' = thms ++ new_thms
 
         case () of
-            () | null new_thms         -> loop retry ctx next (failed ++ failures) proved
-               | not interesting_cands -> loop True ctx' next failed' (proved ++ successes)
+            () | only_user_stated && not (any isUserStated (eqs' ++ failed'))
+                    -> return (thms',eqs' ++ failed',ctx')
+               | not interesting_cands
+                    -> loop (retry || not (null new_thms)) ctx' eqs' failed' thms'
                | otherwise -> do
                     -- Interesting candidates
                     let (cand,failed_wo_cand)
@@ -82,7 +82,7 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
 
                     unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 
-                    loop True ctx' (cand ++ next) failed_wo_cand (proved ++ successes)
+                    loop True ctx' (cand ++ eqs') failed_wo_cand thms'
 
     instanceOf :: ctx -> Property eq -> Property eq -> Bool
     instanceOf ctx (propEquation -> Just new) (propEquation -> Just cand) =

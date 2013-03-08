@@ -36,11 +36,16 @@ import Control.Monad
 
 import UniqSupply
 
+-- | Filters away definitional theorems (those that didn't need induction to be
+--   proved)
+interestingLemmas :: [Theorem eq] -> [Property eq]
+interestingLemmas = map thm_prop . filter (not . definitionalTheorem)
+
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: forall eq . [Property eq] -> [Theorem eq]
          -> HS ([Theorem eq],[Property eq])
-tryProve []    _                         = return ([],[])
-tryProve props (map thm_prop -> lemmas0) = do
+tryProve []    _                              = return ([],[])
+tryProve props (interestingLemmas -> lemmas0) = do
 
     us <- liftIO $ mkSplitUniqSupply 'c'
 

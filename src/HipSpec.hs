@@ -13,9 +13,6 @@ import Test.QuickSpec.TestTotality
 import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
 import qualified Test.QuickSpec.TestTree as TestTree
 
-import Test.QuickSpec.Reasoning.PartialEquationalReasoning
-    (PEquation(..) {- evalPEQ, -})
-
 import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
 import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
@@ -74,7 +71,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 void $ runMainLoop
                         ctx_init
-                        (qsconjs ++ map vacuous (tot_conjs ++ user_props))
+                        (map vacuous user_props ++ qsconjs ++ map vacuous tot_conjs)
                         (map vacuous tot_thms)
 
             else do
@@ -86,7 +83,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
 
                 (ctx_with_def,ctx_final) <-
                     runMainLoop ctx_init
-                                (qsconjs ++ map vacuous user_props)
+                                (map vacuous user_props ++ qsconjs)
                                 []
 
                 when explore_theory $ do
@@ -115,14 +112,19 @@ runMainLoop ctx_init initial_props initial_thms = do
         mainLoop ctx_with_def initial_props initial_thms
 
     let showProperties = map propName
+        theorems' = map thm_prop
+                  $ filter (\ t -> not (definitionalTheorem t) ||
+                                            isUserStated (thm_prop t))
+                  $ theorems
         notQS  = filter (not . isFromQS)
         fromQS = filter isFromQS
 
     writeMsg $ Finished
-        (showProperties $ notQS $ map thm_prop theorems)
-        (showProperties $ notQS conjectures)
-        (showProperties $ fromQS $ map thm_prop theorems)
-        (showProperties $ fromQS conjectures)
+        { proved      = showProperties $ notQS theorems'
+        , unproved    = showProperties $ notQS conjectures
+        , qs_proved   = showProperties $ fromQS theorems'
+        , qs_unproved = showProperties $ fromQS conjectures
+        }
 
     return (ctx_with_def,ctx_final)
 
