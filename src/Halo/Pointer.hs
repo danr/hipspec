@@ -10,6 +10,7 @@ import Id
 import Var
 
 import Halo.FOL.Abstract
+import Halo.FOL.Operations
 
 import Halo.Names
 import Halo.Shared
@@ -29,15 +30,14 @@ mkPtr h = do
         args'   = map qvar args
         tyargs  = zip args arg_tys
 
-    lhs <- apps ty (ptr h) args'
+    lhs <- apps ty (ptr h ty) args'
     let rhs = apply h args'
         formula = forall' tyargs $ lhs === rhs
 
-
-    return Subtheory
+    return subtheory
         { provides    = Pointer h
-        , depends     = [ AppTheory ]
+        , depends     = []
         , description = "Pointer axiom to " ++ showOutputable h
-        , formulae    = [ formula ]
+        , formulae    = [formula]
         }
 

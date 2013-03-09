@@ -128,7 +128,7 @@ skolem = Skolem
 bottom :: t -> Term q v t
 bottom = Bottom
 
-ptr :: v -> Term q v t
+ptr :: v -> t -> Term q v t
 ptr = Ptr
 
 prim :: Prim -> [Term q v t] -> Term q v t

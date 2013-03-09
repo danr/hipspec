@@ -40,62 +40,61 @@ tyConSubtheory HaloConf{use_bottom} ty_con = do
 
     let dcs = tyConDataCons ty_con
 
-    cons <- (++ [ (Nothing,[]) | use_bottom ]) <$> sequence
-        [ (,) (Just k) <$> mapM monoType arg_types
+    cons <- (++ [ Nothing | use_bottom ]) <$> sequence
+        [ Just . (,,) k arg_types <$> mapM monoType arg_types
         | dc <- dcs
         , let (k,arg_types) = dcIdArgTypes dc
         ]
 
-    -- Projections, for each constructor k
+    let rm_mid (a,b,c) = (a,c)
+
     projections <- sequence
-        [ foralls varMonoType $ proj i k kxs === xi
-        | dc <- dcs
-        , let (k,arg_types) = dcIdArgTypes dc
-              xs            = mkVarNamesOfType arg_types
-              kxs           = apply k (map qvar xs)
+        [ forall' (zip xs monotys) $ proj i k kxs === xi
+        | (Just k,tys,monotys) <- dcs
+        , let xs  = mkVarNamesOfType tys
+              kxs = apply k (map qvar xs)
         , i <- [0..length arg_types-1]
         , let xi = qvar (xs !! i)
         ]
 
-     -- Discriminations,
-     -- for j,k + bottom, make j and k disjoint
-
-    let tagged_dcs :: [Either DataCon Term']
-        tagged_dcs = [ Left dc | dc <- dcs ] ++
-                     [ Right (bottom (TCon ty_con)) | use_bottom ]
-
-        make_side :: Int -> DataCon -> (Term',Int)
-        make_side offset dc =
-            let (k,arg_tys) = dcIdArgTypes dc
-                args = mkVarNamesOfTypeWithOffset offset arg_tys
-            in  (apply k (map qvar args),length arg_tys)
+    let make_side :: Int -> Maybe (Var,[Type],[MonoType']) -> (Term',[(Var,MonoType')])
+        make_side offset m_k = case m_k of
+            Nothing -> (bottom (TCon ty_con),[])
+            Just (k,arg_tys,arg_monotys) ->
+                (apply k (map qvar args),zip xs arg_monotys)
+              where
+                xs = mkVarNamesOfTypeWithOffset offset arg_tys
 
     discrims <- sequence
-
-        [ foralls varMonoType $ lhs =/= rhs
-        | (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
-        , let (lhs,offset) = make_side 0 j_dc
-        , other <- ks
-        , let rhs = case other of
-                        Left k_dc     -> fst (make_side offset k_dc)
-                        Right bot_rhs -> bot_rhs
+        [ forall' (lvars ++ rvars) (lhs =/= rhs)
+        | (j,ks) <- zip cons (drop 1 (tails cons))
+        , let (lhs,lvars) = make_side 0 j
+        , k <- ks
+        , let (rhs,rvars) = make_side (length lvars) k
         ]
 
-    domain <-
+    let domain = forall' [(u,TCon ty_con)] $ ors $
+            [ u' === apply k [proj i k u' | i <- [0..arity-1] ]
+            | Just (k,tys,monotys) <- cons
+            ] ++
+            [ u' === bottom (TCon ty_con) | use_bottom ]
+          where
+            [u] = mkVarNamesOfType [mkTyConTy ty_con]
+            u'  = qvar u
 
     -- Pointers, to each non-nullary constructor k
     pointer_subthys <- sequence
         [ fmap (\ s -> s { depends = [Data ty_con] }) (mkPtr k)
-        | dc <- dcs
-        , let (k,arity) = dcIdArity dc
-        , arity > 0
+        | Just (k,tys,_) <- cons
+        , length tys > 0
         ]
 
     return $ Subtheory
-        { provides    = Data ty_con
-        , depends     = []
-        , description = showOutputable ty_con
-        , formulae    = projections ++ discrims
+        { provides     = Data ty_con
+        , depends      = []
+        , description  = showOutputable ty_con
+        , formulae     = projections ++ discrims ++ domain
+        , datadecls    = [(ty_con,map rm_mid cons)]
         }
         : pointer_subthys
 

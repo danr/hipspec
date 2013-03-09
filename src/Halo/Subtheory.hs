@@ -95,15 +95,17 @@ data Subtheory s = Subtheory
     -- ^ Commentary
     , formulae     :: [Formula']
     -- ^ Formulae in this subtheory
-    , typedecls    :: [(Name,MonoType')]
+    , typedecls    :: [(Var,MonoType')]
     -- ^ Type declarations from this subtheory
-    , datadecls    :: [(TyCon,[(Maybe Name,[MonoType'])]]
+    , datadecls    :: [(TyCon,[(Maybe Var,[MonoType'])]]
     -- ^ Data declarations from this subtheory
-    , used_apps    :: [MonoType']
-    -- ^ Used apps in this subtheory
-    , used_bottoms :: [MonoType']
-    -- ^ Used bottoms in this subtheory
     }
+
+instance Eq s => Eq (Subtheory s) where
+    (==) = (==) `on` provides
+
+instance Ord s => Ord (Subtheory s) where
+    compare = compare `on` provides
 
 -- | A yet to become subtheory, but with empty typedecls, datadecls and used_apps.
 subtheory :: Subtheory s
@@ -114,19 +116,11 @@ subtheory = Subtheory
     , formulae     = error "subtheory: please fill in formulae"
     , typedecls    = []
     , datadecls    = []
-    , used_apps    = []
-    , used_bottoms = []
     }
 
 instance Show s => Show (Subtheory s) where
     show subthy = "Subtheory { content=" ++ show (provides subthy)
                           ++ ", depends=" ++ show (depends subthy) ++ "}"
-
-instance Eq s => Eq (Subtheory s) where
-    (==) = (==) `on` provides
-
-instance Ord s => Ord (Subtheory s) where
-    compare = compare `on` provides
 
 class Clausifiable s where
     mkClause :: s -> Formula' -> Clause'

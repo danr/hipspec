@@ -131,12 +131,15 @@ trBindParts f e parts = do
     -- we filter away a branch with conflicting constraints
     let deps = nub (concatMap bind_deps parts)
 
-    return $ Subtheory
-        { provides    = Function f
-        , depends     = deps ++ ptr_deps
-        , description = idToStr f ++ " = " ++ showExpr e
+    monotype <- varMonoType f
+
+    return subtheory
+        { provides     = Function f
+        , depends      = deps ++ ptr_deps
+        , description  = idToStr f ++ " = " ++ showExpr e
                      ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
-        , formulae    = tr_formulae
+        , formulae     = tr_formulae
+        , typedecls    = [(f,monotype)]
         }
 
 -- | Translate a Var / CoreExpr pair flattened from a CoreBind
@@ -371,3 +374,4 @@ bindPartDeps BindPart{..}
 
     isFunction Function{} = True
     isFunction _          = False
+

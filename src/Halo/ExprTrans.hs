@@ -57,7 +57,7 @@ trExpr' e = do
         Var x
             | Just s <- M.lookup x skolems -> return s
             | isQuant x           -> return (qvar x)
-            | TArr{} <- monotype  -> return (ptr x)
+            | TArr{} <- monotype  -> return (ptr x monotype)
             | otherwise           -> return (con x) -- constructor or CAF
         App e1 e2 -> app monotype <$> trExpr e1 <*> trExpr e2
         -- Int

@@ -14,7 +14,7 @@ collectPtrApps tm = case tm of
     App ty tm1 tm2 -> do
         (f,as) <- collectPtrApps tm1
         return (f,(tm2,ty):as)
-    Ptr f -> Just (f,[])
+    Ptr f _ -> Just (f,[])
     _ -> Nothing
 
 -- | Reapplies residual applications.

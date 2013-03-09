@@ -24,7 +24,7 @@ data Term q v t
     | Skolem v t
     | App t (Term q v t) (Term q v t)
     | Proj Int v (Term q v t)
-    | Ptr v
+    | Ptr v t
     | QVar q
     | Bottom t
     | Lit Integer
@@ -65,10 +65,11 @@ instanceTransformBi [t| forall q v t . (Term q v t    ,Term q v t    ) |]
 instanceTransformBi [t| forall q v t . (Term q v t    ,Formula q v t ) |]
 instanceTransformBi [t| forall q v t . (Formula q v t ,Formula q v t ) |]
 
-instanceUniverseBi [t| forall q v t . (Term q v t    ,Term q v t   ) |]
-instanceUniverseBi [t| forall q v t . (Formula q v t ,Term q v t   ) |]
-instanceUniverseBi [t| forall q v t . (Formula q v t ,Formula q v t) |]
-instanceUniverseBi [t| forall q v t . (Clause q v t  ,Formula q v t) |]
-instanceUniverseBi [t| forall q v t . (Clause q v t  ,Term q v t)    |]
-instanceUniverseBi [t| forall q v t . ([Clause q v t],Term q v t)    |]
+instanceUniverseBi [t| forall q v t . (Term q v t     ,Term q v t   ) |]
+instanceUniverseBi [t| forall q v t . (Formula q v t  ,Term q v t   ) |]
+instanceUniverseBi [t| forall q v t . (Formula q v t  ,Formula q v t) |]
+instanceUniverseBi [t| forall q v t . ([Formula q v t],Term q v t) |]
+instanceUniverseBi [t| forall q v t . (Clause q v t   ,Formula q v t) |]
+instanceUniverseBi [t| forall q v t . (Clause q v t   ,Term q v t)    |]
+instanceUniverseBi [t| forall q v t . ([Clause q v t] ,Term q v t)    |]
 

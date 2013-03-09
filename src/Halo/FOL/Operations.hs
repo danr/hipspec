@@ -2,6 +2,7 @@
 module Halo.FOL.Operations where
 
 import Halo.FOL.Internals.Internals
+import Halo.Util
 
 import Data.Generics.Geniplate
 
@@ -20,7 +21,7 @@ replaceVarsTm k = go
         Skolem v t  -> Skolem (k v) t
         App t t1 t2 -> App t (go t1) (go t2)
         Proj i v a  -> Proj i (k v) (go a)
-        Ptr v       -> Ptr (k v)
+        Ptr v t     -> Ptr (k v) t
         QVar q      -> QVar q
         Prim p as   -> Prim p (map go as)
         Lit i       -> Lit i
@@ -35,7 +36,7 @@ replaceQVarsTm k = go
         Skolem v t  -> Skolem v t
         App t t1 t2 -> App t (go t1) (go t2)
         Proj i v a  -> Proj i v (go a)
-        Ptr v       -> Ptr v
+        Ptr v t     -> Ptr v t
         QVar q      -> QVar (k q)
         Prim p as   -> Prim p (map go as)
         Lit i       -> Lit i
@@ -77,7 +78,7 @@ allSymbols = S.toList . S.unions . map get . universeBi
     get (Ctor v _)   = S.singleton v
     get (Skolem v _) = S.singleton v
     get (Proj _ v _) = S.singleton v
-    get (Ptr v)      = S.singleton v
+    get (Ptr v _)    = S.singleton v
     get _            = S.empty
 
 allSymbols' :: Ord v => Clause q v t -> [v]
@@ -107,7 +108,7 @@ substVars old new = rewriteBi s
     s (Fun v as)   | v == old = Just (Fun new as)
     s (Ctor v as)  | v == old = Just (Ctor new as)
     s (Proj i v a) | v == old = Just (Proj i new a)
-    s (Ptr v)      | v == old = Just (Ptr new)
+    s (Ptr v t)    | v == old = Just (Ptr new t)
     s _                       = Nothing
 
 substQVar :: forall q v t . Eq q => q -> q -> Formula q v t -> Formula q v t
@@ -126,25 +127,29 @@ rewriteBi f = transformBi g
 -- Querying
 
 funsUsed :: forall q v t . Ord v => Clause q v t -> Set (v,Int)
-funsUsed cl    = S.fromList [ (f,length as) | Fun f as :: Term q v t <- universeBi cl ]
+funsUsed cl = S.fromList [ (f,length as) | Fun f as :: Term q v t <- universeBi cl ]
 
 consUsed :: forall q v t . Ord v => Clause q v t -> Set (v,Int)
-consUsed cl    = S.fromList [ (c,length as) | Ctor c as :: Term q v t <- universeBi cl ]
+consUsed cl = S.fromList [ (c,length as) | Ctor c as :: Term q v t <- universeBi cl ]
 
 ptrsUsed :: forall q v t . Ord v => Clause q v t -> Set v
-ptrsUsed cl    = S.fromList [ p | Ptr p :: Term q v t <- universeBi cl ]
+ptrsUsed cl = S.fromList [ p | Ptr p _ :: Term q v t <- universeBi cl ]
 
 primsUsed :: forall q v t . Ord v => Clause q v t -> Set Prim
-primsUsed cl   = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
+primsUsed cl = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
 
 skolemsUsed :: forall q v t . Ord v => Clause q v t -> Set v
 skolemsUsed cl = S.fromList [ s | Skolem s _ :: Term q v t <- universeBi cl ]
 
-appUsed :: forall q v t . Ord v => Clause q v t -> Bool
-appUsed cl     = or [ True | App{}  :: Term q v t <- universeBi cl ]
+totalUsed :: forall q v t . Ord v =>  Clause q v t -> [t]
+totalUsed cl = nubSorted [ t | Total t _ :: Formula q v t <- universeBi cl ]
 
-totalUsed :: forall q v t . Ord v =>  Clause q v t -> Bool
-totalUsed cl   = or [ True | Total{} :: Formula q v t <- universeBi cl ]
+appsUsed :: forall q v t . Ord t => [Formula q v t] -> [t]
+appsUsed cl = nubSorted [ t | App t _ _ :: Term q v t <- universeBi cl ]
+
+bottomsUsed :: forall q v t . Ord t => [Formula q v t] -> [t]
+bottomsUsed cl = nubSorted [ t | Bottom t :: Term q v t <- universeBi cl ]
+
 
 mapCl :: Monad m
        => (Formula q v t -> m (Formula q' v' t'))
