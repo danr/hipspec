@@ -19,7 +19,6 @@ module HipSpec.Trans.Types
     ) where
 
 import Halo.Shared
-import Halo.PrimCon (botCon)
 
 import Induction.Structural
 
@@ -38,7 +37,7 @@ tyEnv add_bottom ty
   where
     add_bottom_con :: [(DataCon,[Arg Type])] -> [(DataCon,[Arg Type])]
     add_bottom_con
-        | add_bottom = ((botCon,[]):)
+        | add_bottom = error "tyEnv: TODO: add botCon in some sense" -- ((botCon,[]):)
         | otherwise  = id
 
 -- | Instantiates a TyCon with its type arguments, e.g.

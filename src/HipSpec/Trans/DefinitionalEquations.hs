@@ -15,7 +15,6 @@ import Test.QuickSpec.Signature hiding (vars)
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 
-import Halo.FOL.RemoveMin
 import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
@@ -65,9 +64,7 @@ getDefEqs = do
     Info{sig,theory,str_marsh} <- getInfo
 
     let getFunction s = case s of
-            Subtheory (Function v) _ _ _ ->
-                let Subtheory _ _ _ fs = removeMinsSubthy s
-                in  Just (v,fs)
+            Subtheory (Function v) _ _ _ -> Just (v,fs)
             _ -> Nothing
 
         func_map = M.fromList (mapMaybe getFunction (subthys theory))

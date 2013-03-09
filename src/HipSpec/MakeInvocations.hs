@@ -10,7 +10,6 @@ import HipSpec.Trans.MakeProofs
 import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
-import HipSpec.Trans.TypeGuards
 import HipSpec.Trans.Lemma
 import HipSpec.Trans.MakerMonad
 
@@ -27,7 +26,6 @@ import Halo.FOL.Dump
 import Halo.FOL.Linearise
 import Halo.FOL.LineariseSMT
 import Halo.FOL.Operations
-import Halo.FOL.RemoveMin
 import Halo.FOL.Rename
 
 import Data.List
@@ -91,7 +89,6 @@ tryProve props (interestingLemmas -> lemmas0) = do
                                 SMT          -> smt_str
                                 SMTUnsatCore -> addUnsatCores smt_str)
                     . map (clauseMapFormula typeGuardFormula)
-                    . (not use_min ? removeMins)
                     . concatMap toClauses
 
                 calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]

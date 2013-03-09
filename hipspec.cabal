@@ -1,7 +1,7 @@
 name:               hipspec
 category:           Theorem Provers
 version:            0.6
-license:            BSD3
+license:            GPLv3
 author:             Dan Rosén
 maintainer:         Dan Rosén <danr@chalmers.se>
 homepage:           http://www.github.com/danr/hipspec
@@ -44,13 +44,11 @@ library
         Halo.FOL.LineariseSMT
         Halo.FOL.Dump
         Halo.FOL.Operations
-        Halo.FOL.RemoveMin
         Halo.FOL.Rename
         Halo.FreeTyCons
         Halo.Fetch
         Halo.Lift
         Halo.Monad
-        Halo.PrimCon
         Halo.RemoveDefault
         Halo.Shared
         Halo.Subtheory
@@ -81,7 +79,6 @@ library
         HipSpec.Trans.QSTerm
         HipSpec.Trans.SrcRep
         HipSpec.Trans.Theory
-        HipSpec.Trans.TypeGuards
         HipSpec.Trans.Types
         HipSpec.Trans.Unify
 

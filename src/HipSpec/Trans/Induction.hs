@@ -6,7 +6,6 @@ import HipSpec.Trans.Obligation
 import HipSpec.Trans.Theory
 import HipSpec.Trans.Property as Prop
 import HipSpec.Trans.Types
-import HipSpec.Trans.TypeGuards
 import HipSpec.Params
 
 import Control.Concurrent.STM.Promise.Tree
