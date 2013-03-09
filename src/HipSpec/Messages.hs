@@ -108,7 +108,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->
         "Proved:\n" ++ indent (qs_proved ++ proved) ++
-        "Unproved:\n " ++ indent (qs_unproved ++ unproved)
+        "Unproved:\n" ++ indent (qs_unproved ++ unproved)
   where
     non_null :: String -> String -> String
     non_null s m | null s    = ""

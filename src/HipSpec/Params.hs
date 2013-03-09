@@ -21,6 +21,7 @@ data Params = Params
     , json                :: Maybe FilePath
     , definitions         :: Bool
     , explore_theory      :: Bool
+    , only_user_stated    :: Bool
     , bottoms             :: Bool
 
     , processes           :: Int
@@ -33,7 +34,6 @@ data Params = Params
     , isolate             :: Bool
     , cnf                 :: Bool
     , comments            :: Bool
-    , dont_print_unproved :: Bool
     , use_min             :: Bool
 
 
@@ -96,6 +96,7 @@ defParams = Params
     , json                = Nothing &= help "File to write statistics to (in json format)"
     , definitions         = False   &= name "d" &= help "Print translated QuickSpec function definitions"
     , explore_theory      = False   &= name "e" &= help "Print explored theory"
+    , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
     , bottoms             = False   &= name "b" &= help "Add bottoms"
 
     , processes           = 2       &= groupname "\nProving settings"
@@ -108,7 +109,6 @@ defParams = Params
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
-    , dont_print_unproved = False   &= name "u" &= help "Don't print unproved conjectures from QuickSpec"
     , use_min             = False   &= name "m" &= help "Use min and minrec translation"
 
     , case_lift_inner     = False &= groupname "\nTranslation settings"
