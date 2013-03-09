@@ -21,12 +21,10 @@
     BindParts is used elsewhere is in the contracts checker in
     Contracts.Trans.trSplit.
 
-    TODO: Better name for Rhs. Call it consequent? Or result?
-
 -}
 module Halo.Binds
     ( trBinds
-    , BindPart(..), BindParts, BindMap, minRhs
+    , BindPart(..), BindParts, BindMap
     , trBindPart
     , trConstraints
     ) where
@@ -42,8 +40,8 @@ import Var
 import TysPrim
 import Type
 
-import Halo.Conf
 import Halo.Case
+import Halo.Conf
 import Halo.Constraints
 import Halo.ExprTrans
 import Halo.FreeTyCons
@@ -52,6 +50,7 @@ import Halo.Pointer
 import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
+import Halo.MonoType
 
 import Halo.FOL.Abstract
 
@@ -70,7 +69,7 @@ trBinds :: (Ord s,Show s) => [CoreBind] -> HaloM ([Subtheory s],BindMap s)
 trBinds binds = do
     HaloEnv{..} <- ask
 
-    let pointer_subthys = map (uncurry (mkPtr conf)) (M.toList arities)
+    pointer_subthys <- mapM (mkPtr . fst) (M.toList arities)
 
     (fun_subthys,bind_maps) <- mapAndUnzipM (uncurry trBind) (flattenBinds binds)
 
@@ -81,11 +80,9 @@ trBinds binds = do
 data BindPart s = BindPart
     { bind_fun     :: Var
     , bind_args    :: [CoreExpr]
-    , bind_rhs     :: Rhs
+    , bind_rhs     :: Either CoreExpr Term'
     , bind_constrs :: [Constraint]
     , bind_deps    :: [Content s]
-    , bind_mins    :: [CoreExpr]
-    -- ^ Unused when rhs = min
     }
 
 -- | Many bind parts
@@ -94,28 +91,23 @@ type BindParts s = [BindPart s]
 -- | A map from variables to bind parts
 type BindMap s = Map Var (BindParts s)
 
--- | An rhs of a bind part
-data Rhs
-    = Min { rhsExpr :: CoreExpr }
-    | Rhs { rhsExpr :: CoreExpr }
-
-minRhs :: Rhs -> Bool
-minRhs Min{} = True
-minRhs _     = False
-
--- | Make a bind part given the rhs, with a given min set
-bindPart :: Ord s => Rhs -> HaloM (BindPart s)
-bindPart rhs = do
-    HaloEnv{current_fun,args,constr,min_set} <- ask
+bindPartEither :: Ord s => Either CoreExpr Term' -> HaloM (BindPart s)
+bindPartEither rhs = do
+    HaloEnv{current_fun,args,constr} <- ask
     let bind_part = BindPart
             { bind_fun     = current_fun
             , bind_args    = args
             , bind_rhs     = rhs
             , bind_constrs = constr
-            , bind_mins    = min_set
             , bind_deps    = bindPartDeps bind_part
             }
     return bind_part
+
+bindPart :: Ord s => CoreExpr -> HaloM (BindPart s)
+bindPart = bindPartEither . Left
+
+bindPartTerm :: Ord s => Term' -> HaloM (BindPart s)
+bindPartTerm = bindPartEither . Right
 
 -- | Translate a bind part to formulae. Does not capture used pointers,
 --   doesn't look at min set of binds.
@@ -123,10 +115,10 @@ trBindPart :: BindPart s -> HaloM Formula'
 trBindPart BindPart{..} = do
     tr_constr <- trConstraints bind_constrs
     lhs <- apply bind_fun <$> mapM trExpr bind_args
-    consequent <- case bind_rhs of
-        Min scrut -> min' <$> trExpr scrut
-        Rhs rhs   -> (lhs ===) <$> trExpr rhs
-    return $ foralls (min' lhs : tr_constr ===> consequent)
+    rhs <- case bind_rhs of
+        Left rhs_expr -> trExpr rhs_expr
+        Right rhs_tm  -> return rhs_tm
+    foralls varMonoType (tr_constr ===> lhs === rhs)
 
 -- | Make a subtheory for bind parts that regard the same function
 trBindParts :: Ord s => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
@@ -187,7 +179,7 @@ trDecl f e = do
 
 -- | Translate a case expression
 trCase :: Ord s => CoreExpr -> HaloM (BindParts s)
-trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
+trCase e@(Case scrutinee scrut_var ty alts_unsubst)
 
     -- First, check if we are casing on a constructor already!
     | Just rhs <- tryCase scrutinee scrut_var alts_unsubst = do
@@ -216,10 +208,6 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
 
             primitive_case = varType scrut_var `eqType` intPrimTy
 
-        -- The min part, makes the scrutinee interesting,
-        -- unless we are casing on a primitive (say Int#)
-        min_part <- sequence [ bindPart (Min scrutinee) | not primitive_case ]
-
         write $ "Adding bottom case, scrut var type is " ++
             showOutputable (varType scrut_var) ++
             " primive_case: " ++ show primitive_case
@@ -228,37 +216,36 @@ trCase e@(Case scrutinee scrut_var _ty alts_unsubst)
         alts' <- if primitive_case
                     then do
                         write "No bottom case on primitive int"
-                        return alts_wo_bottom
-                    else addBottomCase alts_wo_bottom
+                        return (mkLefts alts_wo_bottom)
+                    else addBottomCase ty alts_wo_bottom
 
-        -- Everything happens under this scrutinee
-        local (extendMinSet scrutinee) $ do
 
-             -- If there is a default case, translate it separately
-             (alts,def_part) <- case alts' of
+        -- If there is a default case, translate it separately
+        (alts,def_part) <- case alts' of
 
-                  (DEFAULT,[],def_expr):alts -> do
+            (DEFAULT,[],def):alts -> do
 
-                      -- Collect the negative patterns
-                      neg_constrs <- mapM (invertAlt scrutinee) alts
+                -- Collect the negative patterns
+                neg_constrs <- mapM (invertAlt scrutinee) (rmLefts alts)
 
-                      -- Translate the default formula which happens
-                      -- on the negative constraints
-                      def_part' <- local
-                          (\env -> env { constr = neg_constrs ++ constr env })
-                          (trCase def_expr)
+                -- Translate the default formula which happens
+                -- on the negative constraints
+                let mod_env env = env { constr = neg_constrs ++ constr env }
+                def_part' <- local mod_env $ case def of
+                                Left def_expr -> trCase def_expr
+                                Right def_term -> return <$> bindPartTerm def_term
 
-                      return (alts,def_part')
+                return (alts,def_part')
 
-                  alts -> return (alts,[])
+            alts -> return (alts,[])
 
-             -- Translate the alternatives that are not deafult
-             -- (mutually recursive with this function)
-             alt_parts <- concatMapM (trAlt scrutinee) alts
+        -- Translate the alternatives that are not deafult
+        -- (mutually recursive with this function)
+        alt_parts <- concatMapM (trAlt scrutinee) (rmLefts alts)
 
-             return (min_part ++ alt_parts ++ def_part)
+        return (alt_parts ++ def_part)
 
-trCase e = return <$> bindPart (Rhs e)
+trCase e = return <$> bindPart e
 
 -- | If this case cases on a constructor already, pick the right alternative!
 tryCase :: CoreExpr -> Var -> [CoreAlt] -> Maybe CoreExpr
@@ -364,8 +351,11 @@ bindPartDeps :: Ord s => BindPart s -> [Content s]
 bindPartDeps BindPart{..}
     = S.toList $ S.delete (Function bind_fun) (free S.\\ bound)
   where
-    free = S.unions $ [ args_dcs, exprDeps (rhsExpr bind_rhs) ]
-                   ++ map exprDeps bind_mins
+    free = S.unions $ [ args_dcs
+                      , case bind_rhs of
+                            Left expr -> exprDeps expr
+                            Right _   -> S.empty
+                      ]
                    ++ map constraintDeps bind_constrs
 
     bound = args_bound `S.union` constr_bound

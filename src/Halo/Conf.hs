@@ -6,23 +6,10 @@
 module Halo.Conf where
 
 data HaloConf = HaloConf
-    { use_min            :: Bool
-    -- ^ Use min translation
-    , use_minrec         :: Bool
-    -- ^ Use minrec translation
-    , unr_and_bad        :: Bool
-    -- ^ Use UNR and BAD when translating
-    , collapse_to_bottom :: Bool
-    -- ^ Collapse UNR and BAD to one single bottom point
-    --   (obviously only important when you use unr_and_bad)
-    , ext_eq             :: Bool
-    -- ^ Make function pointer axioms depend on extensional equality
-    , or_discr           :: Bool
-    -- ^ Use or instead of and in the assumptions of discrimination axioms
+    { use_bottom :: Bool
+    -- ^ Generate a theory with bottoms
     , var_scrut_constr   :: Bool
     -- ^ Make a constraint instead of inline casing on variables
     }
   deriving (Eq,Ord,Show)
 
-sanitizeConf :: HaloConf -> HaloConf
-sanitizeConf = id

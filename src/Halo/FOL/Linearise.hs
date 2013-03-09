@@ -1,5 +1,5 @@
 -- Linearises (pretty prints) our FOL representation into TPTP
-{-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards, EmptyDataDecls #-}
 module Halo.FOL.Linearise
     ( linStrStyleTPTP
     , linVarStyleTPTP
@@ -17,6 +17,12 @@ import Halo.Util
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract
 
+data StyleConf
+
+linStrStyleTPTP = error "lin tptp"
+linVarStyleTPTP = error "lin tptp"
+
+{-
 -- | Linearise string clauses with strStyle
 linStrStyleTPTP :: StyleConf -> [StrClause] -> String
 linStrStyleTPTP = linTPTP . strStyle
@@ -79,15 +85,11 @@ linForm st par form = case form of
     And fs           -> par (linBinOp st ampersand fs)
     Or  fs           -> par (linBinOp st pipe fs)
     Implies f1 f2    -> par (linBinOp st darrow [f1,f2])
+    Equiv   f1 f2    -> par (linBinOp st dblarrow [f1,f2])
     Neg f            -> (not (isAtomic f) ? par) (tilde <> linForm st parens f)
     Forall qs f      -> par (linQuant st bang qs f)
     Exists qs f      -> par (linQuant st questmark qs f)
-    Pred Min [tm]    -> linMin st <> parens (linTm st tm)
-    Pred MinRec [tm] -> linMinRec st <> parens (linTm st tm)
-    Pred CF [tm]     -> linCF st <> parens (linTm st tm)
-    Pred IsType tms  -> linIsType st <> parens (csv (map (linTm st) tms))
-    Pred p xs        -> error $ "linForm: panic predicate "
-                            ++ show p ++ " args: " ++ show (length xs)
+    Total tm         -> linTotal st <> parens (linTm st tm)
 
 -- | Linearise the equality operations: ==, !=
 linEqOp :: Style q v -> SDoc -> Term q v -> Term q v -> SDoc
@@ -198,10 +200,8 @@ data Style q v = Style
     -- ^ The min symbol
     , linMinRec   :: SDoc
     -- ^ The minrec symbol
-    , linCF       :: SDoc
+    , linTotal    :: SDoc
     -- ^ The CF symbol
-    , linIsType       :: SDoc
-    -- ^ The IsType symbol
     , linProj     :: Int -> v -> SDoc
     -- ^ Projections
     , linPtr      :: v -> SDoc
@@ -251,3 +251,4 @@ varStyle StyleConf{..} = Style
     , linCNF      = style_cnf
     , linComments = style_comments
     }
+     -}

@@ -11,13 +11,11 @@
     trExpr looks at the following entries of HaloEnv
 
         * skolems
-        * arities
+        * qvars
 
-    If a variable is not a skolem variable, and not in arities, it is
-    deemed as quantified.
 
 -}
-module Halo.ExprTrans where
+module Halo.ExprTrans (trExpr',trExpr) where
 
 import CoreSyn
 import CoreUtils
@@ -26,68 +24,47 @@ import Name hiding (varName)
 import Module
 import Var
 
+import Halo.Deappify
+import Halo.MonoType
 import Halo.FOL.Abstract
 import Halo.Monad
-import Halo.PrimCon
 import Halo.Shared
 import Halo.Util
 import Halo.Conf
 
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 import Control.Monad.Reader
 import Control.Monad.Error
 
--- | Translate an expression to a term
+-- | Translate an expression to a term, and deappify it
 trExpr :: CoreExpr -> HaloM Term'
-trExpr e = do
+trExpr e = deappify <$> trExpr' e
+
+-- | Translate an expression to a term, but not deappified
+trExpr' :: CoreExpr -> HaloM Term'
+trExpr' e = do
     HaloEnv{..} <- ask
     let HaloConf{..} = conf
-        isPAP x = case M.lookup x arities of
-                          Just i  -> i > 0
-                          Nothing -> False
-        isQuant x = x `M.notMember` arities
+        isQuant x = x `S.elem` arities
+        ty = exprType e
+
+    monotype <- monoType ty
 
     case e of
-        _ | exprIsBottom e && not collapse_to_bottom -> return bad
-          | exprIsBottom e && collapse_to_bottom     -> return bot
+        _ | exprIsBottom e -> bottom <$> monoType (exprType e)
         Var x
-            | x `elem` skolems  -> return (skolem x)
-            | isPAP x           -> usePtr x >> return (ptr x)
-            | isQuant x         -> return (qvar x)
-            | otherwise         -> return (con x) -- con or caf
-        App{} -> case second trimTyArgs (collectArgs e) of
-            (Var f,es)
-                | null es -> trExpr (Var f)
-                | Just i <- M.lookup f arities -> do
-                    if i > length es
-                        then do
-                            usePtr f
-                            regApp
-                            apps (ptr f) <$> mapM trExpr es
-                        else do
-                            let (es_inner,es_after) = splitAt i es
-                            unless (null es_after) regApp
-                            inner <- apply f <$> mapM trExpr es_inner
-                            apps inner <$> mapM trExpr es_after
-                | Just p <- trPrim f (length es) ->
-                    p <$> mapM trExpr es
-            (f,es) -> do
-                unless (null es) regApp
-                apps <$> trExpr f <*> mapM trExpr es
-{-
-        Lit (MachStr s) -> do
-            write $ "String, " ++ unpackFS s ++ " coerced to bad"
-            return bad
--}
-        Cast e' _ -> do
-            write $ "Ignoring cast: " ++ showExpr e ++
-                    "(hoping that it is a newtype cast)"
-            trExpr e'
+            | Just s <- M.lookup x skolems -> return s
+            | isQuant x           -> return (qvar x)
+            | TArr{} <- monotype  -> return (ptr x)
+            | otherwise           -> return (con x) -- constructor or CAF
+        App e1 e2 -> app monotype <$> trExpr e1 <*> trExpr e2
         -- Int
         Lit (MachInt i)      -> return (litInteger i)
         -- Integer
         Lit (LitInteger i _) -> return (litInteger i)
+        Cast e' _ -> trErr "cast"
         Lit{}      -> trErr "non-integer literals"
         Type{}     -> trErr "types"
         Coercion{} -> trErr "coercions"

@@ -1,6 +1,11 @@
 -- Linearises (pretty prints) our FOL representation into SMT
 module Halo.FOL.LineariseSMT (linSMT,addUnsatCores) where
 
+linSMT = error "linsmt"
+addUnsatCores = error "unsatcores"
+
+{-
+
 import Outputable hiding (quote)
 
 import Data.List
@@ -331,3 +336,4 @@ primType p = case p of
     int_int_int  = ([linInt,linInt],linInt)
     int_int_bool = ([linInt,linInt],linBool)
 -}
+ -}

@@ -7,25 +7,37 @@
 module Halo.Pointer where
 
 import Id
+import Var
 
 import Halo.FOL.Abstract
 
-import Halo.Conf
-import Halo.Names (varNames)
+import Halo.Names
 import Halo.Shared
 import Halo.Subtheory
+import Halo.MonoType
 
--- | Makes a pointer to a constructor or function, given its arity
-mkPtr :: HaloConf -> Var -> Int -> Subtheory s
-mkPtr HaloConf{ext_eq} h arity = Subtheory
-    { provides    = Pointer h
-    , depends     = AppOnMin : [ ExtensionalEquality | ext_eq ]
-    , description = "Pointer axiom to " ++ showOutputable h
-    , formulae    =
-        let lhs = apps (ptr h) as'
-            rhs = apply h as'
-        in  [forall' as $ ors [min' lhs,min' rhs] ==> lhs === rhs]
-    }
-  where
-    as  = take arity varNames
-    as' = map qvar as
+-- | Makes a pointer to a constructor or function
+--   Uses varType to get its type
+mkPtr :: Monad m => Var -> m (Subtheory s)
+mkPtr h = do
+
+    ty <- monoType (varType h)
+
+    let arg_tys = typeArgs ty
+        arity   = length arg_tys
+        args    = take arity untypedVarNames
+        args'   = map qvar args
+        tyargs  = zip args arg_tys
+
+    lhs <- apps ty (ptr h) args'
+    let rhs = apply h args'
+        formula = forall' tyargs $ lhs === rhs
+
+
+    return Subtheory
+        { provides    = Pointer h
+        , depends     = [ AppTheory ]
+        , description = "Pointer axiom to " ++ showOutputable h
+        , formulae    = [ formula ]
+        }
+

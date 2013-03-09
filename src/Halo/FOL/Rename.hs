@@ -2,6 +2,8 @@
              ExistentialQuantification, FlexibleContexts #-}
 module Halo.FOL.Rename where
 
+{-
+
 import Var
 import Name
 import Id
@@ -154,3 +156,4 @@ qvarEscapes = M.fromList
 
 prelude :: Map String String
 prelude = M.empty
+ -}

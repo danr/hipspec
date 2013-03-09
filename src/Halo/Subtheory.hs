@@ -22,10 +22,6 @@
 
         * Extensional equality
 
-        * AppOnMin
-
-            Should be min on app: min(app(f,x)) => min(f)
-
         * Specific
 
             Something specific to the user of the Halo library.
@@ -36,6 +32,7 @@
 module Halo.Subtheory where
 
 import Halo.Shared
+import Halo.Monad
 import Halo.FOL.Abstract
 
 import Var
@@ -45,20 +42,11 @@ import Data.Function
 
 data Content s
     = Data TyCon
-    -- ^ Discrimination and projection axioms for a data type
-    | Function Var
+    -- ^ Discrimination, domain and projection axioms for a data type
+    | Function Name
     -- ^ A definition of a function
-    | Pointer Var
+    | Pointer Name
     -- ^ The pointer to a function definition or constructor
-    | ExtensionalEquality
-    -- ^ Extensional equality, (f @ x = g @ x) => f = g
-    --   Toggled by a flag in HaloConf
-    | AppTheory
-    -- ^ If you need some extra theory of app, you make this depend on
-    --   it. For contracts we add UNR @ x = UNR, and BAD @ x = BAD
-    --   by letting the subtheory for AppTheory depend on those axioms.
-    | AppOnMin
-    -- ^ Min of an app is min of the function pointer
     | Specific s
     -- ^ User specific content
   deriving (Eq,Ord)
@@ -81,9 +69,7 @@ baseContentShow c = case c of
     Function v          -> "(Function " ++ showOutputable v ++ ")"
     Pointer v           -> "(Pointer " ++ showOutputable v ++ ")"
     Data tc             -> "(Data " ++ showOutputable tc ++ ")"
-    ExtensionalEquality -> "(Extensional equality)"
     AppTheory           -> "(AppTheory)"
-    AppOnMin            -> "(App on min)"
     Specific _          -> "(Unknow Specific)"
 
 instance Show s => Show (Content s) where
@@ -101,14 +87,35 @@ instance Show s => Show (Content s) where
 --   There is an optional description which is translated to a TPTP
 --   comment for debug output.
 data Subtheory s = Subtheory
-    { provides    :: Content s
+    { provides     :: Content s
     -- ^ Content defined
-    , depends     :: [Content s]
+    , depends      :: [Content s]
     -- ^ Content depending upon
-    , description :: String
+    , description  :: String
     -- ^ Commentary
-    , formulae    :: [Formula']
-    -- ^ Formulae in this sub theory
+    , formulae     :: [Formula']
+    -- ^ Formulae in this subtheory
+    , typedecls    :: [(Name,MonoType')]
+    -- ^ Type declarations from this subtheory
+    , datadecls    :: [(TyCon,[(Maybe Name,[MonoType'])]]
+    -- ^ Data declarations from this subtheory
+    , used_apps    :: [MonoType']
+    -- ^ Used apps in this subtheory
+    , used_bottoms :: [MonoType']
+    -- ^ Used bottoms in this subtheory
+    }
+
+-- | A yet to become subtheory, but with empty typedecls, datadecls and used_apps.
+subtheory :: Subtheory s
+subtheory = Subtheory
+    { provides     = error "subtheory: please fill in provides"
+    , depends      = error "subtheory: please fill in depends"
+    , description  = error "subtheory: please fill in description"
+    , formulae     = error "subtheory: please fill in formulae"
+    , typedecls    = []
+    , datadecls    = []
+    , used_apps    = []
+    , used_bottoms = []
     }
 
 instance Show s => Show (Subtheory s) where
@@ -137,9 +144,10 @@ toClauses (Subtheory{..}) = commentary ++ map (mkClause provides) formulae
         | otherwise         = []
 
 mkDummySubtheory :: Content s -> Subtheory s
-mkDummySubtheory c = Subtheory
+mkDummySubtheory c = subtheory
     { provides    = c
     , depends     = []
     , description = ""
     , formulae    = []
     }
+

@@ -3,6 +3,10 @@
 {-# LANGUAGE RecordWildCards, PatternGuards #-}
 module Halo.FOL.Dump ( dumpTPTP ) where
 
+dumpTPTP = error "dump tptp"
+
+{-
+
 import Var
 
 import Halo.Util
@@ -174,3 +178,4 @@ parens x = '(' `DL.cons` (x `DL.snoc` ')')
 
 brackets :: DLDoc -> DLDoc
 brackets x = '[' `DL.cons` (x `DL.snoc` ']')
+ -}

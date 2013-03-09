@@ -7,160 +7,100 @@
 
         * Pointers to data constructors
 
-        * Min on app
-
-        * Extensional equality
-
 -}
-module Halo.BackgroundTheory
-    ( backgroundTheory
-    , makeDisjoint
-    , Disjoint(..)
-    ) where
+module Halo.BackgroundTheory (backgroundTheory) where
 
 import TyCon
-import Type
-import TysPrim
-import Var
+import DataCon
 
 import Halo.FOL.Abstract
 
 import Halo.Conf
 import Halo.Names
 import Halo.Pointer
-import Halo.PrimCon
 import Halo.Shared
 import Halo.Subtheory
-import Halo.Util
+import Halo.MonoType
 
 import Data.List
+import Data.Maybe
+
+import Control.Monad
 
 -- | Makes the background theory with these settings and data types
 backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
-backgroundTheory halo_conf ty_cons
-    = extEq : appOnMin : dummyAny
-    : tyConSubtheories halo_conf ty_cons
+backgroundTheory halo_conf = concat . mapMaybe (tyConSubtheory halo_conf)
 
-tyConSubtheories :: HaloConf -> [TyCon] -> [Subtheory s]
-tyConSubtheories halo_conf@HaloConf{..} ty_cons = concat
-    [ -- Projections, for each constructor k
-    let projections =
-            [ foralls  $ [min' kxs {- ,min' xi -} ] ===> proj i k kxs === xi
-            -- Used to also have min' xi ==>
-            | dc <- dcs
-            , let (k,arg_types) = dcIdArgTypes dc
-                  xs            = zipWith setVarType varNames arg_types
-                  kxs           = apply k (map qvar xs)
-            , i <- [0..length arg_types-1]
-            , let xi = qvar (xs !! i)
-            ]
+-- | Makes the projections, discrimination and pointer axioms for a data type
+tyConSubtheory :: HaloConf -> TyCon -> Maybe [Subtheory s]
+tyConSubtheory HaloConf{use_bottom} ty_con = do
 
-     -- Discriminations,  for j,k in the same TyCon + unr/bad, make j and k disjoint
+    -- newtypes are abstract for us right now
+    guard (not (isNewTyCon ty_con))
 
-        discrims
+    let dcs = tyConDataCons ty_con
 
-            -- (but for newtypes just say k(x) = x)
-            | isNewTyCon ty_con =
-                [ forall' [u] (apply k [u'] === u')
-                | dc <- dcs
-                , let (k,[t]) = dcIdArgTypes dc
-                      u = setVarType x t
-                      u' = qvar u
-                ]
+    cons <- (++ [ (Nothing,[]) | use_bottom ]) <$> sequence
+        [ (,) (Just k) <$> mapM monoType arg_types
+        | dc <- dcs
+        , let (k,arg_types) = dcIdArgTypes dc
+        ]
 
-            | otherwise =
+    -- Projections, for each constructor k
+    projections <- sequence
+        [ foralls varMonoType $ proj i k kxs === xi
+        | dc <- dcs
+        , let (k,arg_types) = dcIdArgTypes dc
+              xs            = mkVarNamesOfType arg_types
+              kxs           = apply k (map qvar xs)
+        , i <- [0..length arg_types-1]
+        , let xi = qvar (xs !! i)
+        ]
 
-                [ makeDisjoint halo_conf j k
-                | let primcons | collapse_to_bottom = [botCon]
-                               | otherwise          = [badCon,unrCon]
+     -- Discriminations,
+     -- for j,k + bottom, make j and k disjoint
 
-                      disjoints = map fromTag $
-                          [ (True,dc) | dc <- dcs ] ++
-                          [ (False,prim_con)
-                          | unr_and_bad
-                          , prim_con <- primcons ]
+    let tagged_dcs :: [Either DataCon Term']
+        tagged_dcs = [ Left dc | dc <- dcs ] ++
+                     [ Right (bottom (TCon ty_con)) | use_bottom ]
 
-                      fromTag (min_guard,dc) = Disjoint{..}
-                        where
-                          (symbol,arg_types) = dcIdArgTypes dc
-                          is_ptr             = False
+        make_side :: Int -> DataCon -> (Term',Int)
+        make_side offset dc =
+            let (k,arg_tys) = dcIdArgTypes dc
+                args = mkVarNamesOfTypeWithOffset offset arg_tys
+            in  (apply k (map qvar args),length arg_tys)
 
-                , (j,ks) <- zip disjoints (drop 1 (tails disjoints))
-                , k <- ks
-                , not (symbol j == badId && symbol k == unrId)
-                  -- don't need to express that unr /= bad over and over
-                ]
+    discrims <- sequence
 
-     -- Pointers, to each non-nullary constructor k
+        [ foralls varMonoType $ lhs =/= rhs
+        | (j_dc,ks) <- zip dcs (drop 1 (tails tagged_dcs))
+        , let (lhs,offset) = make_side 0 j_dc
+        , other <- ks
+        , let rhs = case other of
+                        Left k_dc     -> fst (make_side offset k_dc)
+                        Right bot_rhs -> bot_rhs
+        ]
 
-        pointer_subthys =
-            [ (mkPtr halo_conf k arity) { depends = [Data ty_con] }
-            | dc <- dcs
-            , let (k,arity) = dcIdArity dc
-            , arity > 0
-            ]
+    domain <-
 
-    in  Subtheory
-            { provides    = Data ty_con
-            , depends     = []
-            , description = showOutputable ty_con
-            , formulae    = projections ++ discrims
-            }
+    -- Pointers, to each non-nullary constructor k
+    pointer_subthys <- sequence
+        [ fmap (\ s -> s { depends = [Data ty_con] }) (mkPtr k)
+        | dc <- dcs
+        , let (k,arity) = dcIdArity dc
+        , arity > 0
+        ]
+
+    return $ Subtheory
+        { provides    = Data ty_con
+        , depends     = []
+        , description = showOutputable ty_con
+        , formulae    = projections ++ discrims
+        }
         : pointer_subthys
 
-    | ty_con <- ty_cons
-    , let dcs = tyConDataCons ty_con
-    ]
-
-data Disjoint = Disjoint
-    { symbol            :: Var
-    , arg_types         :: [Type]
-    , is_ptr, min_guard :: Bool
-    }
-
--- | Makes these two entries disjoint
-makeDisjoint :: HaloConf -> Disjoint -> Disjoint -> Formula'
-makeDisjoint HaloConf{or_discr} dj dk =
-      foralls $ ([ min' lhs | j_min ] ++ [ min' rhs | k_min ])
-                `implies` (lhs =/= rhs)
-  where
-    Disjoint j j_arg_types j_ptr j_min = dj
-    Disjoint k k_arg_types k_ptr k_min = dk
-
-    k_arity = length k_arg_types
-    j_arity = length j_arg_types
-
-    [] `implies` phi = phi
-    xs `implies` phi = (if or_discr then ors else ands) xs ==> phi
-
-    (j_args0,k_args0) = second (take k_arity) (splitAt j_arity varNames)
-    j_args = zipWith setVarType j_args0 j_arg_types
-    k_args = zipWith setVarType k_args0 k_arg_types
-
-    mkSide i i_args i_ptr
-        | i_ptr     = ptr i
-        | otherwise = apply i (map qvar i_args)
-
-    lhs  = mkSide j j_args j_ptr
-    rhs  = mkSide k k_args k_ptr
-
-appOnMin :: Subtheory s
-appOnMin = Subtheory
-    { provides    = AppOnMin
-    , depends     = []
-    , description = "App on min"
-    , formulae    = [forall' [f,x] $ min' (app f' x') ==> min' f']
-    }
-
-extEq :: Subtheory s
-extEq = Subtheory
-    { provides    = ExtensionalEquality
-    , depends     = []
-    , description = "Extensional equality"
-    , formulae    = return $
-         forall' [f,g] (forall' [x] (app f' x' === app g' x') ==> f' === g')
-    }
-
+{-
 dummyAny :: Subtheory s
 dummyAny = mkDummySubtheory (Data anyTyCon)
+-}
 
