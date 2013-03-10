@@ -20,6 +20,7 @@ import Halo.MonoType
 
 import Control.Monad.Reader
 
+import MkCore (mkImpossibleExpr)
 import qualified CoreSyn as C
 import CoreSyn (CoreExpr)
 import CoreSubst
@@ -78,7 +79,7 @@ makeVar (v :~ _) = do
     u <- makeUnique
     return (setVarUnique v u)
 
-trObligation :: Property eq -> IS.Obligation DataCon Var Type
+trObligation :: Property eq -> IS.Obligation (Either DataCon Bottom) Var Type
              -> HaloM (String,[Formula'])
 trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
 
@@ -98,13 +99,13 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
 
   where
 
-    trPred :: Loc -> [Term DataCon Var] -> HaloM Formula'
+    trPred :: Loc -> [Term (Either DataCon Bottom) Var] -> HaloM Formula'
     trPred loc tms = do
         tr_lit <- trLiteral propLiteral'
         assums <- mapM trLiteral propAssume'
         return $ case loc of
             Hyp   -> assums ===> tr_lit
-            Concl -> neg (assums ===> tr_lit)
+            Concl -> ands (neg tr_lit:assums)
       where
         s = extendIdSubstList emptySubst
                 [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
@@ -115,19 +116,23 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
                              substExpr (Outputable.text "trPred") s e2
                 Total t e -> Total t (substExpr (Outputable.text "trPred") s e)
 
-    trHyp :: Hypothesis DataCon Var Type -> HaloM Formula'
+    trHyp :: Hypothesis (Either DataCon Bottom) Var Type -> HaloM Formula'
     trHyp (qvs,tms) = local
         (addQuantVars [ setVarType q t | (q,t) <- qvs ]) $
         foralls varMonoType =<< trPred Hyp tms
 
-trTerm :: Term DataCon Var -> CoreExpr
-trTerm (Var x)    = C.Var x
-trTerm (Con c as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
-trTerm (Fun f as) = foldl C.App (C.Var f) (map trTerm as)
+trTerm :: Term (Either DataCon Bottom) Var -> CoreExpr
+trTerm (Var x)           = C.Var x
+trTerm (Con (Right (Bottom ty)) []) = mkImpossibleExpr ty
+trTerm (Con (Right (Bottom _)) _)   = error "Internal error: Induction on bottom applied to arguments"
+trTerm (Con (Left c) as) = foldl C.App (C.Var (dataConWorkId c)) (map trTerm as)
+trTerm (Fun f as)        = foldl C.App (C.Var f) (map trTerm as)
 
-ghcStyle :: Style DataCon Var Type
+ghcStyle :: Style (Either DataCon Bottom) Var Type
 ghcStyle = Style
-    { linc = text . showOutputable
+    { linc = \ c -> case c of
+                Right (Bottom ty) -> text $ "bottom@" ++ showOutputable ty
+                Left dc           -> text (showOutputable dc)
     , linv = text . showOutputable
     , lint = text . showOutputable
     }
