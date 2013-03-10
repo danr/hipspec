@@ -10,7 +10,6 @@ import Id
 import Var
 
 import Halo.FOL.Abstract
-import Halo.FOL.Operations
 
 import Halo.Names
 import Halo.Shared

@@ -41,7 +41,7 @@ addBottomCase ty alts = do
     HaloConf{..} <- asks conf
     if not use_bottom then return (mkLefts alts) else
         case findDefault alts of
-            (_as,Just def) -> throwError "Default branch found though use_bottom"
+            (_as,Just _def) -> throwError "Default branch found though use_bottom"
             (as,Nothing) -> do
                 monoty <- monoType ty
                 return $ (DEFAULT, [], Right (bottom monoty)):mkLefts as

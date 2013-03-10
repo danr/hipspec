@@ -20,9 +20,6 @@ module Halo.ExprTrans (trExpr',trExpr) where
 import CoreSyn
 import CoreUtils
 import Literal
-import Name hiding (varName)
-import Module
-import Var
 
 import Halo.Deappify
 import Halo.MonoType
@@ -47,8 +44,8 @@ trExpr' :: CoreExpr -> HaloM Term'
 trExpr' e = do
     HaloEnv{..} <- ask
     let HaloConf{..} = conf
-        isQuant x = x `S.elem` arities
-        ty = exprType e
+        isQuant x    = x `S.member` qvars
+        ty           = exprType e
 
     monotype <- monoType ty
 
@@ -64,7 +61,7 @@ trExpr' e = do
         Lit (MachInt i)      -> return (litInteger i)
         -- Integer
         Lit (LitInteger i _) -> return (litInteger i)
-        Cast e' _ -> trErr "cast"
+        Cast{}     -> trErr "cast"
         Lit{}      -> trErr "non-integer literals"
         Type{}     -> trErr "types"
         Coercion{} -> trErr "coercions"
@@ -78,6 +75,7 @@ trExpr' e = do
     intErr s = throwError $ "trExpr: internal error, unexpected " ++ s
                          ++ "\n    in expression: " ++ showExpr e
 
+{-
 trPrim :: Var -> Int -> Maybe ([Term'] -> Term')
 trPrim v no_args = do
     let n = getOccString v
@@ -96,3 +94,5 @@ trPrim v no_args = do
         ,(("GHC.Prim",">=#",2),liftBool . prim Ge)
         ,(("GHC.Prim",">#" ,2),liftBool . prim Gt)
         ]
+-}
+

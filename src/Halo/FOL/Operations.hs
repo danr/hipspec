@@ -9,7 +9,6 @@ import Data.Generics.Geniplate
 import qualified Data.Set as S
 import Data.Set (Set)
 
-import Control.Arrow (first)
 import Control.Monad (liftM)
 
 replaceVarsTm :: (v -> u) -> Term q v t -> Term q u t
@@ -126,30 +125,25 @@ rewriteBi f = transformBi g
 
 -- Querying
 
-funsUsed :: forall q v t . Ord v => Clause q v t -> Set (v,Int)
-funsUsed cl = S.fromList [ (f,length as) | Fun f as :: Term q v t <- universeBi cl ]
-
-consUsed :: forall q v t . Ord v => Clause q v t -> Set (v,Int)
-consUsed cl = S.fromList [ (c,length as) | Ctor c as :: Term q v t <- universeBi cl ]
-
-ptrsUsed :: forall q v t . Ord v => Clause q v t -> Set v
-ptrsUsed cl = S.fromList [ p | Ptr p _ :: Term q v t <- universeBi cl ]
-
 primsUsed :: forall q v t . Ord v => Clause q v t -> Set Prim
 primsUsed cl = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
 
-skolemsUsed :: forall q v t . Ord v => Clause q v t -> Set v
-skolemsUsed cl = S.fromList [ s | Skolem s _ :: Term q v t <- universeBi cl ]
+ptrsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
+ptrsUsed cl = nubSorted [ (p,t) | Ptr p t :: Term q v t <- universeBi cl ]
 
-totalUsed :: forall q v t . Ord v =>  Clause q v t -> [t]
-totalUsed cl = nubSorted [ t | Total t _ :: Formula q v t <- universeBi cl ]
+skolemsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
+skolemsUsed cl = nubSorted [ (s,t) | Skolem s t :: Term q v t <- universeBi cl ]
 
-appsUsed :: forall q v t . Ord t => [Formula q v t] -> [t]
+totalsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
+totalsUsed cl = nubSorted [ t | Total t _ :: Formula q v t <- universeBi cl ]
+
+appsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
 appsUsed cl = nubSorted [ t | App t _ _ :: Term q v t <- universeBi cl ]
 
-bottomsUsed :: forall q v t . Ord t => [Formula q v t] -> [t]
+{-
+bottomsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
 bottomsUsed cl = nubSorted [ t | Bottom t :: Term q v t <- universeBi cl ]
-
+-}
 
 mapCl :: Monad m
        => (Formula q v t -> m (Formula q' v' t'))

@@ -17,7 +17,6 @@ import Halo.Monad
 import Halo.Util
 import Halo.Shared
 import Halo.Fetch
-import Halo.Subtheory
 import Halo.RemoveDefault
 
 import Data.List
@@ -131,42 +130,25 @@ processFile file cont = do
                                ", junk: " ++ show (junk v)
 
     let halo_conf :: HaloConf
-        halo_conf = sanitizeConf $ HaloConf
-            { use_min            = use_min
-            , use_minrec         = use_min
-            , unr_and_bad        = bottoms
-            , collapse_to_bottom = bottoms
-            , ext_eq             = True
-            , or_discr           = False
+        halo_conf = HaloConf
+            { use_bottom         = bottoms
             , var_scrut_constr   = var_scrut_constr
             }
 
-        halo_env = mkEnv halo_conf ty_cons core_defns
+        halo_env = mkEnv halo_conf
 
         (binds_thy,_msg) = case runHaloMsafe halo_env (trBinds core_defns) of
-            (Left err,msg')    -> (error $ "HipSpec.Init, halo says: " ++ err,msg')
-            (Right (m,_),msg') -> (m,msg')
+            (Left err,msg') -> (error $ "HipSpec.Init, halo says: " ++ err,msg')
+            (Right m,msg')  -> (m,msg')
 
     {-
         binds_thy = concatMap (fst . fst . runHaloM halo_env . trOneBind) core_defns
                  ++ fst (runHaloM halo_env trPointers)
     -}
 
-        app_theory = Subtheory
-            { provides = AppTheory
-            , depends = [ AppOnMin ] ++ [ Specific AppBottomAxioms | bottoms ]
-            , description = "This theory uses the app symbol"
-            , formulae = []
-            }
-
         subtheories =
             map (setExtraDependencies params) $ binds_thy ++
-            mkResultTypeAxioms core_defns ++
-            [ app_theory ] ++
-            bottomAxioms params ++
-            concatMap ($ ty_cons)
-                ([mkCFAxioms | bottoms] ++
-                 [backgroundTheory halo_conf,mkDomainAxioms params,mkMinRecAxioms])
+            concatMap ($ ty_cons) (backgroundTheory halo_conf : [mkTotalAxioms | bottoms])
 
         theory = Theory subtheories
 

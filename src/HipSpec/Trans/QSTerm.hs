@@ -17,6 +17,9 @@ import qualified Test.QuickSpec.Utils.Typeable as Ty
 import Test.QuickSpec.TestTotality
 
 import Halo.Shared
+import Halo.MonoType
+import Halo.Names
+import Halo.Util
 
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
@@ -74,6 +77,9 @@ lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
              " to Core representation! Debug the string marshallings" ++
              " with --db-str-marsh "
 
+symbType :: StrMarsh -> Symbol -> Type
+symbType str_marsh = typeRepToType str_marsh . symbolType
+
 -- TODO: remove code duplication between this and eqToProp
 peqToProp :: Typeable a => Sig -> StrMarsh -> TypedEquation a -> Property PEquation
 peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
@@ -92,7 +98,11 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
     mk_prop :: [Symbol] -> Property PEquation
     mk_prop partials = Property
         { propLiteral    = lit
-        , propAssume     = map (Total . term_to_expr . T.Var) totals
+        , propAssume     =
+            [ Total (varType v) (C.Var v)
+            | t <- totals
+            , let v = var_rename_map M.! t
+            ]
         , propVars       = prop_vars
         , propType       = typeRepToType str_marsh (termType t1)
         , propName       = repr
@@ -114,10 +124,7 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
 
     lit = term_to_expr t1 :== term_to_expr t2
 
-    prop_vars = [ (setVarType v ty,ty)
-                | (x,v) <- var_rename
-                , let ty = typeRepToType str_marsh (symbolType x)
-                ]
+    prop_vars = map ((id &&& varType) . snd) var_rename
 
     fundeps  =
         [ v
@@ -126,12 +133,10 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
         , is_function_not_constructor
         ]
 
-    var_rename     =
-        [ (x,setVarType v ty)
-        | x <- occuring_vars
-        , let ty = typeRepToType str_marsh (symbolType x)
-        | v <- varNames
-        ]
+    var_rename
+        = zip occuring_vars
+        $ mkVarNamesOfTypeWithOffset 1000
+        $ map (symbType str_marsh) occuring_vars
 
     var_rename_map = M.fromList var_rename
 
@@ -151,7 +156,6 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     , propOops       = False
     }
   where
-
     repr = show_eq eq
 
     occuring_vars :: [Symbol]
@@ -161,10 +165,7 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
 
     lit = term_to_expr e1 :== term_to_expr e2
 
-    prop_vars = [ (setVarType v ty,ty)
-                | (x,v) <- var_rename
-                , let ty = typeRepToType str_marsh (symbolType x)
-                ]
+    prop_vars = map ((id &&& varType) . snd) var_rename
 
     fundeps  =
         [ v
@@ -173,25 +174,12 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
         , is_function_not_constructor
         ]
 
-    var_rename     =
-        [ (x,setVarType v ty)
-        | x <- occuring_vars
-        , let ty = typeRepToType str_marsh (symbolType x)
-        | v <- varNames
-        ]
+    var_rename
+        = zip occuring_vars
+        $ mkVarNamesOfTypeWithOffset 1000
+        $ map (symbType str_marsh) occuring_vars
 
     var_rename_map = M.fromList var_rename
-
--- | A bunch of _local_ variable names to quantify over
---   TODO: Make this reflect the QS Variables
-varNames :: [Var]
-varNames =
-   [ mkLocalId
-       (mkInternalName (mkUnique 'w' i) (mkOccName Name.varName n) wiredInSrcSpan)
-       (error "QSTerm.varNames: type")
-   | i <- [0..]
-   | n <- [1..] >>= flip replicateM "xyzwvu"
-   ]
 
 termType :: Term -> Ty.TypeRep
 termType (T.Var s) = symbolType s

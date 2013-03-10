@@ -15,8 +15,8 @@ import Halo.Monad
 import Halo.Util
 import Halo.Shared
 import Halo.Subtheory
+import Halo.MonoType
 
-import Data.Maybe (mapMaybe)
 
 import Control.Monad.Reader
 
@@ -54,7 +54,7 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
 
         forM (zip obligs' [0..]) $ \ (oblig,n) ->  do
 
-            ((commentary,fs),ptrs) <- lift $ capturePtrs $ trObligation prop (dropHyps oblig)
+            (commentary,fs) <- lift $ trObligation prop (dropHyps oblig)
 
             return $ Leaf $ Obligation
                 { ob_prop = prop
@@ -63,9 +63,9 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
                     , ind_num       = n
                     , ind_nums      = n_obligs
                     }
-                , ob_content = Subtheory
+                , ob_content = subtheory
                     { provides    = Specific Conjecture
-                    , depends     = map Function propFunDeps ++ ptrs
+                    , depends     = map Function propFunDeps
                     , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
                     , formulae    = fs
                     }
@@ -80,9 +80,11 @@ makeVar (v :~ _) = do
 
 trObligation :: Property eq -> IS.Obligation DataCon Var Type
              -> HaloM (String,[Formula'])
-trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) =
+trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
 
-    local (addSkolems skolem_vars) $ do
+    sks <- sequence [ (,) s <$> monoType t | (s,t) <- skolems ]
+
+    local (addSkolems sks) $ do
 
         tr_hyps <- mapM trHyp hyps
 
@@ -91,20 +93,18 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) =
         return
             ("Proof by structural induction\n" ++
                 render (linObligation ghcStyle obligation)
-            ,tr_concl ++ tr_hyps ++ mapMaybe typeGuardSkolem skolem_vars
+            ,tr_concl ++ tr_hyps
             )
 
   where
 
-    skolem_vars = map fst skolems
-
     trPred :: Loc -> [Term DataCon Var] -> HaloM Formula'
     trPred loc tms = do
-        (tr_lit,lit_mins) <- trLiteral propLiteral'
-        (assums,_) <- mapAndUnzipM trLiteral propAssume'
+        tr_lit <- trLiteral propLiteral'
+        assums <- mapM trLiteral propAssume'
         return $ case loc of
-                Hyp   -> ors (map min' lit_mins) ==> (assums ===> tr_lit)
-                Concl -> ands $ map minrec lit_mins ++ [neg tr_lit] ++ assums
+            Hyp   -> assums ===> tr_lit
+            Concl -> neg (assums ===> tr_lit)
       where
         s = extendIdSubstList emptySubst
                 [ (v,trTerm t) | (v,_) <- propVars | t <- tms ]
@@ -113,10 +113,12 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) =
             case eq of
                 e1 :== e2 -> substExpr (Outputable.text "trPred") s e1 :==
                              substExpr (Outputable.text "trPred") s e2
-                Total e   -> Total (substExpr (Outputable.text "trPred") s e)
+                Total t e -> Total t (substExpr (Outputable.text "trPred") s e)
 
     trHyp :: Hypothesis DataCon Var Type -> HaloM Formula'
-    trHyp (_,tms) = foralls <$> trPred Hyp tms
+    trHyp (qvs,tms) = local
+        (addQuantVars [ setVarType q t | (q,t) <- qvs ]) $
+        foralls varMonoType =<< trPred Hyp tms
 
 trTerm :: Term DataCon Var -> CoreExpr
 trTerm (Var x)    = C.Var x

@@ -2,10 +2,7 @@
 module HipSpec.Trans.Theory
     ( HipSpecExtras(..)
     , setExtraDependencies
-    , mktotalAxioms
-    , mkDomainAxioms
-    , mkResultTypeAxioms
-    , bottomAxioms
+    , mkTotalAxioms
     , HipSpecContent
     , HipSpecSubtheory
     , Theory(..)
@@ -13,37 +10,33 @@ module HipSpec.Trans.Theory
 
 import Control.Monad
 
-import CoreSyn
 import Var
 import Type
 import TysPrim
 
 import TyCon
-import GHC (dataConType)
 
 import Halo.Names
 import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
+import Halo.MonoType
 import Halo.FOL.Abstract hiding (definitions)
+import Data.Maybe
 
 import HipSpec.Params
-
-import HipSpec.Trans.Types
 
 data HipSpecExtras
     = Lemma Int
     -- ^ Lemma with a number
     | Conjecture
     -- ^ The conjecture
-    | Domain TyCon
-    -- ^ Domain axiom for a data type + type predicates if finite
     {-
     | AppBottomAxioms
     -- ^ App on bottom
     -- TODO : need to do one of these for every type apped on
     -}
-    | Total TyCon
+    | TotalThy TyCon
     -- ^ Total (+Finite) for a data type
   deriving
     (Eq,Ord)
@@ -52,12 +45,12 @@ data HipSpecExtras
 mkTotalAxioms :: [TyCon] -> [HipSpecSubtheory]
 mkTotalAxioms = mapMaybe mkTotalAxiom
 
-mkTotalAxiom :: [TyCon] -> Maybe HipSpecSubtheory
+mkTotalAxiom :: TyCon -> Maybe HipSpecSubtheory
 mkTotalAxiom ty_con = do
     guard (not (isNewTyCon ty_con))
     let dcs = tyConDataCons ty_con
 
-    fs <- forM dcs $ \ dc ->
+    fs <- forM dcs $ \ dc -> do
         let (k,arg_types) = dcIdArgTypes dc
             xbar          = mkVarNamesOfType arg_types
             kxbar         = apply k (map qvar xbar)
@@ -71,10 +64,10 @@ mkTotalAxiom ty_con = do
 
         foralls varMonoType $ left <==> total (TCon ty_con) kxbar
 
-    let f = neg (total bottom (TCon ty_con))
+    let f = neg (total (TCon ty_con) (bottom (TCon ty_con)))
 
-    return $ Subtheory
-        { provides    = Specific (total ty_con)
+    return $ subtheory
+        { provides    = Specific (TotalThy ty_con)
         , depends     = []
         , description = "total " ++ showOutputable ty_con
         , formulae    = f:fs
@@ -97,84 +90,12 @@ mkTotalAxiom ty_con = do
 --   Make functions depend on finite result type axioms.
 setExtraDependencies :: Params -> HipSpecSubtheory -> HipSpecSubtheory
 setExtraDependencies Params{..} s@(Subtheory{..}) = case provides of
-    Data ty_con -> s { depends = (bottoms ? (Specific (total ty_con) :)) $
-                                 (Specific (Domain ty_con) : depends)
-                     }
-    Function fn -> s { depends = Specific (ResultType fn) : depends }
+    Data ty_con -> s { depends = (bottoms ? (Specific (TotalThy ty_con) :)) depends }
     _           -> s
-
-
--- | Make axioms expressing how the domain for a data type looks like
---
---   These axioms looks like
---
---   @
---     ! [U] : (U = c_Nil | U = c_Cons(s_0_Cons(U),s_1_Cons(U)))
---   @
---
-
-
-mkDomainAxioms :: Params -> [TyCon] -> [HipSpecSubtheory]
-mkDomainAxioms Params{bottoms} ty_cons =
-
-mkDomainAxiom :: Params -> TyCon -> Maybe HipSpecSubtheory
-mkDomainAxiom Params{bottoms} ty_con = do
-
-    guard (not (isNewTyCon ty_con))
-
-    let dcs@(Left dc0:_) = map Left (tyConDataCons ty_con) ++ [Right (bottom (TCon ty_con)]
-
-        ty  = dataConType dc0
-        [u] = mkVarNamesOfType [ty]
-        u'  = qvar u
-        domain_formulae =
-            [ forall' [u] $
-                ors [ u' === apply k [proj i k u' | i <- [0..arity-1] ]
-                    | dc <- dcs
-                    , let (k,arity) = dcIdArity dc
-                    ]
-            ]
-
-    return $ Subtheory
-        { provides    = Specific (Domain ty_con)
-        , depends     = []
-        , description = "Domain axiom for " ++ showOutputable ty_con
-        , formulae    = domain_formulae
-        }
-
-
--- | Make axioms about minrec
---
---   TODO : also try with an apartness relation
-mkMinRecAxioms :: [TyCon] -> [HipSpecSubtheory]
-mkMinRecAxioms ty_cons =
-    [ let minrec_formulae =
-              [ forall' xs $ minrec kxs ==> min' xi
-              | dc <- dcs
-              , let (k,arity)       = dcIdArity dc
-                    xs              = take arity varNames
-                    kxs             = apply k (map qvar xs)
-              , i <- [0..arity-1]
-              -- vacuous if arity == 0
-              , let xi              = qvar (xs !! i)
-              ]
-
-      in  Subtheory
-              { provides    = Specific (MinRec ty_con)
-              , depends     = [Specific PrimMinRec]
-              , description = "minrec for " ++ showOutputable ty_con
-              , formulae    = minrec_formulae
-              }
-
-    | ty_con <- ty_cons
-    , let dcs = tyConDataCons ty_con
-    ]
 
 instance Show HipSpecExtras where
     show (Lemma s)       = "(Lemma " ++ show s ++ ")"
-    show (Domain tc)     = "(Domain " ++ showOutputable tc ++ ")"
-    show AppBottomAxioms = "AppBottomAxioms"
-    show (Total tc)      = "(Total " ++ showOutputable tc ++ ")"
+    show (TotalThy tc)   = "(Total " ++ showOutputable tc ++ ")"
     show Conjecture      = "Conjecture"
 
 instance Clausifiable HipSpecExtras where

@@ -32,8 +32,8 @@
 module Halo.Subtheory where
 
 import Halo.Shared
-import Halo.Monad
 import Halo.FOL.Abstract
+import Halo.MonoType
 
 import Var
 import TyCon
@@ -43,9 +43,9 @@ import Data.Function
 data Content s
     = Data TyCon
     -- ^ Discrimination, domain and projection axioms for a data type
-    | Function Name
+    | Function Var
     -- ^ A definition of a function
-    | Pointer Name
+    | Pointer Var
     -- ^ The pointer to a function definition or constructor
     | Specific s
     -- ^ User specific content
@@ -69,7 +69,6 @@ baseContentShow c = case c of
     Function v          -> "(Function " ++ showOutputable v ++ ")"
     Pointer v           -> "(Pointer " ++ showOutputable v ++ ")"
     Data tc             -> "(Data " ++ showOutputable tc ++ ")"
-    AppTheory           -> "(AppTheory)"
     Specific _          -> "(Unknow Specific)"
 
 instance Show s => Show (Content s) where
@@ -97,8 +96,8 @@ data Subtheory s = Subtheory
     -- ^ Formulae in this subtheory
     , typedecls    :: [(Var,MonoType')]
     -- ^ Type declarations from this subtheory
-    , datadecls    :: [(TyCon,[(Maybe Var,[MonoType'])]]
-    -- ^ Data declarations from this subtheory
+    , datadecls    :: [(TyCon,[Maybe (Var,[MonoType'])])]
+    -- ^ Data declarations from this subtheory (Nothing means bottom)
     }
 
 instance Eq s => Eq (Subtheory s) where

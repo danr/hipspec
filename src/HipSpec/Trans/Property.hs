@@ -27,21 +27,22 @@ import Id
 import TysWiredIn
 
 import Halo.Shared
-import Halo.Names (varNames)
+import Halo.Names
 
 import Data.List (nub)
 import Data.Function (on)
 import Control.Arrow (second)
 
+
 import Data.Void
 
 data Literal
     = CoreExpr :== CoreExpr
-    | Total CoreExpr
+    | Total Type CoreExpr
 
 instance Show Literal where
     show (e1 :== e2) = showOutputable e1 ++ " :== " ++ showOutputable e2
-    show (Total e)   = "Total(" ++ showOutputable e ++ ")"
+    show (Total t e) = "Total[" ++ showOutputable t ++ "](" ++ showOutputable e ++ ")"
 
 data Origin eq
     = Equation eq
@@ -126,7 +127,7 @@ inconsistentProperty = Property
 -- The bool is the oops
 parseProperty :: CoreExpr -> Maybe (Literal,[Literal],Bool)
 parseProperty e = case second trimTyArgs (collectArgs e) of
-    (Var x,[l])   | isTotal x     -> Just (Total l,[],False)
+    (Var x,[l])   | isTotal x     -> Just (Total (exprType l) l,[],False)
     (Var x,[l,r]) | isEquals x    -> Just (l :== r,[],False)
     (Var x,[l])   | isProveBool x -> Just (l :== Var trueDataConId,[],False)
     (Var x,[p,q]) | isGiven x     -> do
@@ -146,17 +147,17 @@ trProperty (NonRec prop_name e) = do
 
     -- Free variables, but do not count =:=, proveBool, oops or arguments
     let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) (exprFVs lhs ++ exprFVs rhs)
-        free (Total e')    = filter (`notElem` (vars ++ ty_vars)) (exprFVs e')
+        free (Total _ e')    = filter (`notElem` (vars ++ ty_vars)) (exprFVs e')
 
-        get_typeable (lhs :== _) = lhs
-        get_typeable (Total e')  = e'
+        get_type (lhs :== _)  = exprType lhs
+        get_type (Total ty _) = ty
 
     return $ Property
         { propName       = idToStr prop_name
         , propLiteral    = lit
         , propAssume     = assume
         , propVars       = [ (x,varType x) | x <- vars ]
-        , propType       = exprType (get_typeable lit)
+        , propType       = get_type lit
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
         , propOrigin     = UserStated
@@ -172,15 +173,18 @@ totalityProperty v t = case t of
     Variable -> Nothing
     PER.Total _allowed_to_be_partial -> do
         args <- m_args
+        let res_ty = snd $ splitFunTys $ varType v
+            assume =
+                [ Total (varType arg) (Var arg)
+                | (_x,arg) <- zip ([0..] :: [Int]) args
+          --      , x `notElem` allowed_to_be_partial
+                ]
         return $ Property
             { propName       = "Totality for " ++ showOutputable v
-            , propLiteral    = Total (apps (Var v) (map Var args))
-            , propAssume     = [ Total (Var arg)
-                               | (_x,arg) <- zip ([0..] :: [Int]) args
-                         --      , x `notElem` allowed_to_be_partial
-                               ]
+            , propLiteral    = Total res_ty (apps (Var v) (map Var args))
+            , propAssume     = assume
             , propVars       = [ (x,varType x) | x <- args ]
-            , propType       = snd $ splitFunTys $ varType v
+            , propType       = res_ty
             , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
             , propOrigin     = Totality t
@@ -191,7 +195,7 @@ totalityProperty v t = case t of
       where
         m_args = case realIdUnfolding v of
             CoreUnfolding {uf_tmpl} -> case collectTyAndValBinders uf_tmpl of
-                (_,xs,_) -> Just (zipWith (\u x -> setVarType u (varType x)) varNames xs)
+                (_,xs,_) -> Just (mkVarNamesOfType (map varType xs))
             _ -> Nothing
 
 apps :: CoreExpr -> [CoreExpr] -> CoreExpr

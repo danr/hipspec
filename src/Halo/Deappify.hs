@@ -5,6 +5,8 @@ import Var
 import Id
 import Halo.MonoType
 import Halo.FOL.Abstract
+import Halo.FOL.Internals.Internals
+import Halo.Util
 
 -- | Tries to collect a pointer application here,
 --   returning the pointer applied to terms and their residual type
@@ -31,9 +33,9 @@ deappify tm0
             tytms' = map (first deappify) tytms
             inner = take arity tytms'
             outer = drop arity tytms'
-        reapply (apply f (map fst inner)) outer
+        in  reapply (apply f (map fst inner)) outer
     | otherwise = case tm0 of
-        App e1 e2   -> App (deappify e1) (deappify e2)
+        App t e1 e2 -> App t (deappify e1) (deappify e2)
         Fun v tms   -> Fun v (map deappify tms)
         Ctor v tms  -> Ctor v (map deappify tms)
         Prim p tms  -> Prim p (map deappify tms)

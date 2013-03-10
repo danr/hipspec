@@ -11,6 +11,7 @@ data MonoType t
     = TCon t -- only fully saturated type constructors for now
              -- (otherwise [MonoType t])
     | TArr (MonoType t) (MonoType t)
+  deriving (Eq,Ord)
 
 type MonoType' = MonoType TyCon
     -- use tyConName to get the name of a tyCon
@@ -37,4 +38,7 @@ typeArgs _            = []
 resType :: MonoType t -> MonoType t
 resType (TArr _ t2) = resType t2
 resType t           = t
+
+splitType :: MonoType t -> ([MonoType t],MonoType t)
+splitType t = (typeArgs t,resType t)
 

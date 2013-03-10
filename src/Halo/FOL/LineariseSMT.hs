@@ -1,256 +1,201 @@
 -- Linearises (pretty prints) our FOL representation into SMT
+-- TODO: add abstract types (newtypes): to be declared with declare-sort
 module Halo.FOL.LineariseSMT (linSMT,addUnsatCores) where
 
-linSMT = error "linsmt"
-addUnsatCores = error "unsatcores"
-
-{-
-
-import Outputable hiding (quote)
-
-import Data.List
 
 import Var
-import TysPrim
-import Type
-import TysWiredIn
-import DataCon
+import TyCon
 
+import Halo.MonoType
 import Halo.Shared
-import Halo.Util
 import Halo.FOL.Internals.Internals
+import Halo.FOL.Abstract (Clause',Formula',Term',neg)
 import Halo.FOL.Operations
-import Halo.FOL.Abstract
 
-import qualified Data.Set as S
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Maybe
+import Data.List
 
--- | Linearise a set of clauses to a String
-linSMT :: [Clause'] -> String
-linSMT = (++ "\n") . portableShowSDoc . linClauses
+sexpr :: Int -> SExpr -> String
+sexpr i se = case se of
+    Atom s     -> s
+    SComment s -> "; " ++ s
+    List ses   -> "(" ++ intercalate newline (map (sexpr (i + 2)) ses) ++ ")"
+    Named e s  -> "(!" ++ newline ++ sexpr (i + 2) e ++ newline ++ " :named " ++ s ++ ")"
+  where
+    newline = "\n" ++ replicate i ' '
+
+data SExpr
+    = Atom String
+    | List [SExpr]
+    | Named SExpr String
+    | SComment String
+
+apply :: String -> [SExpr] -> SExpr
+apply s args = List (Atom s:args)
 
 addUnsatCores :: String -> String
 addUnsatCores s =
     "(set-option :produce-unsat-cores true)\n" ++ s ++
     "\n(get-unsat-core)\n"
 
--- | Linearise a sort declaration
---   We will only declare the sort D of our domain
-linDeclSort :: SDoc -> SDoc
-linDeclSort s = parens (text "declare-sort" <+> s)
+linSMT :: [Clause']
+       -- ^ clauses
+       -> [(Var,MonoType')]
+       -- ^ type signatures
+       -> [(TyCon,[Maybe (Var,[MonoType'])])]
+       -- ^ data declarations (Nothing means bottom)
+       -> String
+linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 0) $
+    [ data_sexp ] ++
+    map (uncurry linFunSig) fun_sigs ++
+    map (uncurry linPtrSig) (ptrsUsed cls) ++
+    map (uncurry linSkolemSig) (skolemsUsed cls) ++
+    map linTotalSig (totalsUsed cls) ++
+    map linAppSig (appsUsed cls) ++
+    map linClause cls ++
+    [Atom "check-sat"]
+  where
+    data_sexp = apply "declare-datatypes"
+        [ List [] , List (map (uncurry linDataSig) data_sigs) ]
 
--- | Linearise a function declaration
---   The argument list is empty if this is a constant
-linDeclFun :: SDoc -> [SDoc] -> SDoc -> SDoc
-linDeclFun name args res =
-    parens (text "declare-fun" <+> name <+> parens (sep args) <+> res)
+-- declare datatypes
+linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
+linDataSig tc cons = List (Atom (tcon tc):map (linMaybeCon tc) cons)
 
--- | Linearise the set of clauses, producing unsat cores if the Bool is true
-linClauses :: [Clause'] -> SDoc
-linClauses cls = vcat $ concat
-    [ [parens (text "set-option :print-success false")]
-    , [linDeclSort linDomain]
-    , min_decl
-    , minrec_decl
-    , cf_decl
-    , is_type_decl
-    , app_decl
-    , constant_decls
-    , function_decls
-    , projection_decls
-    , lift_bool_defn
-    , map linClause cls
-    , [parens (text "check-sat")]
+linMaybeCon :: TyCon -> Maybe (Var,[MonoType']) -> SExpr
+linMaybeCon tc Nothing       = List [Atom (bottom (TCon tc))]
+linMaybeCon _  (Just (v,ts)) = linCon v ts
+
+-- (cons (p_0_cons A) (p_1_cons ListA))
+linCon :: Var -> [MonoType'] -> SExpr
+linCon v ts = List $
+    Atom (con v) :
+    [ List [Atom (proj i v),Atom (monotype t)]
+    | (i,t) <- zip [0..] ts ]
+
+-- signatures
+linSig :: String -> [MonoType'] -> MonoType' -> SExpr
+linSig s [] res = apply "declare-const" [Atom s , Atom (monotype res)]
+linSig s args res = apply "declare-fun"
+    [ Atom s
+    , List (map (Atom . monotype) args)
+    , Atom (monotype res)
     ]
-  where
-    app_decl
-        = [ linDeclFun linApp [linDomain,linDomain] linDomain | any appUsed cls ]
 
-    predicate n p g  = [ linDeclFun p (replicate n linDomain) linBool | any g cls ]
-    unary_pred  = predicate 1
-    binary_pred = predicate 2
+linFunSig :: Var -> MonoType' -> SExpr
+linFunSig v ty = uncurry (linSig (fun v)) (splitType ty)
 
-    min_decl       = unary_pred linMin    minUsed
-    minrec_decl    = unary_pred linMinRec minRecUsed
-    cf_decl        = unary_pred linCF     cfUsed
-    is_type_decl   = binary_pred linIsType  isTypeUsed
+linPtrSig :: Var -> MonoType' -> SExpr
+linPtrSig v = linSig (ptr v) []
 
-    constant c     = linDeclFun c [] linDomain
-    constants f ln = map (constant . ln) . S.toList . S.unions . map f $ cls
+linSkolemSig :: Var -> MonoType' -> SExpr
+linSkolemSig v = linSig (skolem v) []
 
-    constant_decls = constants ptrsUsed linPtr ++ constants skolemsUsed linSkolem
+linAppSig :: MonoType' -> SExpr
+linAppSig t@(TArr t1 t2) = linSig (app t) [t1] t2
+linAppSig _              = error "LineariseSMT: linAppSig on TCon"
 
-    function c arg_tys = linDeclFun c (map linType arg_tys) linDomain
-    functions f linF = map (\(c,i) -> function (linF c) (fun_arg_tys c i))
-                     . S.toList . S.unions . map f $ cls
+linTotalSig :: MonoType' -> SExpr
+linTotalSig t = apply "declare-fun"
+    [ Atom (total t) , List [Atom (monotype t)] , Atom bool ]
 
-    lift_bool_defn =
-        [ linLiftBoolDefn | S.member LiftBool . S.unions . map primsUsed $ cls ]
+-- Clauses
+linClause :: Clause' -> SExpr
+linClause cl = case cl of
+    Comment s -> SComment s
+    Clause cl_name cl_type f -> apply "assert"
+        [maybe_name (linForm (maybe_neg f))]
+      where
+        maybe_neg = case cl_type of
+            Conjecture -> neg
+            _          -> id
 
-    -- I# should be Int# -> D
-    fun_arg_tys :: Var -> Int -> [Type]
-    fun_arg_tys f i = take i (ts ++ repeat anyTy)
-      where (ts,_) = splitFunTys (repType' (varType f))
+        maybe_name = case cl_name of
+            "x" -> id
+            _   -> (`Named` cl_name)
 
-    function_decls = functions funsUsed linFun ++ functions consUsed linCtor
+-- Formulae
+linForm :: Formula' -> SExpr
+linForm form = case form of
+    Equal   t1 t2    -> apply "=" (map linTerm [t1,t2])
+    Unequal t1 t2    -> apply "distinct" (map linTerm [t1,t2])
+    And fs           -> apply "and" (map linForm fs)
+    Or  fs           -> apply "or" (map linForm fs)
+    Implies f1 f2    -> apply "or" (map linForm [f1,f2])
+    Equiv f1 f2      -> apply "=" (map linForm [f1,f2])
+    Forall qs f      -> apply "forall" [linQList qs,linForm f]
+    Exists qs f      -> apply "exists" [linQList qs,linForm f]
+    Total t tm       -> apply "=" [Atom true,apply (total t) [linTerm tm]]
+    Neg (Total t tm) -> apply "=" [Atom false,apply (total t) [linTerm tm]]
+    Neg f            -> apply "not" [linForm f]
 
-    projection_decls =
-        [ linDeclFun (linProj p c) [linDomain] (linType ty)
-        | (c,i) <- S.toList . S.unions . map consUsed $ cls
-        , let (tys,_) = splitFunTys (repType' (varType c))
-        , (p,ty) <- zip [0..i-1] (tys ++ repeat anyTy)
-        -- sel_0_I# should be D -> Int#
-        ]
+linQList :: [(Var,MonoType')] -> SExpr
+linQList qs = List [ apply (qvar q) [Atom $ monotype t] | (q,t) <- qs ]
 
--- | Linearises a clause
-linClause :: Clause' -> SDoc
-linClause (Comment s)
-    = text ("\n" ++ intercalate "\n" (map ("; " ++) (lines s)))
-linClause (Clause cl_name cl_type cl_formula)
-    | cl_name == "x"
-        = parens $
-            (text "assert" <+>) $
-                (linForm $ (cl_type == Conjecture ? neg) cl_formula)
-    | otherwise
-        = parens $
-            (text "assert" <+>) $ parens $
-                text "!" <+>
-                (linForm $ (cl_type == Conjecture ? neg) cl_formula) <+>
-                text ":named" <+>
-                text cl_name
-
-
--- | Linearise a formula.
---   Second argument is if it should be enclosed in parentheses.
-linForm :: Formula' -> SDoc
-linForm form = parens $ case form of
-    Equal   t1 t2    -> linEqOp equals t1 t2
-    Unequal t1 t2    -> linEqOp (text "distinct") t1 t2
-    And fs           -> linBinOp (text "and") fs
-    Or  fs           -> linBinOp (text "or") fs
-    Implies f1 f2    -> linBinOp darrow [f1,f2]
-    Forall qs f      -> linQuant (text "forall") qs f
-    Exists qs f      -> linQuant (text "exists") qs f
-    Pred p tms       -> linTrue $ linPred p <+> sep (map linTerm tms)
-    Neg (Pred p tms) -> linFalse $ linPred p <+>  sep (map linTerm tms)
-    Neg f            -> text "not" <+> linForm f
-
-linPred :: Pred -> SDoc
-linPred Min    = linMin
-linPred MinRec = linMinRec
-linPred CF     = linCF
-linPred IsType = linIsType
-
-linTrue :: SDoc -> SDoc
-linTrue t = equals <+> text "true" <+> parens t
-
-linFalse :: SDoc -> SDoc
-linFalse t = equals <+> text "false" <+> parens t
-
--- | Linearise the equality operations: =, !=
-linEqOp :: SDoc -> Term' -> Term' -> SDoc
-linEqOp op t1 t2 = op <+> linTerm t1 <+> linTerm t2
-
--- | Linearise binary operations: or, and, =>
-linBinOp :: SDoc -> [Formula'] -> SDoc
-linBinOp op fs = op <+> sep (map linForm fs)
-
--- | Linearise quantifiers: ! [..] :, ? [..] :
---   op list should _not_ be empty
-linQuant :: SDoc -> [Var] -> Formula' -> SDoc
-linQuant op qs f = hang
-    (op <+> parens (sep (map (linQuantBinder) qs))) 4
-    (linForm f)
-
--- | Linearises a quantifier binder, such as (x D) or (y Int)
-linQuantBinder :: Var -> SDoc
-linQuantBinder v = parens (linQuantVar v <+> linType (varType v))
-
--- | Linearises a type, D or Int
-linType :: Type -> SDoc
-linType t | t `eqType` intPrimTy = linInt
-          | otherwise            = linDomain
-
--- | Linearise a term
---   The way to carry out most of the work is determined in the Style.
-linTerm :: Term' -> SDoc
-linTerm (Skolem a) = linSkolem a
+-- Terms
+linTerm :: Term' -> SExpr
 linTerm tm = case tm of
-    Fun a []    -> linFun a
-    Fun a tms   -> parens $ linFun a <+> linTerms tms
-    Ctor a []   -> linCtor a
-    Ctor a tms  -> parens $ linCtor a <+> linTerms tms
-    Skolem a    -> linSkolem a
-    App t1 t2   -> parens $ linApp <+> linTerms [t1,t2]
-    Proj i c t  -> parens $ linProj i c <+> linTerm t
-    Ptr a       -> linPtr a
-    QVar a      -> linQuantVar a
-    Prim p tms  -> parens $ linPrim p <+> linTerms tms
-    Lit i       -> integer i
-  where
-    linTerms = sep . map linTerm
+    Fun a []     -> Atom (fun a)
+    Fun a tms    -> apply (fun a) (map linTerm tms)
+    Ctor a []    -> Atom (con a)
+    Ctor a tms   -> apply (con a) (map linTerm tms)
+    Skolem a _   -> Atom (skolem a)
+    App t t1 t2  -> apply (app t) (map linTerm [t1,t2])
+    Proj i c t   -> apply (proj i c) [linTerm t]
+    Ptr a _      -> Atom (ptr a)
+    Bottom t     -> Atom (bottom t)
+    QVar a       -> Atom (qvar a)
+    Lit i        -> Atom (show i)
+    Prim _p _tms -> error "prim"
 
--- | Our domain D
-linDomain :: SDoc
-linDomain = char 'D'
+-- Utilities
+monotype :: MonoType' -> String
+monotype (TCon tc)    = tcon tc
+monotype (TArr t1 t2) = "from_" ++ monotype t1 ++ "_to_" ++ monotype t2
 
--- | Integers
-linInt    :: SDoc
-linInt    = text "Int"
-
--- | For predicates, the sort of booleans is used
-linBool   :: SDoc
-linBool   = text "Bool"
-
--- | Short representation of a Var to String
 showVar :: Var -> String
 showVar v = (++ "_" ++ show (varUnique v)) . escape . idToStr $ v
 
--- | Pretty printing functions and variables
-linFun      :: Var -> SDoc
-linFun      = text . ("f_" ++) . showVar
+bottom :: MonoType' -> String
+bottom = ("bot_" ++) . monotype
 
--- | Pretty printing constructors
-linCtor     :: Var -> SDoc
-linCtor     = text . ("c_" ++) . showVar
+total :: MonoType' -> String
+total = ("total_" ++) . monotype
 
--- | Pretty printing Skolemised variables
-linSkolem   :: Var -> SDoc
-linSkolem   = text . ("a_" ++) . showVar
+app :: MonoType' -> String
+app = ("app_" ++) . monotype
 
--- | Quantified variables
-linQuantVar :: Var -> SDoc
-linQuantVar = text . ("q_" ++) . showVar
+fun :: Var -> String
+fun = ("f_" ++) . showVar
 
--- | The app/@ symbol
-linApp      :: SDoc
-linApp      = text "app"
+ptr :: Var -> String
+ptr = ("p_" ++) . showVar
 
--- | The min symbol
-linMin      :: SDoc
-linMin      = text "min"
+con :: Var -> String
+con = ("c_" ++) . showVar
 
--- | The minrec symbol
-linMinRec   :: SDoc
-linMinRec   = text "minrec"
+proj :: Int -> Var -> String
+proj i v = "p_" ++ show i ++ "_" ++ showVar v
 
--- | The CF symbol
-linCF       :: SDoc
-linCF       = text "cf"
+tcon :: TyCon -> String
+tcon tc = "t_" ++ escape (showOutputable (tyConName tc)) ++ "_" ++ show (tyConUnique tc)
 
--- | The IsType symbol
-linIsType   :: SDoc
-linIsType   = text "type"
+skolem :: Var -> String
+skolem = ("sk_" ++) . showVar
 
--- | Projections
-linProj     :: Int -> Var -> SDoc
-linProj i   = text . (("s_" ++ show i ++ "_") ++) . showVar
+qvar :: Var -> String
+qvar = ("q_" ++) . showVar
 
--- | Pointers
-linPtr      :: Var -> SDoc
-linPtr      = text . ("p_" ++) . showVar
+bool :: String
+bool = "Bool"
+
+true :: String
+true = "true"
+
+false :: String
+false = "false"
 
 -- | Escaping
 escape :: String -> String
@@ -259,37 +204,40 @@ escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
 -- | Some kind of z-encoding escaping
 escapes :: Map Char String
 escapes = M.fromList $ map (uncurry (flip (,)))
-    [ ("za",'@')
+    [ ("z_",'\'')
     , ("z1",'(')
     , ("z2",')')
-    , ("zB",'}')
-    , ("zC",'%')
-    , ("zG",'>')
-    , ("zH",'#')
-    , ("zL",'<')
-    , ("zR",'{')
-    , ("zT",'^')
-    , ("zV",'\\')
-    , ("z_",'\'')
+    , ("za",'@')
     , ("zb",'!')
+    , ("zB",'}')
     , ("zc",':')
+    , ("zC",'%')
     , ("zd",'$')
+    , ("ze",'=')
+    , ("zG",'>')
     , ("zh",'-')
+    , ("zH",'#')
     , ("zi",'|')
     , ("zl",']')
+    , ("zL",'<')
     , ("zm",',')
     , ("zn",'&')
     , ("zo",'.')
     , ("zp",'+')
     , ("zq",'?')
     , ("zr",'[')
+    , ("zR",'{')
     , ("zs",'*')
+    , ("zS",' ')
     , ("zt",'~')
+    , ("zT",'^')
     , ("zv",'/')
+    , ("zV",'\\')
     , ("zz",'z')
-    , ("_equals_",'=')
-    , ("_",' ')
     ]
+
+
+{-
 
 linPrim :: Prim -> SDoc
 linPrim p = case p of
@@ -319,7 +267,6 @@ linLiftBoolDefn = vcat $
         ]
     ]
 
-{-
 primType :: Prim -> ([SDoc],SDoc)
 primType p = case p of
     Add      -> int_int_int
@@ -335,5 +282,4 @@ primType p = case p of
   where
     int_int_int  = ([linInt,linInt],linInt)
     int_int_bool = ([linInt,linInt],linBool)
--}
  -}

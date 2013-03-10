@@ -45,11 +45,11 @@ trim grand_theory =
         findVertex :: Content s -> Vertex
         findVertex v = fromMaybe (err v) (toVertex v)
 
-        subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
-        subtheory (s,_,_) = s
+        get_subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
+        get_subtheory (s,_,_) = s
 
     in  \important ->
             let forest :: Forest Vertex
                 forest = dfs g (map findVertex important)
 
-            in  sort $ map (subtheory . fromVertex) (concatMap flatten forest)
+            in  sort $ map (get_subtheory . fromVertex) (concatMap flatten forest)

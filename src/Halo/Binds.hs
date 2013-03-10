@@ -22,12 +22,7 @@
     Contracts.Trans.trSplit.
 
 -}
-module Halo.Binds
-    ( trBinds
-    , BindPart(..), BindParts, BindMap
-    , trBindPart
-    , trConstraints
-    ) where
+module Halo.Binds (trBind, trBinds) where
 
 import CoreSubst
 import CoreSyn
@@ -65,18 +60,24 @@ import Data.List
 
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it,
 --   also returns the BindParts for every defined function
-trBinds :: (Ord s,Show s) => [CoreBind] -> HaloM ([Subtheory s],BindMap s)
-trBinds binds = do
-    HaloEnv{..} <- ask
+trBinds :: (Ord s,Show s) => [CoreBind] -> HaloM [Subtheory s]
+trBinds = concatMapM trBind
 
-    pointer_subthys <- mapM (mkPtr . fst) (M.toList arities)
+-- | Translates the function(s) and the pointer axiom(s)
+trBind :: (Ord s,Show s) => CoreBind -> HaloM [Subtheory s]
+trBind bind = do
 
-    (fun_subthys,bind_maps) <- mapAndUnzipM (uncurry trBind) (flattenBinds binds)
+    let vses = flattenBinds [bind]
 
-    return (fun_subthys ++ pointer_subthys,M.unions bind_maps)
+    (fun_subthys,_bind_maps) <- mapAndUnzipM (uncurry trVarCoreExpr) vses
+
+    pointer_subthys <- mapM (mkPtr . fst) vses
+
+    return (fun_subthys ++ pointer_subthys)
 
 -- | We chop up a bind to several bind parts to be able to split
 --   goals later to several invocations to theorem provers
+--   (currently unused)
 data BindPart s = BindPart
     { bind_fun     :: Var
     , bind_args    :: [CoreExpr]
@@ -124,8 +125,7 @@ trBindPart BindPart{..} = do
 trBindParts :: Ord s => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
 trBindParts f e parts = do
 
-    -- Capturing of pointers when translating all expressions in the bind parts
-    (tr_formulae,ptr_deps) <- capturePtrs (mapM trBindPart parts)
+    tr_formulae <- mapM trBindPart parts
 
     -- We get this information from the bind_deps, in case
     -- we filter away a branch with conflicting constraints
@@ -135,7 +135,7 @@ trBindParts f e parts = do
 
     return subtheory
         { provides     = Function f
-        , depends      = deps ++ ptr_deps
+        , depends      = deps
         , description  = idToStr f ++ " = " ++ showExpr e
                      ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
         , formulae     = tr_formulae
@@ -143,28 +143,23 @@ trBindParts f e parts = do
         }
 
 -- | Translate a Var / CoreExpr pair flattened from a CoreBind
-trBind :: (Ord s,Show s) => Var -> CoreExpr -> HaloM (Subtheory s,BindMap s)
-trBind f e = err_handler $ do
+trVarCoreExpr :: (Ord s,Show s) => Var -> CoreExpr -> HaloM (Subtheory s,BindMap s)
+trVarCoreExpr f e = do
     bind_parts <- trDecl f e
     subthy <- trBindParts f e bind_parts
     return (subthy,M.singleton f bind_parts)
-  where
-    err_handler m = m `catchError` \err -> do
-      cleanUpFailedCapture
-      return ((mkDummySubtheory (Function f))
-                 { formulae = error $ "trBind, " ++ showOutputable f ++ " yielded " ++ err }
-             ,M.empty)
 
 -- | Translate a CoreDecl to bind parts
 trDecl :: Ord s => Var -> CoreExpr -> HaloM (BindParts s)
 trDecl f e = do
     let as :: [Var]
         e' :: CoreExpr
-        (as,e') = collectBindersDeep e
+        (as,e') = collectValBinders e
 
         new_env env = env
             { current_fun = f
             , args        = map Var as
+            , qvars       = S.fromList as
             }
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
@@ -296,15 +291,15 @@ trAlt scrut_exp (cons,bound,e) = do
         LitAlt _ -> throwError "trAlt: on non-integer alternative"
         DEFAULT  -> throwError "trAlt: on DEFAULT, internal error"
 
-    HaloEnv{arities,conf = HaloConf{var_scrut_constr}} <- ask
-    let isQuant x = x `M.notMember` arities
+    HaloEnv{qvars,conf = HaloConf{var_scrut_constr}} <- ask
+    let isQuant x = x `S.member` qvars
 
     case removeCruft scrut_exp of
         Var x | isQuant x && not var_scrut_constr -> do
             let s = extendIdSubst emptySubst x subst_expr
                 e' = substExpr (text "trAlt") s e
-            local (substContext s) (trCase e')
-        _ -> local (pushConstraint equality_constraint) (trCase e)
+            local (substContext s . addQuantVars bound) (trCase e')
+        _ -> local (pushConstraint equality_constraint . addQuantVars bound) (trCase e)
 
 -- | Translate and nub constraints
 trConstraints :: [Constraint] -> HaloM [Formula']

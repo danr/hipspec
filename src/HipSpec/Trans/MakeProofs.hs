@@ -13,8 +13,6 @@ import HipSpec.Params
 
 import Control.Concurrent.STM.Promise.Tree
 
-import Halo.Monad
-
 import Data.Maybe (mapMaybe,maybeToList)
 
 import Control.Monad.Reader
@@ -24,9 +22,7 @@ import Debug.Trace
 
 makeProofs :: forall eq . Params -> Property eq -> MakerM (Maybe (ProofTree eq))
 makeProofs params@Params{methods,indvars,inddepth} prop@Property{propVars} = do
-    res <- sequence techniques `catchError` \ msg -> trace msg $ do
-          lift $ cleanUpFailedCapture
-          return []
+    res <- sequence techniques `catchError` \ msg -> trace msg (return [])
     return $ case res of
         [] -> Nothing
         xs -> Just (requireAny xs)

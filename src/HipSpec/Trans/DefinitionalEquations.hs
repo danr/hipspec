@@ -19,6 +19,7 @@ import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
 import qualified Halo.FOL.Internals.Internals as H
+import qualified Halo.FOL.Abstract as H
 
 import HipSpec.Monad hiding (equations,vars)
 import HipSpec.Reasoning
@@ -64,7 +65,7 @@ getDefEqs = do
     Info{sig,theory,str_marsh} <- getInfo
 
     let getFunction s = case s of
-            Subtheory (Function v) _ _ _ -> Just (v,fs)
+            Subtheory (Function v) _ _ fs _ _ -> Just (v,fs)
             _ -> Nothing
 
         func_map = M.fromList (mapMaybe getFunction (subthys theory))
@@ -79,7 +80,7 @@ getDefEqs = do
 
 definitionalEquations
     :: (Signature a,MakeEquation eq)
-    => StrMarsh -> (Var -> [H.Formula Var Var]) -> a -> [eq]
+    => StrMarsh -> (Var -> [H.Formula']) -> a -> [eq]
 definitionalEquations str_marsh lookup_var sig =
     trace ("Sig syms: " ++ show sig_syms) $
     concatMap (map makeEquation . fetch_sym) sig_syms
@@ -137,10 +138,10 @@ tryMatchTypes str_marsh sig =
     go qs = take 1 . runMatches [ (q,varType q) | q <- qs ]
 
 trFormula :: ([Var] -> [Var -> Maybe Symbol])
-          -> (v -> Maybe Symbol) -> H.Formula Var v -> [Equation]
+          -> (v -> Maybe Symbol) -> H.Formula Var v t -> [Equation]
 trFormula mk_lv lf phi = case phi of
     H.Forall vs (H.Equal t1 t2) -> do
-        lv <- mk_lv vs
+        lv <- mk_lv (map fst vs)
         tr lv t1 t2
     H.Equal t1 t2 -> tr (const Nothing) t1 t2
     _ -> []
@@ -150,19 +151,19 @@ trFormula mk_lv lf phi = case phi of
         e2 <- maybeToList (trTerm lf lv t2)
         return (e1 :=: e2)
 
-trTerm :: forall v q . (v -> Maybe Symbol) -> (q -> Maybe Symbol) -> H.Term q v -> Maybe T.Term
+trTerm :: forall v q t . (v -> Maybe Symbol) -> (q -> Maybe Symbol) -> H.Term q v t -> Maybe T.Term
 trTerm lookup_fun lookup_var = go
   where
     lf = fmap T.Const . lookup_fun
 
-    go :: H.Term q v -> Maybe T.Term
+    go :: H.Term q v t -> Maybe T.Term
     go t = case t of
-        H.Fun f ts  -> apps <$> lf f <*> mapM go ts
-        H.Ctor c ts -> apps <$> lf c <*> mapM go ts
-        H.App t1 t2 -> T.App <$> go t1 <*> go t2
-        H.Ptr f     -> lf f
-        H.QVar v    -> T.Var <$> lookup_var v
-        _           -> Nothing
+        H.Fun f ts    -> apps <$> lf f <*> mapM go ts
+        H.Ctor c ts   -> apps <$> lf c <*> mapM go ts
+        H.App _ t1 t2 -> T.App <$> go t1 <*> go t2
+        H.Ptr f _     -> lf f
+        H.QVar v      -> T.Var <$> lookup_var v
+        _             -> Nothing
 
 apps :: Term -> [Term] -> Term
 apps = foldl T.App

@@ -21,12 +21,7 @@ import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
 
-import Halo.FOL.Abstract hiding (definitions)
-import Halo.FOL.Dump
-import Halo.FOL.Linearise
 import Halo.FOL.LineariseSMT
-import Halo.FOL.Operations
-import Halo.FOL.Rename
 
 import Data.List
 import Data.Either
@@ -69,31 +64,19 @@ tryProve props (interestingLemmas -> lemmas0) = do
 
                 proof_tree = tryAll proof_trees
 
-                style_conf = StyleConf
-                     { style_comments   = comments
-                     , style_cnf        = cnf
-                     , style_dollar_min = False
-                     }
-
-                toTPTP :: [Clause'] -> String
-                toTPTP
-                    | readable_tptp = linStrStyleTPTP style_conf . fst . renameClauses
-                    | otherwise     = dumpTPTP
-
                 linTheory :: [HipSpecSubtheory] -> LinTheory
-                linTheory
-                    = (\ cls -> LinTheory $ \ t ->
-                        let smt_str = linSMT cls
-                        in  case t of
-                                TPTP         -> toTPTP cls
-                                SMT          -> smt_str
-                                SMTUnsatCore -> addUnsatCores smt_str)
-                    . map (clauseMapFormula typeGuardFormula)
-                    . concatMap toClauses
+                linTheory sthys = LinTheory $ \ t -> case t of
+                    TPTP         -> "no tptp!"
+                    SMT          -> smt_str
+                    SMTUnsatCore -> addUnsatCores smt_str
+                  where
+                    smt_str = linSMT
+                        (concatMap toClauses sthys)
+                        (nubSortedOn fst (concatMap typedecls sthys))
+                        (nubSortedOn fst (concatMap datadecls sthys))
 
                 calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
                 calc_dependencies s = concatMap depends (s:lemma_theories)
-                    ++ [ Specific BottomAxioms | bottoms ]
 
                 fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
                 fetcher = trim (subthys theory ++ lemma_theories)

@@ -47,18 +47,12 @@ module Halo.Monad where
 
 import CoreSubst
 import CoreSyn
-import DataCon
 import Id
 import Outputable
-import TyCon
-import Unique
-import VarSet
 
 import Halo.Conf
 import Halo.Constraints
-import Halo.Shared
 import Halo.Util
-import Halo.Subtheory
 import Halo.FOL.Abstract
 import Halo.MonoType
 
@@ -67,9 +61,8 @@ import Data.Map (Map)
 import qualified Data.Set as S
 import Data.Set (Set)
 
-import Data.Maybe
-
-import Control.Monad.RWS
+import Control.Monad.Reader
+import Control.Monad.Writer
 import Control.Monad.Error
 
 
@@ -90,9 +83,8 @@ data HaloEnv = HaloEnv
     -- ^ Configuration
     }
 
-
 addQuantVars :: [Var] -> HaloEnv -> HaloEnv
-addQuantVars vs env = env { qvars = S.toList vs `S.union` qvars env }
+addQuantVars vs env = env { qvars = S.fromList vs `S.union` qvars env }
 
 -- | Registers a variable as a skolem variable
 addSkolem :: Var -> MonoType' -> HaloEnv -> HaloEnv
@@ -113,26 +105,21 @@ pushConstraints :: [Constraint] -> HaloEnv -> HaloEnv
 pushConstraints cs env = env { constr = cs ++ constr env }
 
 -- | Make the environment
-mkEnv :: HaloConf -> [TyCon] -> [CoreBind] -> HaloEnv
-mkEnv conf@HaloConf{..} ty_cons program =
-    let -- Remove the unnecessary SCC information
-        binds :: [(Var,CoreExpr)]
-        binds = flattenBinds program
-
-
-    in  HaloEnv
-            { current_fun = error "initEnv: current_fun"
-            , args        = []
-            , skolems     = M.empty
-            , constr      = noConstraints
-            , conf        = conf
-            }
+mkEnv :: HaloConf -> HaloEnv
+mkEnv conf = HaloEnv
+    { current_fun = error "initEnv: current_fun"
+    , args        = []
+    , skolems     = M.empty
+    , constr      = noConstraints
+    , conf        = conf
+    , qvars       = S.empty
+    }
 
 -- | The translation monad
 --
 --   Reader : see HaloEnv above
 --   Writer : Debug strings
-newtype HaloM a = HaloM (ErrorT String (ReaderT HaloEnv (Writer [String] a)))
+newtype HaloM a = HaloM (ErrorT String (ReaderT HaloEnv (Writer [String])) a)
   deriving
       (Functor,Applicative,Monad
       ,MonadReader HaloEnv

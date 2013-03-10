@@ -10,9 +10,9 @@ import Control.Concurrent.STM.Promise.Tree
 
 import Halo.FOL.Abstract hiding (Term)
 import Halo.Binds
-import Halo.Monad
 import Halo.Util
 import Halo.Subtheory
+import Halo.MonoType
 
 import Control.Monad.Reader
 
@@ -30,8 +30,6 @@ import Id
 import Name
 import OccName as OccName
 
-import qualified Data.Map as M
-
 approximate :: forall eq . Property eq -> Maybe (MakerM (ProofTree eq))
 approximate prop@Property{..} = do
     (e1,e2) <- propCoreExprEquation prop
@@ -40,29 +38,32 @@ approximate prop@Property{..} = do
     return $ do
         (approx,rec,e) <- mkApproxFun ty_con
 
-        let arities = M.fromList [(approx,1),(rec,1)]
+        (fs,deps) <- lift $ do
 
-        ((fs,deps),ptrs) <- lift $ local (extendArities arities) $ do
-
-            (approx_thy:_,_) <- trBinds [e]
+            approx_thy:_ <- trBind e
             let approx_fs   = formulae approx_thy
                 approx_deps = filter (`notElem` map Function [approx,rec])
                                      (depends approx_thy)
-            capturePtrs $ do
 
-                hyp_fs  <- foralls . fst <$> trLiteral (App (Var rec) e1 :== App (Var rec) e2)
-                conc_fs <- foralls . fst <$> trLiteral (App (Var approx) e1 :== App (Var approx) e2)
+            hyp_tr_lit  <- trLiteral (App (Var rec) e1 :== App (Var rec) e2)
+            conc_tr_lit <- trLiteral (App (Var approx) e1 :== App (Var approx) e2)
 
-                return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
+            hyp_fs  <- foralls varMonoType hyp_tr_lit
+            conc_fs <- foralls varMonoType conc_tr_lit
+
+            return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
+
+        monoty <- varMonoType approx
 
         return $ Leaf $ Obligation
             { ob_prop = prop
             , ob_info = ApproxLemma
-            , ob_content = Subtheory
+            , ob_content = subtheory
                 { provides    = Specific Conjecture
-                , depends     = deps ++ ptrs ++ map Function propFunDeps
+                , depends     = deps ++ map Function propFunDeps
                 , description = "Approximation conjecture for " ++ propName
                 , formulae    = fs
+                , typedecls   = zip [approx,rec] (repeat monoty)
                 }
             }
 
