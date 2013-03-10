@@ -141,11 +141,6 @@ processFile file cont = do
             (Left err,msg') -> (error $ "HipSpec.Init, halo says: " ++ err,msg')
             (Right m,msg')  -> (m,msg')
 
-    {-
-        binds_thy = concatMap (fst . fst . runHaloM halo_env . trOneBind) core_defns
-                 ++ fst (runHaloM halo_env trPointers)
-    -}
-
         subtheories =
             map (setExtraDependencies params) $ binds_thy ++
             concatMap ($ ty_cons) (backgroundTheory halo_conf : [mkTotalAxioms | bottoms])

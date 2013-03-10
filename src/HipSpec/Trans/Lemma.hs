@@ -11,8 +11,10 @@ import Halo.Shared
 import Halo.Subtheory
 import Halo.MonoType
 
+import Control.Monad.Reader
+
 translateLemma :: Property eq -> Int -> HaloM HipSpecSubtheory
-translateLemma Property{..} lemma_num = do
+translateLemma Property{..} lemma_num = local (addQuantVars (map fst propVars)) $ do
     tr_lit <- trLiteral propLiteral
     assums <- mapM trLiteral propAssume
     tr_lem <- foralls varMonoType $ assums ===> tr_lit

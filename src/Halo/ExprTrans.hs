@@ -15,7 +15,7 @@
 
 
 -}
-module Halo.ExprTrans (trExpr',trExpr) where
+module Halo.ExprTrans (trExpr) where
 
 import CoreSyn
 import CoreUtils
@@ -45,18 +45,17 @@ trExpr' e = do
     HaloEnv{..} <- ask
     let HaloConf{..} = conf
         isQuant x    = x `S.member` qvars
-        ty           = exprType e
 
-    monotype <- monoType ty
+    m <- monoType (exprType e)
 
     case e of
         _ | exprIsBottom e -> bottom <$> monoType (exprType e)
         Var x
             | Just s <- M.lookup x skolems -> return s
-            | isQuant x           -> return (qvar x)
-            | TArr{} <- monotype  -> return (ptr x monotype)
-            | otherwise           -> return (con x) -- constructor or CAF
-        App e1 e2 -> app monotype <$> trExpr e1 <*> trExpr e2
+            | isQuant x                    -> return (qvar x)
+            | TArr{} <- m                  -> return (ptr x m)
+            | otherwise                    -> return (con x)
+        App e1 e2 -> app <$> monoType (exprType e1) <*> trExpr e1 <*> trExpr e2
         -- Int
         Lit (MachInt i)      -> return (litInteger i)
         -- Integer

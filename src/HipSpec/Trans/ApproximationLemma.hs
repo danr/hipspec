@@ -13,6 +13,7 @@ import Halo.Binds
 import Halo.Util
 import Halo.Subtheory
 import Halo.MonoType
+import Halo.Monad
 
 import Control.Monad.Reader
 
@@ -45,13 +46,15 @@ approximate prop@Property{..} = do
                 approx_deps = filter (`notElem` map Function [approx,rec])
                                      (depends approx_thy)
 
-            hyp_tr_lit  <- trLiteral (App (Var rec) e1 :== App (Var rec) e2)
-            conc_tr_lit <- trLiteral (App (Var approx) e1 :== App (Var approx) e2)
+            local (addQuantVars (map fst propVars)) $ do
 
-            hyp_fs  <- foralls varMonoType hyp_tr_lit
-            conc_fs <- foralls varMonoType conc_tr_lit
+                hyp_tr_lit  <- trLiteral (App (Var rec) e1 :== App (Var rec) e2)
+                conc_tr_lit <- trLiteral (App (Var approx) e1 :== App (Var approx) e2)
 
-            return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
+                hyp_fs  <- foralls varMonoType hyp_tr_lit
+                conc_fs <- foralls varMonoType conc_tr_lit
+
+                return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
 
         monoty <- varMonoType approx
 

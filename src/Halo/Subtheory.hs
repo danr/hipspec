@@ -34,6 +34,7 @@ module Halo.Subtheory where
 import Halo.Shared
 import Halo.FOL.Abstract
 import Halo.MonoType
+import Halo.FOL.LineariseSMT
 
 import Var
 import TyCon
@@ -118,8 +119,12 @@ subtheory = Subtheory
     }
 
 instance Show s => Show (Subtheory s) where
-    show subthy = "Subtheory { content=" ++ show (provides subthy)
-                          ++ ", depends=" ++ show (depends subthy) ++ "}"
+    show (Subtheory{..}) =
+        "Subtheory\n  { content=" ++ show provides
+              ++ "\n  , depends=" ++ show depends
+              ++ "\n  , description=" ++ description
+              ++ "\n  , formulae=\n" ++ unlines (map (sexpr 4 . linForm) formulae)
+              ++ "\n  }"
 
 class Clausifiable s where
     mkClause :: s -> Formula' -> Clause'

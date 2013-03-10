@@ -1,6 +1,6 @@
 -- Linearises (pretty prints) our FOL representation into SMT
 -- TODO: add abstract types (newtypes): to be declared with declare-sort
-module Halo.FOL.LineariseSMT (linSMT,addUnsatCores) where
+module Halo.FOL.LineariseSMT (linSMT,addUnsatCores,linForm,sexpr) where
 
 
 import Var
@@ -20,7 +20,7 @@ import Data.List
 sexpr :: Int -> SExpr -> String
 sexpr i se = case se of
     Atom s     -> s
-    SComment s -> "; " ++ s
+    SComment s -> intercalate newline (map ("; " ++) (lines s))
     List ses   -> "(" ++ intercalate newline (map (sexpr (i + 2)) ses) ++ ")"
     Named e s  -> "(!" ++ newline ++ sexpr (i + 2) e ++ newline ++ " :named " ++ s ++ ")"
   where
@@ -47,7 +47,7 @@ linSMT :: [Clause']
        -> [(TyCon,[Maybe (Var,[MonoType'])])]
        -- ^ data declarations (Nothing means bottom)
        -> String
-linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 0) $
+linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 2) $
     [ data_sexp ] ++
     map (uncurry linFunSig) fun_sigs ++
     map (uncurry linPtrSig) (ptrsUsed cls) ++
@@ -55,17 +55,17 @@ linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 0) $
     map linTotalSig (totalsUsed cls) ++
     map linAppSig (appsUsed cls) ++
     map linClause cls ++
-    [Atom "check-sat"]
+    [ apply "check-sat" [] ]
   where
     data_sexp = apply "declare-datatypes"
         [ List [] , List (map (uncurry linDataSig) data_sigs) ]
 
 -- declare datatypes
 linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
-linDataSig tc cons = List (Atom (tcon tc):map (linMaybeCon tc) cons)
+linDataSig tc cons = apply (tcon tc) (map (linMaybeCon tc) cons)
 
 linMaybeCon :: TyCon -> Maybe (Var,[MonoType']) -> SExpr
-linMaybeCon tc Nothing       = List [Atom (bottom (TCon tc))]
+linMaybeCon tc Nothing       = apply (bottom (TCon tc)) []
 linMaybeCon _  (Just (v,ts)) = linCon v ts
 
 -- (cons (p_0_cons A) (p_1_cons ListA))
@@ -123,7 +123,7 @@ linForm form = case form of
     Unequal t1 t2    -> apply "distinct" (map linTerm [t1,t2])
     And fs           -> apply "and" (map linForm fs)
     Or  fs           -> apply "or" (map linForm fs)
-    Implies f1 f2    -> apply "or" (map linForm [f1,f2])
+    Implies f1 f2    -> apply "=>" (map linForm [f1,f2])
     Equiv f1 f2      -> apply "=" (map linForm [f1,f2])
     Forall qs f      -> apply "forall" [linQList qs,linForm f]
     Exists qs f      -> apply "exists" [linQList qs,linForm f]

@@ -65,7 +65,7 @@ trBinds = concatMapM trBind
 
 -- | Translates the function(s) and the pointer axiom(s)
 trBind :: (Ord s,Show s) => CoreBind -> HaloM [Subtheory s]
-trBind bind = do
+trBind bind = catch_err $ do
 
     let vses = flattenBinds [bind]
 
@@ -74,6 +74,8 @@ trBind bind = do
     pointer_subthys <- mapM (mkPtr . fst) vses
 
     return (fun_subthys ++ pointer_subthys)
+  where
+    catch_err m = m `catchError` \ w -> write w >> return []
 
 -- | We chop up a bind to several bind parts to be able to split
 --   goals later to several invocations to theorem provers
@@ -82,6 +84,7 @@ data BindPart s = BindPart
     { bind_fun     :: Var
     , bind_args    :: [CoreExpr]
     , bind_rhs     :: Either CoreExpr Term'
+    , bind_qvars   :: [Var]
     , bind_constrs :: [Constraint]
     , bind_deps    :: [Content s]
     }
@@ -94,10 +97,11 @@ type BindMap s = Map Var (BindParts s)
 
 bindPartEither :: Ord s => Either CoreExpr Term' -> HaloM (BindPart s)
 bindPartEither rhs = do
-    HaloEnv{current_fun,args,constr} <- ask
+    HaloEnv{current_fun,args,constr,qvars} <- ask
     let bind_part = BindPart
             { bind_fun     = current_fun
             , bind_args    = args
+            , bind_qvars   = S.toList qvars
             , bind_rhs     = rhs
             , bind_constrs = constr
             , bind_deps    = bindPartDeps bind_part
@@ -113,7 +117,7 @@ bindPartTerm = bindPartEither . Right
 -- | Translate a bind part to formulae. Does not capture used pointers,
 --   doesn't look at min set of binds.
 trBindPart :: BindPart s -> HaloM Formula'
-trBindPart BindPart{..} = do
+trBindPart BindPart{..} = local (addQuantVars bind_qvars) $ do
     tr_constr <- trConstraints bind_constrs
     lhs <- apply bind_fun <$> mapM trExpr bind_args
     rhs <- case bind_rhs of
@@ -159,12 +163,11 @@ trDecl f e = do
         new_env env = env
             { current_fun = f
             , args        = map Var as
-            , qvars       = S.fromList as
             }
 
     write $ "Translating " ++ idToStr f ++ ", args: " ++ unwords (map idToStr as)
 
-    bind_parts <- local new_env (trCase e')
+    bind_parts <- local (new_env . addQuantVars as) (trCase e')
 
     let hasConflict bp
             | conflict (bind_constrs bp) = do

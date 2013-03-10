@@ -1,7 +1,7 @@
 name:               hipspec
 category:           Theorem Provers
 version:            0.6
-license:            GPLv3
+license:            GPL-3
 author:             Dan Rosén
 maintainer:         Dan Rosén <danr@chalmers.se>
 homepage:           http://www.github.com/danr/hipspec
@@ -30,29 +30,28 @@ library
         HipSpec.Prelude
 
     other-modules:
+        Halo.BackgroundTheory
+        Halo.Binds
         Halo.Case
         Halo.Conf
         Halo.Constraints
-        Halo.BackgroundTheory
-        Halo.Pointer
-        Halo.Names
+        Halo.Deappify
         Halo.Entry
         Halo.ExprTrans
+        Halo.Fetch
         Halo.FOL.Abstract
         Halo.FOL.Internals.Internals
-        Halo.FOL.Linearise
         Halo.FOL.LineariseSMT
-        Halo.FOL.Dump
         Halo.FOL.Operations
-        Halo.FOL.Rename
         Halo.FreeTyCons
-        Halo.Fetch
         Halo.Lift
         Halo.Monad
+        Halo.MonoType
+        Halo.Names
+        Halo.Pointer
         Halo.RemoveDefault
         Halo.Shared
         Halo.Subtheory
-        Halo.Binds
         Halo.Trim
         Halo.Util
         HipSpec.ATP.Invoke
@@ -60,11 +59,11 @@ library
         HipSpec.ATP.Results
         HipSpec.Heuristics.Associativity
         HipSpec.Init
+        HipSpec.MainLoop
         HipSpec.MakeInvocations
+        HipSpec.Messages
         HipSpec.Monad
         HipSpec.Params
-        HipSpec.MainLoop
-        HipSpec.Messages
         HipSpec.Reasoning
         HipSpec.StringMarshal
         HipSpec.Trans.ApproximationLemma
