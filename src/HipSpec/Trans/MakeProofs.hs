@@ -22,7 +22,8 @@ import Debug.Trace
 
 makeProofs :: forall eq . Params -> Property eq -> MakerM (Maybe (ProofTree eq))
 makeProofs params@Params{methods,indvars,inddepth} prop@Property{propVars} = do
-    res <- sequence techniques `catchError` \ msg -> trace msg (return [])
+    res <- sequence techniques `catchError` \ msg ->
+        return (trace ("error makeProofs:" ++ msg ++ ".") [])
     return $ case res of
         [] -> Nothing
         xs -> Just (requireAny xs)

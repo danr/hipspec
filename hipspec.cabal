@@ -20,14 +20,26 @@ flag Werror
     manual: True
 
 library
+    ghc-options:    -Wall
+    if flag(Werror)
+        ghc-options: -Werror
+    hs-source-dirs: src
+    exposed-modules:
+        HipSpec.Prelude
+
+    build-depends:
+        base                          >= 4    && < 5,
+        QuickCheck                    >= 2.4,
+        quickspec                     == 0.9.1
+
+
+executable hipspec
     ghc-options:    -threaded -Wall -rtsopts -package ghc
     if flag(Werror)
         ghc-options: -Werror
     hs-source-dirs: src
 
-    exposed-modules:
-        HipSpec
-        HipSpec.Prelude
+    main-is: HipSpec.hs
 
     other-modules:
         Halo.BackgroundTheory
@@ -54,6 +66,7 @@ library
         Halo.Subtheory
         Halo.Trim
         Halo.Util
+        HipSpec.Execute
         HipSpec.ATP.Invoke
         HipSpec.ATP.Provers
         HipSpec.ATP.Results
@@ -93,10 +106,6 @@ library
         bytestring,
         logict,
         void                          >= 0.5.3,
-
-        -- Prelude
-        QuickCheck                    >= 2.4,
-        template-haskell,
 
         -- Command-line arguments
         cmdargs                       >= 0.9,

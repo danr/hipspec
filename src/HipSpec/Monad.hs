@@ -49,8 +49,8 @@ data HSEnv = HSEnv
 newtype HS a = HS (ReaderT HSEnv IO a)
   deriving (Functor,Applicative,Monad,MonadIO)
 
-runHS :: Sig -> HS a -> IO a
-runHS sig_ (HS m) = do
+runHS :: HS a -> IO a
+runHS (HS m) = do
     params_ <- sanitizeParams <$> cmdArgs defParams
     (write_fn, get_msg_fn) <- case json params_ of
         Nothing -> return (\ _ -> return (), return [])
@@ -61,8 +61,8 @@ runHS sig_ (HS m) = do
             { params      = params_
             , halo_env    = error "halo_env uninitialized"
             , theory      = error "theory uninitalized"
-            , str_marsh   = error "str_marsh uninitialied"
-            , sig         = sig_
+            , str_marsh   = error "str_marsh uninitialized"
+            , sig         = error "signature uninitialized"
             }
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn

@@ -17,7 +17,6 @@ import qualified Test.QuickSpec.Utils.Typeable as Ty
 import Test.QuickSpec.TestTotality
 
 import Halo.Shared
-import Halo.MonoType
 import Halo.Names
 import Halo.Util
 

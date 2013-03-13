@@ -3,6 +3,8 @@ module HipSpec.Init (processFile) where
 
 import HipSpec.Monad
 
+import HipSpec.Execute
+
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
 import HipSpec.Trans.SrcRep
@@ -11,7 +13,7 @@ import HipSpec.Trans.Theory
 import Halo.BackgroundTheory
 import Halo.Binds
 import Halo.Conf
-import Halo.Entry
+-- import Halo.Entry
 import Halo.Lift
 import Halo.Monad
 import Halo.Util
@@ -24,6 +26,8 @@ import Data.Maybe
 
 import Var
 import CoreSyn
+import CoreLint
+import Bag
 import GHC
 import HscTypes
 import UniqSupply
@@ -33,26 +37,41 @@ import Control.Monad
 
 import Data.Void
 
-processFile :: FilePath -> ([Property Void] -> HS a) -> HS a
-processFile file cont = do
+import qualified Data.Map as M
+
+lint :: String -> [CoreBind] -> HS ()
+lint s bs = liftIO $ do
+        putStrLn $ "== " ++ s ++ " CORE LINT =="
+        let (msgs1,msgs2) = lintCoreBindings bs
+        mapM_ (mapBagM_ (putStrLn . portableShowSDoc)) [msgs1,msgs2]
+
+processFile :: ([Property Void] -> HS a) -> HS a
+processFile cont = do
 
     params@Params{..} <- getParams
 
-    let ds_conf = DesugarConf
-            { debug_float_out = False
-            , core2core_pass  = True
-            }
+    ExecuteResult{..} <- liftIO (execute file)
 
-    (modguts,dflags) <- liftIO $ desugar ds_conf file
+    {-
+    liftIO $ do
+        putStrLn (maybe "" show signature_sig)
+        mapM_ putStrLn
+            [ showOutputable n ++ " :: " ++ showOutputable t
+            | (n,t) <- M.toList named_things
+            ]
+            -}
 
-    let init_core_binds = mg_binds modguts
+    let init_core_binds = mg_binds mod_guts
 
-        -- Some stuff in this pile of junk contains non-translatable code.
+    when db_core_lint $ lint "INIT" init_core_binds
+
+    let -- Some stuff in this pile of junk contains non-translatable code.
         -- I shouldn't fetch all dependencies :( Only necessary. Meep.
         junk v = any (`isInfixOf` showOutputable (varType v)) $
-                     [ "Test." , "GHC.Class" ] ++
                      ( guard (not permissive_junk) >>
-                     [ "GHC.Conc"
+                     [ "Test."
+                     , "GHC.Class"
+                     , "GHC.Conc"
                      , "GHC.Exception"
                      , "GHC.Real"
                      , "GHC.Float"
@@ -67,32 +86,35 @@ processFile file cont = do
                      , "System."
                      ])
 
-        {-
-        -- This makes + to disappear
-        init_core_binds' = filter (any (not . junk . fst) . flattenBinds . (:[]))
-                                  init_core_binds
-                                  -}
-
-
         (unfoldings,_debug_unfoldings) = fetch (not . junk) init_core_binds
 
         unlifted_program = unfoldings ++ init_core_binds
 
-        ty_cons :: [TyCon]
+    when db_core_lint $ lint "UNFOLDED" unlifted_program
+
+    let ty_cons :: [TyCon]
         ty_cons = insert boolTyCon $ fetchTyCons unlifted_program
 
     -- putStrLn debug_unfoldings
 
     us0 <- liftIO $ mkSplitUniqSupply 'f'
 
-    ((lifted_program_with_defaults,_msgs_lift),us1) <-
-        (\binds -> caseLetLift binds case_lift_inner us0)
-        <$> liftIO (lambdaLift dflags unlifted_program)
+    {-
+    simply_lifted <- liftIO (lambdaLift dyn_flags unlifted_program)
+
+    when db_core_lint $ lint "SIMPLY LIFTED" simply_lifted
+        -}
+
+    let ((lifted_program_with_defaults,_msgs_lift),us1) =
+            caseLetLift unlifted_program case_lift_inner us0
+
+    when db_core_lint $ lint "LIFTED" lifted_program_with_defaults
 
     let (lifted_program,_us2)
             | bottoms   = initUs us1 (removeDefaults lifted_program_with_defaults)
             | otherwise = (lifted_program_with_defaults,us1)
 
+    when db_core_lint $ lint "FINAL" lifted_program
     {-
     flip mapM_ lifted_program $ \cb -> case cb of
         NonRec x _ -> putStrLn $ showOutputable $ (x, varType x)
@@ -188,8 +210,9 @@ processFile file cont = do
 
     initialize
         (\ hs_info -> hs_info
-            { theory = theory
-            , halo_env = halo_env
+            { theory    = theory
+            , halo_env  = halo_env
             , str_marsh = str_marsh
+            , sig       = fromMaybe (error "no signature!") signature_sig
             })
         (cont props)

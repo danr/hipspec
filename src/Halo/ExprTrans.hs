@@ -60,11 +60,11 @@ trExpr' e = do
         Lit (MachInt i)      -> return (litInteger i)
         -- Integer
         Lit (LitInteger i _) -> return (litInteger i)
+        Tick _ e'  -> trExpr e'
         Cast{}     -> trErr "cast"
         Lit{}      -> trErr "non-integer literals"
         Type{}     -> trErr "types"
         Coercion{} -> trErr "coercions"
-        Tick{}     -> trErr "ticks"
         Case{}     -> intErr "case"
         Let{}      -> intErr "let"
         Lam{}      -> intErr "lambdas"

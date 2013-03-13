@@ -90,6 +90,7 @@ liftDecl f e = do
 -- | Translate a case expression
 liftCase :: CoreExpr -> LiftM CoreExpr
 liftCase e = case e of
+    Tick _t e' -> liftCase e'
     Case scrutinee scrut_var ty alts -> do
 
         dbgMsg $ "Case on " ++ showExpr scrutinee
@@ -124,7 +125,7 @@ liftExpr e = case e of
 
     App e1 e2      -> App <$> liftExpr e1 <*> liftExpr e2
     Cast e_cast c  -> Cast <$> liftExpr e_cast <*> pure c
-    Tick t e_tick  -> Tick t <$> liftExpr e_tick
+    Tick _t e_tick -> liftExpr e_tick
 
 -- | Make a new name for something that is lifted out, by attaching a label
 --   to the current function

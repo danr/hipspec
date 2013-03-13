@@ -1,7 +1,5 @@
 {-# LANGUAGE RecordWildCards,NamedFieldPuns #-}
-module HipSpec (hipSpec, module Test.QuickSpec, fileName) where
-
-import Test.QuickSpec
+module Main where
 
 import Test.QuickSpec.Main (prune)
 import Test.QuickSpec.Term (totalGen,Term,Expr,term)
@@ -38,22 +36,15 @@ import Data.Ord
 
 import Control.Monad
 
-import Language.Haskell.TH
-
-import Data.Monoid (mappend)
-
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
-fileName :: ExpQ
-fileName = location >>= \(Loc f _ _ _ _) -> stringE f
-
-hipSpec :: Signature a => FilePath -> a -> IO ()
-hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
+main :: IO ()
+main = runHS $ do
 
     writeMsg Started
 
-    processFile file $ \ user_props -> do
+    processFile $ \ user_props -> do
 
         writeMsg FileProcessed
 
@@ -77,7 +68,7 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
             else do
 
                 let qsconjs = map (eqToProp (showEquation sig) str_marsh)
-                              (map (some eraseEquation) eqs)
+                                  (map (some eraseEquation) eqs)
 
                     ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
@@ -90,7 +81,8 @@ hipSpec file sig0 = runHS (signature sig0 `mappend` withTests 100) $ do
                     let pruner   = prune ctx_with_def (map erase reps) id
                         provable = evalEQR ctx_final . equal
                         explored_theory
-                            = pruner $ filter provable (map (some eraseEquation) (equations classes))
+                            = pruner $ filter provable
+                            $ map (some eraseEquation) (equations classes)
                     writeMsg $ ExploredTheory $
                         map (showEquation sig) explored_theory
 
@@ -107,6 +99,8 @@ runMainLoop :: (MakeEquation eq,EQR eq ctx cc)
 runMainLoop ctx_init initial_props initial_thms = do
 
     ctx_with_def <- pruneWithDefEqs ctx_init
+
+    liftIO $ putStrLn "running main loop!"
 
     (theorems,conjectures,ctx_final) <-
         mainLoop ctx_with_def initial_props initial_thms
