@@ -1,4 +1,4 @@
-module Nichomachus (sig, sum, cubes, module Nat) where
+module Nichomachus (sig, sum, cubes, module Nat, prop_Nichomachus) where
 
 import Prelude (error)
 import Nat hiding (sig)
@@ -10,8 +10,8 @@ sum (S n) = sum n + S n
 cubes Z     = Z
 cubes (S n) = cubes n + (S n * S n * S n)
 
-prop_Nicomachus :: Nat -> Prop Nat
-prop_Nicomachus n = cubes n =:= sum n * sum n
+prop_Nichomachus :: Nat -> Prop Nat
+prop_Nichomachus n = cubes n =:= sum n * sum n
 
 sig = signature
     [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
