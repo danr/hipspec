@@ -1,8 +1,6 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
 module HipSpec.Init (processFile) where
 
-import Test.QuickSpec.Term
-
 import HipSpec.Monad
 
 import HipSpec.Execute
@@ -39,33 +37,22 @@ import Control.Monad
 
 import Data.Void
 
-import qualified Data.Map as M
-
 lint :: String -> [CoreBind] -> HS ()
 lint s bs = liftIO $ do
-        putStrLn $ "== " ++ s ++ " CORE LINT =="
-        let (msgs1,msgs2) = lintCoreBindings bs
-        mapM_ (mapBagM_ (putStrLn . portableShowSDoc)) [msgs1,msgs2]
+    putStrLn $ "== " ++ s ++ " CORE LINT =="
+    let (msgs1,msgs2) = lintCoreBindings bs
+    mapM_ (mapBagM_ (putStrLn . portableShowSDoc)) [msgs1,msgs2]
 
 processFile :: ([Property Void] -> HS a) -> HS a
 processFile cont = do
 
     params@Params{..} <- getParams
 
-    ExecuteResult{..} <- liftIO (execute file)
-
-    when db_names $ liftIO $ do
-        putStrLn (maybe "" show signature_sig)
-        mapM_ putStrLn
-            [ showOutputable n ++ " :: " ++ showOutputable t
-            | (n,t) <- M.toList named_things
-            ]
-        mapM_ putStrLn
-            [ name n ++ " -> " ++ showOutputable ns
-            | (n,ns) <- M.toList signature_names
-            ]
+    exec_res@ExecuteResult{..} <- liftIO (execute file)
 
     let init_core_binds = mg_binds mod_guts
+
+    -- putStrLn (maybe "" show signature_sig)
 
     when dump_core $ liftIO $ do
         putStrLn "== INIT CORE =="
@@ -129,7 +116,7 @@ processFile cont = do
         _ -> return ()
     -}
 
-    str_marsh <- liftIO $ makeStringMarshallings db_str_marsh ty_cons lifted_program
+    str_marsh <- liftIO $ makeStringMarshallings params exec_res
 
     let isPropBinder (NonRec x _) | isPropType x = True
         isPropBinder _ = False

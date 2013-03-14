@@ -30,6 +30,7 @@ import HipSpec.StringMarshal (maybeLookupSym)
 import Prelude hiding (read)
 
 import Halo.Util
+import Halo.Shared
 
 import Data.List
 import Data.Ord
@@ -161,7 +162,8 @@ proveTotality univ = do
     let tot_props
             = [ tot_prop
               | (sym,totality) <- tot_list
-              , Just (v,True) <- [maybeLookupSym str_marsh sym]
+              , Just v <- [maybeLookupSym str_marsh sym]
+              , not (isDataConId v)
               , Just tot_prop <- [totalityProperty v totality]
               ]
 

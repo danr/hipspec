@@ -104,7 +104,7 @@ definitionalEquations str_marsh lookup_var sig =
 
     fetch_sym :: Symbol -> [Equation]
     fetch_sym s = case maybeLookupSym str_marsh s of
-        Just (v,True) ->
+        Just v | not (isDataConId v) ->
             trace ("Trying " ++ showOutputable v ++ " with "
                              ++ show (length (lookup_var v)) ++ " formulas.") $
             concatMap (trFormula type_matcher maybeLookupVar)

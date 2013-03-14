@@ -27,36 +27,38 @@ import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Maybe
 import Data.List
-import Data.Typeable as Typeable
+import qualified Data.Typeable as Typeable
+import Data.Typeable (Typeable)
 
 import CoreSyn as C hiding (Expr)
 import GHC hiding (Sig)
 import Id
-import Kind
-import Name
-import SrcLoc
-import Type
 import Type as GhcType
-import Unique
 import Var
 
 import Control.Monad
 
+lookupSym :: StrMarsh -> Symbol -> Id
+lookupSym m s = fromMaybe (error err_str) (maybeLookupSym m s)
+  where
+    err_str = "Cannot translate QuickSpec's " ++ show s ++
+             " to Core representation! Debug the string marshallings" ++
+             " with --db-str-marsh (and --db-names)"
+
+lookupTyCon :: StrMarsh -> Typeable.TyCon -> TyCon
+lookupTyCon m s = fromMaybe (error err_str) (maybeLookupTyCon m s)
+  where
+    err_str = "Cannot translate Data.Typeable type constructor " ++ show s ++
+             " to Core representation! Debug the string marshallings" ++
+             " with --db-str-marsh (and --db-names)"
+
 typeRepToType :: StrMarsh -> Ty.TypeRep -> Type
-typeRepToType (_,strToTyCon) = go
+typeRepToType str_marsh = go
   where
     go :: Ty.TypeRep -> Type
-    go t | Just (ta,tb) <- splitArrow t   = go ta `GhcType.mkFunTy` go tb
+    go t | Just (ta,tb) <- splitArrow t = go ta `GhcType.mkFunTy` go tb
     go t = let (ty_con,ts) = Ty.splitTyConApp t
-               _tr r = tyConName ty_con ++ " ~> " ++ portableShowSDoc (pprSourceTyCon r)
-           in  fromMaybe a
-                (fmap (\r -> r `GhcType.mkTyConApp` map go ts)
-                      (M.lookup (tyConName ty_con) strToTyCon))
-    a :: Type
-    a = mkTyVarTy $ mkTyVar
-                (mkInternalName (mkUnique 'j' 1337)
-                                (mkOccName tvName "a")
-                                wiredInSrcSpan) anyKind
+           in  lookupTyCon str_marsh ty_con `GhcType.mkTyConApp` map go ts
 
 termToExpr :: StrMarsh -> Map Symbol Var -> Term -> CoreExpr
 termToExpr str_marsh var_rename_map = go
@@ -64,17 +66,9 @@ termToExpr str_marsh var_rename_map = go
     go t = case t of
         T.App e1 e2 -> go e1 `C.App` go e2
         T.Var s   -> C.Var (fromMaybe (err s) (M.lookup s var_rename_map))
-        T.Const s -> C.Var (fst $ lookupSym str_marsh s)
+        T.Const s -> C.Var (lookupSym str_marsh s)
 
     err (name -> s) = error $ "QuickSpec's " ++ s ++ " never got a variable"
-
-lookupSym :: StrMarsh -> Symbol -> (Var,Bool)
-lookupSym (strToVar,_) (name -> s) = fromMaybe err (M.lookup s strToVar)
-  where
-    err = error err_str
-    err_str = "Cannot translate QuickSpec's " ++ s ++
-             " to Core representation! Debug the string marshallings" ++
-             " with --db-str-marsh "
 
 symbType :: StrMarsh -> Symbol -> Type
 symbType str_marsh = typeRepToType str_marsh . symbolType
@@ -128,8 +122,8 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
     fundeps  =
         [ v
         | c <- nub (funs t1 ++ funs t2)
-        , let (v,is_function_not_constructor) = lookupSym str_marsh c
-        , is_function_not_constructor
+        , let v = lookupSym str_marsh c
+        , not (isDataConId v)
         ]
 
     var_rename
@@ -169,8 +163,8 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     fundeps  =
         [ v
         | c <- nub (funs e1 ++ funs e2)
-        , let (v,is_function_not_constructor) = lookupSym str_marsh c
-        , is_function_not_constructor
+        , let v = lookupSym str_marsh c
+        , not (isDataConId v)
         ]
 
     var_rename

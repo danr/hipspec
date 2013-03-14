@@ -37,6 +37,7 @@ data HSInfo = Info
     , theory    :: Theory
     , halo_env  :: HaloEnv
     , str_marsh :: StrMarsh
+                -- Symbol -> Maybe TyThing
     }
 
 data HSEnv = HSEnv
