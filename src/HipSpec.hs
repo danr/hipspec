@@ -100,8 +100,6 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     ctx_with_def <- pruneWithDefEqs ctx_init
 
-    liftIO $ putStrLn "running main loop!"
-
     (theorems,conjectures,ctx_final) <-
         mainLoop ctx_with_def initial_props initial_thms
 
