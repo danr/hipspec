@@ -43,7 +43,6 @@ instance Partial Nat where
   unlifted Z = return Z
   unlifted (S x) = fmap S (lifted x)
 
-
 arbSized s = do
   x <- choose (0,round (sqrt (toEnum s)))
   return (toEnum x)
