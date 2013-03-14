@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
 module HipSpec.Init (processFile) where
 
+import Test.QuickSpec.Term
+
 import HipSpec.Monad
 
 import HipSpec.Execute
@@ -52,16 +54,22 @@ processFile cont = do
 
     ExecuteResult{..} <- liftIO (execute file)
 
-    {-
-    liftIO $ do
+    when db_names $ liftIO $ do
         putStrLn (maybe "" show signature_sig)
         mapM_ putStrLn
             [ showOutputable n ++ " :: " ++ showOutputable t
             | (n,t) <- M.toList named_things
             ]
-            -}
+        mapM_ putStrLn
+            [ name n ++ " -> " ++ showOutputable ns
+            | (n,ns) <- M.toList signature_names
+            ]
 
     let init_core_binds = mg_binds mod_guts
+
+    when dump_core $ liftIO $ do
+        putStrLn "== INIT CORE =="
+        putStrLn $ showOutputable init_core_binds
 
     when db_core_lint $ lint "INIT" init_core_binds
 

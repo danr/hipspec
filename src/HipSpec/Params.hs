@@ -49,7 +49,9 @@ data Params = Params
     , permissive_junk     :: Bool
 
     , db_str_marsh        :: Bool
+    , db_names            :: Bool
     , db_core_lint        :: Bool
+    , dump_core           :: Bool
     , dump_props          :: Bool
     , dump_defns          :: Bool
     , dump_types          :: Bool
@@ -119,6 +121,8 @@ defParams = Params
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
     , db_core_lint        = False   &= help "Run core lint"
+    , db_names            = False   &= help "Print names in scope"
+    , dump_core           = False   &= help "Dump core bindings from the starting module"
     , dump_props          = False   &= help "Dump bindings that are considered properties"
     , dump_defns          = False   &= help "Dump bindings that are considered definitions"
     , dump_types          = False   &= help "Dump types of bindings"

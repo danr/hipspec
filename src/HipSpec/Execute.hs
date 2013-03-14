@@ -48,12 +48,12 @@ execute file = defaultErrorHandler defaultLogAction $ do
         -- Set interpreted so we can get the signature,
         -- and expose all unfoldings
         dflags0 <- getSessionDynFlags
-        let dflags = dflags0 { hscTarget = HscInterpreted
+        let dflags = dflags0 {- { hscTarget = HscInterpreted
                              , ghcLink = LinkInMemory
                              , ghcMode = CompManager
                              , optLevel = 1
                              , profAuto = NoProfAuto
-                             }
+                             } -}
 --                 `dopt_unset` Opt_IgnoreInterfacePragmas
 --                 `dopt_unset` Opt_OmitInterfacePragmas
                 `dopt_set` Opt_ExposeAllUnfoldings
@@ -73,7 +73,8 @@ execute file = defaultErrorHandler defaultLogAction $ do
                            mod_graph
 
         -- Set the context for later evaluation
-        setContext [IIModule (ms_mod mod_sum)]
+        setContext -- [IIModule (ms_mod mod_sum)]
+            [IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))]
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum
@@ -89,7 +90,7 @@ execute file = defaultErrorHandler defaultLogAction $ do
         modguts <- liftIO (core2core hsc_env (dm_core_module d))
 
         -- Now we can load the module (so we can later evaluate in it)
-        -- _ <- loadModule d
+        -- _ <- load LoadAllTargets loadModule d
         -- (doesn't seem to be necessary?)
 
         -- Looks up a name and tries to associate it with a typed thing
@@ -149,7 +150,7 @@ getSignature = do
                                         (Var sig_id))
                                         -}
 
-            sig_hvalue <- compileExpr "signature sig"
+            sig_hvalue <- compileExpr "sig"
             {-
             dflags <- getSessionDynFlags
             let err_msg = "Couldn't coerce `signature sig' to Sig"

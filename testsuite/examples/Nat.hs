@@ -5,7 +5,7 @@ import Prelude hiding ((+),(*),even,odd,sum,id)
 import HipSpec.Prelude
 import Data.Typeable
 
-data Nat = Z | S !Nat
+data Nat = Z | S Nat
   deriving (Eq,Ord,Show,Typeable)
 
 infixl 6 +
@@ -22,7 +22,8 @@ _   * m = Z
 prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
 prop_mul_comm x y z = x * y =:= y * x
 
-sig = [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
+sig = signature
+      [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
       , fun0 "Z" Z
       , fun1 "S" S
       , fun2 "+" (+)
