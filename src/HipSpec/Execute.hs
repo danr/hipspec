@@ -48,14 +48,12 @@ execute file = defaultErrorHandler defaultLogAction $ do
         -- Set interpreted so we can get the signature,
         -- and expose all unfoldings
         dflags0 <- getSessionDynFlags
-        let dflags = dflags0 {- { hscTarget = HscInterpreted
-                             , ghcLink = LinkInMemory
-                             , ghcMode = CompManager
+        let dflags = dflags0 { ghcMode = CompManager
                              , optLevel = 1
                              , profAuto = NoProfAuto
-                             } -}
---                 `dopt_unset` Opt_IgnoreInterfacePragmas
---                 `dopt_unset` Opt_OmitInterfacePragmas
+                             }
+                `dopt_unset` Opt_IgnoreInterfacePragmas
+                `dopt_unset` Opt_OmitInterfacePragmas
                 `dopt_set` Opt_ExposeAllUnfoldings
         _ <- setSessionDynFlags dflags
 
@@ -63,7 +61,7 @@ execute file = defaultErrorHandler defaultLogAction $ do
         target <- guessTarget (file ++ ".hs") Nothing
         _ <- addTarget target
         r <- load LoadAllTargets
-        when (hasFailed r) $ error "Compilation failed!"
+        when (failed r) $ error "Compilation failed!"
 
         mod_graph <- getModuleGraph
         let mod_sum = fromMaybe (error $ "Cannot find module " ++ file)
@@ -157,8 +155,4 @@ getSignature = do
             sig <- liftIO (lessUnsafeCoerce dflags err_msg sig_hvalue)
             -}
             return (Just (unsafeCoerce sig_hvalue))
-
-hasFailed :: SuccessFlag -> Bool
-hasFailed Failed = True
-hasFailed _      = False
 
