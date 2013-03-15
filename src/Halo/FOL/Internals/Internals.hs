@@ -54,8 +54,24 @@ data ClType
     | Conjecture | NegatedConjecture | Question
   deriving (Eq,Ord,Show)
 
+data TyThing v t
+    = AFun v
+    | AnApp t
+    | ACtor v
+    | ASkolem v
+    | AProj Int v
+    | APtr v
+    | ABottom t
+  deriving (Eq,Ord,Show)
+
 data Clause q v t
-    = Clause String ClType (Formula q v t)
+    = Clause (Maybe Int) ClType (Formula q v t)
+    | TypeSig (TyThing v t) [t] t
+    -- ^ v has type t1 -> .. -> tn -> t
+    --   where t1..tn is in the list
+    | SortSig t
+    -- ^ t is a sort
+    | TotalSig t
     | Comment String
   deriving (Eq,Ord,Show)
 

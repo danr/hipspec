@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Halo.FOL.Operations where
 
 import Halo.FOL.Internals.Internals
@@ -9,7 +9,63 @@ import Data.Generics.Geniplate
 import qualified Data.Set as S
 import Data.Set (Set)
 
-import Control.Monad (liftM)
+import Data.Maybe
+
+-- import Control.Monad (liftM)
+
+allQuant :: forall q v t . Ord q => Formula q v t -> [q]
+allQuant phi = S.toList . S.unions $
+    map getTm (universeBi phi) ++ map getFm (universeBi phi)
+  where
+    getTm :: Term q v t -> Set q
+    getTm (QVar v) = S.singleton v
+    getTm _        = S.empty
+
+    getFm :: Formula q v t -> Set q
+    getFm (Forall qs _) = S.fromList (map fst qs)
+    getFm _             = S.empty
+
+allQuant' :: Ord q => Clause q v t -> [q]
+allQuant' (Clause _ _ f) = allQuant f
+allQuant' _              = []
+
+-- Querying
+
+formulae :: [Clause q v t] -> [Formula q v t]
+formulae = mapMaybe getForm
+  where
+    getForm (Clause _ _ f) = Just f
+    getForm _              = Nothing
+
+ptrsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
+ptrsUsed cl = nubSorted [ (p,t) | Ptr p t :: Term q v t <- universeBi cl ]
+
+appsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
+appsUsed cl = nubSorted [ t | App t _ _ :: Term q v t <- universeBi cl ]
+
+{-
+primsUsed :: forall q v t . Ord v => Clause q v t -> Set Prim
+primsUsed cl = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
+
+skolemsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
+skolemsUsed cl = nubSorted [ (s,t) | Skolem s t :: Term q v t <- universeBi cl ]
+
+totalsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
+totalsUsed cl = nubSorted [ t | Total t _ :: Formula q v t <- universeBi cl ]
+
+bottomsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
+bottomsUsed cl = nubSorted [ t | Bottom t :: Term q v t <- universeBi cl ]
+-}
+
+{-
+mapCl :: Monad m
+       => (Formula q v t -> m (Formula q' v' t'))
+       -> Clause q v t -> m (Clause q' v' t')
+mapCl k (Clause s t f) = Clause s t `liftM` k f
+mapCl _ (Comment s)    = return (Comment s)
+-}
+
+{-
 
 replaceVarsTm :: (v -> u) -> Term q v t -> Term q u t
 replaceVarsTm k = go
@@ -63,6 +119,7 @@ clauseMapTerms tm qv cl = case cl of
     Clause c s f -> Clause c s (formulaMapTerms tm qv f)
     Comment s    -> Comment s
 
+
 clauseMapFormula :: (Formula q v t -> Formula r u t)
                  -> Clause q v t -> Clause r u t
 clauseMapFormula k cl = case cl of
@@ -81,24 +138,10 @@ allSymbols = S.toList . S.unions . map get . universeBi
     get _            = S.empty
 
 allSymbols' :: Ord v => Clause q v t -> [v]
-allSymbols' (Clause _ _ f) = allSymbols f
-allSymbols' (Comment _)    = []
+allSymbols' (Clause _ _ f)  = allSymbols f
+allSymbols' (TypeSig v _ _) = [v]
+allSymbols' _               = []
 
-allQuant :: forall q v t . Ord q => Formula q v t -> [q]
-allQuant phi = S.toList . S.unions $
-    map getTm (universeBi phi) ++ map getFm (universeBi phi)
-  where
-    getTm :: Term q v t -> Set q
-    getTm (QVar v) = S.singleton v
-    getTm _        = S.empty
-
-    getFm :: Formula q v t -> Set q
-    getFm (Forall qs _) = S.fromList (map fst qs)
-    getFm _             = S.empty
-
-allQuant' :: Ord q => Clause q v t -> [q]
-allQuant' (Clause _ _ f) = allQuant f
-allQuant' (Comment _ )   = []
 
 substVars :: forall q v t . Eq v => v -> v -> Formula q v t -> Formula q v t
 substVars old new = rewriteBi s
@@ -122,32 +165,4 @@ rewriteBi f = transformBi g
   where
     g :: s -> s
     g x = maybe x (rewriteBi f) (f x)
-
--- Querying
-
-primsUsed :: forall q v t . Ord v => Clause q v t -> Set Prim
-primsUsed cl = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
-
-ptrsUsed :: forall s q v t . (UniverseBi (s q v t) (Term q v t),Ord v,Ord t) => s q v t -> [(v,t)]
-ptrsUsed cl = nubSorted [ (p,t) | Ptr p t :: Term q v t <- universeBi cl ]
-
-skolemsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
-skolemsUsed cl = nubSorted [ (s,t) | Skolem s t :: Term q v t <- universeBi cl ]
-
-totalsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
-totalsUsed cl = nubSorted [ t | Total t _ :: Formula q v t <- universeBi cl ]
-
-appsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
-appsUsed cl = nubSorted [ t | App t _ _ :: Term q v t <- universeBi cl ]
-
-{-
-bottomsUsed :: forall q v t . Ord t => [Clause q v t] -> [t]
-bottomsUsed cl = nubSorted [ t | Bottom t :: Term q v t <- universeBi cl ]
--}
-
-mapCl :: Monad m
-       => (Formula q v t -> m (Formula q' v' t'))
-       -> Clause q v t -> m (Clause q' v' t')
-mapCl k (Clause s t f) = Clause s t `liftM` k f
-mapCl _ (Comment s)    = return (Comment s)
-
+    -}

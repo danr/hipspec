@@ -69,11 +69,7 @@ tryProve props (interestingLemmas -> lemmas0) = do
                     SMT          -> smt_str
                     SMTUnsatCore -> addUnsatCores smt_str
                   where
-                    smt_str = linSMT
-                        (concatMap toClauses sthys)
-                        (nubSortedOn fst (concatMap typedecls sthys))
-                        (nubSortedOn fst (concatMap datadecls sthys))
-                        (nubSorted (concatMap sortdecls sthys))
+                    smt_str = linSMT (concatMap clauses sthys)
 
                 calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
                 calc_dependencies s = concatMap depends (s:lemma_theories)

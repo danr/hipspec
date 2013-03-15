@@ -1,6 +1,6 @@
 -- Linearises (pretty prints) our FOL representation into SMT
 -- TODO: add abstract types (newtypes): to be declared with declare-sort
-module Halo.FOL.LineariseSMT (linSMT,addUnsatCores,linForm,sexpr) where
+module Halo.FOL.LineariseSMT (linSMT,addUnsatCores,linClause,sexpr) where
 
 
 import Var
@@ -10,13 +10,12 @@ import Halo.MonoType
 import Halo.Shared
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract (Clause',Formula',Term',neg)
-import Halo.FOL.Operations
-import Halo.Util
 
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Maybe
 import Data.List
+import Data.Ord
 
 sexpr :: Int -> SExpr -> String
 sexpr i se = case se of
@@ -41,109 +40,50 @@ addUnsatCores s =
     "(set-option :produce-unsat-cores true)\n" ++ s ++
     "\n(get-unsat-core)\n"
 
-linSMT :: [Clause']
-       -- ^ clauses
-       -> [(Var,MonoType')]
-       -- ^ type signatures
-       -> [(TyCon,[Maybe (Var,[MonoType'])])]
-       -- ^ data declarations (Nothing means bottom)
-       -> [TyCon]
-       -- ^ sort declarations
-       -> String
-linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
-    concatMap linSort (map TCon sort_sigs ++ ho_sorts) ++
-    concatMap (uncurry linDataSig) data_sigs ++
-    map (uncurry linFunSig) fun_sigs ++
-    map (uncurry linPtrSig) ptrs ++
-    map (uncurry linSkolemSig) sks ++
-    map linTotalSig (totalsUsed cls) ++
-    map linAppSig (appsUsed cls) ++
-    map linClause cls ++
-    [ apply "check-sat" [] ]
+linSMT :: [Clause'] -> String
+linSMT = unlines . map (sexpr 2) . (++ [apply "check-sat" []]) . map linClause . sortBy (comparing inj)
   where
-    sks = skolemsUsed cls
-    ptrs = nubSorted $ concatMap ptrsUsed cls
-
-    {-
-    data_sexp = apply "declare-datatypes"
-        [ List [] , List (map (uncurry linDataSig) data_sigs) ]
-        -}
-
-    ho_sorts = nubSorted $ filter arrowMonoType $
-        concatMap (typeArgs . snd) fun_sigs ++
-        map snd sks ++
-        concatMap (typeArgs . snd) ptrs ++
-        [ t  | (_,cs) <- data_sigs , Just (_,ts) <- cs , t <- ts ]
-
--- sorts (contains a bottom)
-linSort :: MonoType' -> [SExpr]
-linSort t =
-    [ apply "declare-sort" [Atom (monotype t)]
-    , linSig (bottom t) [] t
-    ]
-
-linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> [SExpr]
-linDataSig tc cons =
-    [ apply "declare-sort" [Atom (tcon tc)] ] ++
-    concatMap linMaybeCon cons
-  where
-    linMaybeCon :: Maybe (Var,[MonoType']) -> [SExpr]
-    linMaybeCon Nothing       = [linSig (bottom (TCon tc)) [] (TCon tc)]
-    linMaybeCon (Just (v,ts)) = linCon v ts
-
-    linCon :: Var -> [MonoType'] -> [SExpr]
-    linCon v ts =
-        [ linSig (con v) ts (TCon tc) ] ++
-        [ linSig (proj i v) [TCon tc] t | (i,t) <- zip [0..] ts ]
-
-{-
--- declare datatypes, SMT way
-linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
-linDataSig tc cons = apply (tcon tc) (map (linMaybeCon tc) cons)
-
-linMaybeCon :: TyCon -> Maybe (Var,[MonoType']) -> SExpr
-linMaybeCon tc Nothing       = apply (bottom (TCon tc)) []
-linMaybeCon _  (Just (v,ts)) = linCon v ts
-
--- (cons (p_0_cons A) (p_1_cons ListA))
-linCon :: Var -> [MonoType'] -> SExpr
-linCon v ts = List $
-    Atom (con v) :
-    [ List [Atom (proj i v),Atom (monotype t)]
-    | (i,t) <- zip [0..] ts ]
-    -}
-
+    inj SortSig{}  = 0 :: Int
+    inj TotalSig{} = 1
+    inj TypeSig{}  = 1
+    inj _          = 2
 
 -- signatures
-linSig :: String -> [MonoType'] -> MonoType' -> SExpr
-linSig s [] res = apply "declare-const" [Atom s , Atom (monotype res)]
-linSig s args res = apply "declare-fun"
-    [ Atom s
-    , List (map (Atom . monotype) args)
-    , Atom (monotype res)
-    ]
+linSig :: TyThing Var MonoType' -> [MonoType'] -> MonoType' -> SExpr
+linSig th args res = case args of
+    [] -> apply "declare-const" [Atom s , Atom (monotype res)]
+    _ -> apply "declare-fun"
+        [ Atom s
+        , List (map (Atom . monotype) args)
+        , Atom (monotype res)
+        ]
+  where
+    s = linThing th
 
-linFunSig :: Var -> MonoType' -> SExpr
-linFunSig v ty = uncurry (linSig (fun v)) (splitType ty)
-
-linPtrSig :: Var -> MonoType' -> SExpr
-linPtrSig v = linSig (ptr v) []
-
-linSkolemSig :: Var -> MonoType' -> SExpr
-linSkolemSig v = linSig (skolem v) []
-
-linAppSig :: MonoType' -> SExpr
-linAppSig t@(TArr t1 t2) = linSig (app t) [t,t1] t2
-linAppSig _              = error "LineariseSMT: linAppSig on TCon"
+linThing :: TyThing Var MonoType' -> String
+linThing th = case th of
+    AFun v    -> fun v
+    ACtor v   -> con v
+    AnApp t   -> app t
+    ASkolem v -> skolem v
+    AProj i v -> proj i v
+    APtr v    -> ptr v
+    ABottom t -> bottom t
 
 linTotalSig :: MonoType' -> SExpr
 linTotalSig t = apply "declare-fun"
     [ Atom (total t) , List [Atom (monotype t)] , Atom bool ]
 
+linSort :: MonoType' -> SExpr
+linSort t = apply "declare-sort" [Atom (monotype t)]
+
 -- Clauses
 linClause :: Clause' -> SExpr
 linClause cl = case cl of
     Comment s -> SComment s
+    TypeSig th ts t -> linSig th ts t
+    SortSig t       -> linSort t
+    TotalSig t      -> linTotalSig t
     Clause cl_name cl_type f -> apply "assert"
         [maybe_name (linForm (maybe_neg f))]
       where
@@ -152,8 +92,8 @@ linClause cl = case cl of
             _          -> id
 
         maybe_name = case cl_name of
-            "x" -> id
-            _   -> (`Named` cl_name)
+            Nothing -> id
+            Just i  -> flip Named ("lemma_" ++ show i ++ "_")
 
 -- Formulae
 linForm :: Formula' -> SExpr

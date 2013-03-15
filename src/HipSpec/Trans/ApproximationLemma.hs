@@ -30,6 +30,8 @@ import Id
 import Name
 import OccName as OccName
 
+import Data.Void
+
 approximate :: forall eq . Property eq -> Maybe (MakerM (ProofTree eq))
 approximate prop@Property{..} = do
     (e1,e2) <- propCoreExprEquation prop
@@ -38,12 +40,14 @@ approximate prop@Property{..} = do
     return $ do
         (approx,rec,e) <- mkApproxFun ty_con
 
-        (fs,deps) <- lift $ do
+        (cls,deps) <- lift $ do
 
             approx_thy:_ <- trBind e
-            let approx_fs   = formulae approx_thy
+            let approx_cls  = clauses approx_thy
                 approx_deps = filter (`notElem` map Function [approx,rec])
                                      (depends approx_thy)
+
+            rec_ty <- varMonoType rec
 
             local (addQuantVars (map fst propVars)) $ do
 
@@ -53,19 +57,21 @@ approximate prop@Property{..} = do
                 hyp_fs  <- foralls varMonoType hyp_tr_lit
                 conc_fs <- foralls varMonoType conc_tr_lit
 
-                return (hyp_fs:neg conc_fs:approx_fs,approx_deps)
-
-        monoty <- varMonoType approx
+                return
+                    ( hypothesis hyp_fs
+                    : negatedConjecture (neg conc_fs)
+                    : typeSig' (AFun rec) rec_ty
+                    : approx_cls
+                    , approx_deps
+                    )
 
         return $ Leaf $ Obligation
             { ob_prop = prop
             , ob_info = ApproxLemma
             , ob_content = calculateDeps subtheory
-                { provides    = Specific Conjecture
-                , depends     = deps ++ propDeps
-                , description = "Approximation conjecture for " ++ propName
-                , formulae    = fs
-                , typedecls   = zip [approx,rec] (repeat monoty)
+                { provides = Specific Conjecture
+                , depends  = map vacuous deps ++ propDeps
+                , clauses  = comment ("Approximation conjecture for " ++ propName) : cls
                 }
             }
 

@@ -33,10 +33,13 @@ mkPtr h = do
     let rhs = apply h args'
         formula = forall' tyargs $ lhs === rhs
 
-    return subtheory
-        { provides    = Pointer h
-        , depends     = []
-        , description = "Pointer axiom to " ++ showOutputable h
-        , formulae    = [formula]
+    return $ calculateDeps subtheory
+        { provides = Pointer h
+        , depends  = [Function h]
+        , clauses  =
+            [ comment ("Pointer axiom to " ++ showOutputable h)
+            , typeSig' (APtr h) ty
+            , axiom formula
+            ]
         }
 

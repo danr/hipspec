@@ -161,7 +161,7 @@ processFile cont = do
             (Right m,msg')  -> (m,msg')
 
         subtheories =
-            map (setExtraDependencies params) $ binds_thy ++
+            map (setExtraDependencies params) $ (map vacuous binds_thy) ++
             concatMap ($ ty_cons) (backgroundTheory halo_conf : [mkTotalAxioms | bottoms])
 
         theory = Theory subtheories

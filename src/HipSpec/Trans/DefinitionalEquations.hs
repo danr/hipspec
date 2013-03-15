@@ -18,6 +18,7 @@ import Test.QuickSpec.Utils.Typed
 import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
+import Halo.FOL.Operations
 import qualified Halo.FOL.Internals.Internals as H
 import qualified Halo.FOL.Abstract as H
 
@@ -65,7 +66,7 @@ getDefEqs = do
     Info{sig,theory,str_marsh} <- getInfo
 
     let getFunction s = case s of
-            Subtheory (Function v) _ _ fs _ _ _ -> Just (v,fs)
+            Subtheory (Function v) _ cls _ -> Just (v,formulae cls)
             _ -> Nothing
 
         func_map = M.fromList (mapMaybe getFunction (subthys theory))

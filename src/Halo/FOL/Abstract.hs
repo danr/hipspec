@@ -19,8 +19,6 @@ module Halo.FOL.Abstract
     , prim
     , litInteger
 
-    , isAtomic
-    , simpleCNF
     , splitFormula, splitFormulae
 
     , (===), (=/=)
@@ -41,8 +39,13 @@ module Halo.FOL.Abstract
     , Clause
     , clause
     , comment
-    , namedClause
+    , numberedClause
     , clauseSplit
+    , TyThing(..)
+    , typeSig
+    , typeSig'
+    , sortSig
+    , totalSig
 
     , axiom, lemma, hypothesis, definition
     , conjecture, negatedConjecture, question
@@ -51,7 +54,6 @@ module Halo.FOL.Abstract
     ) where
 
 import Var
-import Id
 
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Operations
@@ -76,13 +78,25 @@ comment :: String -> Clause q v t
 comment = Comment
 
 clause :: ClType -> Formula q v t -> Clause q v t
-clause = Clause "x"
+clause = Clause Nothing
 
-namedClause :: String -> ClType -> Formula q v t -> Clause q v t
-namedClause = Clause
+numberedClause :: Int -> ClType -> Formula q v t -> Clause q v t
+numberedClause = Clause . Just
 
 clauseSplit :: ClType -> Formula q v t -> [Clause q v t]
 clauseSplit cl_type = map (clause cl_type) . splitFormula
+
+typeSig :: TyThing v t -> [t] -> t -> Clause q v t
+typeSig = TypeSig
+
+typeSig' :: TyThing v (MonoType t) -> MonoType t -> Clause q v (MonoType t)
+typeSig' x = uncurry (TypeSig x) . splitType
+
+sortSig :: t -> Clause q v t
+sortSig = SortSig
+
+totalSig :: t -> Clause q v t
+totalSig = TotalSig
 
 -- | Figure out if this var is one of the primitive constants, or if
 --   it is a data constructor or a function, and make a term accordingly.
@@ -224,30 +238,6 @@ foralls get_type f = do
 total :: t -> Term q v t -> Formula q v t
 total = Total
 
-type Atomic q v t = Formula q v t
-
-isAtomic :: Formula q v t -> Bool
-isAtomic f = case f of
-    Equal{}     -> True
-    Unequal{}   -> True
-    Or{}        -> False
-    And{}       -> False
-    Implies{}   -> False
-    Equiv{}     -> False
-    (Neg Neg{}) -> False
-    (Neg x)     -> isAtomic x
-    Forall{}    -> False
-    Exists{}    -> False
-    Total{}     -> True
-
--- | Can this formula be written simply in CNF?
-simpleCNF :: Formula q v t -> Maybe [Atomic q v t]
-simpleCNF (Forall _ f)              = simpleCNF f
-simpleCNF (Implies f1 f2)           = simpleCNF (neg f1 \/ f2)
-simpleCNF (Or fs) | all isAtomic fs = Just fs
-simpleCNF f       | isAtomic f      = Just [f]
-simpleCNF _                         = Nothing
-
 -- | Split the conjuncts of a formula over many formulae,
 --   distributing any foralls over them
 splitFormula :: Formula q v t -> [Formula q v t]
@@ -262,23 +252,23 @@ splitFormulae = concatMap splitFormula
 
 -- Clause types
 
-axiom :: ClType
-axiom = Axiom
-
 lemma :: ClType
 lemma = Lemma
 
-hypothesis :: ClType
-hypothesis = Hypothesis
+axiom :: Formula q v t -> Clause q v t
+axiom = clause Axiom
 
-definition :: ClType
-definition = Definition
+hypothesis :: Formula q v t -> Clause q v t
+hypothesis = clause Hypothesis
 
-conjecture :: ClType
-conjecture = Conjecture
+definition :: Formula q v t -> Clause q v t
+definition = clause Definition
 
-negatedConjecture :: ClType
-negatedConjecture = NegatedConjecture
+conjecture :: Formula q v t -> Clause q v t
+conjecture = clause Conjecture
+
+negatedConjecture :: Formula q v t -> Clause q v t
+negatedConjecture = clause NegatedConjecture
 
 question :: ClType
 question = Question
@@ -286,8 +276,8 @@ question = Question
 -- Making many clauses
 
 axioms :: [Formula q v t] -> [Clause q v t]
-axioms = map (clause axiom)
+axioms = map axiom
 
 definitions :: [Formula q v t] -> [Clause q v t]
-definitions = map (clause definition)
+definitions = map definition
 

@@ -16,7 +16,6 @@ import Halo.Util
 import Halo.Shared
 import Halo.MonoType
 
-
 import Control.Monad.Reader
 
 import MkCore (mkImpossibleExpr)
@@ -54,7 +53,7 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
 
         forM (zip obligs' [0..]) $ \ (oblig,n) ->  do
 
-            (commentary,fs) <- lift $ trObligation prop (dropHyps oblig)
+            cls <- lift $ trObligation prop (dropHyps oblig)
 
             return $ Leaf $ Obligation
                 { ob_prop = prop
@@ -64,10 +63,9 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
                     , ind_nums      = n_obligs
                     }
                 , ob_content = calculateDeps subtheory
-                    { provides    = Specific Conjecture
-                    , depends     = propDeps
-                    , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
-                    , formulae    = fs
+                    { provides = Specific Conjecture
+                    , depends  = propDeps
+                    , clauses  = comment ("Conjecture for " ++ propName) : cls
                     }
                 }
 
@@ -79,7 +77,7 @@ makeVar (v :~ _) = do
     return (setVarUnique v u)
 
 trObligation :: Property eq -> IS.Obligation (Either DataCon Bottom) Var Type
-             -> HaloM (String,[Formula'])
+             -> HaloM [Clause']
 trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
 
     sks <- sequence [ (,) s <$> monoType t | (s,t) <- skolems ]
@@ -90,11 +88,12 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
 
         tr_concl <- splitFormula <$> trPred Concl concl
 
-        return
-            ("Proof by structural induction\n" ++
-                render (linObligation ghcStyle obligation)
-            ,tr_concl ++ tr_hyps
-            )
+        return $
+            comment "Proof by structural induction" :
+            comment (render (linObligation ghcStyle obligation)) :
+            map (uncurry (typeSig' . ASkolem)) sks ++
+            map negatedConjecture tr_concl ++
+            map hypothesis tr_hyps
 
   where
 

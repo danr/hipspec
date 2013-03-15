@@ -58,13 +58,15 @@ import qualified Data.Set as S
 import Data.Set (Set)
 import Data.List
 
+import Data.Void
+
 -- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it,
 --   also returns the BindParts for every defined function
-trBinds :: (Ord s,Show s) => [CoreBind] -> HaloM [Subtheory s]
+trBinds :: [CoreBind] -> HaloM [Subtheory Void]
 trBinds = concatMapM trBind
 
 -- | Translates the function(s) and the pointer axiom(s)
-trBind :: (Ord s,Show s) => CoreBind -> HaloM [Subtheory s]
+trBind :: CoreBind -> HaloM [Subtheory Void]
 trBind bind = catch_err $ do
 
     let vses = flattenBinds [bind]
@@ -80,22 +82,22 @@ trBind bind = catch_err $ do
 -- | We chop up a bind to several bind parts to be able to split
 --   goals later to several invocations to theorem provers
 --   (currently unused)
-data BindPart s = BindPart
+data BindPart = BindPart
     { bind_fun     :: Var
     , bind_args    :: [CoreExpr]
     , bind_rhs     :: Either CoreExpr Term'
     , bind_qvars   :: [Var]
     , bind_constrs :: [Constraint]
-    , bind_deps    :: [Content s]
+    , bind_deps    :: [Content Void]
     }
 
 -- | Many bind parts
-type BindParts s = [BindPart s]
+type BindParts = [BindPart]
 
 -- | A map from variables to bind parts
-type BindMap s = Map Var (BindParts s)
+type BindMap = Map Var BindParts
 
-bindPartEither :: Ord s => Either CoreExpr Term' -> HaloM (BindPart s)
+bindPartEither :: Either CoreExpr Term' -> HaloM BindPart
 bindPartEither rhs = do
     HaloEnv{current_fun,args,constr,qvars} <- ask
     let bind_part = BindPart
@@ -108,15 +110,15 @@ bindPartEither rhs = do
             }
     return bind_part
 
-bindPart :: Ord s => CoreExpr -> HaloM (BindPart s)
+bindPart :: CoreExpr -> HaloM BindPart
 bindPart = bindPartEither . Left
 
-bindPartTerm :: Ord s => Term' -> HaloM (BindPart s)
+bindPartTerm :: Term' -> HaloM BindPart
 bindPartTerm = bindPartEither . Right
 
 -- | Translate a bind part to formulae. Does not capture used pointers,
 --   doesn't look at min set of binds.
-trBindPart :: BindPart s -> HaloM Formula'
+trBindPart :: BindPart -> HaloM Formula'
 trBindPart BindPart{..} = local (addQuantVars bind_qvars) $ do
     tr_constr <- trConstraints bind_constrs
     lhs <- apply bind_fun <$> mapM trExpr bind_args
@@ -126,10 +128,10 @@ trBindPart BindPart{..} = local (addQuantVars bind_qvars) $ do
     foralls varMonoType (tr_constr ===> lhs === rhs)
 
 -- | Make a subtheory for bind parts that regard the same function
-trBindParts :: Ord s => Var -> CoreExpr -> BindParts s -> HaloM (Subtheory s)
+trBindParts :: Var -> CoreExpr -> BindParts -> HaloM (Subtheory Void)
 trBindParts f e parts = do
 
-    tr_formulae <- mapM trBindPart parts
+    formulae <- mapM trBindPart parts
 
     -- We get this information from the bind_deps, in case
     -- we filter away a branch with conflicting constraints
@@ -138,23 +140,23 @@ trBindParts f e parts = do
     monotype <- varMonoType f
 
     return $ calculateDeps subtheory
-        { provides     = Function f
-        , depends      = deps
-        , description  = idToStr f ++ " = " ++ showExpr e
-                     ++ "\nDependencies: " ++ unwords (map baseContentShow deps)
-        , formulae     = tr_formulae
-        , typedecls    = [(f,monotype)]
+        { provides = Function f
+        , depends  = deps
+        , clauses  =
+            comment (showOutputable f ++ " = " ++ showOutputable e) :
+            typeSig' (AFun f) monotype :
+            definitions formulae
         }
 
 -- | Translate a Var / CoreExpr pair flattened from a CoreBind
-trVarCoreExpr :: (Ord s,Show s) => Var -> CoreExpr -> HaloM (Subtheory s,BindMap s)
+trVarCoreExpr :: Var -> CoreExpr -> HaloM (Subtheory Void,BindMap)
 trVarCoreExpr f e = do
     bind_parts <- trDecl f e
     subthy <- trBindParts f e bind_parts
     return (subthy,M.singleton f bind_parts)
 
 -- | Translate a CoreDecl to bind parts
-trDecl :: Ord s => Var -> CoreExpr -> HaloM (BindParts s)
+trDecl :: Var -> CoreExpr -> HaloM BindParts
 trDecl f e = do
     let as :: [Var]
         e' :: CoreExpr
@@ -179,7 +181,7 @@ trDecl f e = do
     filterM hasConflict bind_parts
 
 -- | Translate a case expression
-trCase :: Ord s => CoreExpr -> HaloM (BindParts s)
+trCase :: CoreExpr -> HaloM BindParts
 trCase e@(Case scrutinee scrut_var ty alts_unsubst)
 
     -- First, check if we are casing on a constructor already!
@@ -280,7 +282,7 @@ invertAlt scrut_exp (cons,_,_) = case cons of
     DEFAULT  -> throwError "invertAlt: on DEFAULT, internal error"
 
 -- | Translate a case alternative
-trAlt :: Ord s => CoreExpr -> CoreAlt -> HaloM (BindParts s)
+trAlt :: CoreExpr -> CoreAlt -> HaloM BindParts
 trAlt scrut_exp (cons,bound,e) = do
 
     (subst_expr,equality_constraint) <- case cons of
@@ -332,12 +334,12 @@ trConstr (LitEquality e i)   = (litInteger i ===) <$> trExpr e
 trConstr (LitInequality e i) = (litInteger i =/=) <$> trExpr e
 
 -- | Non-pointer dependencies of an expression
-exprDeps :: Ord s => CoreExpr -> Set (Content s)
+exprDeps :: CoreExpr -> Set (Content Void)
 exprDeps = S.fromList
          . ((++) <$> (map Function . exprFVs) <*> (map Data . freeTyCons))
 
 -- | Non-pointer dependencies of a constraint
-constraintDeps :: Ord s => Constraint -> Set (Content s)
+constraintDeps :: Constraint -> Set (Content Void)
 constraintDeps c = case c of
     Equality e dc _es    -> S.insert (dcContent dc) (exprDeps e)
     Inequality e dc      -> S.insert (dcContent dc) (exprDeps e)
@@ -348,7 +350,7 @@ constraintDeps c = case c of
     dcContent = Data . dataConTyCon
 
 -- | Calculates the non-pointer dependencies of a bind part
-bindPartDeps :: Ord s => BindPart s -> [Content s]
+bindPartDeps :: BindPart -> [Content Void]
 bindPartDeps BindPart{..}
     = S.toList $ S.delete (Function bind_fun) (free S.\\ bound)
   where

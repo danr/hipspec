@@ -164,6 +164,7 @@ trProperty (NonRec prop_name e) = do
         , propOrigin     = UserStated
         , propDeps       = map Function (nub $ concatMap free (lit:assume))
                         ++ map Data (concatMap varTypeTyCons vars)
+                        ++ map Data (typeTyCons (get_type lit))
         , propOffsprings = return []
         , propOops       = oops
         }

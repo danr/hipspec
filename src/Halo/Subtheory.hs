@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 {-
 
     A subtheory is something from Haskell that can be translated to
@@ -49,9 +49,11 @@ data Content s
     -- ^ A definition of a function
     | Pointer Var
     -- ^ The pointer to a function definition or constructor
+    | AppThy MonoType'
+    -- ^ App used on this type
     | Specific s
     -- ^ User specific content
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Functor)
 
 mapFunctionContent :: (Var -> Var) -> Content s -> Content s
 mapFunctionContent f (Function v) = Function (f v)
@@ -71,6 +73,7 @@ baseContentShow c = case c of
     Function v          -> "(Function " ++ showOutputable v ++ ")"
     Pointer v           -> "(Pointer " ++ showOutputable v ++ ")"
     Data tc             -> "(Data " ++ showOutputable tc ++ ")"
+    AppThy _t           -> "(AppThy " ++ "..." ++ ")"
     Specific _          -> "(Unknow Specific)"
 
 instance Show s => Show (Content s) where
@@ -92,17 +95,14 @@ data Subtheory s = Subtheory
     -- ^ Content defined
     , depends      :: [Content s]
     -- ^ Content depending upon
-    , description  :: String
-    -- ^ Commentary
-    , formulae     :: [Formula']
+    , clauses      :: [Clause']
     -- ^ Formulae in this subtheory
-    , typedecls    :: [(Var,MonoType')]
-    -- ^ Type declarations from this subtheory
-    , datadecls    :: [(TyCon,[Maybe (Var,[MonoType'])])]
-    -- ^ Data declarations from this subtheory (Nothing means bottom)
-    , sortdecls    :: [TyCon]
-    -- ^ Abstract sort declarations from this subtheory
+    , datadecls    :: [(TyCon,[(Var,[MonoType'])])]
+    -- ^ Data declarations from this subtheory.
+    --   This could be used in the SMT lineariser,
+    --   but that assumes finite types
     }
+  deriving Functor
 
 instance Eq s => Eq (Subtheory s) where
     (==) = (==) `on` provides
@@ -115,46 +115,39 @@ subtheory :: Subtheory s
 subtheory = Subtheory
     { provides    = error "subtheory: please fill in provides"
     , depends     = error "subtheory: please fill in depends"
-    , description = error "subtheory: please fill in description"
-    , formulae    = error "subtheory: please fill in formulae"
-    , typedecls   = []
+    , clauses     = error "subtheory: please fill in clauses"
     , datadecls   = []
-    , sortdecls   = []
     }
 
--- This can (and should) also calculate used apps
+-- Calculates app and pointer dependencies
 calculateDeps :: Subtheory s -> Subtheory s
 calculateDeps s@Subtheory{..} = s
-    { depends = depends ++ map (Pointer . fst) (concatMap ptrsUsed formulae) }
+    { depends = depends ++ map (Pointer . fst) (ptrsUsed clauses)
+                        ++ map (AppThy) (appsUsed clauses)
+    }
 
 instance Show s => Show (Subtheory s) where
     show (Subtheory{..}) =
         "Subtheory\n  { content=" ++ show provides
               ++ "\n  , depends=" ++ show depends
-              ++ "\n  , description=" ++ description
-              ++ "\n  , formulae=\n" ++ unlines (map (sexpr 4 . linForm) formulae)
+              ++ "\n  , clauses=\n" ++ unlines (map (sexpr 4 . linClause) clauses)
               ++ "\n  }"
-
-class Clausifiable s where
-    mkClause :: s -> Formula' -> Clause'
-
-instance Clausifiable s => Clausifiable (Content s) where
-    mkClause (Specific s) = mkClause s
-    mkClause Function{}   = clause definition
-    mkClause _            = clause axiom
-
-toClauses :: Clausifiable s => Subtheory s -> [Clause']
-toClauses (Subtheory{..}) = commentary ++ map (mkClause provides) formulae
-  where
-    commentary
-        | description /= "" = [comment description]
-        | otherwise         = []
 
 mkDummySubtheory :: Content s -> Subtheory s
 mkDummySubtheory c = subtheory
     { provides    = c
     , depends     = []
-    , description = ""
-    , formulae    = []
+    , clauses     = []
     }
 
+mkAppThy :: MonoType' -> Subtheory s
+mkAppThy t@(TArr t1 t2) = subtheory
+    { provides = AppThy t
+    , depends  = []
+    , clauses  =
+        [ comment "AppTheory"
+        , sortSig t
+        , typeSig (AnApp t) [t1] t2
+        ]
+    }
+mkAppThy _ = error "mkAppThy on non-TArr"

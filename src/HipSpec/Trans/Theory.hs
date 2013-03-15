@@ -33,7 +33,7 @@ data HipSpecExtras
     | Conjecture
     -- ^ The conjecture
     {-
-    | AppBottomAxioms
+    | AppBottomAxioms MonoType'
     -- ^ App on bottom
     -- TODO : need to do one of these for every type apped on
     -}
@@ -57,10 +57,12 @@ mkTotalAxiom ty_con
 
         return $ calculateDeps subtheory
             { provides     = Specific (TotalThy ty_con)
-            , depends      = []
-            , description  = "Total for abstract newtype " ++ showOutputable ty_con
-            , formulae     = [frmla]
-            , sortdecls    = []
+            , depends      = [Data ty_con]
+            , clauses      =
+                [ comment $ "Total for abstract newtype " ++ showOutputable ty_con
+                , axiom frmla
+                , totalSig (TCon ty_con)
+                ]
             }
 
     | otherwise = do
@@ -85,9 +87,11 @@ mkTotalAxiom ty_con
 
         return $ calculateDeps subtheory
             { provides    = Specific (TotalThy ty_con)
-            , depends     = []
-            , description = "total " ++ showOutputable ty_con
-            , formulae    = f:fs
+            , depends     = [Data ty_con]
+            , clauses     =
+                [ comment $ "Totality for " ++ showOutputable ty_con
+                , totalSig (TCon ty_con)
+                ] ++ axioms (f:fs)
             }
 
 
@@ -114,10 +118,6 @@ instance Show HipSpecExtras where
     show (Lemma s)       = "(Lemma " ++ show s ++ ")"
     show (TotalThy tc)   = "(Total " ++ showOutputable tc ++ ")"
     show Conjecture      = "Conjecture"
-
-instance Clausifiable HipSpecExtras where
-    mkClause (Lemma n) = namedClause ("lemma_" ++ show n ++ "_") lemma
-    mkClause _         = clause axiom
 
 type HipSpecContent = Content HipSpecExtras
 

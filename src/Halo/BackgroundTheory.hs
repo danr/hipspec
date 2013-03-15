@@ -36,12 +36,16 @@ tyConSubtheory :: HaloConf -> TyCon -> Maybe [Subtheory s]
 tyConSubtheory HaloConf{use_bottom} ty_con
     | isNewTyCon ty_con = do
 
+        let t = TCon ty_con
+
         return $ [calculateDeps subtheory
             { provides     = Data ty_con
             , depends      = []
-            , description  = "Abstract newtype " ++ showOutputable ty_con
-            , formulae     = []
-            , sortdecls    = [ty_con]
+            , clauses      =
+                [ comment $ "Abstract newtype " ++ showOutputable ty_con
+                , sortSig t
+                ] ++
+                [ typeSig (ABottom t) [] t | use_bottom ]
             }]
 
     | otherwise = do
@@ -52,9 +56,27 @@ tyConSubtheory HaloConf{use_bottom} ty_con
             , let (k,arg_types) = dcIdArgTypes dc
             ]
 
-        let rm_mid (a,_,c) = (a,c)
+        let -- rm_mid (a,_,c) = (a,c)
 
             ty_con_monoty = TCon ty_con
+
+            ty_con_deps :: [TyCon]
+            ty_con_deps = nub $ concat
+                [ concatMap typeTyCons tys
+                | Just (_,tys,_) <- cons
+                ]
+
+            sigs :: [Clause']
+            sigs =
+                [ sortSig ty_con_monoty ] ++
+                concat
+                    [ typeSig (ACtor k) monotys ty_con_monoty :
+                      [ typeSig (AProj i k) [ty_con_monoty] monoty_i
+                      | (i,monoty_i) <- zip [0..] monotys
+                      ]
+                    | Just (k,_tys,monotys) <- cons
+                    ] ++
+                [ typeSig (ABottom ty_con_monoty) [] ty_con_monoty | use_bottom ]
 
             projections :: [Formula']
             projections =
@@ -103,15 +125,12 @@ tyConSubtheory HaloConf{use_bottom} ty_con
 
         return $ calculateDeps subtheory
             { provides     = Data ty_con
-            , depends      = []
-            , description  = showOutputable ty_con
-            , formulae     = domain : discrims ++ projections
-            , datadecls    = [(ty_con,map (fmap rm_mid) cons)]
+            , depends      = map Data ty_con_deps
+            , clauses      =
+                comment ("Background theory for " ++ showOutputable ty_con) :
+                sigs ++
+                axioms (domain : discrims ++ projections)
+            -- , datadecls    = [] -- [(ty_con,map (fmap rm_mid) cons)]
             }
             : pointer_subthys
-
-{-
-dummyAny :: Subtheory s
-dummyAny = mkDummySubtheory (Data anyTyCon)
--}
 

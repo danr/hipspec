@@ -17,10 +17,11 @@ translateLemma Property{..} lemma_num = local (addQuantVars (map fst propVars)) 
     assums <- mapM trLiteral propAssume
     tr_lem <- foralls varMonoType $ assums ===> tr_lit
     return $ calculateDeps subtheory
-        { provides    = Specific (Lemma lemma_num)
-        , depends     = propDeps
-        , description = "Lemma " ++ propRepr ++ " (" ++ show lemma_num ++ ")\n" ++
-                        "dependencies: " ++ show propDeps
-        , formulae    = [tr_lem]
+        { provides = Specific (Lemma lemma_num)
+        , depends  = propDeps
+        , clauses  =
+            [ comment $ "Lemma " ++ propRepr ++ " (" ++ show lemma_num ++ ")"
+            , numberedClause lemma_num lemma tr_lem
+            ]
         }
 

@@ -11,7 +11,7 @@ data MonoType t
     = TCon t -- only fully saturated type constructors for now
              -- (otherwise [MonoType t])
     | TArr (MonoType t) (MonoType t)
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Show)
 
 type MonoType' = MonoType TyCon
     -- use tyConName to get the name of a tyCon
