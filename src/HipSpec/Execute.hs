@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module HipSpec.Execute where
 
 import Test.QuickSpec.Signature
@@ -41,12 +40,7 @@ data ExecuteResult = ExecuteResult
 
 
 execute :: FilePath -> IO ExecuteResult
-execute file =
-#if __GLASGOW_HASKELL__ >= 706
-  defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
-#else
-  defaultErrorHandler defaultLogAction $ do
-#endif
+execute file = do
 
     -- Use -threaded
     addWay WayThreaded
