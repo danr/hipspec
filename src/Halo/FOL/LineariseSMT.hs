@@ -52,7 +52,7 @@ linSMT :: [Clause']
        -> String
 linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
     concatMap linSort (map TCon sort_sigs ++ ho_sorts) ++
-    [ data_sexp ] ++
+    concatMap (uncurry linDataSig) data_sigs ++
     map (uncurry linFunSig) fun_sigs ++
     map (uncurry linPtrSig) ptrs ++
     map (uncurry linSkolemSig) sks ++
@@ -64,8 +64,10 @@ linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
     sks = skolemsUsed cls
     ptrs = nubSorted $ concatMap ptrsUsed cls
 
+    {-
     data_sexp = apply "declare-datatypes"
         [ List [] , List (map (uncurry linDataSig) data_sigs) ]
+        -}
 
     ho_sorts = nubSorted $ filter arrowMonoType $
         concatMap (typeArgs . snd) fun_sigs ++
@@ -80,7 +82,22 @@ linSort t =
     , linSig (bottom t) [] t
     ]
 
--- declare datatypes
+linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> [SExpr]
+linDataSig tc cons =
+    [ apply "declare-sort" [Atom (tcon tc)] ] ++
+    concatMap linMaybeCon cons
+  where
+    linMaybeCon :: Maybe (Var,[MonoType']) -> [SExpr]
+    linMaybeCon Nothing       = [linSig (bottom (TCon tc)) [] (TCon tc)]
+    linMaybeCon (Just (v,ts)) = linCon v ts
+
+    linCon :: Var -> [MonoType'] -> [SExpr]
+    linCon v ts =
+        [ linSig (con v) ts (TCon tc) ] ++
+        [ linSig (proj i v) [TCon tc] t | (i,t) <- zip [0..] ts ]
+
+{-
+-- declare datatypes, SMT way
 linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
 linDataSig tc cons = apply (tcon tc) (map (linMaybeCon tc) cons)
 
@@ -94,6 +111,7 @@ linCon v ts = List $
     Atom (con v) :
     [ List [Atom (proj i v),Atom (monotype t)]
     | (i,t) <- zip [0..] ts ]
+    -}
 
 
 -- signatures

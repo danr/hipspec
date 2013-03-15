@@ -13,6 +13,10 @@ data List = A ::: List | Nil
 id :: A -> A
 id x = x
 
+ind :: List -> List
+ind Nil      = Nil
+ind (x:::xs) = x ::: ind xs
+
 (x:::xs) ++ ys = x:::(xs ++ ys)
 Nil      ++ ys = ys
 
@@ -34,6 +38,7 @@ sig = signature
     , blind0 "id" id
     , "Nil"     `fun0` Nil
     , ":::"     `fun2` (:::)
+    , "ind"     `fun1` ind
     , "++"      `fun2` (++)
     , "iterate" `fun2` iterate
     , "repeat"  `fun1` repeat
