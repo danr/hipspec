@@ -63,7 +63,7 @@ main = runHS $ do
 
                 void $ runMainLoop
                         ctx_init
-                        (map vacuous user_props ++ qsconjs ++ map vacuous tot_conjs)
+                        (qsconjs ++ map vacuous user_props ++ map vacuous tot_conjs)
                         (map vacuous tot_thms)
 
             else do
@@ -75,7 +75,7 @@ main = runHS $ do
 
                 (ctx_with_def,ctx_final) <-
                     runMainLoop ctx_init
-                                (map vacuous user_props ++ qsconjs)
+                                (qsconjs ++ map vacuous user_props)
                                 []
 
                 when explore_theory $ do
