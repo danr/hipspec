@@ -70,19 +70,19 @@ template = Prover
     , proverTheoryType    = TPTP
     }
 
-proven,failure :: Bool
-proven  = True
-failure = False
+proven,failure :: Maybe Bool
+proven  = Just True
+failure = Just False
 
 -- Should really use something more efficient than isInfixOf
-searchOutput :: [(String,Bool)] -> String -> Maybe Bool
+searchOutput :: [(String,Maybe Bool)] -> String -> Maybe Bool
 searchOutput []         _      = Nothing
 searchOutput ((s,r):xs) output
-    | s `isInfixOf` output = Just r
+    | s `isInfixOf` output = r
     | otherwise            = searchOutput xs output
 
 
-statusSZS :: [(String,Bool)]
+statusSZS :: [(String,Maybe Bool)]
 statusSZS =
     [("Theorem",proven)
     ,("Unsatisfiable",proven)
@@ -102,7 +102,7 @@ allProvers =
     , spass
     , vampire
     , z3smt
-    , z3tptp
+    , z3unsatCores
     ]
 
 proversFromString :: String -> [Prover]
@@ -142,14 +142,14 @@ eproof = template
     , proverCannotStdin   = True
     }
 
-z3tptp :: Prover
-z3tptp = template
+z3unsatCores :: Prover
+z3unsatCores = template
     { proverName          = Z3UnsatCores
     , proverCmd           = "z3"
     , proverArgs          = \ _ _ -> words "-smt2 -nw /dev/stdin"
     , proverShort         = 'Z'
     , proverTheoryType    = SMTUnsatCore
-    , proverProcessOutput = searchOutput [("unsat",proven),("sat",failure)]
+    , proverProcessOutput = searchOutput [("error",Nothing),("unsat",proven),("sat",failure)]
     , proverParseLemmas   = Just lemmaParser
     }
 
@@ -160,7 +160,7 @@ z3smt = template
     , proverArgs          = \ _ _ -> words $ "-smt2 -nw /dev/stdin"
     , proverShort         = 'z'
     , proverTheoryType    = SMT
-    , proverProcessOutput = searchOutput [("unsat",proven),("sat",failure)]
+    , proverProcessOutput = searchOutput [("error",Nothing),("unsat",proven),("sat",failure)]
     }
 
 paradox :: Prover
