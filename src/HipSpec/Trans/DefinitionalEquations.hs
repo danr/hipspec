@@ -122,7 +122,7 @@ tryMatchTypes str_marsh sig =
     trace (concatMap type_repr types_init) $
     \ qs_init ->
        let res = fmap (flip M.lookup) res_map
-           res_map = (go qs_init types_init)
+           res_map = go qs_init types_init
        in  trace ("tryMatchTypes: " ++ showOutputable qs_init ++ " = "
                     ++ show (fmap (map snd . M.toList) res_map)) res
 

@@ -39,8 +39,8 @@ trim grand_theory =
         (g,fromVertex,toVertex) = graphFromEdges gr
 
         err :: Content s -> Vertex
-        err subthy = error $ "Halo.Trim.trim: Trying to find dependencies of "
-                            ++ show subthy ++ " which could not be found!"
+        err content = error $ "Halo.Trim.trim: Trying to find dependencies of "
+                            ++ show content ++ " which could not be found!"
 
         findVertex :: Content s -> Vertex
         findVertex v = fromMaybe (err v) (toVertex v)
@@ -48,8 +48,9 @@ trim grand_theory =
         get_subtheory :: (Subtheory s,Content s,[Content s]) -> Subtheory s
         get_subtheory (s,_,_) = s
 
-    in  \important ->
+    in  \ important ->
             let forest :: Forest Vertex
                 forest = dfs g (map findVertex important)
 
             in  sort $ map (get_subtheory . fromVertex) (concatMap flatten forest)
+

@@ -13,7 +13,6 @@
 -}
 module HipSpec.Trans.Types (tyEnv,Bottom(..)) where
 
-import Halo.Shared
 import Halo.Util
 
 import Induction.Structural
@@ -64,7 +63,7 @@ instDataCon dc args =
        inst_args = dataConInstArgTys dc args
 
        calc_Arg :: Type -> Arg Type
-       calc_Arg (repType' -> ty)
+       calc_Arg ty -- used to be a repType here but we cannot look through newtypes now!
            | Just (ty_con,_) <- splitTyConApp_maybe ty
            , ty_con == parent_ty_con = Rec ty
 

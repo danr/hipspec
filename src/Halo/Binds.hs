@@ -341,8 +341,8 @@ constraintDeps :: Ord s => Constraint -> Set (Content s)
 constraintDeps c = case c of
     Equality e dc _es    -> S.insert (dcContent dc) (exprDeps e)
     Inequality e dc      -> S.insert (dcContent dc) (exprDeps e)
-    LitEquality e _      -> (exprDeps e)
-    LitInequality e _    -> (exprDeps e)
+    LitEquality e _      -> exprDeps e
+    LitInequality e _    -> exprDeps e
   where
     dcContent :: DataCon -> Content s
     dcContent = Data . dataConTyCon

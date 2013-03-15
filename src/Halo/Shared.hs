@@ -224,7 +224,9 @@ typeTyCons :: Type -> [TyCon]
 typeTyCons = nub . go where
     -- repType' looks through foralls,
     -- synonyms, predicates and newtypes
-    go (repType' -> t)
+    -- used to be used, but we cannot do this!
+    -- cannot look through newtypes!
+    go t -- (repType' -> t)
         | Just (t1,t2) <- splitFunTy_maybe t = go t1 ++ go t2
         | Just (ty_con,ts) <- splitTyConApp_maybe t = ty_con:concatMap go ts
         | Just (t1,t2) <- splitAppTy_maybe t = go t1 ++ go t2
