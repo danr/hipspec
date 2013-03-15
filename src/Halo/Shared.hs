@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, CPP #-}
+{-# LANGUAGE PatternGuards, CPP, ViewPatterns #-}
 {-
 
     Shared functions operating on GHC
@@ -10,7 +10,6 @@ import CoreFVs
 import CoreSubst
 import CoreSyn
 import DataCon
-import DynFlags
 import Id
 import MkCore (errorIds)
 import Name hiding (varName)
@@ -18,16 +17,19 @@ import Outputable
 import PprCore
 import PrelNames
 import TyCon
+import Type (Type, repType,
+    splitTyConApp_maybe, splitAppTy_maybe, splitFunTy_maybe)
 #if __GLASGOW_HASKELL__ >= 706
-import Type (Type, repType, flattenRepType)
-#else
-import Type (Type, repType)
+import Type (flattenRepType)
+import DynFlags (tracingDynFlags)
 #endif
 import UniqSet
 import Var
 
 import qualified Data.Map as M
 import Data.Maybe
+
+import Data.List
 
 -- | Drop in replacement for repType
 repType' :: Type -> Type
@@ -216,3 +218,18 @@ cheapExprEq (Lam x e1)  (Lam y e2)    = x == y && cheapExprEq e1 e2
 cheapExprEq (App e1 e2) (App e1' e2')
     = cheapExprEq e1 e2 && cheapExprEq e1' e2'
 cheapExprEq _ _ = False
+
+
+typeTyCons :: Type -> [TyCon]
+typeTyCons = nub . go where
+    -- repType' looks through foralls,
+    -- synonyms, predicates and newtypes
+    go (repType' -> t)
+        | Just (ty_con,ts) <- splitTyConApp_maybe t = ty_con:concatMap go ts
+        | Just (t1,t2) <- splitAppTy_maybe t = go t1 ++ go t2
+        | Just (t1,t2) <- splitFunTy_maybe t = go t1 ++ go t2
+        | otherwise = []
+
+varTypeTyCons :: Var -> [TyCon]
+varTypeTyCons = typeTyCons . varType
+

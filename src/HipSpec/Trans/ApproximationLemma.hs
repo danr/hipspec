@@ -11,7 +11,6 @@ import Control.Concurrent.STM.Promise.Tree
 import Halo.FOL.Abstract hiding (Term)
 import Halo.Binds
 import Halo.Util
-import Halo.Subtheory
 import Halo.MonoType
 import Halo.Monad
 
@@ -63,7 +62,7 @@ approximate prop@Property{..} = do
             , ob_info = ApproxLemma
             , ob_content = subtheory
                 { provides    = Specific Conjecture
-                , depends     = deps ++ map Function propFunDeps
+                , depends     = deps ++ propDeps
                 , description = "Approximation conjecture for " ++ propName
                 , formulae    = fs
                 , typedecls   = zip [approx,rec] (repeat monoty)

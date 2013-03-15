@@ -7,8 +7,6 @@ import HipSpec.Trans.Property as Prop
 
 import Halo.FOL.Abstract hiding (Term)
 import Halo.Monad
-import Halo.Shared
-import Halo.Subtheory
 import Halo.MonoType
 
 import Control.Monad.Reader
@@ -20,9 +18,9 @@ translateLemma Property{..} lemma_num = local (addQuantVars (map fst propVars)) 
     tr_lem <- foralls varMonoType $ assums ===> tr_lit
     return $ subtheory
         { provides    = Specific (Lemma lemma_num)
-        , depends     = map Function propFunDeps
+        , depends     = propDeps
         , description = "Lemma " ++ propRepr ++ " (" ++ show lemma_num ++ ")\n" ++
-                        "dependencies: " ++ unwords (map idToStr propFunDeps)
+                        "dependencies: " ++ show propDeps
         , formulae    = [tr_lem]
         }
 

@@ -14,7 +14,6 @@ import Halo.FOL.Abstract hiding (Term)
 import Halo.Monad
 import Halo.Util
 import Halo.Shared
-import Halo.Subtheory
 import Halo.MonoType
 
 
@@ -66,7 +65,7 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
                     }
                 , ob_content = subtheory
                     { provides    = Specific Conjecture
-                    , depends     = map Function propFunDeps
+                    , depends     = propDeps
                     , description = "Conjecture for " ++ propName ++ "\n" ++ commentary
                     , formulae    = fs
                     }

@@ -22,6 +22,7 @@ import Halo.Util
 
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
+import HipSpec.Trans.Theory
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -103,7 +104,8 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
         , propVarRepr    = map (show . fst) var_rename
         , propOrigin     = Equation (partials :\/: t1 :=: t2)
         , propOffsprings = return []
-        , propFunDeps    = fundeps
+        , propDeps       = map Function fundeps ++
+                           map Data (concatMap (typeTyCons . snd) prop_vars)
         , propOops       = False
         }
       where
@@ -145,7 +147,8 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     , propVarRepr    = map (show . fst) var_rename
     , propOrigin     = Equation eq
     , propOffsprings = return []
-    , propFunDeps    = fundeps
+    , propDeps       = map Function fundeps ++
+                       map Data (concatMap (typeTyCons . snd) prop_vars)
     , propOops       = False
     }
   where

@@ -14,6 +14,7 @@ module HipSpec.Trans.Property
     ) where
 
 import HipSpec.Trans.SrcRep
+import HipSpec.Trans.Theory
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal)
 
@@ -77,7 +78,7 @@ data Property eq = Property
     , propVarRepr    :: [String]
     , propOrigin     :: Origin eq
     , propOffsprings :: IO [Property eq]
-    , propFunDeps    :: [Var]
+    , propDeps       :: [HipSpecContent]
     , propOops       :: Bool
     -- ^ It's an error if this property was provable
     }
@@ -104,7 +105,7 @@ instance Show (Property eq) where
         ,", propType = ", showOutputable propType
         ,", propName = ", show propName
         ,", propRepr = ", show propRepr
-        ,", propFunDeps = ", showOutputable propFunDeps
+        ,", propDeps = ", show propDeps
         ,", propOops = ", show propOops
         ,"}"
         ]
@@ -120,7 +121,7 @@ inconsistentProperty = Property
     , propVarRepr    = []
     , propOrigin     = Builtin
     , propOffsprings = return []
-    , propFunDeps    = []
+    , propDeps       = [Data boolTyCon]
     , propOops       = True
     }
 
@@ -161,7 +162,8 @@ trProperty (NonRec prop_name e) = do
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
         , propOrigin     = UserStated
-        , propFunDeps    = nub $ concatMap free (lit:assume)
+        , propDeps       = map Function (nub $ concatMap free (lit:assume))
+                        ++ map Data (concatMap varTypeTyCons vars)
         , propOffsprings = return []
         , propOops       = oops
         }
@@ -188,7 +190,7 @@ totalityProperty v t = case t of
             , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
             , propOrigin     = Totality t
-            , propFunDeps    = [v]
+            , propDeps       = [Function v] ++ map Data (concatMap varTypeTyCons args)
             , propOffsprings = return []
             , propOops       = False
             }

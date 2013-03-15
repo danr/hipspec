@@ -1,15 +1,17 @@
-{-# LANGUAGE TemplateHaskell, DeriveDataTypeable #-}
-module Main where
+{-# LANGUAGE DeriveDataTypeable #-}
+module Sanity where
 
 import HipSpec.Prelude
-import HipSpec
-import Prelude(Bool(..), IO, undefined, return, fmap, Eq, Ord)
+import Prelude(undefined, return, fmap, Eq, Ord)
+
+data Bool = True | False
+  deriving (Eq,Ord,Typeable)
 
 data MaybeBool = Just Bool | Nothing
   deriving (Eq,Ord,Typeable)
 
-test :: Bool -> Prop Bool
-test x = givenBool x (proveBool x)
+tt :: Bool -> Bool -> Prop Bool
+tt x y = x =:= True ==> y =:= True ==> x =:= y
 
 bool_refl :: Bool -> Prop Bool
 bool_refl x = x =:= x
@@ -33,7 +35,7 @@ test_and :: Bool -> Bool -> Prop Bool
 test_and x y = x && y =:= True ==> y && x =:= True
 
 consistency_0 :: Prop Bool
-consistency_0 =  (True =:= False)
+consistency_0 = (True =:= False)
 
 consistency_1 :: Bool -> Prop Bool
 consistency_1 x =  (x =:= False)
@@ -60,8 +62,8 @@ mand = liftM2 (&&)
 mor  = liftM2 (||)
 mnot = liftM not
 
-main :: IO ()
-main = hipSpec $(fileName)
+sig :: Sig
+sig = signature
     [ pvars ["a","b","c"]       (undefined :: Bool)
     , pvars ["ma","mb","mc"]    (undefined :: MaybeBool)
 
@@ -78,6 +80,12 @@ main = hipSpec $(fileName)
 
 --    , withTests 10
     ]
+
+instance Arbitrary Bool where
+    arbitrary = elements [True,False]
+
+instance Partial Bool where
+    unlifted = return
 
 instance Arbitrary MaybeBool where
     arbitrary = elements [Nothing,Just True,Just False]

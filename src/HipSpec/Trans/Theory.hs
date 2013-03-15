@@ -6,6 +6,7 @@ module HipSpec.Trans.Theory
     , HipSpecContent
     , HipSpecSubtheory
     , Theory(..)
+    , module Halo.Subtheory
     ) where
 
 import Control.Monad

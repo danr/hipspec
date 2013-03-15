@@ -17,7 +17,6 @@ import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
 import Halo.Monad
-import Halo.Subtheory
 import Halo.Trim
 import Halo.Util
 
