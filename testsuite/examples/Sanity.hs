@@ -2,10 +2,7 @@
 module Sanity where
 
 import HipSpec.Prelude
-import Prelude(undefined, return, fmap, Eq, Ord)
-
-data Bool = True | False
-  deriving (Eq,Ord,Typeable)
+import Prelude(Bool(..), undefined, return, fmap, Eq, Ord)
 
 data MaybeBool = Just Bool | Nothing
   deriving (Eq,Ord,Typeable)
@@ -80,12 +77,6 @@ sig = signature
 
 --    , withTests 10
     ]
-
-instance Arbitrary Bool where
-    arbitrary = elements [True,False]
-
-instance Partial Bool where
-    unlifted = return
 
 instance Arbitrary MaybeBool where
     arbitrary = elements [Nothing,Just True,Just False]
