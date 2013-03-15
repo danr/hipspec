@@ -133,11 +133,11 @@ trBindParts f e parts = do
 
     -- We get this information from the bind_deps, in case
     -- we filter away a branch with conflicting constraints
-    let deps = nub (concatMap bind_deps parts)
+    let deps = nub $ concatMap bind_deps parts
 
     monotype <- varMonoType f
 
-    return subtheory
+    return $ calculateDeps subtheory
         { provides     = Function f
         , depends      = deps
         , description  = idToStr f ++ " = " ++ showExpr e

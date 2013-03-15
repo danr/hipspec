@@ -60,7 +60,7 @@ approximate prop@Property{..} = do
         return $ Leaf $ Obligation
             { ob_prop = prop
             , ob_info = ApproxLemma
-            , ob_content = subtheory
+            , ob_content = calculateDeps subtheory
                 { provides    = Specific Conjecture
                 , depends     = deps ++ propDeps
                 , description = "Approximation conjecture for " ++ propName

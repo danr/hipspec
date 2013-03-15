@@ -63,7 +63,7 @@ induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
                     , ind_num       = n
                     , ind_nums      = n_obligs
                     }
-                , ob_content = subtheory
+                , ob_content = calculateDeps subtheory
                     { provides    = Specific Conjecture
                     , depends     = propDeps
                     , description = "Conjecture for " ++ propName ++ "\n" ++ commentary

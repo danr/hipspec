@@ -54,7 +54,7 @@ mkTotalAxiom ty_con
 
         frmla <- foralls varMonoType $ total (TCon ty_con) (qvar x)
 
-        return $ subtheory
+        return $ calculateDeps subtheory
             { provides     = Specific (TotalThy ty_con)
             , depends      = []
             , description  = "Total for abstract newtype " ++ showOutputable ty_con
@@ -82,7 +82,7 @@ mkTotalAxiom ty_con
 
         let f = neg (total (TCon ty_con) (bottom (TCon ty_con)))
 
-        return $ subtheory
+        return $ calculateDeps subtheory
             { provides    = Specific (TotalThy ty_con)
             , depends     = []
             , description = "total " ++ showOutputable ty_con

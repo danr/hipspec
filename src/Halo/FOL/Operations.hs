@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 module Halo.FOL.Operations where
 
 import Halo.FOL.Internals.Internals
@@ -128,7 +128,7 @@ rewriteBi f = transformBi g
 primsUsed :: forall q v t . Ord v => Clause q v t -> Set Prim
 primsUsed cl = S.fromList [ p | Prim p _ :: Term q v t <- universeBi cl ]
 
-ptrsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]
+ptrsUsed :: forall s q v t . (UniverseBi (s q v t) (Term q v t),Ord v,Ord t) => s q v t -> [(v,t)]
 ptrsUsed cl = nubSorted [ (p,t) | Ptr p t :: Term q v t <- universeBi cl ]
 
 skolemsUsed :: forall q v t . (Ord v,Ord t) => [Clause q v t] -> [(v,t)]

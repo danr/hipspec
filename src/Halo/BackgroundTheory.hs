@@ -36,7 +36,7 @@ tyConSubtheory :: HaloConf -> TyCon -> Maybe [Subtheory s]
 tyConSubtheory HaloConf{use_bottom} ty_con
     | isNewTyCon ty_con = do
 
-        return $ [subtheory
+        return $ [calculateDeps subtheory
             { provides     = Data ty_con
             , depends      = []
             , description  = "Abstract newtype " ++ showOutputable ty_con
@@ -101,7 +101,7 @@ tyConSubtheory HaloConf{use_bottom} ty_con
             , length tys > 0
             ]
 
-        return $ subtheory
+        return $ calculateDeps subtheory
             { provides     = Data ty_con
             , depends      = []
             , description  = showOutputable ty_con

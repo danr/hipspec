@@ -42,3 +42,7 @@ resType t           = t
 splitType :: MonoType t -> ([MonoType t],MonoType t)
 splitType t = (typeArgs t,resType t)
 
+arrowMonoType :: MonoType t -> Bool
+arrowMonoType TArr{} = True
+arrowMonoType _      = False
+

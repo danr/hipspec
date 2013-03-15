@@ -65,6 +65,7 @@ instDataCon dc args =
        calc_Arg :: Type -> Arg Type
        calc_Arg ty -- used to be a repType here but we cannot look through newtypes now!
            | Just (ty_con,_) <- splitTyConApp_maybe ty
+           , not (isNewTyCon ty_con) -- newtypes are abstract: cannot induct over them
            , ty_con == parent_ty_con = Rec ty
 
            | isFunTy ty              = Exp ty (fst (splitFunTys ty))

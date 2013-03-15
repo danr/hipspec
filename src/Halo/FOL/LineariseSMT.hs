@@ -11,6 +11,7 @@ import Halo.Shared
 import Halo.FOL.Internals.Internals
 import Halo.FOL.Abstract (Clause',Formula',Term',neg)
 import Halo.FOL.Operations
+import Halo.Util
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -50,22 +51,31 @@ linSMT :: [Clause']
        -- ^ sort declarations
        -> String
 linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
-    map linSort sort_sigs ++
+    map linSort (map TCon sort_sigs ++ ho_sorts) ++
     [ data_sexp ] ++
     map (uncurry linFunSig) fun_sigs ++
-    map (uncurry linPtrSig) (ptrsUsed cls) ++
-    map (uncurry linSkolemSig) (skolemsUsed cls) ++
+    map (uncurry linPtrSig) ptrs ++
+    map (uncurry linSkolemSig) sks ++
     map linTotalSig (totalsUsed cls) ++
     map linAppSig (appsUsed cls) ++
     map linClause cls ++
     [ apply "check-sat" [] ]
   where
+    sks = skolemsUsed cls
+    ptrs = nubSorted $ concatMap ptrsUsed cls
+
     data_sexp = apply "declare-datatypes"
         [ List [] , List (map (uncurry linDataSig) data_sigs) ]
 
+    ho_sorts = nubSorted $ filter arrowMonoType $
+        concatMap (typeArgs . snd) fun_sigs ++
+        map snd sks ++
+        concatMap (typeArgs . snd) ptrs ++
+        [ t  | (_,cs) <- data_sigs , Just (_,ts) <- cs , t <- ts ]
+
 -- sorts
-linSort :: TyCon -> SExpr
-linSort tc = apply "declare-sort" [Atom (tcon tc)]
+linSort :: MonoType' -> SExpr
+linSort t = apply "declare-sort" [Atom (monotype t)]
 
 -- declare datatypes
 linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
@@ -102,7 +112,7 @@ linSkolemSig :: Var -> MonoType' -> SExpr
 linSkolemSig v = linSig (skolem v) []
 
 linAppSig :: MonoType' -> SExpr
-linAppSig t@(TArr t1 t2) = linSig (app t) [t1] t2
+linAppSig t@(TArr t1 t2) = linSig (app t) [t,t1] t2
 linAppSig _              = error "LineariseSMT: linAppSig on TCon"
 
 linTotalSig :: MonoType' -> SExpr
@@ -164,7 +174,7 @@ monotype (TCon tc)    = tcon tc
 monotype (TArr t1 t2) = "from_" ++ monotype t1 ++ "_to_" ++ monotype t2
 
 showVar :: Var -> String
-showVar v = (++ "_" ++ show (varUnique v)) . escape . idToStr $ v
+showVar v = (\ s -> show (varUnique v) ++ "_" ++ s) . escape . idToStr $ v
 
 bottom :: MonoType' -> String
 bottom = ("bot_" ++) . monotype
@@ -188,7 +198,7 @@ proj :: Int -> Var -> String
 proj i v = "p_" ++ show i ++ "_" ++ showVar v
 
 tcon :: TyCon -> String
-tcon tc = "t_" ++ escape (showOutputable (tyConName tc)) ++ "_" ++ show (tyConUnique tc)
+tcon tc = "t_" ++ show (tyConUnique tc) ++ "_" ++ escape (showOutputable (tyConName tc))
 
 skolem :: Var -> String
 skolem = ("sk_" ++) . showVar

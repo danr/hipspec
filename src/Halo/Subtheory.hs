@@ -35,6 +35,7 @@ import Halo.Shared
 import Halo.FOL.Abstract
 import Halo.MonoType
 import Halo.FOL.LineariseSMT
+import Halo.FOL.Operations
 
 import Var
 import TyCon
@@ -120,6 +121,11 @@ subtheory = Subtheory
     , datadecls   = []
     , sortdecls   = []
     }
+
+-- This can (and should) also calculate used apps
+calculateDeps :: Subtheory s -> Subtheory s
+calculateDeps s@Subtheory{..} = s
+    { depends = depends ++ map (Pointer . fst) (concatMap ptrsUsed formulae) }
 
 instance Show s => Show (Subtheory s) where
     show (Subtheory{..}) =
