@@ -58,7 +58,7 @@ import Halo.FOL.Operations
 
 import Halo.MonoType
 
-import Halo.FreeTyCons (isNewtypeConId)
+import Halo.Shared (isDataConId)
 
 import Data.Generics.Geniplate
 
@@ -88,8 +88,8 @@ clauseSplit cl_type = map (clause cl_type) . splitFormula
 --   it is a data constructor or a function, and make a term accordingly.
 apply :: Var -> [Term q Var t] -> Term q Var t
 apply x as
-    | isId x && (isConLikeId x || isNewtypeConId x) = Ctor x as
-    | otherwise                                     = Fun x as
+    | isDataConId x = Ctor x as
+    | otherwise     = Fun x as
 
 -- | Make a term of this primitive constant, constructor or CAF.
 con :: Var -> Term q Var t

@@ -176,6 +176,8 @@ isNewtypeConId i
 --
 --   Note: cannot run isDataConWorkId on things that aren't isId,
 --         then we get a panic from idDetails.
+--
+--         (mainly from type variables)
 isDataConId :: Id -> Bool
 isDataConId v = isId v && (isConLikeId v || isNewtypeConId v)
 

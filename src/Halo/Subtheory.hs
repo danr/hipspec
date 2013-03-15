@@ -99,6 +99,8 @@ data Subtheory s = Subtheory
     -- ^ Type declarations from this subtheory
     , datadecls    :: [(TyCon,[Maybe (Var,[MonoType'])])]
     -- ^ Data declarations from this subtheory (Nothing means bottom)
+    , sortdecls    :: [TyCon]
+    -- ^ Abstract sort declarations from this subtheory
     }
 
 instance Eq s => Eq (Subtheory s) where
@@ -110,12 +112,13 @@ instance Ord s => Ord (Subtheory s) where
 -- | A yet to become subtheory, but with empty typedecls, datadecls and used_apps.
 subtheory :: Subtheory s
 subtheory = Subtheory
-    { provides     = error "subtheory: please fill in provides"
-    , depends      = error "subtheory: please fill in depends"
-    , description  = error "subtheory: please fill in description"
-    , formulae     = error "subtheory: please fill in formulae"
-    , typedecls    = []
-    , datadecls    = []
+    { provides    = error "subtheory: please fill in provides"
+    , depends     = error "subtheory: please fill in depends"
+    , description = error "subtheory: please fill in description"
+    , formulae    = error "subtheory: please fill in formulae"
+    , typedecls   = []
+    , datadecls   = []
+    , sortdecls   = []
     }
 
 instance Show s => Show (Subtheory s) where

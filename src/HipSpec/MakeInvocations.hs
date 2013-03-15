@@ -73,6 +73,7 @@ tryProve props (interestingLemmas -> lemmas0) = do
                         (concatMap toClauses sthys)
                         (nubSortedOn fst (concatMap typedecls sthys))
                         (nubSortedOn fst (concatMap datadecls sthys))
+                        (nubSorted (concatMap sortdecls sthys))
 
                 calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
                 calc_dependencies s = concatMap depends (s:lemma_theories)

@@ -5,7 +5,7 @@
     constructors or in patterns.
 
 -}
-module Halo.FreeTyCons ( freeTyCons, isNewtypeConId ) where
+module Halo.FreeTyCons (freeTyCons) where
 
 import CoreSyn
 import DataCon
@@ -37,9 +37,10 @@ freeTyCons e =
 
     in  map dataConTyCon (as_exprs ++ in_patterns)
 
--- | Returs the constructors used in patterns
+-- | Returs the constructors used in patterns,
+--   and as a bonus, in the types of variables
 patCons :: CoreExpr -> Set DataCon
-patCons Var{}       = S.empty
+patCons (Var x)     = S.fromList $ tyConDataCons =<< varTypeTyCons x
 patCons Lit{}       = S.empty
 patCons (App e1 e2) = patCons e1 `S.union` patCons e2
 patCons (Lam _ e)   = patCons e

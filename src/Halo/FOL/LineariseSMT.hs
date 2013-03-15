@@ -46,8 +46,11 @@ linSMT :: [Clause']
        -- ^ type signatures
        -> [(TyCon,[Maybe (Var,[MonoType'])])]
        -- ^ data declarations (Nothing means bottom)
+       -> [TyCon]
+       -- ^ sort declarations
        -> String
-linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 2) $
+linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
+    map linSort sort_sigs ++
     [ data_sexp ] ++
     map (uncurry linFunSig) fun_sigs ++
     map (uncurry linPtrSig) (ptrsUsed cls) ++
@@ -59,6 +62,10 @@ linSMT cls fun_sigs data_sigs = unlines $ map (sexpr 2) $
   where
     data_sexp = apply "declare-datatypes"
         [ List [] , List (map (uncurry linDataSig) data_sigs) ]
+
+-- sorts
+linSort :: TyCon -> SExpr
+linSort tc = apply "declare-sort" [Atom (tcon tc)]
 
 -- declare datatypes
 linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
@@ -74,6 +81,7 @@ linCon v ts = List $
     Atom (con v) :
     [ List [Atom (proj i v),Atom (monotype t)]
     | (i,t) <- zip [0..] ts ]
+
 
 -- signatures
 linSig :: String -> [MonoType'] -> MonoType' -> SExpr

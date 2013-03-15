@@ -65,7 +65,7 @@ getDefEqs = do
     Info{sig,theory,str_marsh} <- getInfo
 
     let getFunction s = case s of
-            Subtheory (Function v) _ _ fs _ _ -> Just (v,fs)
+            Subtheory (Function v) _ _ fs _ _ _ -> Just (v,fs)
             _ -> Nothing
 
         func_map = M.fromList (mapMaybe getFunction (subthys theory))

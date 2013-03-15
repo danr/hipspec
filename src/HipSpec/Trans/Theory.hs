@@ -47,32 +47,47 @@ mkTotalAxioms :: [TyCon] -> [HipSpecSubtheory]
 mkTotalAxioms = mapMaybe mkTotalAxiom
 
 mkTotalAxiom :: TyCon -> Maybe HipSpecSubtheory
-mkTotalAxiom ty_con = do
-    guard (not (isNewTyCon ty_con))
-    let dcs = tyConDataCons ty_con
+mkTotalAxiom ty_con
+    | isNewTyCon ty_con = do
 
-    fs <- forM dcs $ \ dc -> do
-        let (k,arg_types) = dcIdArgTypes dc
-            xbar          = mkVarNamesOfType arg_types
-            kxbar         = apply k (map qvar xbar)
-            is_primitive  = (`eqType` intPrimTy) . varType
+        let [x] = mkVarNamesOfType [mkTyConTy ty_con]
 
-        left <- sequence
-            [ (`total` qvar x) <$> varMonoType x
-            | x <- xbar
-            , not (is_primitive x)
-            ]
+        frmla <- foralls varMonoType $ total (TCon ty_con) (qvar x)
 
-        foralls varMonoType $ left <==> total (TCon ty_con) kxbar
+        return $ subtheory
+            { provides     = Specific (TotalThy ty_con)
+            , depends      = []
+            , description  = "Total for abstract newtype " ++ showOutputable ty_con
+            , formulae     = [frmla]
+            , sortdecls    = []
+            }
 
-    let f = neg (total (TCon ty_con) (bottom (TCon ty_con)))
+    | otherwise = do
 
-    return $ subtheory
-        { provides    = Specific (TotalThy ty_con)
-        , depends     = []
-        , description = "total " ++ showOutputable ty_con
-        , formulae    = f:fs
-        }
+        let dcs = tyConDataCons ty_con
+
+        fs <- forM dcs $ \ dc -> do
+            let (k,arg_types) = dcIdArgTypes dc
+                xbar          = mkVarNamesOfType arg_types
+                kxbar         = apply k (map qvar xbar)
+                is_primitive  = (`eqType` intPrimTy) . varType
+
+            left <- sequence
+                [ (`total` qvar x) <$> varMonoType x
+                | x <- xbar
+                , not (is_primitive x)
+                ]
+
+            foralls varMonoType $ left <==> total (TCon ty_con) kxbar
+
+        let f = neg (total (TCon ty_con) (bottom (TCon ty_con)))
+
+        return $ subtheory
+            { provides    = Specific (TotalThy ty_con)
+            , depends     = []
+            , description = "total " ++ showOutputable ty_con
+            , formulae    = f:fs
+            }
 
 
 {-
