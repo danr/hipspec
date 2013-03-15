@@ -52,7 +52,8 @@ mkTotalAxiom ty_con
 
         let [x] = mkVarNamesOfType [mkTyConTy ty_con]
 
-        frmla <- foralls varMonoType $ total (TCon ty_con) (qvar x)
+        frmla <- foralls varMonoType (total (TCon ty_con) (qvar x) <=>
+                                        qvar x =/= bottom (TCon ty_con))
 
         return $ calculateDeps subtheory
             { provides     = Specific (TotalThy ty_con)

@@ -51,7 +51,7 @@ linSMT :: [Clause']
        -- ^ sort declarations
        -> String
 linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
-    map linSort (map TCon sort_sigs ++ ho_sorts) ++
+    concatMap linSort (map TCon sort_sigs ++ ho_sorts) ++
     [ data_sexp ] ++
     map (uncurry linFunSig) fun_sigs ++
     map (uncurry linPtrSig) ptrs ++
@@ -73,9 +73,12 @@ linSMT cls fun_sigs data_sigs sort_sigs = unlines $ map (sexpr 2) $
         concatMap (typeArgs . snd) ptrs ++
         [ t  | (_,cs) <- data_sigs , Just (_,ts) <- cs , t <- ts ]
 
--- sorts
-linSort :: MonoType' -> SExpr
-linSort t = apply "declare-sort" [Atom (monotype t)]
+-- sorts (contains a bottom)
+linSort :: MonoType' -> [SExpr]
+linSort t =
+    [ apply "declare-sort" [Atom (monotype t)]
+    , linSig (bottom t) [] t
+    ]
 
 -- declare datatypes
 linDataSig :: TyCon -> [Maybe (Var,[MonoType'])] -> SExpr
