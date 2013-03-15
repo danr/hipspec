@@ -1,6 +1,9 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
 module HipSpec.Init (processFile) where
 
+import Test.QuickSpec.Signature
+import Data.Monoid
+
 import HipSpec.Monad
 
 import HipSpec.Execute
@@ -13,7 +16,6 @@ import HipSpec.Trans.Theory
 import Halo.BackgroundTheory
 import Halo.Binds
 import Halo.Conf
--- import Halo.Entry
 import Halo.Lift
 import Halo.Monad
 import Halo.Util
@@ -209,5 +211,6 @@ processFile cont = do
             , halo_env  = halo_env
             , str_marsh = str_marsh
             , sig       = fromMaybe (error "no signature!") signature_sig
+                            `mappend` withTests 100
             })
         (cont props)
