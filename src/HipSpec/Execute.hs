@@ -80,8 +80,11 @@ execute file =
                            mod_graph
 
         -- Set the context for later evaluation
-        setContext -- [IIModule (ms_mod mod_sum)]
-            [IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))]
+        setContext
+            $  [IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))]
+            -- Also include the imports the module is importing
+            -- (I know, crazy!)
+            ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum

@@ -1,12 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Nat where
 
-import Prelude hiding ((+),(*),even,odd,sum,id)
+import Prelude hiding ((+),(*))
 import HipSpec.Prelude
 import Data.Typeable
 
-data Nat = Z | S Nat
-  deriving (Eq,Ord,Show,Typeable)
+data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
 
 infixl 6 +
 infixl 7 *

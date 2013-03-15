@@ -1,4 +1,4 @@
-module Nichomachus (sig, sum, cubes, module Nat, prop_Nichomachus) where
+module Nichomachus where
 
 import Prelude (error)
 import Nat hiding (sig)
