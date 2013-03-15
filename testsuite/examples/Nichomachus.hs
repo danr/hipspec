@@ -3,6 +3,7 @@ module Nichomachus where
 import Prelude (error)
 import Nat hiding (sig)
 import HipSpec.Prelude
+import Test.QuickSpec.Signature
 
 sum Z     = Z
 sum (S n) = sum n + S n
@@ -21,5 +22,6 @@ sig = signature
     , fun2 "*" (*)
     , fun1 "sum"   sum
     , fun1 "cubes" cubes
+    , withQuickCheckSize 500
     ]
 

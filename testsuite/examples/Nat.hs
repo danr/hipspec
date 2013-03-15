@@ -22,7 +22,7 @@ prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
 prop_mul_comm x y z = x * y =:= y * x
 
 sig = signature
-      [ pvars ["x", "y", "z"] (error "Nat type" :: Nat)
+      [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
       , fun0 "Z" Z
       , fun1 "S" S
       , fun2 "+" (+)
