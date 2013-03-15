@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module HipSpec.Execute where
 
 import Test.QuickSpec.Signature
@@ -10,13 +11,14 @@ import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
-import Outputable
 import SimplCore
 import StaticFlags
 import DynamicLoading
 import TcRnDriver
 import HscMain
 import Var (varType)
+
+import Halo.Shared (showOutputable)
 
 import qualified Data.Typeable as Typeable
 
@@ -39,7 +41,12 @@ data ExecuteResult = ExecuteResult
 
 
 execute :: FilePath -> IO ExecuteResult
-execute file = defaultErrorHandler defaultLogAction $ do
+execute file =
+#if __GLASGOW_HASKELL__ >= 706
+  defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
+#else
+  defaultErrorHandler defaultLogAction $ do
+#endif
 
     -- Use -threaded
     addWay WayThreaded
@@ -158,7 +165,7 @@ getSignature = do
 
             -- TODO: Should check that sig has type Signature a => a
             liftIO $ putStrLn $ "Found `sig' with type " ++
-                                showSDoc (ppr (varType sig_id)) ++
+                                showOutputable (varType sig_id) ++
                                 ", trying to use it as a signature now!"
 
             sig_hvalue <- liftIO (hscCompileCoreExpr hsc_env
