@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module HipSpec.Execute where
 
 import Test.QuickSpec.Signature
@@ -5,24 +6,21 @@ import Test.QuickSpec.Term hiding (Var,symbols)
 import Test.QuickSpec.Utils.Typed (typeRepTyCons)
 
 import CoreMonad
-import CoreSyn
 import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
 import SimplCore
 import StaticFlags
-import DynamicLoading
-import TcRnDriver
-import HscMain
-import Var (varType)
-
-import Halo.Shared (showOutputable)
+import OccName
+import Name
 
 import qualified Data.Typeable as Typeable
 
 import Data.Map (Map)
 import qualified Data.Map as M
+
+import Data.Dynamic
 
 import Data.Maybe
 import Data.List
@@ -37,7 +35,6 @@ data ExecuteResult = ExecuteResult
     , mod_guts         :: ModGuts
     , dyn_flags        :: DynFlags
     }
-
 
 execute :: FilePath -> IO ExecuteResult
 execute file = do
@@ -99,25 +96,14 @@ execute file = do
 
         -- Looks up a name and tries to associate it with a typed thing
         let lookup_name :: Name -> Ghc (Maybe (Name,TyThing))
-            lookup_name n = {- fmap (fmap ((,) n) . snd)
-                                 (tcRnLookupName hsc_env n)
-                            -} fmap (fmap (\ (tyth,_,_) -> (n,tyth)))
-                                    (getInfo n)
+            lookup_name n = fmap (fmap (\ (tyth,_,_) -> (n,tyth))) (getInfo n)
 
         -- Get the types of all names in scope
-        {-
-        -- Try to get it as the module was actually loaded
-        -- (and not only imported)
-        -- This doesn't work: modules does not have a GlobalRdrEnv
-        -- in minf_rdr_env (nothing for a compiled/package mod)
-        Just mod_info <- getModuleInfo (ms_mod mod_sum)
-        let Just ns = modInfoTopLevelScope mod_info
-        -}
         ns <- getNamesInScope
         maybe_named_things <- mapM lookup_name ns
 
         -- Try to get a quickSpec signature
-        m_sig <- getSignature
+        m_sig <- getSignature ns
 
         -- For each symbols from the signature, find the associated Names in
         -- scope (should be exactly one, but we'll check this later)
@@ -142,35 +128,10 @@ execute file = do
             }
 
 -- | Getting the signature.
---
---   We'll try to find sig :: Signature a => a, and then run `signature sig'.
---   This should give us a Sig.
---
---   Right now we don't do this: we try to find a Sig instead.
---   Problem is that signature might not be in scope.
---
-getSignature :: Ghc (Maybe Sig)
-getSignature = do
-    sig_names <- parseName "sig"
-    case sig_names of
-        []    -> return Nothing
-        _:_:_ -> error "Multiple occurences of `sig'"
-
-        [nm] -> do
-            hsc_env <- getSession
-            (_,Just (AnId sig_id)) <- liftIO (tcRnLookupName hsc_env nm)
-
-            -- TODO: Should check that sig has type Signature a => a
-            liftIO $ putStrLn $ "Found `sig' with type " ++
-                                showOutputable (varType sig_id) ++
-                                ", trying to use it as a signature now!"
-
-            sig_hvalue <- liftIO (hscCompileCoreExpr hsc_env
-                                        (nameSrcSpan nm)
-                                        (Var sig_id))
-
-            dflags <- getSessionDynFlags
-            let err_msg = "Couldn't coerce `signature sig' to Sig"
-            sig <- liftIO (lessUnsafeCoerce dflags err_msg sig_hvalue)
-            return (Just sig)
+getSignature :: [Name] -> Ghc (Maybe Sig)
+getSignature scope
+    | any (\ n -> occNameString (nameOccName n) == "sig") scope
+        = liftM2 mplus (fromDynamic `fmap` dynCompileExpr "sig")
+                       (fromDynamic `fmap` dynCompileExpr "signature sig")
+    | otherwise = return Nothing
 

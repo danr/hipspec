@@ -55,15 +55,15 @@ instance MakeEquation Equation where
 instance MakeEquation PEquation where
     makeEquation eq@(e1 :=: e2) = nub (vars e1 ++ vars e2) :\/: eq
 
-pruneWithDefEqs :: (MakeEquation eq,EQR eq ctx cc) => ctx -> HS ctx
-pruneWithDefEqs ctx = do
-    def_eqs <- getDefEqs
+pruneWithDefEqs :: (MakeEquation eq,EQR eq ctx cc) => Sig -> ctx -> HS ctx
+pruneWithDefEqs sig ctx = do
+    def_eqs <- getDefEqs sig
     return $ execEQR ctx (mapM_ unify def_eqs)
 
-getDefEqs :: (MakeEquation eq,EQR eq ctx cc) => HS [eq]
-getDefEqs = do
+getDefEqs :: (MakeEquation eq,EQR eq ctx cc) => Sig -> HS [eq]
+getDefEqs sig = do
 
-    Info{sig,theory,str_marsh} <- getInfo
+    Info{theory,str_marsh} <- getInfo
 
     let getFunction s = case s of
             Subtheory (Function v) _ cls _ -> Just (v,formulae cls)

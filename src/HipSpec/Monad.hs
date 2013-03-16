@@ -26,18 +26,15 @@ import HipSpec.Messages
 import HipSpec.Params
 import HipSpec.Trans.Theory
 import HipSpec.StringMarshal
-import Test.QuickSpec.Signature
 
 import Control.Concurrent.MVar
 
 -- Accessible state
 data HSInfo = Info
     { params    :: Params
-    , sig       :: Sig
     , theory    :: Theory
     , halo_env  :: HaloEnv
     , str_marsh :: StrMarsh
-                -- Symbol -> Maybe TyThing
     }
 
 data HSEnv = HSEnv
@@ -63,7 +60,6 @@ runHS (HS m) = do
             , halo_env    = error "halo_env uninitialized"
             , theory      = error "theory uninitalized"
             , str_marsh   = error "str_marsh uninitialized"
-            , sig         = error "signature uninitialized"
             }
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn

@@ -30,7 +30,7 @@ import Var
 import CoreSyn
 import CoreLint
 import Bag
-import GHC
+import GHC hiding (Sig)
 import HscTypes
 import UniqSupply
 import TysWiredIn
@@ -45,7 +45,7 @@ lint s bs = liftIO $ do
     let (msgs1,msgs2) = lintCoreBindings bs
     mapM_ (mapBagM_ (putStrLn . portableShowSDoc)) [msgs1,msgs2]
 
-processFile :: ([Property Void] -> HS a) -> HS a
+processFile :: (Maybe Sig -> [Property Void] -> HS a) -> HS a
 processFile cont = do
 
     params@Params{..} <- getParams
@@ -205,12 +205,12 @@ processFile cont = do
 
     -}
 
+    let m_sig = fmap (`mappend` withTests 100) signature_sig
+
     initialize
         (\ hs_info -> hs_info
             { theory    = theory
             , halo_env  = halo_env
             , str_marsh = str_marsh
-            , sig       = fromMaybe (error "no signature!") signature_sig
-                            `mappend` withTests 100
             })
-        (cont props)
+        (cont m_sig props)

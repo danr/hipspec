@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards,NamedFieldPuns, DoAndIfThenElse #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
@@ -42,50 +42,57 @@ import qualified Data.ByteString.Lazy as B
 
 main :: IO ()
 main = runHS $ do
-
     writeMsg Started
-
-    processFile $ \ user_props -> do
+    processFile $ \ m_sig user_props -> do
 
         writeMsg FileProcessed
 
-        Info{str_marsh,sig} <- getInfo
+        case m_sig of
 
-        Params{bottoms,explore_theory} <- getParams
+            Nothing -> void (runMainLoop NoCC user_props [])
 
-        (eqs,reps,classes) <- runQuickSpec
+            Just sig -> do
 
-        if bottoms then do
+                (eqs,reps,classes) <- runQuickSpec sig
 
-                let qsconjs = map (some (peqToProp sig str_marsh)) eqs
+                Params{bottoms,explore_theory} <- getParams
 
-                (ctx_init,tot_thms,tot_conjs) <- proveTotality reps
+                Info{str_marsh} <- getInfo
 
-                void $ runMainLoop
-                        ctx_init
-                        (qsconjs ++ map vacuous user_props ++ map vacuous tot_conjs)
-                        (map vacuous tot_thms)
+                if bottoms then do
 
-            else do
+                    let qsconjs = map (some (peqToProp sig str_marsh)) eqs
 
-                let qsconjs = map (eqToProp (showEquation sig) str_marsh)
-                                  (map (some eraseEquation) eqs)
+                    (ctx_init,tot_thms,tot_conjs) <- proveTotality sig reps
 
-                    ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
+                    ctx_with_def <- pruneWithDefEqs sig ctx_init
 
-                (ctx_with_def,ctx_final) <-
-                    runMainLoop ctx_init
-                                (qsconjs ++ map vacuous user_props)
-                                []
+                    void $ runMainLoop
+                            ctx_with_def
+                            (qsconjs ++ map vacuous user_props ++ map vacuous tot_conjs)
+                            (map vacuous tot_thms)
 
-                when explore_theory $ do
-                    let pruner   = prune ctx_with_def (map erase reps) id
-                        provable = evalEQR ctx_final . equal
-                        explored_theory
-                            = pruner $ filter provable
-                            $ map (some eraseEquation) (equations classes)
-                    writeMsg $ ExploredTheory $
-                        map (showEquation sig) explored_theory
+                else do
+
+                    let qsconjs = map (eqToProp (showEquation sig) str_marsh)
+                                      (map (some eraseEquation) eqs)
+
+                        ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
+
+                    ctx_with_def <- pruneWithDefEqs sig ctx_init
+
+                    ctx_final <- runMainLoop ctx_with_def
+                                             (qsconjs ++ map vacuous user_props)
+                                             []
+
+                    when explore_theory $ do
+                        let pruner   = prune ctx_with_def (map erase reps) id
+                            provable = evalEQR ctx_final . equal
+                            explored_theory
+                                = pruner $ filter provable
+                                $ map (some eraseEquation) (equations classes)
+                        writeMsg $ ExploredTheory $
+                            map (showEquation sig) explored_theory
 
         Params{json} <- getParams
 
@@ -95,14 +102,10 @@ main = runHS $ do
                 liftIO $ B.writeFile json_file (encode msgs)
             Nothing -> return ()
 
-runMainLoop :: (MakeEquation eq,EQR eq ctx cc)
-            => ctx -> [Property eq] -> [Theorem eq] -> HS (ctx,ctx)
+runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS ctx
 runMainLoop ctx_init initial_props initial_thms = do
 
-    ctx_with_def <- pruneWithDefEqs ctx_init
-
-    (theorems,conjectures,ctx_final) <-
-        mainLoop ctx_with_def initial_props initial_thms
+    (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
 
     let showProperties = map propName
         theorems' = map thm_prop
@@ -119,13 +122,12 @@ runMainLoop ctx_init initial_props initial_thms = do
         , qs_unproved = showProperties $ fromQS conjectures
         }
 
-    return (ctx_with_def,ctx_final)
+    return ctx_final
 
-runQuickSpec :: HS ([Some TypedEquation],[Tagged Term],[Several Expr])
-runQuickSpec = do
+runQuickSpec :: Sig -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
+runQuickSpec sig = do
 
-    Info{..} <- getInfo
-    let Params{..} = params
+    Params{..} <- getParams
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -152,8 +154,8 @@ runQuickSpec = do
 
     return (eqs,reps,classes)
 
-proveTotality :: [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
-proveTotality univ = do
+proveTotality :: Sig -> [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
+proveTotality sig univ = do
 
     Info{..} <- getInfo
 
@@ -172,3 +174,4 @@ proveTotality univ = do
     let ctx_init = PER.initial (maxDepth sig) tot_list univ
 
     return (ctx_init,proved_tot,unproved_tot)
+
