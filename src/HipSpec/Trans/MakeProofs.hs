@@ -30,7 +30,7 @@ makeProofs params@Params{methods,indvars,inddepth} prop@Property{propVars} = do
   where
     techniques :: [MakerM (ProofTree eq)]
     techniques =
-        maybeToList (approximate prop) ++
+        concat [ maybeToList (approximate prop) | 'a' `elem` methods ] ++
         mapMaybe (induction params prop) induction_coords
 
     induction_coords :: [[Int]]

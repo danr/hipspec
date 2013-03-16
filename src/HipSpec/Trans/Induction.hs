@@ -33,13 +33,13 @@ import HipSpec.Trans.MakerMonad
 import HipSpec.Trans.Literal
 
 induction :: forall eq . Params -> Property eq -> [Int] -> Maybe (MakerM (ProofTree eq))
-induction Params{indhyps,indparts,bottoms} prop@Property{..} coords = do
+induction Params{indhyps,indobligs,bottoms} prop@Property{..} coords = do
     let obligs = subtermInduction (tyEnv bottoms) propVars coords
         n_obligs = length obligs
 
     -- If induction on these variables with this depth gives too many
     -- obligations, then do not do this induction, return Nothing
-    guard (n_obligs <= indparts)
+    guard (n_obligs <= indobligs)
 
     -- Some parts give very many hypotheses. If this is the case,
     -- we cruelly drop some of the first weak ones

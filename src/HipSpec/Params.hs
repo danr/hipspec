@@ -19,10 +19,6 @@ data Params = Params
     , reverse_video       :: Bool
     , z_encode_filenames  :: Bool
     , json                :: Maybe FilePath
-    , definitions         :: Bool
-    , explore_theory      :: Bool
-    , only_user_stated    :: Bool
-    , bottoms             :: Bool
 
     , processes           :: Int
     , batchsize           :: Int
@@ -31,9 +27,12 @@ data Params = Params
     , methods             :: String
     , consistency         :: Bool
     , isolate             :: Bool
+    , only_user_stated    :: Bool
+    , explore_theory      :: Bool
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
+    , bottoms             :: Bool
 
     , swap_repr           :: Bool
     , prepend_pruned      :: Bool
@@ -44,10 +43,9 @@ data Params = Params
     , inddepth            :: Int
     , indvars             :: Int
     , indhyps             :: Int
-    , indparts            :: Int
+    , indobligs           :: Int
 
     , permissive_junk     :: Bool
-
     , db_str_marsh        :: Bool
     , db_names            :: Bool
     , db_core_lint        :: Bool
@@ -84,24 +82,23 @@ defParams = Params
     , reverse_video       = False   &= name "rv" &= help "Reverse video (i.e. assume that the terminal background is black)"
     , z_encode_filenames  = False   &= name "z"  &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
-    , definitions         = False   &= name "d"  &= help "Print translated QuickSpec function definitions"
-    , explore_theory      = False   &= name "e"  &= help "Print explored theory"
-    , only_user_stated    = False   &= name "u"  &= help "Stop when all user stated properties are proved"
-    , bottoms             = False   &= name "b"  &= help "Add bottoms"
 
     , processes           = 2    &= groupname "\nProving settings"
-                                 &= name "N" &= help "Prover processes"
-    , batchsize           = 1    &= name "B" &= help "Equations to process simultaneously"
-    , timeout             = 1    &= name "t" &= help "Timeout of provers in seconds"
-    , provers             = "z"  &= name "p" &= help "Provers to use: (e)prover eproo(f) eprover(w)indows (v)ampire (s)pass equino(x) (z)3 (Z)3 with unsat cores"
-    , methods             = "pi"             &= help "Methods to use (p)lain definition equality, (i)nduction"
+                                 &= name "N" &= help "Prover processes (default 2)"
+    , batchsize           = 1    &= name "B" &= help "Equations to process simultaneously (default 1)"
+    , timeout             = 1    &= name "t" &= help "Timeout of provers in seconds (default 1.0)"
+    , provers             = "z"  &= name "p" &= help "Provers to use: (z)3 (Z)3 with unsat cores (default z)"
+    , methods             = "pia"            &= help "Methods to use (p)lain definition equality, (i)nduction, (a)pproximation lemma (default all)"
+    , explore_theory      = False   &= name "e"  &= help "Print explored theory"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
+    , only_user_stated    = False   &= name "u"  &= help "Stop when all user stated properties are proved"
 
     , case_lift_inner     = False &= groupname "\nTranslation settings"
                                   &= help "Lift all inner cases to top level"
     , var_scrut_constr    = False &= help "Make a constraint instead of inlining var scrutinees"
+    , bottoms             = False   &= name "b"  &= help "Add bottoms"
 
 
     , swap_repr           = False   &= groupname "\nEquation ordering"
@@ -111,12 +108,11 @@ defParams = Params
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
 
-    , inddepth            = 1   &= name "D" &= groupname "\nStructural induction"
-                                            &= help "Maximum depth"
-    , indvars             = 1   &= name "S" &= help "Maximum variables"
-    , indhyps             = 200 &= name "H" &= help "Maximum hypotheses"
-    , indparts            = 10  &= name "P" &= help "Maximum obligations (bases and steps)"
-
+    , inddepth            = 1   &= name "d" &= groupname "\nStructural induction"
+                                            &= help "Maximum depth (default 1)"
+    , indvars             = 2   &= name "v" &= help "Maximum variables (default 2)"
+    , indhyps             = 200 &= name "H" &= help "Maximum hypotheses (default 200)"
+    , indobligs           = 25  &= name "O" &= help "Maximum obligations (default 25)"
 
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
@@ -141,6 +137,6 @@ defParams = Params
     \                   888               888                       \n\
     \                   888               888                       \n\
     \\n\
-    \       hipspec v0.6 by Dan Rosén, danr@chalmers.se   \n"
+    \            hipspec v0.6 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"
 
