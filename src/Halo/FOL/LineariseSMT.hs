@@ -17,6 +17,8 @@ import Data.Maybe
 import Data.List
 import Data.Ord
 
+import Control.Arrow ((&&&))
+
 sexpr :: Int -> SExpr -> String
 sexpr i se = case se of
     Atom s     -> s
@@ -40,13 +42,26 @@ addUnsatCores s =
     "(set-option :produce-unsat-cores true)\n" ++ s ++
     "\n(get-unsat-core)\n"
 
-linSMT :: [Clause'] -> String
-linSMT = unlines . map (sexpr 2) . (++ [apply "check-sat" []]) . map linClause . sortBy (comparing inj)
+data Order = SortSigs | DataDecls | TotalAndTypeSigs | Clauses | CheckSat
+  deriving (Eq,Ord)
+
+linSMT :: [(TyCon,[(Var,[MonoType'])])] -> [Clause'] -> String
+linSMT datadecls
+    = unlines
+    . map (sexpr 2)
+    . map snd
+    . sortBy (comparing fst)
+    . (++ [(CheckSat,apply "check-sat" [])])
+    . (if null datadecls then id else ((DataDecls,data_sexp):))
+    . map (order &&& linClause)
   where
-    inj SortSig{}  = 0 :: Int
-    inj TotalSig{} = 1
-    inj TypeSig{}  = 1
-    inj _          = 2
+    order SortSig{}  = SortSigs
+    order TotalSig{} = TotalAndTypeSigs
+    order TypeSig{}  = TotalAndTypeSigs
+    order _          = Clauses
+
+    data_sexp = apply "declare-datatypes"
+        [ List [] , List (map (uncurry linDataSig) datadecls) ]
 
 -- signatures
 linSig :: TyThing Var MonoType' -> [MonoType'] -> MonoType' -> SExpr
@@ -69,6 +84,17 @@ linThing th = case th of
     AProj i v -> proj i v
     APtr v    -> ptr v
     ABottom t -> bottom t
+
+-- declare datatypes
+linDataSig :: TyCon -> [(Var,[MonoType'])] -> SExpr
+linDataSig tc cons = apply (tcon tc) (map (uncurry linCon) cons)
+
+-- (cons (p_0_cons A) (p_1_cons ListA))
+linCon :: Var -> [MonoType'] -> SExpr
+linCon v ts = List $
+    Atom (con v) :
+    [ List [Atom (proj i v),Atom (monotype t)]
+    | (i,t) <- zip [0..] ts ]
 
 linTotalSig :: MonoType' -> SExpr
 linTotalSig t = apply "declare-fun"

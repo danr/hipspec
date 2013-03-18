@@ -32,6 +32,7 @@ data Params = Params
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
+    , smt_data_types      :: Bool
     , bottoms             :: Bool
 
     , swap_repr           :: Bool
@@ -57,11 +58,11 @@ data Params = Params
     }
   deriving (Show,Data,Typeable)
 
--- | If you are using a theorem prover that cannot stdin,
---   then put on output. If a prover can specify lemmas,
---   add readable tptp
+-- | If you are using a theorem prover that cannot stdin then put on output.
+--
+--   We cannot have --smt-data-types when using --bottoms.
 sanitizeParams :: Params -> Params
-sanitizeParams = fix_stdin
+sanitizeParams = fix_stdin . fix_smt_data_types
   where
     fix_stdin params
         | any proverCannotStdin provers' = params
@@ -72,6 +73,12 @@ sanitizeParams = fix_stdin
         | otherwise = params
       where
         provers' = proversFromString (provers params)
+
+    fix_smt_data_types params
+        | bottoms params && smt_data_types params = params
+            { smt_data_types = False }
+        | otherwise = params
+
 
 defParams :: Params
 defParams = Params
@@ -95,9 +102,10 @@ defParams = Params
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , only_user_stated    = False   &= name "u"  &= help "Stop when all user stated properties are proved"
 
-    , case_lift_inner     = False &= groupname "\nTranslation settings"
-                                  &= help "Lift all inner cases to top level"
-    , var_scrut_constr    = False &= help "Make a constraint instead of inlining var scrutinees"
+    , case_lift_inner     = False   &= groupname "\nTranslation settings"
+                                    &= help "Lift all inner cases to top level"
+    , var_scrut_constr    = False   &= help "Make a constraint instead of inlining var scrutinees"
+    , smt_data_types      = False   &= help "Use SMT data types instead of own axiomatization (cannot be combined with --bottoms)"
     , bottoms             = False   &= name "b"  &= help "Add bottoms"
 
 

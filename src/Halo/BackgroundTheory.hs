@@ -50,13 +50,15 @@ tyConSubtheory HaloConf{use_bottom} ty_con
 
     | otherwise = do
 
+        -- TODO: Change this from Maybe (Id,[Type],[MonoType']) to
+        --       Maybe (Id,[(Type,MonoType')])
         cons <- (++ [ Nothing | use_bottom ]) <$> sequence
             [ Just . (,,) k arg_types <$> mapM monoType arg_types
             | dc <- tyConDataCons ty_con
             , let (k,arg_types) = dcIdArgTypes dc
             ]
 
-        let -- rm_mid (a,_,c) = (a,c)
+        let rm_mid (a,_,c) = (a,c)
 
             ty_con_monoty = TCon ty_con
 
@@ -123,6 +125,8 @@ tyConSubtheory HaloConf{use_bottom} ty_con
             , length tys > 0
             ]
 
+        let err = error "Halo.BackgroundTheory: cannot use datadecls when bottoms is enabled"
+
         return $ calculateDeps subtheory
             { provides     = Data ty_con
             , depends      = map Data ty_con_deps
@@ -130,7 +134,10 @@ tyConSubtheory HaloConf{use_bottom} ty_con
                 comment ("Background theory for " ++ showOutputable ty_con) :
                 sigs ++
                 axioms (domain : discrims ++ projections)
-            -- , datadecls    = [] -- [(ty_con,map (fmap rm_mid) cons)]
+            , datadecls    = [(ty_con,map (rm_mid . fromMaybe err) cons)]
             }
             : pointer_subthys
+
+
+
 
