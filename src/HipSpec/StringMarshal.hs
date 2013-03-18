@@ -79,61 +79,51 @@ makeStringMarshallings Params{..} ExecuteResult{..} = do
 
   where
 
-
     symb_tr :: Map Symbol [TyThing]
     symb_tr = trans named_things signature_names
 
     tyc_tr :: Map Typeable.TyCon [TyThing]
     tyc_tr = trans named_things signature_tycons
 
-    err_many :: Show a => a -> [TyThing] -> String
-    err_many a [] = show a ++ " is not mapped to any symbols, try exporting!"
-    err_many a ts = show a ++ " is mapped to all these things: "
-                           ++ showOutputable ts ++ ", try hiding!"
+    justOr :: (a -> Maybe b) -> (c -> [a] -> e) -> c -> [a] -> Either e b
+    justOr k h a xs = maybe (Left (h a xs)) Right (listToMaybe $ mapMaybe k xs)
+
+    err s a ts = show a ++ " should be a " ++ s ++ ", but is bound to "
+                         ++ showOutputable ts
+                         ++ ", fix your signature!"
+
 
     symb_sn :: Either [String] (Map Symbol Id)
-    symb_sn = sanity k err_many symb_tr
+    symb_sn = sanity (k `justOr` err "function or constructor") symb_tr
       where
-        k _ (AnId i)     = Right i
-        k _ (ADataCon i) = Right (dataConWorkId i)
-        k a t = Left $ show a ++ " should be a function or constructor, but is "
-                       ++ showOutputable t
-                       ++ ", fix your signature!"
+        k (AnId i)     = Just i
+        k (ADataCon i) = Just (dataConWorkId i)
+        k _            = Nothing
 
     tyc_sn :: Either [String] (Map Typeable.TyCon TyCon)
-    tyc_sn = sanity k err_many tyc_tr
+    tyc_sn = sanity (k `justOr` err "type constructor") tyc_tr
       where
-        k _ (ATyCon ty_con) = Right ty_con
-        k a t = Left $ show a ++ " should be a type constructor, but is "
-                       ++ showOutputable t
-                       ++ ", fix your signature!"
-
-
+        k (ATyCon ty_con) = Just ty_con
+        k _               = Nothing
 
 trans :: Ord b => Map b c -> Map a [b] -> Map a [c]
 trans m = fmap (\ bs -> catMaybes [ M.lookup b m | b <- bs ])
 
 sanity :: Ord a =>
           (a -> t -> Either e t')
-       -- ^ Maybe an error message for the TyThing, or OK
-       -> (a -> [t] -> e)
-       -- ^ Error message when length is not 1
-       -> Map a [t]
+       -- ^ Function to sanitize with
+       -> Map a t
        -- ^ The map that is not sanity checked
        -> Either [e] (Map a t')
        -- ^ Either a list of errors or a sane map
-sanity k h m = case partitionEithers lst of
+sanity k m = case partitionEithers lst of
     ([],xs)  -> Right (M.fromList xs)
     (errs,_) -> Left errs
   where
-    lst =
-        [ case ts of
-            [t] -> case k a t of
+    lst = [ case k a t of
                 Right t' -> Right (a,t')
                 Left e   -> Left e
-            _ -> Left (h a ts)
-        | (a,ts) <- M.toList m
-        ]
+          | (a,t) <- M.toList m ]
 
 print_errs :: Either [String] a -> IO ()
 print_errs (Left errs) = mapM_ putStrLn errs
