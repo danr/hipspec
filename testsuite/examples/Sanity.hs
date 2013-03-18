@@ -43,8 +43,8 @@ consistency_2 x =  (x =:= Nothing)
 True  && a = a
 False && a = False
 
-True  || a = a
-False || a = False
+True  || a = True
+False || a = a
 
 not True = False
 not False = True
