@@ -66,9 +66,11 @@ execute file = do
         mod_graph <- getModuleGraph
         let mod_sum = fromMaybe (error $ "Cannot find module " ++ file)
                     $ find (\m -> ms_mod_name m == mkModuleName file
+                               || ms_mod_name m == mkModuleName (replace '/' '.' file)
                                || ms_mod_name m == mkModuleName "Main"
                                || ml_hs_file (ms_location m) == Just file)
                            mod_graph
+              where replace a b xs = map (\ x -> if x == a then b else x) xs
 
         -- Set the context for later evaluation
         setContext
