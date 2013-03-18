@@ -1,12 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Main where
 
 import Prelude hiding ((>>=),(++),fmap,id,(.))
 
 import Data.Typeable
 
-import Hip.HipSpec
-import Hip.Prelude
+import HipSpec
+import HipSpec.Prelude
 
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
@@ -39,34 +39,33 @@ f . g = \x -> f (g x)
 id :: a -> a
 id x = x
 
-main = hipSpec "ListMonad.hs" conf
-  where
-    conf = [ vars ["x","y","z"]       (undefined :: Int)
-           , vars ["xs","ys","zs"]    (undefined :: [Int])
-           , vars ["xss","yss","zss"] (undefined :: [[Int]])
-           , vars ["f","g","h"]       (undefined :: Int -> Int)
-           , vars ["k"]               (undefined :: Int     -> [Int])
-           , vars ["i"]               (undefined :: [Int]   -> Int)
-           , vars ["j"]               (undefined :: [Int]   -> [[Int]])
-           , vars ["r"]               (undefined :: [[Int]] -> [Int])
-           , vars ["t"]               (undefined :: Int     -> [[Int]])
-           , blind0 "id"              (id        :: [Int] -> [Int])
-           , blind0 "id"              (id        :: Int   -> Int)
-           , blind2 "."               ((.)       :: (Int   -> Int)   -> (Int   -> Int)   -> Int   -> Int)
-           , blind2 "."               ((.)       :: ([Int] -> [Int]) -> ([Int] -> [Int]) -> [Int] -> [Int])
-           , fun0 "[]"                ([]        :: [Int])
-           , fun0 "[]"                ([]        :: [[Int]])
-           , blind0 "point"           (point     :: Int   -> [Int])
-           , fun1 "point"             (point     :: Int   -> [Int])
-           , fun2 ":"                 ((:)       :: Int   -> [Int]   -> [Int])
-           , fun2 ":"                 ((:)       :: [Int] -> [[Int]] -> [[Int]])
-           , fun2 "++"                ((++)      :: [Int]   -> [Int]   -> [Int])
-           , fun2 "++"                ((++)      :: [[Int]] -> [[Int]] -> [[Int]])
-           , fun1 "join"              (join      :: [[Int]] -> [Int])
-           , fun1 "join"              (join      :: [[[Int]]] -> [[Int]])
-           , fun2 ">>="               ((>>=)     :: [Int] -> (Int -> [Int]) -> [Int])
-           , fun2 ">>="               ((>>=)     :: [Int] -> (Int -> [[Int]]) -> [[Int]])
-           , fun2 "fmap"              (fmap      :: (Int -> Int) -> [Int] -> [Int])
-           , fun2 "fmap"              (fmap      :: (Int -> [Int]) -> [Int] -> [[Int]])
-           ]
+main = hipSpec $(fileName)
+    [ pvars ["x","y","z"]       (undefined :: A)
+    , pvars ["xs","ys","zs"]    (undefined :: [A])
+    , pvars ["xss","yss","zss"] (undefined :: [[A]])
+    , vars ["f","g","h"]        (undefined :: A -> A)
+    , vars ["k"]                (undefined :: A     -> [A])
+    , vars ["i"]                (undefined :: [A]   -> A)
+    , vars ["j"]                (undefined :: [A]   -> [[A]])
+    , vars ["r"]                (undefined :: [[A]] -> [A])
+    , vars ["t"]                (undefined :: A     -> [[A]])
+    , blind0 "id"               (id        :: [A] -> [A])
+    , blind0 "id"               (id        :: A   -> A)
+    , blind2 "."                ((.)       :: (A   -> A)   -> (A   -> A)   -> A   -> A)
+    , blind2 "."                ((.)       :: ([A] -> [A]) -> ([A] -> [A]) -> [A] -> [A])
+    , fun0 "[]"                 ([]        :: [A])
+    , fun0 "[]"                 ([]        :: [[A]])
+    , blind0 "point"            (point     :: A   -> [A])
+    , fun1 "point"              (point     :: A   -> [A])
+    , fun2 ":"                  ((:)       :: A   -> [A]   -> [A])
+    , fun2 ":"                  ((:)       :: [A] -> [[A]] -> [[A]])
+    , fun2 "++"                 ((++)      :: [A]   -> [A]   -> [A])
+    , fun2 "++"                 ((++)      :: [[A]] -> [[A]] -> [[A]])
+    , fun1 "join"               (join      :: [[A]] -> [A])
+    , fun1 "join"               (join      :: [[[A]]] -> [[A]])
+    , fun2 ">>="                ((>>=)     :: [A] -> (A -> [A]) -> [A])
+    , fun2 ">>="                ((>>=)     :: [A] -> (A -> [[A]]) -> [[A]])
+    , fun2 "fmap"               (fmap      :: (A -> A) -> [A] -> [A])
+    , fun2 "fmap"               (fmap      :: (A -> [A]) -> [A] -> [[A]])
+    ]
 

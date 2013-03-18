@@ -1,20 +1,11 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-
-
-   Compile with -fforce-recomp -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
-
--}
-module Main where
+module PartDrop_WithPlus (sig, module Definitions) where
 
 import HipSpec.Prelude
-import HipSpec
 import Prelude(Bool(..), IO, undefined)
 import Properties
 import Definitions
 
-
-main :: IO ()
-main = hipSpec $(fileName)
+sig = signature
     [ vars ["x", "y", "z"] (undefined :: Nat)
     , vars ["xs", "ys", "zs"] (undefined :: [Nat])
     -- Constructors
