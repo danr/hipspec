@@ -41,59 +41,6 @@ executable hipspec
 
     main-is: HipSpec.hs
 
-    other-modules:
-        Halo.BackgroundTheory
-        Halo.Binds
-        Halo.Case
-        Halo.Conf
-        Halo.Constraints
-        Halo.Deappify
-        Halo.Entry
-        Halo.ExprTrans
-        Halo.Fetch
-        Halo.FOL.Abstract
-        Halo.FOL.Internals.Internals
-        Halo.FOL.LineariseSMT
-        Halo.FOL.Operations
-        Halo.FreeTyCons
-        Halo.Lift
-        Halo.Monad
-        Halo.MonoType
-        Halo.Names
-        Halo.Pointer
-        Halo.RemoveDefault
-        Halo.Shared
-        Halo.Subtheory
-        Halo.Trim
-        Halo.Util
-        HipSpec.Execute
-        HipSpec.ATP.Invoke
-        HipSpec.ATP.Provers
-        HipSpec.ATP.Results
-        HipSpec.Heuristics.Associativity
-        HipSpec.Init
-        HipSpec.MainLoop
-        HipSpec.MakeInvocations
-        HipSpec.Messages
-        HipSpec.Monad
-        HipSpec.Params
-        HipSpec.Reasoning
-        HipSpec.StringMarshal
-        HipSpec.Trans.ApproximationLemma
-        HipSpec.Trans.DefinitionalEquations
-        HipSpec.Trans.Induction
-        HipSpec.Trans.Lemma
-        HipSpec.Trans.Literal
-        HipSpec.Trans.MakeProofs
-        HipSpec.Trans.MakerMonad
-        HipSpec.Trans.Obligation
-        HipSpec.Trans.Property
-        HipSpec.Trans.QSTerm
-        HipSpec.Trans.SrcRep
-        HipSpec.Trans.Theory
-        HipSpec.Trans.Types
-        HipSpec.Trans.Unify
-
     build-depends:
         -- Shared
         base                          >= 4    && < 5,
