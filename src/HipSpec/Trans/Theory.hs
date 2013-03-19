@@ -3,9 +3,11 @@ module HipSpec.Trans.Theory
     ( HipSpecExtras(..)
     , setExtraDependencies
     , mkTotalAxioms
+    , mkTotalAxiom
+    , mkAppThy
     , HipSpecContent
     , HipSpecSubtheory
-    , Theory(..)
+    , Theory
     , module Halo.Subtheory
     ) where
 
@@ -46,7 +48,7 @@ data HipSpecExtras
 mkTotalAxioms :: [TyCon] -> [HipSpecSubtheory]
 mkTotalAxioms = mapMaybe mkTotalAxiom
 
-mkTotalAxiom :: TyCon -> Maybe HipSpecSubtheory
+mkTotalAxiom :: (Applicative m,Monad m) => TyCon -> m HipSpecSubtheory
 mkTotalAxiom ty_con
     | isNewTyCon ty_con = do
 
@@ -95,17 +97,37 @@ mkTotalAxiom ty_con
             }
 
 
-{-
-            { provides    = Specific AppBottomAxioms
-            , depends     = []
-            , description = "Axioms for app on bottom"
-            , formulae    =
-                [ forall' [x] $ app bot x' === bot
-                , forall' [f] $ total f' <==>
-                    forall' [x] (total x' ==> total (app f' x'))
-                ]
-            }
--}
+-- | Mainly interesting if bottoms are used, otherwise this is only
+--   a type signature.
+mkAppThy :: Params -> MonoType' -> HipSpecSubtheory
+mkAppThy _          TCon{}          = error "Trying to make app thy on TCon"
+mkAppThy Params{..} ty@(TArr t1 t2) = calculateDeps subtheory
+    { provides    = AppThy ty
+    , depends     =
+        let dep (TCon ty_con) = [Data ty_con,Specific (TotalThy ty_con)]
+            dep t@TArr{}      = [AppThy t]
+        in  nubSorted $ concat [dep t1,dep t2]
+    , clauses    =
+        [ sortSig ty
+        , typeSig (AnApp ty) [ty,t1] t2 ] ++
+
+        concat
+            [ let f,x :: Var
+                  f:x:_ = untypedVarNames
+
+                  qf,qx :: Term'
+                  [qf,qx] = map qvar [f,x]
+                  -- TODO: if bottom of a function type is used, add that app theory
+              in  [ typeSig (ABottom ty) [] ty
+                  , totalSig ty
+                  , axiom $ forall' [(x,t1)] (app ty (bottom ty) qx === bottom t2)
+                  , axiom $ forall' [(f,ty)] (total ty qf <=>
+                      forall' [(x,t1)] (total t1 qx ==> total t2 (app ty qf qx)))
+                  ]
+            | bottoms
+            ]
+    }
+  where
 
 -- | Make data types depend on Domain axioms, and MinRec axioms if min is used.
 --   Make functions depend on finite result type axioms.
@@ -123,5 +145,5 @@ type HipSpecContent = Content HipSpecExtras
 
 type HipSpecSubtheory = Subtheory HipSpecExtras
 
-newtype Theory = Theory { subthys :: [HipSpecSubtheory] }
+type Theory = [HipSpecSubtheory]
 

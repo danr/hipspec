@@ -37,7 +37,8 @@ import Halo.MonoType
 import Halo.FOL.LineariseSMT
 import Halo.FOL.Operations
 
-import Var
+import Id
+import DataCon
 import TyCon
 
 import Data.Function
@@ -140,14 +141,9 @@ mkDummySubtheory c = subtheory
     , clauses     = []
     }
 
-mkAppThy :: MonoType' -> Subtheory s
-mkAppThy t@(TArr t1 t2) = subtheory
-    { provides = AppThy t
-    , depends  = []
-    , clauses  =
-        [ comment "AppTheory"
-        , sortSig t
-        , typeSig (AnApp t) [t1] t2
-        ]
-    }
-mkAppThy _ = error "mkAppThy on non-TArr"
+idToContent :: Id -> Content s
+idToContent i = case isDataConId_maybe i of
+    Just dc -> Data (dataConTyCon dc)
+    Nothing -> Function i
+
+

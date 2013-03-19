@@ -22,7 +22,7 @@
     Contracts.Trans.trSplit.
 
 -}
-module Halo.Binds (trBind, trBinds) where
+module Halo.Binds (trBinds) where
 
 import CoreSubst
 import CoreSyn
@@ -41,7 +41,6 @@ import Halo.Constraints
 import Halo.ExprTrans
 import Halo.FreeTyCons
 import Halo.Monad
-import Halo.Pointer
 import Halo.Shared
 import Halo.Subtheory
 import Halo.Util
@@ -60,24 +59,15 @@ import Data.List
 
 import Data.Void
 
--- | Takes a CoreProgram (= [CoreBind]) and makes FOL translation from it,
---   also returns the BindParts for every defined function
+-- | Translates the function(s)
 trBinds :: [CoreBind] -> HaloM [Subtheory Void]
-trBinds = concatMapM trBind
+trBinds binds = do
 
--- | Translates the function(s) and the pointer axiom(s)
-trBind :: CoreBind -> HaloM [Subtheory Void]
-trBind bind = catch_err $ do
-
-    let vses = flattenBinds [bind]
+    let vses = flattenBinds binds
 
     (fun_subthys,_bind_maps) <- mapAndUnzipM (uncurry trVarCoreExpr) vses
 
-    pointer_subthys <- mapM (mkPtr . fst) vses
-
-    return (fun_subthys ++ pointer_subthys)
-  where
-    catch_err m = m `catchError` \ w -> write w >> return []
+    return fun_subthys
 
 -- | We chop up a bind to several bind parts to be able to split
 --   goals later to several invocations to theorem provers

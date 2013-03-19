@@ -46,6 +46,7 @@ data Msg
     | DefinitionalEquations [String]
     | QuickSpecDone  { classes :: Int, equations :: Int }
     | StartingUserLemmas
+    | Generated String String
 
     | ExploredTheory [String]
     | Finished
@@ -104,6 +105,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     DefinitionalEquations eqs -> "Definitional equations:\n" ++ numberedEqs eqs
     QuickSpecDone classes eqs -> "QuickSpec done, " ++ show classes ++ " classes, " ++ show eqs ++ " equations."
     StartingUserLemmas        -> "Starting to prove user lemmas."
+    Generated c t             -> "Generated theory for " ++ c ++ ":\n" ++ reindent t
 
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->
@@ -152,9 +154,10 @@ msgVerbosity m = case m of
     QuickSpecDone{}          -> 70
     Discarded{}              -> 90
     -- 100: default
-    ProverResult{}           -> 110
-    Spawning{}               -> 120
-    Cancelling{}             -> 130
+    Generated{}              -> 110
+    ProverResult{}           -> 120
+    Spawning{}               -> 130
+    Cancelling{}             -> 140
     SpawningWithTheory{}     -> 200
 
 instance ToJSON Msg

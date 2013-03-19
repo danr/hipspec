@@ -3,12 +3,10 @@
 
     Background theory:
 
-        * Data type projections and discriminators
-
-        * Pointers to data constructors
+        * Data type projections and discriminators and domains
 
 -}
-module Halo.BackgroundTheory (backgroundTheory) where
+module Halo.BackgroundTheory (backgroundTheory,tyConSubtheory) where
 
 import TyCon
 import Var
@@ -18,7 +16,6 @@ import Halo.FOL.Abstract
 
 import Halo.Conf
 import Halo.Names
-import Halo.Pointer
 import Halo.Shared
 import Halo.Util
 import Halo.Subtheory
@@ -29,16 +26,16 @@ import Data.Maybe
 
 -- | Makes the background theory with these settings and data types
 backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
-backgroundTheory halo_conf = concat . mapMaybe (tyConSubtheory halo_conf)
+backgroundTheory halo_conf = mapMaybe (tyConSubtheory halo_conf)
 
 -- | Makes the projections, discrimination and pointer axioms for a data type
-tyConSubtheory :: HaloConf -> TyCon -> Maybe [Subtheory s]
+tyConSubtheory :: (Applicative m,Monad m) => HaloConf -> TyCon -> m (Subtheory s)
 tyConSubtheory HaloConf{use_bottom} ty_con
     | isNewTyCon ty_con = do
 
         let t = TCon ty_con
 
-        return $ [calculateDeps subtheory
+        return $ calculateDeps subtheory
             { provides     = Data ty_con
             , depends      = []
             , clauses      =
@@ -46,7 +43,7 @@ tyConSubtheory HaloConf{use_bottom} ty_con
                 , sortSig t
                 ] ++
                 [ typeSig (ABottom t) [] t | use_bottom ]
-            }]
+            }
 
     | otherwise = do
 
@@ -118,13 +115,6 @@ tyConSubtheory HaloConf{use_bottom} ty_con
                 [u] = mkVarNamesOfType [mkTyConTy ty_con]
                 u'  = qvar u
 
-        -- Pointers, to each non-nullary constructor k
-        pointer_subthys <- sequence
-            [ fmap (\ s -> s { depends = [Data ty_con] }) (mkPtr k)
-            | Just (k,tys,_) <- cons
-            , length tys > 0
-            ]
-
         let err = error "Halo.BackgroundTheory: cannot use datadecls when bottoms is enabled"
 
         return $ calculateDeps subtheory
@@ -136,8 +126,4 @@ tyConSubtheory HaloConf{use_bottom} ty_con
                 axioms (domain : discrims ++ projections)
             , datadecls    = [(ty_con,map (rm_mid . fromMaybe err) cons)]
             }
-            : pointer_subthys
-
-
-
 

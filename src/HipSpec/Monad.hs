@@ -2,8 +2,11 @@
 module HipSpec.Monad
     ( HS()
     , runHS
+    , haloHS
     , writeMsg
     , getParams
+    , getTheory
+    , enlargeTheory
     , HSInfo(..)
     , getInfo
     , getMsgs
@@ -12,11 +15,13 @@ module HipSpec.Monad
     , Msg(..)
     , Params(..)
     , initialize
+    , withUniqSupply
     ) where
 
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Control.Monad.State
 
 import System.Console.CmdArgs hiding (summary,verbosity)
 
@@ -29,14 +34,18 @@ import HipSpec.StringMarshal
 
 import Control.Concurrent.MVar
 
+import Control.Arrow (first,second)
+
+import UniqSupply
+
 -- Accessible state
 data HSInfo = Info
     { params    :: Params
-    , theory    :: Theory
     , halo_env  :: HaloEnv
     , str_marsh :: StrMarsh
     }
 
+-- Immutable state
 data HSEnv = HSEnv
     { hs_info     :: HSInfo
     , write_fun   :: Msg -> IO ()
@@ -44,8 +53,17 @@ data HSEnv = HSEnv
     , write_mutex :: MVar ()
     }
 
-newtype HS a = HS (ReaderT HSEnv IO a)
+-- Mutable state
+type HSSt = (Theory,UniqSupply)
+
+newtype HS a = HS (StateT HSSt (ReaderT HSEnv IO) a)
   deriving (Functor,Applicative,Monad,MonadIO)
+
+haloHS :: HaloM a -> HS a
+haloHS m = do
+    Info{halo_env} <- getInfo
+    let (a,_) = runHaloM halo_env m
+    return a
 
 runHS :: HS a -> IO a
 runHS (HS m) = do
@@ -54,17 +72,23 @@ runHS (HS m) = do
         Nothing -> return (\ _ -> return (), return [])
         _ -> mkWriter
     mtx <- newMVar ()
-    runReaderT m HSEnv
+    us0 <- liftIO $ mkSplitUniqSupply 'h'
+    runReaderT (evalStateT m ([],us0)) HSEnv
         { hs_info = Info
             { params      = params_
             , halo_env    = error "halo_env uninitialized"
-            , theory      = error "theory uninitalized"
             , str_marsh   = error "str_marsh uninitialized"
             }
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn
         , write_mutex = mtx
         }
+
+getTheory :: HS Theory
+getTheory = HS $ gets fst
+
+enlargeTheory :: [HipSpecSubtheory] -> HS ()
+enlargeTheory hs = HS $ modify (first (hs ++))
 
 getWriteMsgFun :: HS (Msg -> IO ())
 getWriteMsgFun = HS $ do
@@ -98,4 +122,11 @@ initialize k (HS m) = HS $
     local
         (\ hse -> hse { hs_info = k (hs_info hse) })
         m
+
+withUniqSupply :: UniqSM a -> HS a
+withUniqSupply m = HS $ do
+    u <- gets snd
+    let (a,u') = initUs u m
+    modify (second (const u'))
+    return a
 

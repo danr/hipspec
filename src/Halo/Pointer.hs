@@ -3,6 +3,8 @@
 
     Make a pointer subtheory
 
+    Depends either on the function or the tycon it originated from
+
 -}
 module Halo.Pointer where
 
@@ -35,10 +37,10 @@ mkPtr h = do
 
     return $ calculateDeps subtheory
         { provides = Pointer h
-        , depends  = [Function h]
+        , depends  = [idToContent h]
         , clauses  =
             [ comment ("Pointer axiom to " ++ showOutputable h)
-            , typeSig' (APtr h) ty
+            , typeSig (APtr h) [] ty
             , axiom formula
             ]
         }

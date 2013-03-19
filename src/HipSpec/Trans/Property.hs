@@ -140,8 +140,8 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
         return (u,(b :== Var trueDataConId):as,o)
     _ -> Nothing
 
-trProperty :: CoreBind -> Maybe (Property Void)
-trProperty (NonRec prop_name e) = do
+trProperty :: Var -> CoreExpr -> Maybe (Property Void)
+trProperty prop_name e = do
     let (ty_vars,vars,e0) = collectTyAndValBinders e
 
     (lit,assume,oops) <- parseProperty e0
@@ -168,7 +168,6 @@ trProperty (NonRec prop_name e) = do
         , propOffsprings = return []
         , propOops       = oops
         }
-trProperty _ = Nothing
 
 totalityProperty :: Var -> Totality -> Maybe (Property Void)
 totalityProperty v t = case t of

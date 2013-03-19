@@ -91,7 +91,7 @@ trObligation Property{..} obligation@(IS.Obligation skolems hyps concl) = do
         return $
             comment "Proof by structural induction" :
             comment (render (linObligation ghcStyle obligation)) :
-            map (uncurry (typeSig' . ASkolem)) sks ++
+            [ typeSig (ASkolem s) [] t | (s,t) <- sks ] ++
             map negatedConjecture tr_concl ++
             map hypothesis tr_hyps
 

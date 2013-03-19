@@ -42,7 +42,7 @@ approximate prop@Property{..} = do
 
         (cls,deps) <- lift $ do
 
-            approx_thy:_ <- trBind e
+            approx_thy:_ <- trBinds [e]
             let approx_cls  = clauses approx_thy
                 approx_deps = filter (`notElem` map Function [approx,rec])
                                      (depends approx_thy)

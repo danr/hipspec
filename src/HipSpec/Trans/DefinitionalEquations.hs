@@ -26,7 +26,6 @@ import HipSpec.Monad hiding (equations,vars)
 import HipSpec.Reasoning
 import HipSpec.StringMarshal
 import HipSpec.Trans.QSTerm
-import HipSpec.Trans.Theory
 import HipSpec.Trans.Unify
 
 import Id
@@ -63,13 +62,15 @@ pruneWithDefEqs sig ctx = do
 getDefEqs :: (MakeEquation eq,EQR eq ctx cc) => Sig -> HS [eq]
 getDefEqs sig = do
 
-    Info{theory,str_marsh} <- getInfo
+    Info{str_marsh} <- getInfo
+
+    theory <- getTheory
 
     let getFunction s = case s of
             Subtheory (Function v) _ cls _ -> Just (v,formulae cls)
             _ -> Nothing
 
-        func_map = M.fromList (mapMaybe getFunction (subthys theory))
+        func_map = M.fromList (mapMaybe getFunction theory)
 
         lookup_func x = fromMaybe [] (M.lookup x func_map)
 

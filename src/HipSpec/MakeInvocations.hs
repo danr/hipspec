@@ -12,6 +12,7 @@ import HipSpec.Trans.Theory
 import HipSpec.Trans.Property
 import HipSpec.Trans.Lemma
 import HipSpec.Trans.MakerMonad
+import HipSpec.Complement
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
@@ -25,6 +26,7 @@ import Halo.FOL.LineariseSMT
 import Data.List
 import Data.Either
 import Data.Maybe
+import Data.Foldable (toList)
 
 import Control.Monad
 
@@ -43,7 +45,7 @@ tryProve props (interestingLemmas -> lemmas0) = do
     us <- liftIO $ mkSplitUniqSupply 'c'
 
     Info{..} <- getInfo
-    let Params{..} = params
+    Params{..} <- getParams
 
     case fst $ runMakerM halo_env us (catMaybes <$> mapM (makeProofs params) props) of
 
@@ -63,7 +65,15 @@ tryProve props (interestingLemmas -> lemmas0) = do
 
                 proof_tree = tryAll proof_trees
 
-                linTheory :: [HipSpecSubtheory] -> LinTheory
+                all_depends
+                    = nubSorted (concatMap depends
+                         (map ob_content (toList proof_tree) ++ lemma_theories))
+
+            complement all_depends
+
+            theory <- getTheory
+
+            let linTheory :: [HipSpecSubtheory] -> LinTheory
                 linTheory sthys = LinTheory $ \ t -> case t of
                     TPTP         -> "no tptp!"
                     SMT          -> smt_str
@@ -82,7 +92,7 @@ tryProve props (interestingLemmas -> lemmas0) = do
                 calc_dependencies s = concatMap depends (s:lemma_theories)
 
                 fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
-                fetcher = trim (subthys theory ++ lemma_theories)
+                fetcher = trim (theory ++ lemma_theories)
 
                 fetch_and_linearise :: HipSpecSubtheory -> LinTheory
                 fetch_and_linearise conj = linTheory $

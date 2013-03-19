@@ -35,9 +35,12 @@ instance Ord Bottom where
 --   Right Type means bottom at this particular type
 tyEnv :: Bool -> TyEnv (Either DataCon Bottom) Type
 tyEnv add_bottom ty
-    | isAlgType ty = fmap add_bottom_con $ Just
-                   $ map (first Left)
-                   $ uncurry instTyCon (splitTyConApp ty)
+    | isAlgType ty =
+        let (tc,ts) = splitTyConApp ty
+        in  if isNewTyCon tc then Nothing
+                else Just $ add_bottom_con
+                          $ map (first Left)
+                          $ instTyCon tc ts
     | otherwise    = Nothing
   where
     add_bottom_con

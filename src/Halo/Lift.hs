@@ -56,19 +56,16 @@ dbgMsg = lift . tell . return
 liftUnique :: LiftM Unique
 liftUnique = lift . lift . lift $ getUniqueM
 
-run :: LiftM a -> Bool -> UniqSupply -> (((a,[CoreBind]),[String]),UniqSupply)
-run m li us = initUs us (runWriterT (runWriterT m `runReaderT` initEnv li))
+run :: LiftM a -> Bool -> UniqSM ((a,[CoreBind]),[String])
+run m li = runWriterT (runWriterT m `runReaderT` initEnv li)
 
 -- | caseLetLift a core program
-caseLetLift :: [CoreBind] -> Bool -> UniqSupply -> (([CoreBind],[String]),UniqSupply)
-caseLetLift []     _  us = (([],[]),us)
-caseLetLift (b:bs) li us =
-    ((mkCoreBind (flattenBinds (b':lifted_binds)):more_binds
-     ,msgs++more_msgs)
-    ,fin_us)
-   where
-     (((b',lifted_binds),msgs),us')  = run (liftCoreBind b) li us
-     ((more_binds,more_msgs),fin_us) = caseLetLift bs li us'
+caseLetLift :: [CoreBind] -> Bool -> UniqSM ([CoreBind],[String])
+caseLetLift []     _  = return ([],[])
+caseLetLift (b:bs) li = do
+    ((b',bl),msgs) <- run (liftCoreBind b) li
+    (bs',msgs') <- caseLetLift bs li
+    return (mkCoreBind (flattenBinds (b':bl)):bs',(msgs++msgs'))
 
 -- | Lift a binding group
 liftCoreBind :: CoreBind -> LiftM CoreBind
