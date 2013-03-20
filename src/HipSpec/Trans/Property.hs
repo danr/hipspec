@@ -14,7 +14,6 @@ module HipSpec.Trans.Property
     ) where
 
 import HipSpec.Trans.SrcRep
-import HipSpec.Trans.Theory
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal)
 
@@ -30,7 +29,6 @@ import TysWiredIn
 import Halo.Shared
 import Halo.Names
 
-import Data.List (nub)
 import Data.Function (on)
 import Control.Arrow (second)
 
@@ -78,7 +76,6 @@ data Property eq = Property
     , propVarRepr    :: [String]
     , propOrigin     :: Origin eq
     , propOffsprings :: IO [Property eq]
-    , propDeps       :: [HipSpecContent]
     , propOops       :: Bool
     -- ^ It's an error if this property was provable
     }
@@ -105,7 +102,6 @@ instance Show (Property eq) where
         ,", propType = ", showOutputable propType
         ,", propName = ", show propName
         ,", propRepr = ", show propRepr
-        ,", propDeps = ", show propDeps
         ,", propOops = ", show propOops
         ,"}"
         ]
@@ -121,7 +117,6 @@ inconsistentProperty = Property
     , propVarRepr    = []
     , propOrigin     = Builtin
     , propOffsprings = return []
-    , propDeps       = [Data boolTyCon]
     , propOops       = True
     }
 
@@ -142,15 +137,11 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
 
 trProperty :: Var -> CoreExpr -> Maybe (Property Void)
 trProperty prop_name e = do
-    let (ty_vars,vars,e0) = collectTyAndValBinders e
+    let (_ty_vars,vars,e0) = collectTyAndValBinders e
 
     (lit,assume,oops) <- parseProperty e0
 
-    -- Free variables, but do not count =:=, proveBool, oops or arguments
-    let free (lhs :== rhs) = filter (`notElem` (vars ++ ty_vars)) (exprFVs lhs ++ exprFVs rhs)
-        free (Total _ e')    = filter (`notElem` (vars ++ ty_vars)) (exprFVs e')
-
-        get_type (lhs :== _)  = exprType lhs
+    let get_type (lhs :== _)  = exprType lhs
         get_type (Total ty _) = ty
 
     return $ Property
@@ -162,9 +153,6 @@ trProperty prop_name e = do
         , propRepr       = show assume ++ " ==> " ++ show lit
         , propVarRepr    = map showOutputable vars
         , propOrigin     = UserStated
-        , propDeps       = map Function (nub $ concatMap free (lit:assume))
-                        ++ map Data (concatMap varTypeTyCons vars)
-                        ++ map Data (typeTyCons (get_type lit))
         , propOffsprings = return []
         , propOops       = oops
         }
@@ -190,7 +178,6 @@ totalityProperty v t = case t of
             , propRepr       = "Totality for " ++ showOutputable v
             , propVarRepr    = map showOutputable args
             , propOrigin     = Totality t
-            , propDeps       = [Function v] ++ map Data (concatMap varTypeTyCons args)
             , propOffsprings = return []
             , propOops       = False
             }

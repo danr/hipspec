@@ -44,7 +44,7 @@ sig = signature
     , "cycle"   `fun1` cycle
     , "head"    `fun1` head
     , "tail"    `fun1` tail
---    , withQuickCheckSize 10
+    , withQuickCheckSize 10
     ]
 
 prop_huh :: A -> (A -> A) -> (A -> A) -> Prop List

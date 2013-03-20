@@ -104,9 +104,9 @@ mkAppThy _          TCon{}          = error "Trying to make app thy on TCon"
 mkAppThy Params{..} ty@(TArr t1 t2) = calculateDeps subtheory
     { provides    = AppThy ty
     , depends     =
-        let dep (TCon ty_con) = [Data ty_con,Specific (TotalThy ty_con)]
-            dep t@TArr{}      = [AppThy t]
-        in  nubSorted $ concat [dep t1,dep t2]
+        let dep (TCon ty_con) = Data ty_con
+            dep t@TArr{}      = AppThy t
+        in  nubSorted [dep t1,dep t2]
     , clauses    =
         [ sortSig ty
         , typeSig (AnApp ty) [ty,t1] t2 ] ++

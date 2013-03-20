@@ -32,6 +32,7 @@
 module Halo.Subtheory where
 
 import Halo.Shared
+import Halo.Util
 import Halo.FOL.Abstract
 import Halo.MonoType
 import Halo.FOL.LineariseSMT
@@ -115,17 +116,26 @@ instance Ord s => Ord (Subtheory s) where
 subtheory :: Subtheory s
 subtheory = Subtheory
     { provides    = error "subtheory: please fill in provides"
-    , depends     = error "subtheory: please fill in depends"
+    , depends     = []
     , clauses     = error "subtheory: please fill in clauses"
     , datadecls   = []
     }
 
--- Calculates app and pointer dependencies
-calculateDeps :: Subtheory s -> Subtheory s
+-- Calculates dependecies (to app, pointer, data and function)
+calculateDeps :: Ord s => Subtheory s -> Subtheory s
 calculateDeps s@Subtheory{..} = s
-    { depends = depends ++ map (Pointer . fst) (ptrsUsed clauses)
-                        ++ map (AppThy) (appsUsed clauses)
+    { depends = nubSorted $ depends
+                    ++ map (Pointer . fst) (ptrsUsed clauses)
+                    ++ map AppThy (appsUsed clauses)
+                    ++ map Function (funsUsed clauses)
+                    ++ map idToContent (ctorsUsed clauses)
+                    ++ map type_thy (totalsUsed clauses)
+                    ++ map type_thy (bottomsUsed clauses)
+                    ++ map type_thy (tysUsed clauses)
     }
+  where
+    type_thy (TCon ty_con) = Data ty_con
+    type_thy ty@TArr{}     = AppThy ty
 
 instance Show s => Show (Subtheory s) where
     show (Subtheory{..}) =

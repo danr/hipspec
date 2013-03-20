@@ -30,7 +30,7 @@ import Id
 import Name
 import OccName as OccName
 
-import Data.Void
+-- TODO: Make a subtheory for the approximation of a type constructor
 
 approximate :: forall eq . Property eq -> Maybe (MakerM (ProofTree eq))
 approximate prop@Property{..} = do
@@ -70,7 +70,6 @@ approximate prop@Property{..} = do
             , ob_info = ApproxLemma
             , ob_content = calculateDeps subtheory
                 { provides = Specific Conjecture
-                , depends  = map vacuous deps ++ propDeps
                 , clauses  = comment ("Approximation conjecture for " ++ propName) : cls
                 }
             }

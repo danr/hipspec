@@ -76,8 +76,8 @@ promiseProof env@Env{store} ob@Obligation{..} timelimit prover@Prover{..} = do
             let (path,file) = filename env ob
                 ext = case proverTheoryType of
                         TPTP         -> "tptp"
-                        SMT          -> "smt"
-                        SMTUnsatCore -> "unsat-core" <.> "smt"
+                        SMT          -> "smt2"
+                        SMTUnsatCore -> "unsat-core" <.> "smt2"
                 d = dir </> path
                 f = d </> file <.> ext
             createDirectoryIfMissing True d

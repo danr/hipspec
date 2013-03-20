@@ -20,7 +20,7 @@ import Halo.MonoType
 
 -- | Makes a pointer to a constructor or function
 --   Uses varType to get its type
-mkPtr :: Monad m => Var -> m (Subtheory s)
+mkPtr :: (Ord s,Monad m) => Var -> m (Subtheory s)
 mkPtr h = do
 
     ty <- monoType (varType h)
@@ -37,7 +37,6 @@ mkPtr h = do
 
     return $ calculateDeps subtheory
         { provides = Pointer h
-        , depends  = [idToContent h]
         , clauses  =
             [ comment ("Pointer axiom to " ++ showOutputable h)
             , typeSig (APtr h) [] ty

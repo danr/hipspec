@@ -25,6 +25,7 @@
 module Halo.Binds (trBinds) where
 
 import CoreSubst
+import CoreUtils
 import CoreSyn
 import DataCon
 import Id
@@ -39,7 +40,6 @@ import Halo.Case
 import Halo.Conf
 import Halo.Constraints
 import Halo.ExprTrans
-import Halo.FreeTyCons
 import Halo.Monad
 import Halo.Shared
 import Halo.Subtheory
@@ -54,8 +54,6 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import Data.Map (Map)
 import qualified Data.Set as S
-import Data.Set (Set)
-import Data.List
 
 import Data.Void
 
@@ -78,7 +76,6 @@ data BindPart = BindPart
     , bind_rhs     :: Either CoreExpr Term'
     , bind_qvars   :: [Var]
     , bind_constrs :: [Constraint]
-    , bind_deps    :: [Content Void]
     }
 
 -- | Many bind parts
@@ -96,7 +93,6 @@ bindPartEither rhs = do
             , bind_qvars   = S.toList qvars
             , bind_rhs     = rhs
             , bind_constrs = constr
-            , bind_deps    = bindPartDeps bind_part
             }
     return bind_part
 
@@ -123,18 +119,21 @@ trBindParts f e parts = do
 
     formulae <- mapM trBindPart parts
 
-    -- We get this information from the bind_deps, in case
-    -- we filter away a branch with conflicting constraints
-    let deps = nub $ concatMap bind_deps parts
+    -- A function can return new functions, obviously,
+    -- but we need to represent this as returning a pointer type
+    -- (see issue #14)
+    let as :: [Var]
+        e' :: CoreExpr
+        (as,e') = collectValBinders e
 
-    monotype <- varMonoType f
+    arg_types <- mapM varMonoType as
+    res_type <- monoType (exprType e')
 
     return $ calculateDeps subtheory
         { provides = Function f
-        , depends  = deps
         , clauses  =
             comment (showOutputable f ++ " = " ++ showOutputable e) :
-            typeSig' (AFun f) monotype :
+            typeSig (AFun f) arg_types res_type :
             definitions formulae
         }
 
@@ -322,46 +321,4 @@ trConstr (Inequality e data_con) = do
     return $ lhs =/= rhs
 trConstr (LitEquality e i)   = (litInteger i ===) <$> trExpr e
 trConstr (LitInequality e i) = (litInteger i =/=) <$> trExpr e
-
--- | Non-pointer dependencies of an expression
-exprDeps :: CoreExpr -> Set (Content Void)
-exprDeps = S.fromList
-         . ((++) <$> (map Function . exprFVs) <*> (map Data . freeTyCons))
-
--- | Non-pointer dependencies of a constraint
-constraintDeps :: Constraint -> Set (Content Void)
-constraintDeps c = case c of
-    Equality e dc _es    -> S.insert (dcContent dc) (exprDeps e)
-    Inequality e dc      -> S.insert (dcContent dc) (exprDeps e)
-    LitEquality e _      -> exprDeps e
-    LitInequality e _    -> exprDeps e
-  where
-    dcContent :: DataCon -> Content s
-    dcContent = Data . dataConTyCon
-
--- | Calculates the non-pointer dependencies of a bind part
-bindPartDeps :: BindPart -> [Content Void]
-bindPartDeps BindPart{..}
-    = S.toList $ S.delete (Function bind_fun) (free S.\\ bound)
-  where
-    free = S.unions $ [ args_dcs
-                      , case bind_rhs of
-                            Left expr -> exprDeps expr
-                            Right _   -> S.empty
-                      ]
-                   ++ map constraintDeps bind_constrs
-
-    bound = args_bound `S.union` constr_bound
-
-    -- Don't regard arguments as a dependency
-    (args_bound,args_dcs) = S.partition isFunction (S.unions (map exprDeps bind_args))
-
-    -- Variables bound in constraints from casing on non-var scrutinees
-    constr_bound = S.unions (map constr_bind bind_constrs)
-      where
-        constr_bind (Equality _ _ es) = S.unions (map exprDeps es)
-        constr_bind _                 = S.empty
-
-    isFunction Function{} = True
-    isFunction _          = False
 

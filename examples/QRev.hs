@@ -2,7 +2,7 @@ module QRev where
 
 import Prelude hiding ((++))
 import HipSpec.Prelude
-import List
+import List hiding (sig)
 
 rev :: List -> List
 rev (Cons x xs) = rev xs ++ Cons x Nil
@@ -12,8 +12,10 @@ qrev :: List -> List -> List
 qrev Nil         ys = ys
 qrev (Cons x xs) ys = qrev xs (Cons x ys)
 
+{-
 prop_equal :: List -> Prop List
 prop_equal xs = qrev xs Nil =:= rev xs
+-}
 
 sig =
     [ vars ["x", "y", "z"]    (undefined :: A)

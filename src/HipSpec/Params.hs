@@ -95,7 +95,7 @@ defParams = Params
     , batchsize           = 1    &= name "B" &= help "Equations to process simultaneously (default 1)"
     , timeout             = 1    &= name "t" &= help "Timeout of provers in seconds (default 1.0)"
     , provers             = "z"  &= name "p" &= help "Provers to use: (z)3 (Z)3 with unsat cores (default z)"
-    , methods             = "pia"            &= help "Methods to use (p)lain definition equality, (i)nduction, (a)pproximation lemma (default all)"
+    , methods             = "pi"             &= help "Methods to use (p)lain definition equality, (i)nduction, (a)pproximation lemma (default pi)"
     , explore_theory      = False   &= name "e"  &= help "Print explored theory"
 
     , consistency         = False   &= name "c" &= help "Add a consistency check"

@@ -2,7 +2,7 @@
 -- TODO: add abstract types (newtypes): to be declared with declare-sort
 module Halo.FOL.LineariseSMT (linSMT,addUnsatCores,linClause,sexpr) where
 
-
+import Name hiding (varName)
 import Var
 import TyCon
 
@@ -161,7 +161,10 @@ monotype (TCon tc)    = tcon tc
 monotype (TArr t1 t2) = "from_" ++ monotype t1 ++ "_to_" ++ monotype t2
 
 showVar :: Var -> String
-showVar v = (\ s -> show (varUnique v) ++ "_" ++ s) . escape . idToStr $ v
+showVar v = (\ s -> show (varUnique v) ++ "_" ++ s) . escape . showName . varName $ v
+
+showName :: Name -> String
+showName = showOutputable . nameOccName
 
 bottom :: MonoType' -> String
 bottom = ("bot_" ++) . monotype
@@ -185,7 +188,7 @@ proj :: Int -> Var -> String
 proj i v = "p_" ++ show i ++ "_" ++ showVar v
 
 tcon :: TyCon -> String
-tcon tc = "t_" ++ show (tyConUnique tc) ++ "_" ++ escape (showOutputable (tyConName tc))
+tcon tc = "t_" ++ show (tyConUnique tc) ++ "_" ++ escape (showName (tyConName tc))
 
 skolem :: Var -> String
 skolem = ("sk_" ++) . showVar

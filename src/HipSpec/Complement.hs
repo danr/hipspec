@@ -83,7 +83,7 @@ generateVarTheory v = case realIdUnfolding v of
 
         haloHS (map vacuous `fmap` trBinds b_with_defs)
 
-    u -> fail $ "No unfolding: " ++ showOutputable u
+    _ -> fail $ "HipSpec.Complement.generateVarTheory: No unfolding for: " ++ showOutputable v
 
 lint :: String -> [CoreBind] -> HS ()
 lint s bs = liftIO $ do

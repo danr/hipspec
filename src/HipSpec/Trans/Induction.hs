@@ -64,7 +64,6 @@ induction Params{indhyps,indobligs,bottoms} prop@Property{..} coords = do
                     }
                 , ob_content = calculateDeps subtheory
                     { provides = Specific Conjecture
-                    , depends  = propDeps
                     , clauses  = comment ("Conjecture for " ++ propName) : cls
                     }
                 }

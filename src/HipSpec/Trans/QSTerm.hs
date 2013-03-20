@@ -16,13 +16,11 @@ import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
 import qualified Test.QuickSpec.Utils.Typeable as Ty
 import Test.QuickSpec.TestTotality
 
-import Halo.Shared
 import Halo.Names
 import Halo.Util
 
 import HipSpec.StringMarshal
 import HipSpec.Trans.Property
-import HipSpec.Trans.Theory
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -104,8 +102,6 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
         , propVarRepr    = map (show . fst) var_rename
         , propOrigin     = Equation (partials :\/: t1 :=: t2)
         , propOffsprings = return []
-        , propDeps       = map Function fundeps ++
-                           map Data (concatMap (typeTyCons . snd) prop_vars)
         , propOops       = False
         }
       where
@@ -120,13 +116,6 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
     lit = term_to_expr t1 :== term_to_expr t2
 
     prop_vars = map ((id &&& varType) . snd) var_rename
-
-    fundeps  =
-        [ v
-        | c <- nub (funs t1 ++ funs t2)
-        , let v = lookupSym str_marsh c
-        , not (isDataConId v)
-        ]
 
     var_rename
         = zip occuring_vars
@@ -147,8 +136,6 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     , propVarRepr    = map (show . fst) var_rename
     , propOrigin     = Equation eq
     , propOffsprings = return []
-    , propDeps       = map Function fundeps ++
-                       map Data (concatMap (typeTyCons . snd) prop_vars)
     , propOops       = False
     }
   where
@@ -162,13 +149,6 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     lit = term_to_expr e1 :== term_to_expr e2
 
     prop_vars = map ((id &&& varType) . snd) var_rename
-
-    fundeps  =
-        [ v
-        | c <- nub (funs e1 ++ funs e2)
-        , let v = lookupSym str_marsh c
-        , not (isDataConId v)
-        ]
 
     var_rename
         = zip occuring_vars

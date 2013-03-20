@@ -25,11 +25,11 @@ import Data.List
 import Data.Maybe
 
 -- | Makes the background theory with these settings and data types
-backgroundTheory :: HaloConf -> [TyCon] -> [Subtheory s]
+backgroundTheory :: Ord s => HaloConf -> [TyCon] -> [Subtheory s]
 backgroundTheory halo_conf = mapMaybe (tyConSubtheory halo_conf)
 
 -- | Makes the projections, discrimination and pointer axioms for a data type
-tyConSubtheory :: (Applicative m,Monad m) => HaloConf -> TyCon -> m (Subtheory s)
+tyConSubtheory :: (Applicative m,Monad m,Ord s) => HaloConf -> TyCon -> m (Subtheory s)
 tyConSubtheory HaloConf{use_bottom} ty_con
     | isNewTyCon ty_con = do
 
