@@ -24,10 +24,13 @@ import HipSpec.Init
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
 import HipSpec.Heuristics.Associativity
+import HipSpec.Heuristics.CallGraph
 import HipSpec.Trans.DefinitionalEquations
 import HipSpec.StringMarshal (maybeLookupSym)
 
 import Prelude hiding (read)
+
+import qualified Data.Map as M
 
 import Halo.Util
 import Halo.Shared
@@ -53,11 +56,11 @@ main = runHS $ do
 
             Just sig -> do
 
+                Info{str_marsh} <- getInfo
+
                 (eqs,reps,classes) <- runQuickSpec sig
 
                 Params{bottoms,explore_theory} <- getParams
-
-                Info{str_marsh} <- getInfo
 
                 if bottoms then do
 
@@ -128,6 +131,11 @@ runQuickSpec :: Sig -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec sig = do
 
     Params{..} <- getParams
+    Info{..} <- getInfo
+
+    let callg = M.toList (transitiveCallGraph str_marsh)
+
+    liftIO $ forM_ callg $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -135,12 +143,14 @@ runQuickSpec sig = do
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
+        -- TODO: Hook this together with sortByGraph callg
         classToEqs :: [Several Expr] -> [Some TypedEquation]
-        classToEqs = sortBy (comparing (eq_order . (swap_repr ? swapEq) . some eraseEquation))
-                   . if quadratic
-                          then sortBy (comparing (some eraseEquation)) .
-                               concatMap (several (map (Some . uncurry (:==:)) . uniqueCartesian))
-                          else equations
+        classToEqs
+            = sortBy (comparing (eq_order . (swap_repr ? swapEq) . some eraseEquation))
+            . if quadratic
+                   then sortBy (comparing (some eraseEquation)) .
+                        concatMap (several (map (Some . uncurry (:==:)) . uniqueCartesian))
+                   else equations
 
         ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
 

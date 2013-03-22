@@ -15,8 +15,9 @@ instance Arbitrary Z where
   arbitrary = oneof [P `fmap` arbitrary,N `fmap` arbitrary]
 
 -- Natural subtraction
-m   - Z     = P m
-Z   - (S n) = N n
+Z   - Z     = P Z
+S m - Z     = P (S m)
+Z   - S n   = N n
 S m - S n   = m - n
 
 neg :: Z -> Z
@@ -92,8 +93,8 @@ sign :: Z -> Sign
 sign (P _) = Pos
 sign (N _) = Neg
 
-_   <| Z     = P Z
 Pos <| n     = P n
+Neg <| Z     = P Z
 Neg <| (S m) = N m
 
 -- Integer multiplication

@@ -12,11 +12,11 @@ infixl 7 *
 
 (+) :: Nat -> Nat -> Nat
 S n + m = S (n + m)
-_   + m = m
+Z   + m = m
 
 (*) :: Nat -> Nat -> Nat
 S n * m = m + (n * m)
-_   * m = Z
+Z   * m = Z
 
 prop_mul_comm :: Nat -> Nat -> Nat -> Prop Nat
 prop_mul_comm x y z = x * y =:= y * x

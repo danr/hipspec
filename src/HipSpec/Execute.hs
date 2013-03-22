@@ -87,10 +87,10 @@ execute file = do
         -- Get the session so we can use tcRnLookupName and core2core optimise
         hsc_env <- getSession
 
---         let modguts = dm_core_module d
+        let modguts = dm_core_module d
 
         -- Get the modguts (and optimise it)
-        modguts <- liftIO (core2core hsc_env (dm_core_module d))
+--        modguts <- liftIO (core2core hsc_env (dm_core_module d))
 
         -- Now we can load the module (so we can later evaluate in it)
         -- _ <- load LoadAllTargets loadModule d
