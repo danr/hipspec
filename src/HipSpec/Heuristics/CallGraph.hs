@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
 -- Sort functions according to the call graph
 module HipSpec.Heuristics.CallGraph where
 
@@ -7,6 +7,7 @@ import Test.QuickSpec.Term
 import HipSpec.StringMarshal
 
 import Halo.Shared (isDataConId)
+import Halo.Util (nubSorted)
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -20,14 +21,27 @@ import Data.Maybe
 
 import Data.Graph
 
-sortByCallGraph :: StrMarsh -> (a -> [Symbol]) -> [a] -> [[a]]
+import Control.Monad
+
+sortByCallGraph :: Ord a => StrMarsh -> (a -> [Symbol]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph
 
-sortByGraph :: Ord s => Map s [s] -> (a -> [s]) -> [a] -> [[a]]
-sortByGraph m k = stronglyConnComp . map u
-  where u a = let s = k a in (a,s,POWERSET fromMaybe [] (M.lookup s m)
-                                -- ^ TODO: k a : [s], so make this point to all subsets
-                                --
+-- too inefficient! rewrite!
+sortByGraph :: forall a s . Ord s => Map s [s] -> (a -> [s]) -> [a] -> [[a]]
+sortByGraph m k = map (catMaybes . flattenSCC) . stronglyConnComp . add_empty . map u
+  where
+    u :: a -> (Maybe a,[s],[[s]])
+    u a = (Just a,ss,powerset $ nubSorted $ concat $ (map (fromMaybe [] . (`M.lookup` m)) ss))
+      where ss = k a
+
+    add_empty :: [(Maybe a,[s],[[s]])] -> [(Maybe a,[s],[[s]])]
+    add_empty xs = [ (Nothing,ss,powerset ss) | ss <- powerset syms ] ++ xs
+      where
+        syms :: [s]
+        syms = nubSorted $ concatMap (\(_,ss,_) -> ss) xs
+
+powerset :: [a] -> [[a]]
+powerset = filterM (const [False,True])
 
 -- | Calculate the call graph for the QuickSpec string marshallings
 transitiveCallGraph :: StrMarsh -> Map Symbol [Symbol]

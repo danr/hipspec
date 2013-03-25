@@ -1,8 +1,8 @@
-{-# LANGUAGE RecordWildCards,NamedFieldPuns, DoAndIfThenElse #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term,Expr,term)
+import Test.QuickSpec.Term (totalGen,Term,Expr,term,termConstants, Symbol)
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -133,9 +133,9 @@ runQuickSpec sig = do
     Params{..} <- getParams
     Info{..} <- getInfo
 
-    let callg = M.toList (transitiveCallGraph str_marsh)
+    let callg = transitiveCallGraph str_marsh
 
-    liftIO $ forM_ callg $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
+    liftIO $ forM_ (M.toList callg) $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -143,13 +143,23 @@ runQuickSpec sig = do
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
+        equation_cons :: Some TypedEquation -> [Symbol]
+        equation_cons (some eraseEquation -> t1 :=: t2)
+            = termConstants t1 `union` termConstants t2
+
         -- TODO: Hook this together with sortByGraph callg
         classToEqs :: [Several Expr] -> [Some TypedEquation]
         classToEqs
-            = sortBy (comparing (eq_order . (swap_repr ? swapEq) . some eraseEquation))
+            = concatMap
+                (sortBy (comparing ( eq_order . (swap_repr ? swapEq)
+                                   . some eraseEquation)
+                                   )
+                )
+            . sortByGraph callg equation_cons
             . if quadratic
-                   then sortBy (comparing (some eraseEquation)) .
-                        concatMap (several (map (Some . uncurry (:==:)) . uniqueCartesian))
+                   then concatMap ( several (map (Some . uncurry (:==:))
+                                  . uniqueCartesian)
+                                  )
                    else equations
 
         ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
