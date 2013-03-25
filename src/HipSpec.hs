@@ -133,9 +133,9 @@ runQuickSpec sig = do
     Params{..} <- getParams
     Info{..} <- getInfo
 
-    let callg = transitiveCallGraph str_marsh
-
-    liftIO $ forM_ (M.toList callg) $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
+    when dump_call_graph $ do
+       let callg = transitiveCallGraph str_marsh
+       liftIO $ forM_ (M.toList callg) $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -155,7 +155,9 @@ runQuickSpec sig = do
                                    . some eraseEquation)
                                    )
                 )
-            . sortByGraph callg equation_cons
+            . (if call_graph
+                   then sortByCallGraph str_marsh equation_cons
+                   else (:[]))
             . if quadratic
                    then concatMap ( several (map (Some . uncurry (:==:))
                                   . uniqueCartesian)

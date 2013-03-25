@@ -40,6 +40,7 @@ data Params = Params
     , quadratic           :: Bool
     , interesting_cands   :: Bool
     , assoc_important     :: Bool
+    , call_graph          :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -50,6 +51,7 @@ data Params = Params
     , db_str_marsh        :: Bool
     , db_names            :: Bool
     , db_core_lint        :: Bool
+    , dump_call_graph     :: Bool
     , dump_core           :: Bool
     , dump_props          :: Bool
     , dump_defns          :: Bool
@@ -98,9 +100,9 @@ defParams = Params
     , methods             = "pi"             &= help "Methods to use (p)lain definition equality, (i)nduction, (a)pproximation lemma (default pi)"
     , explore_theory      = False   &= name "e"  &= help "Print explored theory"
 
-    , consistency         = False   &= name "c" &= help "Add a consistency check"
+    , consistency         = False   &= name "C" &= help "Add a consistency check"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
-    , only_user_stated    = False   &= name "u"  &= help "Stop when all user stated properties are proved"
+    , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
 
     , case_lift_inner     = False   &= groupname "\nTranslation settings"
                                     &= help "Lift all inner cases to top level"
@@ -115,6 +117,7 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
     , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
+    , call_graph          = False   &= name "c" &= name "cg" &= help "Sort equations by the call graph"
 
     , inddepth            = 1   &= name "d" &= groupname "\nStructural induction"
                                             &= help "Maximum depth (default 1)"
@@ -126,6 +129,7 @@ defParams = Params
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"
     , db_core_lint        = False   &= help "Run core lint"
     , db_names            = False   &= help "Print names in scope"
+    , dump_call_graph     = False   &= help "Print the QuickSpec signature's call graph"
     , dump_core           = False   &= help "Dump core bindings from the starting module"
     , dump_props          = False   &= help "Dump bindings that are considered properties"
     , dump_defns          = False   &= help "Dump bindings that are considered definitions"

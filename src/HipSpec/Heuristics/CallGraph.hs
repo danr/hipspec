@@ -7,7 +7,7 @@ import Test.QuickSpec.Term
 import HipSpec.StringMarshal
 
 import Halo.Shared (isDataConId)
-import Halo.Util (nubSorted)
+import Halo.Util
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -18,30 +18,39 @@ import VarSet
 import CoreFVs
 
 import Data.Maybe
+import Data.Graph hiding (edges)
 
-import Data.Graph
-
-import Control.Monad
-
-sortByCallGraph :: Ord a => StrMarsh -> (a -> [Symbol]) -> [a] -> [[a]]
+sortByCallGraph :: StrMarsh -> (a -> [Symbol]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph
 
--- too inefficient! rewrite!
 sortByGraph :: forall a s . Ord s => Map s [s] -> (a -> [s]) -> [a] -> [[a]]
-sortByGraph m k = map (catMaybes . flattenSCC) . stronglyConnComp . add_empty . map u
+sortByGraph cg syms eqs = flattenSCCs sccs
   where
-    u :: a -> (Maybe a,[s],[[s]])
-    u a = (Just a,ss,powerset $ nubSorted $ concat $ (map (fromMaybe [] . (`M.lookup` m)) ss))
-      where ss = k a
+    cglkup :: a -> [s]
+    cglkup = nubSorted . concat . mapMaybe (`M.lookup` cg) . syms
 
-    add_empty :: [(Maybe a,[s],[[s]])] -> [(Maybe a,[s],[[s]])]
-    add_empty xs = [ (Nothing,ss,powerset ss) | ss <- powerset syms ] ++ xs
-      where
-        syms :: [s]
-        syms = nubSorted $ concatMap (\(_,ss,_) -> ss) xs
+    ann :: [([s],a)]
+    ann = map (cglkup &&& id) eqs
 
-powerset :: [a] -> [[a]]
-powerset = filterM (const [False,True])
+    grouped :: [[([s],a)]]
+    grouped = groupSortedOn fst ann
+
+    eqcs :: [([s],[a])]
+    eqcs = map ((fst . head) &&& map snd) grouped
+
+    sss :: [[s]]
+    sss = map fst eqcs
+
+    graph :: [([a],[s],[[s]])]
+    graph = [ (eqc,ss,filter (ss `isSupersetOf`) sss)
+            | (ss,eqc) <- eqcs
+            ]
+
+    sccs :: [SCC [a]]
+    sccs = stronglyConnComp graph
+
+isSupersetOf :: Eq a => [a] -> [a] -> Bool
+as `isSupersetOf` bs = all (`elem` as) bs
 
 -- | Calculate the call graph for the QuickSpec string marshallings
 transitiveCallGraph :: StrMarsh -> Map Symbol [Symbol]
