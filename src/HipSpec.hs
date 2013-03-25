@@ -2,7 +2,7 @@
 module Main where
 
 import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term,Expr,term,termConstants, Symbol)
+import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol)
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -143,9 +143,9 @@ runQuickSpec sig = do
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
-        equation_cons :: Some TypedEquation -> [Symbol]
-        equation_cons (some eraseEquation -> t1 :=: t2)
-            = termConstants t1 `union` termConstants t2
+        equation_funs :: Some TypedEquation -> [Symbol]
+        equation_funs (some eraseEquation -> t1 :=: t2)
+            = funs t1 `union` funs t2
 
         -- TODO: Hook this together with sortByGraph callg
         classToEqs :: [Several Expr] -> [Some TypedEquation]
@@ -156,7 +156,7 @@ runQuickSpec sig = do
                                    )
                 )
             . (if call_graph
-                   then sortByCallGraph str_marsh equation_cons
+                   then sortByCallGraph str_marsh equation_funs
                    else (:[]))
             . if quadratic
                    then concatMap ( several (map (Some . uncurry (:==:))
