@@ -121,6 +121,7 @@ prop_left_distrib x y z = x *. (y +. z) =:= (x *. y) +. (x *. z)
 prop_right_distrib :: Z -> Z -> Z -> Prop Z
 prop_right_distrib x y z = (x +. y) *. z =:= (x *. z) +. (y *. z)
 
+{-
 sig =
     [ vars ["x","y","z"] natType
     , vars ["n","m","o"] intType
@@ -151,3 +152,4 @@ sig =
     intType = (undefined :: Z)
     signType = (undefined :: Sign)
 
+-}
