@@ -1,6 +1,5 @@
-module Halo.Unfoldings (fixUnfoldings) where
+module Halo.Unfoldings (fixUnfoldings,fixId) where
 
-import Data.Map (Map)
 import qualified Data.Map as M
 
 import Control.Applicative
@@ -12,20 +11,23 @@ import CoreSyn
 import CoreUnfold
 import Id
 
--- | Ties the knot!
+-- | Fixes identifiers according to some core binds
+fixId :: [CoreBind] -> Id -> Id
+fixId bs = \ i -> case M.lookup i bind_map of
+    Just rhs -> i `setIdUnfoldingLazily` mkCompulsoryUnfolding rhs
+    Nothing -> i
+  where
+    bind_map = M.fromList (flattenBinds bs)
+
+-- | Ties the knot, fixes all the unfoldings in these core binds
 fixUnfoldings :: [CoreBind] -> [CoreBind]
 fixUnfoldings bs = map (idMap lkup) bs'
   where
     bs' :: [CoreBind]
     bs' = (mapM (exprMap k) bs) lkup
 
-    bind_map :: Map Id CoreExpr
-    bind_map = M.fromList (flattenBinds bs')
-
     lkup :: Id -> Id
-    lkup x = case M.lookup x bind_map of
-        Just lhs -> x `setIdUnfoldingLazily` mkCompulsoryUnfolding lhs
-        Nothing -> x
+    lkup = fixId bs'
 
     h :: Id -> (Id -> Id) -> Id
     h x = do

@@ -4,6 +4,7 @@ module HipSpec.Monad
     , runHS
     , haloHS
     , writeMsg
+    , debugMsg
     , getParams
     , getTheory
     , enlargeTheory
@@ -129,4 +130,9 @@ withUniqSupply m = HS $ do
     let (a,u') = initUs u m
     modify (second (const u'))
     return a
+
+debugMsg :: String -> HS ()
+debugMsg m = do
+    Params{debug} <- getParams
+    when debug $ liftIO $ putStrLn m
 

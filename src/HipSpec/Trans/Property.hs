@@ -50,6 +50,13 @@ data Origin eq
     | Builtin
   deriving (Eq,Ord,Functor)
 
+instance Show (Origin eq) where
+    show o = case o of
+        Equation{} -> "QuickSpec"
+        Totality{} -> "Totality"
+        UserStated -> "UserStated"
+        Builtin    -> "Bultin"
+
 propCoreExprEquation :: Property eq -> Maybe (CoreExpr,CoreExpr)
 propCoreExprEquation (propLiteral -> e1 :== e2) = Just (e1,e2)
 propCoreExprEquation _                          = Nothing
@@ -103,6 +110,7 @@ instance Show (Property eq) where
         ,", propName = ", show propName
         ,", propRepr = ", show propRepr
         ,", propOops = ", show propOops
+        ,", propOrigin = ", show propOrigin
         ,"}"
         ]
 

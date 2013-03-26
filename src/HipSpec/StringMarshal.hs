@@ -65,8 +65,9 @@ makeStringMarshallings Params{..} ExecuteResult{..} = do
         (Right symb,Right tyc) -> do
             when db_str_marsh $ do
                 putStrLn "Functions and constructors"
+                let show_sym s = show s ++ "(" ++ show (index s) ++ ")"
                 mapM_ putStrLn
-                    [ show s ++ " -> " ++ showOutputable i
+                    [ show_sym s ++ " -> " ++ showOutputable i
                     | (s,i) <- M.toList symb
                     ]
                 putStrLn "Type constructors"

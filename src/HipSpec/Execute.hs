@@ -12,9 +12,14 @@ import GHC.Paths
 import HscTypes
 -- import SimplCore
 import StaticFlags
-import OccName
-import Name
+import OccName hiding (varName)
+import Name hiding (varName)
 import CoreSyn
+
+import Data.Monoid
+
+import Var
+import Type
 
 import HipSpec.Trans.SrcRep
 import Halo.Shared
@@ -81,7 +86,10 @@ execute file = do
 
         -- Set the context for later evaluation
         setContext
-            $  [IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))]
+            $  [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
+               , IIDecl (simpleImportDecl (mkModuleName "Test.QuickSpec.Signature"))
+               , IIDecl (simpleImportDecl (mkModuleName "Test.QuickSpec.Prelude"))
+               ]
             -- Also include the imports the module is importing
             -- (I know, crazy!)
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
@@ -91,17 +99,28 @@ execute file = do
         t <- typecheckModule p
         d <- desugarModule t
 
-        -- Get the session so we can use tcRnLookupName and core2core optimise
-        -- hsc_env <- getSession
+        {-
+        -- Get the session so we can use core2core optimise
+        hsc_env <- getSession
+        -- Get the modguts (and optimise it)
+        modguts <- liftIO (core2core hsc_env (dm_core_module d))
+        -}
 
         let modguts = dm_core_module d
 
-        -- Get the modguts (and optimise it)
---        modguts <- liftIO (core2core hsc_env (dm_core_module d))
+            binds = fixUnfoldings (mg_binds modguts)
 
-        -- Now we can load the module (so we can later evaluate in it)
-        -- _ <- load LoadAllTargets loadModule d
-        -- (doesn't seem to be necessary?)
+            fix_id :: Id -> Id
+            fix_id = fixId binds
+
+            isPropBinder (x,_) = isPropType x
+
+            core_props = filter isPropBinder $ flattenBinds binds
+
+            interesting_ids :: VarSet
+            interesting_ids = unionVarSets (map (transFrom M.empty . exprCalls . snd) core_props)
+
+        liftIO $ putStrLn (showOutputable interesting_ids)
 
         -- Looks up a name and tries to associate it with a typed thing
         let lookup_name :: Name -> Ghc (Maybe (Name,TyThing))
@@ -111,8 +130,11 @@ execute file = do
         ns <- getNamesInScope
         maybe_named_things <- mapM lookup_name ns
 
-        -- Try to get a quickSpec signature
-        m_sig <- getSignature ns
+        m_sig <- fmap (fmap (`mappend` withTests 100))
+                      (makeSignature interesting_ids)
+
+--         -- Try to get a quickSpec signature
+--         m_sig <- getSignature ns
 
         -- For each symbols from the signature, find the associated Names in
         -- scope (should be exactly one, but we'll check this later)
@@ -126,28 +148,60 @@ execute file = do
             Just sig -> mapM (\ tc -> fmap ((,) tc) (parseName (Typeable.tyConName tc)))
                              (concatMap (typeRepTyCons . symbolType) (symbols sig))
 
-        let binds = fixUnfoldings (mg_binds modguts)
-
-        let isPropBinder (x,_) = isPropType x
-
-            core_props = filter isPropBinder $ flattenBinds binds
-
-            interesting_ids :: [Id]
-            interesting_ids
-                = varSetElems
-                $ unionVarSets (map (transFrom M.empty . exprCalls . snd) core_props)
-
-        liftIO $ putStrLn (showOutputable interesting_ids)
 
         -- Wrapping up
         return ExecuteResult
             { signature_sig    = m_sig
             , signature_names  = M.fromList sig_names
             , signature_tycons = M.fromList sig_tycons
-            , named_things     = M.fromList (catMaybes maybe_named_things)
+            , named_things     = M.fromList [ (n,mapTyThingId fix_id tyth)
+                                            | Just (n,tyth) <- maybe_named_things
+                                            ]
             , init_core_binds  = binds
             , dyn_flags        = dflags
             }
+
+mapTyThingId :: (Id -> Id) -> TyThing -> TyThing
+mapTyThingId k (AnId i) = AnId (k i)
+mapTyThingId _ tyth     = tyth
+
+makeSignature :: VarSet -> Ghc (Maybe Sig)
+makeSignature id_set = do
+    liftIO $ putStrLn expr_str
+    fromDynamic `fmap` dynCompileExpr expr_str
+  where
+    ids :: [Id]
+    ids = varSetElems (filterVarSet (not . isPropType) id_set)
+
+    expr_str = "signature [" ++ intercalate "," entries ++ "]"
+
+    entries =
+        [ unwords
+            [ "Test.QuickSpec.Signature.fun" ++ show (varArity i)
+            , show (varString i)
+            , "(" ++ showOutputable i ++ ")"
+            ]
+        | i <- ids
+        ] ++
+        [ unwords
+            [ "vars"
+            , show ["x","y","z"]
+            , "(Prelude.undefined :: " ++ showOutputable t ++ ")"
+            ]
+        | t <- types
+        ]
+
+    types = nubBy eqType $ concat
+        [ ty : tys
+        | i <- ids
+        , let (tys,ty) = splitFunTys (varType i)
+        ]
+
+varArity :: Var -> Int
+varArity = length . fst . splitFunTys . varType
+
+varString :: Var -> String
+varString = occNameString . nameOccName . varName
 
 -- | Getting the signature.
 getSignature :: [Name] -> Ghc (Maybe Sig)

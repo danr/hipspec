@@ -9,15 +9,10 @@ module HipSpec.Heuristics.Calls
     , transFrom
     ) where
 
-import Halo.Shared
-
 import CoreSyn
 import Id
-import Var
 import VarSet
 import CoreFVs
-
-import Debug.Trace
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -26,8 +21,7 @@ import Control.Monad
 
 -- | The vars this expression calls
 exprCalls :: CoreExpr -> VarSet
-exprCalls = exprSomeFreeVars $
-    \ v -> (isLocalId v || isGlobalId v) && not (isDataConId v)
+exprCalls = exprSomeFreeVars $ \ v -> (isLocalId v || isGlobalId v)
 
 -- | The unfolding of an Id
 unfolding :: Id -> Maybe CoreExpr
@@ -38,9 +32,8 @@ unfolding v = case realIdUnfolding v of
 -- | The functions this functions calls (not transitively)
 calls :: Map Id CoreExpr -> Id -> VarSet
 calls m v = case unfolding v `mplus` M.lookup v m of
-    Just e ->
-         trace ("Found unfolding for " ++ showOutputable v) (exprCalls e)
-    _ -> trace ("No unfolding for " ++ showOutputable v) emptyVarSet
+    Just e -> exprCalls e
+    _ -> emptyVarSet
 
 -- | The functions this function calls transitively
 transCalls :: Map Id CoreExpr -> Id -> VarSet

@@ -2,7 +2,6 @@
 module HipSpec.Init (processFile,lint) where
 
 import Test.QuickSpec.Signature
-import Data.Monoid
 
 import HipSpec.Monad
 
@@ -37,7 +36,7 @@ processFile cont = do
 
     exec_res@ExecuteResult{..} <- liftIO (execute file)
 
-    -- putStrLn (maybe "" show signature_sig)
+    liftIO $ putStrLn (maybe "" show signature_sig)
 
     when dump_core $ liftIO $ do
         putStrLn "== INIT CORE =="
@@ -62,8 +61,6 @@ processFile cont = do
         props = (consistency ? (inconsistentProperty:))
               $ mapMaybe (uncurry trProperty) core_props
 
-        m_sig = fmap (`mappend` withTests 100) signature_sig
-
     str_marsh@(ids,_) <- liftIO $ makeStringMarshallings params exec_res
 
     initialize
@@ -78,5 +75,5 @@ processFile cont = do
         -- it can be used in
         complement qs_theory
 
-        cont m_sig props
+        cont signature_sig props
 

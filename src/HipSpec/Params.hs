@@ -47,7 +47,6 @@ data Params = Params
     , indhyps             :: Int
     , indobligs           :: Int
 
-    , permissive_junk     :: Bool
     , db_str_marsh        :: Bool
     , db_names            :: Bool
     , db_core_lint        :: Bool
@@ -55,8 +54,7 @@ data Params = Params
     , dump_core           :: Bool
     , dump_props          :: Bool
     , dump_defns          :: Bool
-    , dump_types          :: Bool
-    , dump_subthys        :: Bool
+    , debug               :: Bool
     }
   deriving (Show,Data,Typeable)
 
@@ -133,9 +131,7 @@ defParams = Params
     , dump_core           = False   &= help "Dump core bindings from the starting module"
     , dump_props          = False   &= help "Dump bindings that are considered properties"
     , dump_defns          = False   &= help "Dump bindings that are considered definitions"
-    , dump_types          = False   &= help "Dump types of bindings"
-    , dump_subthys        = False   &= help "Dump subtheories"
-    , permissive_junk     = False   &= help "Add a lot of (seemingly) unnecessary junk. Use this if a definition doesn't get translated that should be, and file a bug report."
+    , debug               = False   &= help "Write various debug messages"
     }
     &= summary "\n\
     \      888      d8b                                             \n\
