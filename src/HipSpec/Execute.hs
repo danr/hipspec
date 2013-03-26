@@ -14,6 +14,10 @@ import SimplCore
 import StaticFlags
 import OccName
 import Name
+import CoreSyn
+
+import HipSpec.Trans.SrcRep
+import Halo.Shared
 
 import qualified Data.Typeable as Typeable
 
@@ -26,6 +30,8 @@ import Data.Maybe
 import Data.List
 
 import Control.Monad
+
+import HipSpec.Heuristics.Calls
 
 data ExecuteResult = ExecuteResult
     { signature_sig    :: Maybe Sig
@@ -118,6 +124,22 @@ execute file = do
             Nothing  -> return []
             Just sig -> mapM (\ tc -> fmap ((,) tc) (parseName (Typeable.tyConName tc)))
                              (concatMap (typeRepTyCons . symbolType) (symbols sig))
+
+        -- Auto-mode
+        let init_core_binds = mg_binds modguts
+
+        let isPropBinder (x,_) = isPropType x
+            core_props = filter isPropBinder $ flattenBinds init_core_binds
+
+            bind_map = M.fromList (flattenBinds init_core_binds)
+
+            interesting_ids :: [Id]
+            interesting_ids
+                = varSetElems
+                $ unionVarSets (map (transFrom bind_map . exprCalls . snd) core_props)
+
+        liftIO $ putStrLn (showOutputable interesting_ids)
+
 
         -- Wrapping up
         return ExecuteResult
