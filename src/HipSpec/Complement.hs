@@ -19,6 +19,7 @@ import Halo.Pointer
 import Halo.RemoveDefault
 import Halo.Shared
 import Halo.Util
+import Halo.Unfoldings
 
 import HipSpec.Monad
 import HipSpec.Trans.Theory
@@ -75,13 +76,17 @@ generateVarTheory v = case realIdUnfolding v of
 
         b_with_defs <- withUniqSupply (removeDefaults b_lifted)
 
-        when db_core_lint $ lint "FINAL" b_with_defs
+        when db_core_lint $ lint "WITH DEFS" b_with_defs
+
+        let b_with_unfld = fixUnfoldings b_with_defs
+
+        when db_core_lint $ lint "WITH UNFOLDINGS" b_with_unfld
 
         when dump_defns $ liftIO $ do
             putStrLn "== DEFNS =="
-            putStrLn $ showOutputable b_with_defs
+            putStrLn $ showOutputable b_with_unfld
 
-        haloHS (map vacuous `fmap` trBinds b_with_defs)
+        haloHS (map vacuous `fmap` trBinds b_with_unfld)
 
     _ -> fail $ "HipSpec.Complement.generateVarTheory: No unfolding for: " ++ showOutputable v
 

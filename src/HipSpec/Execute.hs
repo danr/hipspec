@@ -10,7 +10,7 @@ import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
-import SimplCore
+-- import SimplCore
 import StaticFlags
 import OccName
 import Name
@@ -18,6 +18,7 @@ import CoreSyn
 
 import HipSpec.Trans.SrcRep
 import Halo.Shared
+import Halo.Unfoldings
 
 import qualified Data.Typeable as Typeable
 
@@ -38,7 +39,7 @@ data ExecuteResult = ExecuteResult
     , signature_names  :: Map Symbol [Name]
     , signature_tycons :: Map Typeable.TyCon [Name]
     , named_things     :: Map Name TyThing
-    , mod_guts         :: ModGuts
+    , init_core_binds  :: [CoreBind]
     , dyn_flags        :: DynFlags
     }
 
@@ -91,7 +92,7 @@ execute file = do
         d <- desugarModule t
 
         -- Get the session so we can use tcRnLookupName and core2core optimise
-        hsc_env <- getSession
+        -- hsc_env <- getSession
 
         let modguts = dm_core_module d
 
@@ -125,21 +126,18 @@ execute file = do
             Just sig -> mapM (\ tc -> fmap ((,) tc) (parseName (Typeable.tyConName tc)))
                              (concatMap (typeRepTyCons . symbolType) (symbols sig))
 
-        -- Auto-mode
-        let init_core_binds = mg_binds modguts
+        let binds = fixUnfoldings (mg_binds modguts)
 
         let isPropBinder (x,_) = isPropType x
-            core_props = filter isPropBinder $ flattenBinds init_core_binds
 
-            bind_map = M.fromList (flattenBinds init_core_binds)
+            core_props = filter isPropBinder $ flattenBinds binds
 
             interesting_ids :: [Id]
             interesting_ids
                 = varSetElems
-                $ unionVarSets (map (transFrom bind_map . exprCalls . snd) core_props)
+                $ unionVarSets (map (transFrom M.empty . exprCalls . snd) core_props)
 
         liftIO $ putStrLn (showOutputable interesting_ids)
-
 
         -- Wrapping up
         return ExecuteResult
@@ -147,7 +145,7 @@ execute file = do
             , signature_names  = M.fromList sig_names
             , signature_tycons = M.fromList sig_tycons
             , named_things     = M.fromList (catMaybes maybe_named_things)
-            , mod_guts         = modguts
+            , init_core_binds  = binds
             , dyn_flags        = dflags
             }
 

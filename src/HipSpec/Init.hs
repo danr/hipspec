@@ -25,7 +25,6 @@ import Halo.Shared
 import Data.Maybe
 
 import CoreSyn
-import HscTypes
 
 import Control.Monad
 
@@ -37,8 +36,6 @@ processFile cont = do
     params@Params{..} <- getParams
 
     exec_res@ExecuteResult{..} <- liftIO (execute file)
-
-    let init_core_binds = mg_binds mod_guts
 
     -- putStrLn (maybe "" show signature_sig)
 
