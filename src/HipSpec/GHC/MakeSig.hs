@@ -63,8 +63,13 @@ makeSignature Params{..} named_things prop_ids = do
     extra_ids :: [Id]
     extra_ids = mapMaybe (`M.lookup` named_things') extra'
 
+    junk :: Id -> Bool
+    junk x = or [ m `isInfixOf` showOutputable (varType x)
+                | m <- ["Control.Exception","GHC.Prim"]
+                ]
+
     ids :: [Id]
-    ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || isPropType x)) $
+    ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || isPropType x || junk x)) $
             interesting_ids `unionVarSet` mkVarSet extra_ids
 
     expr_str x = "signature [" ++ intercalate x entries ++ "]"
