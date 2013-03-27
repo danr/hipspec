@@ -10,15 +10,14 @@ import Test.QuickSpec.Signature
 
 import GHC hiding (Sig)
 import Var
-import CoreSyn
 
 import Data.Map (Map)
 import qualified Data.Typeable as Typeable
 
 -- | The result from calling GHC
 data EntryResult = EntryResult
-    { sig_info   :: Maybe SigInfo
-    , core_props :: [(Var,CoreExpr)]
+    { sig_info :: Maybe SigInfo
+    , prop_ids :: [Var]
     }
 
 -- | Signature from QuickSpec

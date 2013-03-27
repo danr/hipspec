@@ -65,7 +65,7 @@ makeSignature Params{..} named_things prop_ids = do
 
     junk :: Id -> Bool
     junk x = or [ m `isInfixOf` showOutputable (varType x)
-                | m <- ["Control.Exception","GHC.Prim"]
+                | m <- ["Control.Exception","GHC.Prim","GHC.Types.Int"]
                 ]
 
     ids :: [Id]

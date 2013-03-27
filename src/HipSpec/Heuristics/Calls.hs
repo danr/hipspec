@@ -24,7 +24,7 @@ data Constructors = With | Without deriving Eq
 -- | The vars this expression calls
 exprCalls :: Constructors -> CoreExpr -> VarSet
 exprCalls cons = exprSomeFreeVars $ \ v ->
-          (isLocalId v || isGlobalId v || (cons == With && isDataConId v))
+          (isLocalId v || isGlobalId v || (cons == With && isDataConId v && not (isNewtypeConId v)))
        && (cons == With || not (isDataConId v))
 
 -- | The functions this functions calls (not transitively)

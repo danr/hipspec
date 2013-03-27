@@ -1,28 +1,22 @@
 {-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
-module HipSpec.Complement (complement,lint) where
+module HipSpec.Complement (complement) where
 
 import Control.Monad
 
-import Bag
 import Id
-import CoreLint
-import CoreSyn
 
 import Data.List
 import Data.Void
 
 import Halo.BackgroundTheory
 import Halo.Binds
-import Halo.Lift
 import Halo.Monad
 import Halo.Pointer
-import Halo.RemoveDefault
-import Halo.Shared
 import Halo.Util
-import Halo.Unfoldings
 
 import HipSpec.Monad
 import HipSpec.Trans.Theory
+import HipSpec.PrepareVar
 
 -- | Complements the required content with the missing parts.
 --   Enlarges the current theory if necessary.
@@ -62,37 +56,7 @@ generate content = do
     single m = (:[]) `liftM` m
 
 generateVarTheory :: Var -> HS [HipSpecSubtheory]
-generateVarTheory v = case unfolding v of
-
-    Just uf_tmpl -> do
-
-        Params{..} <- getParams
-
-        let bs = [NonRec v uf_tmpl]
-
-        (b_lifted,_msgs_lift) <- withUniqSupply (caseLetLift bs case_lift_inner)
-
-        when db_core_lint $ lint "LIFTED" b_lifted
-
-        b_with_defs <- withUniqSupply (removeDefaults b_lifted)
-
-        when db_core_lint $ lint "WITH DEFS" b_with_defs
-
-        let b_with_unfld = fixUnfoldings b_with_defs
-
-        when db_core_lint $ lint "WITH UNFOLDINGS" b_with_unfld
-
-        when dump_core $ liftIO $ do
-            putStrLn "== CORE =="
-            putStrLn $ showOutputable b_with_unfld
-
-        haloHS (map vacuous `fmap` trBinds b_with_unfld)
-
-    _ -> fail $ "HipSpec.Complement.generateVarTheory: No unfolding for: " ++ showOutputable v
-
-lint :: String -> [CoreBind] -> HS ()
-lint s bs = liftIO $ do
-    putStrLn $ "== " ++ s ++ " CORE LINT =="
-    let (msgs1,msgs2) = lintCoreBindings bs
-    mapM_ (mapBagM_ (putStrLn . portableShowSDoc)) [msgs1,msgs2]
+generateVarTheory v = do
+    bs <- prepareVar v
+    haloHS (map vacuous `fmap` trBinds bs)
 

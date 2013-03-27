@@ -17,9 +17,7 @@ import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
--- import SimplCore
 import StaticFlags
-import CoreSyn
 
 import Data.Monoid
 
@@ -108,18 +106,17 @@ execute params@Params{..} = do
         let only' :: [String]
             only' = concatMap (splitOn ",") only
 
-            props :: [(Var,CoreExpr)]
+            props :: [Var]
             props =
-                [ (i,e)
+                [ i
                 | (_,AnId i) <- M.toList named_things
                 , isPropType i
                 , null only' || varString i `elem` only'
-                , Just e <- [unfolding i]
                 ]
 
         -- Make or get signature
         m_sig <- if auto
-            then makeSignature params named_things (map fst props)
+            then makeSignature params named_things props
             else getSignature (map fst $ M.toList named_things)
 
         -- Make signature map
@@ -135,8 +132,8 @@ execute params@Params{..} = do
 
         -- Wrapping up
         return EntryResult
-            { sig_info   = sig_info
-            , core_props = props
+            { sig_info = sig_info
+            , prop_ids = props
             }
 
 qualifiedImportDecl :: ModuleName -> ImportDecl name
