@@ -1,131 +1,31 @@
-#
-# Settings:
-#
-# base_flags is an array of underscore-separated flags, for instance
-#
-# base_flags = "" -a -s -r_-i
-#
-# The variables provers, timeouts, indvars, inddepth and processes
-# can be specified and the cross product of these will be tested
-#
-# These flags can also be set from the command line:
-#
-#    processes=4 indvars=3 make
-#
-GHC       = ghc
-GHC_FLAGS = -threaded -O2 --make -fexpose-all-unfoldings -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fforce-recomp -rtsopts
+HIPSPEC_BASE_FLAGS = -luU --smt-data-types
+HIPSPEC_FLAGS = --cg --q
 
-ifeq ($(HIP_FLAGS),)
-  HIP_FLAGS = -l
-endif
 
-# The different flags to test, separate flags with underscore
-ifeq ($(base_flags),)
-  base_flags := -r
-endif
-
-ifeq ($(provers),)
-  provers := z
-endif
-
-ifeq ($(timeouts),)
-  timeouts := 1
-endif
-
-ifeq ($(indvars),)
-  indvars := 2
-endif
-
-ifeq ($(inddepth),)
-  inddepth := 1
-endif
-
-ifeq ($(processes),)
-  processes := 2
-endif
-
-flags := $(base_flags)
-
-define cross_flags
-flags := $(foreach flag,$(flags),$(foreach setting,$(2),$(flag)_$(1)$(setting)))
-endef
-
-$(eval $(call cross_flags,-p_,$(provers)))
-$(eval $(call cross_flags,-t_,$(timeouts)))
-
-flags := $(foreach flag,$(flags),$(foreach n,$(processes),$(flag)_-N$(n)_+RTS_-N$(n)_-RTS))
-
-$(eval $(call cross_flags,-S_,$(indvars)))
-$(eval $(call cross_flags,-D_,$(inddepth)))
-
-# All targets
-all_targets :=
-
-# Flag delimiter
-delim = _
-empty =
-space = $(empty) $(empty)
-comma = ,
+targets :=
 
 results:
 	mkdir -p results
 
-# First argument is binary, then an underscore-separated list of flags
-define flag_rule
-results/$(1)_$(2).json: $(1)
-	./$(1) $(subst $(delim),$(space),$(2)) $(HIP_FLAGS) --json $$@
-all_targets += results/$(1)_$(2).json
+define make_target
+results/$(1).json: results
+	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=results/$(1).json
+targets += results/$(1).json
 endef
 
-# Generate rules for a given file
-define file_rule
-$(1): $(1).hs
-	$$(GHC) $$(GHC_FLAGS) $$(arg1) -o $$@
+$(foreach prop,$(props),$(eval $(call make_target,$(prop))))
 
-$(1)_runs: $(foreach flag,$(flags),results/$(1)_$(flag).json)
+result.json: $(targets)
+	echo "{" >> $@
+	for i in $(targets); do echo "'$$i':" >> $@; cat $$i >> $@; echo "," >> $@; done
+	echo "'dummy':null}" >> $@
 
-$(foreach flag,$(flags),$(eval $(call flag_rule,$(file),$(flag))))
-endef
+all: result.json
 
-# Generate all rules
-$(foreach file,$(files),$(eval $(call file_rule,$(file))))
-
-# Make all targets
-all: results $(all_targets)
-
-# Make json list of all generated json result files
-json_list:
-	echo $(all_targets) | sed 's/ /","/g' | sed 's/^/["/' | sed 's/$$/"]/' > json_list
-
-# Binaries
-binaries: $(files)
-
-debug:
-	@echo $(flags)
-
-# Remove binaries and Haskell interface/object files
-binclean:
-	rm -f $(files)
-	rm -f *{\.o,\.hi}
-
-# Remove all targets
 clean:
-	rm -f $(all_targets)
-	rm -f $(files)
-	rm -f json_list
-	rm -f *{\.o,\.hi}
+	rm -rf $(targets)
+	rm result.json
+	rm -rf *.hi *.o
 
-PartMakefile:
-	echo -e "files = $$( ls Part*.hs | sed 's/.hs//' | xargs echo )\n\ninclude ../Makefile.common" > Makefile
+.PHONY: all clean
 
-HSMakefile:
-	echo -e "files = $$( ls *.hs | sed 's/.hs//' | xargs echo )\n\ninclude ../Makefile.common" > Makefile
-
-
-# Targets that do not create a file with the same name (meta-targets)
-.PHONY: all clean binaries debug json_list PartMakefile HSMakefile
-
-# Shortcut variables for indexing prerequisites of rules:
-arg1 = $(word 1,$+)
-arg2 = $(word 2,$+)
-arg3 = $(word 3,$+)

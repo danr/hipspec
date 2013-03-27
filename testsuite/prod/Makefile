@@ -1,3 +1,5 @@
-files = PartCountSort PartDoubleLength PartDoublePlus PartDropElem PartDrop PartDrop_WithPlus PartElemAppend PartElemInsert PartElemSort PartEven PartEvenLengthAppend PartEvenLengthAppendPlus PartExp PartFac PartFlatRevQRev PartHalfLength PartHalfPlus PartIntersectElem PartIntersectSubset PartLength PartLengthPlus PartLengthQRevPlus PartMult PartPlus PartQRev PartQRev_WithAppend PartRev PartRevLengthAppend PartRevLength PartRevLength_WithAppend PartRevQRev PartRotate PartSorted PartSortLength PartUnionElem PartUnionSubset
+props := $(shell seq -w 1 50)
+
+prop_prefix = prop_T
 
 include ../Makefile.common
