@@ -58,7 +58,7 @@ makeSignature Params{..} named_things prop_ids = do
 
     interesting_ids :: VarSet
     interesting_ids = unionVarSets $
-        map (transCalls M.empty) (prop_ids ++ extra_trans_ids)
+        map (transCalls With) (prop_ids ++ extra_trans_ids)
 
     extra_ids :: [Id]
     extra_ids = mapMaybe (`M.lookup` named_things') extra'

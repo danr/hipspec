@@ -53,7 +53,7 @@ as `isSupersetOf` bs = all (`elem` as) bs
 -- | Calculate the call graph for the QuickSpec string marshallings
 transitiveCallGraph :: SigMap -> Map Symbol [Symbol]
 transitiveCallGraph (SigMap si _) = M.fromList
-    [ (s,mapMaybe (`M.lookup` ism) (varSetElems (transCalls M.empty i)))
+    [ (s,mapMaybe (`M.lookup` ism) (varSetElems (transCalls Without i)))
     | (i,s) <- is
     ]
   where
