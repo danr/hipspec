@@ -32,7 +32,6 @@ import Halo.Names
 import Data.Function (on)
 import Control.Arrow (second)
 
-
 import Data.Void
 
 data Literal
@@ -134,13 +133,13 @@ parseProperty e = case second trimTyArgs (collectArgs e) of
     (Var x,[l])   | isTotal x     -> Just (Total (exprType l) l,[],False)
     (Var x,[l,r]) | isEquals x    -> Just (l :== r,[],False)
     (Var x,[l])   | isProveBool x -> Just (l :== Var trueDataConId,[],False)
-    (Var x,[p,q]) | isGiven x     -> do
+    (Var x,[b,q]) | isGivenBool x -> do
+        (u,as,o) <- parseProperty q
+        return (u,(b :== Var trueDataConId):as,o)
+    (Var x,[_,p,q]) | isGiven x     -> do
         (a,[],False) <- parseProperty p
         (u,as,o) <- parseProperty q
         return (u,a:as,o)
-    (Var x,[b,q]) | isGivenBool x     -> do
-        (u,as,o) <- parseProperty q
-        return (u,(b :== Var trueDataConId):as,o)
     _ -> Nothing
 
 trProperty :: Var -> CoreExpr -> Maybe (Property Void)
