@@ -42,6 +42,8 @@ makeSignature Params{..} named_things prop_ids = do
         then return Nothing
         else fromDynamic `fmap` dynCompileExpr (expr_str ",")
   where
+    rm_newlines = unwords . lines
+
     extra' = concatMap (splitOn ",") extra
     extra_trans' = concatMap (splitOn ",") extra_trans
 
@@ -49,7 +51,7 @@ makeSignature Params{..} named_things prop_ids = do
     named_things' = M.fromList . mapMaybe (uncurry t) . M.toList $ named_things
       where
         t :: Name -> TyThing -> Maybe (String,Id)
-        t n (AnId i)      = Just (nameString n,i)
+        t n (AnId i)      | not (junk i) = Just (nameString n,i)
         t n (ADataCon dc) = Just (nameString n,dataConWorkId dc)
         t _ _             = Nothing
 
@@ -64,15 +66,16 @@ makeSignature Params{..} named_things prop_ids = do
     extra_ids = mapMaybe (`M.lookup` named_things') extra'
 
     junk :: Id -> Bool
-    junk x = or [ m `isInfixOf` showOutputable (varType x)
-                | m <- ["Control.Exception","GHC.Prim","GHC.Types.Int"]
+    junk x = or [ m `isInfixOf` s
+                | m <- ["Control.Exception","GHC.Prim","GHC.Types.Int","GHC.List","GHC.Num"]
+                , s <- [showOutputable x,showOutputable (varType x)]
                 ]
 
     ids :: [Id]
     ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || isPropType x || junk x)) $
             interesting_ids `unionVarSet` mkVarSet extra_ids
 
-    expr_str x = "signature [" ++ intercalate x entries ++ "]"
+    expr_str x = "signature [" ++ intercalate x (map rm_newlines entries) ++ "]"
 
     entries =
         [ unwords
