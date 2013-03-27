@@ -69,7 +69,7 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
             () | only_user_stated && not (any isUserStated (eqs' ++ failed'))
                     -> return (thms',eqs' ++ failed',ctx')
                | not interesting_cands || null new_thms
-                    -> loop retry ctx' eqs' failed' thms'
+                    -> loop (retry || not (null new_thms)) ctx' eqs' failed' thms'
                | otherwise -> do
                     -- Interesting candidates
                     let (cand,failed_wo_cand)
