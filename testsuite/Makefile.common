@@ -1,15 +1,12 @@
 HIPSPEC_BASE_FLAGS = -luU --smt-data-types
 HIPSPEC_FLAGS = --cg --q
 
-
-targets :=
-
 results:
 	mkdir -p results
 
 define make_target
 results/$(1).json: results
-	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=results/$(1).json
+	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$$@
 targets += results/$(1).json
 endef
 
