@@ -30,7 +30,7 @@ processFile cont = do
 
     EntryResult{sig_info,core_props} <- liftIO (execute params)
 
-    liftIO $ putStrLn (maybe "" (show . sig) sig_info)
+    liftIO $ when dump_sig $ putStr (maybe "" (show . sig) sig_info)
 
     liftIO $ when dump_props $ do
         putStrLn "== PROPS =="

@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module HipSpec.GHC.Entry (execute, module HipSpec.GHC.Types) where
 
+import Data.List.Split (splitOn)
+
 import HipSpec.GHC.Types
 import HipSpec.GHC.SigMap
 import HipSpec.GHC.MakeSig
@@ -101,18 +103,21 @@ execute params@Params{..} = do
         -- Get everything in scope
         named_things <- getNamedThings fix_id
 
-        let props :: [(Var,CoreExpr)]
+        let only' :: [String]
+            only' = concatMap (splitOn ",") only
+
+            props :: [(Var,CoreExpr)]
             props =
                 [ (i,e)
                 | (_,AnId i) <- M.toList named_things
                 , isPropType i
-                , null (only) || varString i `elem` only
+                , null only' || varString i `elem` only'
                 , Just e <- [unfolding i]
                 ]
 
         -- Make or get signature
         m_sig <- if auto
-            then makeSignature params (map fst props)
+            then makeSignature params named_things (map fst props)
             else getSignature (map fst $ M.toList named_things)
 
         -- Make signature map

@@ -244,5 +244,8 @@ varTypeTyCons :: Var -> [TyCon]
 varTypeTyCons = typeTyCons . varType
 
 varString :: Var -> String
-varString = occNameString . nameOccName . varName
+varString = nameString . varName
+
+nameString :: Name -> String
+nameString = occNameString . nameOccName
 

@@ -82,8 +82,8 @@ generateVarTheory v = case unfolding v of
 
         when db_core_lint $ lint "WITH UNFOLDINGS" b_with_unfld
 
-        when dump_defns $ liftIO $ do
-            putStrLn "== DEFNS =="
+        when dump_core $ liftIO $ do
+            putStrLn "== CORE =="
             putStrLn $ showOutputable b_with_unfld
 
         haloHS (map vacuous `fmap` trBinds b_with_unfld)
