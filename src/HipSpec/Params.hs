@@ -158,6 +158,6 @@ defParams = Params
     \                   888               888                       \n\
     \                   888               888                       \n\
     \\n\
-    \            hipspec v0.6 by Dan Rosén, danr@chalmers.se   \n"
+    \            hipspec v0.8 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"
 
