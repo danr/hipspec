@@ -46,3 +46,4 @@ transFrom m = go emptyVarSet
                                      emptyVarSet
                                      to_visit)
       where to_visit = queue `minusVarSet` visited
+

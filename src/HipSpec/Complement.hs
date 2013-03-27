@@ -62,9 +62,9 @@ generate content = do
     single m = (:[]) `liftM` m
 
 generateVarTheory :: Var -> HS [HipSpecSubtheory]
-generateVarTheory v = case realIdUnfolding v of
+generateVarTheory v = case unfolding v of
 
-    CoreUnfolding{uf_tmpl} -> do
+    Just uf_tmpl -> do
 
         Params{..} <- getParams
 

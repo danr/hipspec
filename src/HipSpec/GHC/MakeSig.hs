@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module HipSpec.GHC.MakeSig (makeSignature) where
 
 import HipSpec.Params
@@ -7,8 +8,6 @@ import Test.QuickSpec.Signature
 
 import CoreMonad
 import GHC hiding (Sig)
-import OccName hiding (varName)
-import Name hiding (varName)
 
 import Var
 import Type
@@ -22,19 +21,24 @@ import Data.Dynamic
 
 import Data.List
 
-
 makeSignature :: Params -> [Var] -> Ghc (Maybe Sig)
-makeSignature _params prop_ids = do
+makeSignature Params{..} prop_ids = do
+    liftIO $ putStrLn (showOutputable prop_ids)
     liftIO $ putStrLn (showOutputable interesting_ids)
+    liftIO $ putStrLn (showOutputable ids)
     liftIO $ putStrLn expr_str
+    liftIO $ print only
 
     fromDynamic `fmap` dynCompileExpr expr_str
   where
     interesting_ids :: VarSet
-    interesting_ids = unionVarSets (map (calls M.empty) prop_ids)
+    interesting_ids = unionVarSets (map (transCalls M.empty) prop_ids)
 
     ids :: [Id]
-    ids = varSetElems (filterVarSet (not . hasPropArgs) interesting_ids)
+    ids = varSetElems
+            (filterVarSet
+                (\ x -> not (fromPrelude x || isPropType x))
+                interesting_ids)
 
     expr_str = "signature [" ++ intercalate "," entries ++ "]"
 
@@ -62,7 +66,4 @@ makeSignature _params prop_ids = do
 
 varArity :: Var -> Int
 varArity = length . fst . splitFunTys . varType
-
-varString :: Var -> String
-varString = occNameString . nameOccName . varName
 

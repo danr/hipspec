@@ -1,11 +1,11 @@
 module Rotate where
 
-import Prelude hiding (reverse,(++),length)
+import Prelude hiding ((++),length)
 
 import HipSpec.Prelude
 
-import Nat hiding (sig)
-import List hiding (sig)
+import Nat (Nat(..))
+import List (List(..),(++),length)
 
 rotate :: Nat -> List -> List
 rotate Z     xs          = xs

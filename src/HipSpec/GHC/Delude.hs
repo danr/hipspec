@@ -7,18 +7,15 @@ import Halo.Shared
 import Data.List
 
 isPropType   :: Var -> Bool
-isPropType x = typeIsProp res && not (any typeIsProp args)
+isPropType x = typeIsProp res && not (any typeIsProp args) && not (fromPrelude x)
   where
     (args,res) = splitFunTys (varType x)
 
 typeIsProp  :: Type -> Bool
-typeIsProp  = isInfixOf "Prop" . showOutputable
+typeIsProp  = isInfixOf "HipSpec.Prelude.Prop" . showOutputable
 
-hasPropArgs   :: Var -> Bool
-hasPropArgs x = any typeIsProp args
-  where
-    (args,_res) = splitFunTys (varType x)
-
+fromPrelude :: Var -> Bool
+fromPrelude = isInfixOf "HipSpec.Prelude" . showOutputable
 
 isMain      :: Var -> Bool
 isMain      = isInfixOf "main" . showOutputable

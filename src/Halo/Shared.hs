@@ -31,6 +31,16 @@ import Data.Maybe
 
 import Data.List
 
+-- | The unfolding of an Id
+unfolding :: Id -> Maybe CoreExpr
+unfolding v = case realIdUnfolding v of
+    CoreUnfolding{uf_tmpl} ->
+        -- trace (showOutputable v ++ " ~> " ++ showOutputable uf_tmpl) $
+            Just uf_tmpl
+    _ ->
+        -- trace ("No unfolding for " ++ showOutputable v ++ "!") $
+            Nothing
+
 -- | Drop in replacement for repType
 repType' :: Type -> Type
 #if __GLASGOW_HASKELL__ >= 706
@@ -59,11 +69,7 @@ showOutputable = portableShowSDoc . ppr
 
 -- | Short representation of an Id/Var to String
 idToStr :: Id -> String
-idToStr = showOutputable . maybeLocaliseName . idName
-  where
-    maybeLocaliseName n
-        | isSystemName n = n
-        | otherwise      = localiseName n
+idToStr = varString
 
 -- | Shows a Core Expression
 showExpr :: CoreExpr -> String
@@ -237,9 +243,6 @@ typeTyCons = nub . go where
 varTypeTyCons :: Var -> [TyCon]
 varTypeTyCons = typeTyCons . varType
 
--- | The unfolding of an Id
-unfolding :: Id -> Maybe CoreExpr
-unfolding v = case realIdUnfolding v of
-    CoreUnfolding{uf_tmpl} -> Just uf_tmpl
-    _ -> Nothing
+varString :: Var -> String
+varString = occNameString . nameOccName . varName
 
