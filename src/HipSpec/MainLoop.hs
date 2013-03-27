@@ -36,7 +36,7 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
          -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unthms
     loop False ctx []  failed thms = return (thms,failed,ctx)
     loop True  ctx []  failed thms = do writeMsg Loop
-                                        loop False ctx failed [] thms
+                                        loop False ctx (reverse failed) [] thms
     loop retry ctx eqs failed thms = do
 
         Params{interesting_cands,batchsize,only_user_stated} <- getParams
