@@ -96,6 +96,8 @@ execute params@Params{..} = do
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
             , IIDecl (qualifiedImportDecl (mkModuleName "Test.QuickSpec.Signature"))
             , IIDecl (qualifiedImportDecl (mkModuleName "Test.QuickSpec.Prelude"))
+            , IIDecl (qualifiedImportDecl (mkModuleName "GHC.Types"))
+            , IIDecl (qualifiedImportDecl (mkModuleName "Prelude"))
             ]
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
