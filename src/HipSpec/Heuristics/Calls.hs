@@ -14,6 +14,8 @@ import Id
 import VarSet
 import CoreFVs
 
+import Halo.Shared
+
 import Data.Map (Map)
 import qualified Data.Map as M
 
@@ -22,12 +24,6 @@ import Control.Monad
 -- | The vars this expression calls
 exprCalls :: CoreExpr -> VarSet
 exprCalls = exprSomeFreeVars $ \ v -> (isLocalId v || isGlobalId v)
-
--- | The unfolding of an Id
-unfolding :: Id -> Maybe CoreExpr
-unfolding v = case realIdUnfolding v of
-    CoreUnfolding{uf_tmpl} -> Just uf_tmpl
-    _ -> Nothing
 
 -- | The functions this functions calls (not transitively)
 calls :: Map Id CoreExpr -> Id -> VarSet

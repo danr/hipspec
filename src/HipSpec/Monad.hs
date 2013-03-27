@@ -6,10 +6,9 @@ module HipSpec.Monad
     , writeMsg
     , debugMsg
     , getParams
+    , getHaloEnv
     , getTheory
     , enlargeTheory
-    , HSInfo(..)
-    , getInfo
     , getMsgs
     , getWriteMsgFun
     , liftIO
@@ -31,7 +30,6 @@ import Halo.Monad
 import HipSpec.Messages
 import HipSpec.Params
 import HipSpec.Trans.Theory
-import HipSpec.StringMarshal
 
 import Control.Concurrent.MVar
 
@@ -39,16 +37,10 @@ import Control.Arrow (first,second)
 
 import UniqSupply
 
--- Accessible state
-data HSInfo = Info
-    { params    :: Params
-    , halo_env  :: HaloEnv
-    , str_marsh :: StrMarsh
-    }
-
 -- Immutable state
 data HSEnv = HSEnv
-    { hs_info     :: HSInfo
+    { params      :: Params
+    , halo_env    :: HaloEnv
     , write_fun   :: Msg -> IO ()
     , get_msg_fun :: IO [(Double,Msg)]
     , write_mutex :: MVar ()
@@ -61,8 +53,8 @@ newtype HS a = HS (StateT HSSt (ReaderT HSEnv IO) a)
   deriving (Functor,Applicative,Monad,MonadIO)
 
 haloHS :: HaloM a -> HS a
-haloHS m = do
-    Info{halo_env} <- getInfo
+haloHS m = HS $ do
+    HSEnv{halo_env} <- ask
     let (a,_) = runHaloM halo_env m
     return a
 
@@ -75,11 +67,8 @@ runHS (HS m) = do
     mtx <- newMVar ()
     us0 <- liftIO $ mkSplitUniqSupply 'h'
     runReaderT (evalStateT m ([],us0)) HSEnv
-        { hs_info = Info
-            { params      = params_
-            , halo_env    = error "halo_env uninitialized"
-            , str_marsh   = error "str_marsh uninitialized"
-            }
+        { params      = params_
+        , halo_env    = error "halo_env uninitialized"
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn
         , write_mutex = mtx
@@ -93,7 +82,7 @@ enlargeTheory hs = HS $ modify (first (hs ++))
 
 getWriteMsgFun :: HS (Msg -> IO ())
 getWriteMsgFun = HS $ do
-    prms@Params{verbosity} <- asks (params . hs_info)
+    prms@Params{verbosity} <- asks params
     w <- asks write_fun
     mtx <- asks write_mutex
     return $ \ m -> when (msgVerbosity m <= verbosity) $ liftIO $ do
@@ -112,17 +101,14 @@ getMsgs = HS $ do
     g <- asks get_msg_fun
     liftIO g
 
-getInfo :: HS HSInfo
-getInfo = HS $ asks hs_info
-
 getParams :: HS Params
-getParams = HS $ asks (params . hs_info)
+getParams = HS $ asks params
 
-initialize :: (HSInfo -> HSInfo) -> HS a -> HS a
-initialize k (HS m) = HS $
-    local
-        (\ hse -> hse { hs_info = k (hs_info hse) })
-        m
+getHaloEnv :: HS HaloEnv
+getHaloEnv = HS $ asks halo_env
+
+initialize :: HaloEnv -> HS a -> HS a
+initialize new_env (HS m) = HS $ local (\ hse -> hse { halo_env = new_env }) m
 
 withUniqSupply :: UniqSM a -> HS a
 withUniqSupply m = HS $ do

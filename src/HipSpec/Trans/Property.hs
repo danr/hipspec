@@ -13,7 +13,7 @@ module HipSpec.Trans.Property
     , totalityProperty
     ) where
 
-import HipSpec.Trans.SrcRep
+import HipSpec.GHC.Delude
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal)
 

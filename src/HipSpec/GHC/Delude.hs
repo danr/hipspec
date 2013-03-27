@@ -1,13 +1,24 @@
-module HipSpec.Trans.SrcRep where
+-- | De-prelude: Delude!
+module HipSpec.GHC.Delude where
 
 import Var
-
+import Type
 import Halo.Shared
-
 import Data.List
 
-isPropType  :: Var -> Bool
-isPropType  = isInfixOf "Prop" . showOutputable . varType
+isPropType   :: Var -> Bool
+isPropType x = typeIsProp res && not (any typeIsProp args)
+  where
+    (args,res) = splitFunTys (varType x)
+
+typeIsProp  :: Type -> Bool
+typeIsProp  = isInfixOf "Prop" . showOutputable
+
+hasPropArgs   :: Var -> Bool
+hasPropArgs x = any typeIsProp args
+  where
+    (args,_res) = splitFunTys (varType x)
+
 
 isMain      :: Var -> Bool
 isMain      = isInfixOf "main" . showOutputable
@@ -32,5 +43,4 @@ isOops      = isInfixOfs ["Oops","oops"] . showOutputable
 
 isInfixOfs :: [String] -> String -> Bool
 isInfixOfs ss s = any (`isInfixOf` s) ss
-
 

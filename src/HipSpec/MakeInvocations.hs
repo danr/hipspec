@@ -44,8 +44,8 @@ tryProve props (interestingLemmas -> lemmas0) = do
 
     us <- liftIO $ mkSplitUniqSupply 'c'
 
-    Info{..} <- getInfo
-    Params{..} <- getParams
+    params@Params{..} <- getParams
+    halo_env <- getHaloEnv
 
     case fst $ runMakerM halo_env us (catMaybes <$> mapM (makeProofs params) props) of
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, NamedFieldPuns #-}
+{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, NamedFieldPuns, RecordWildCards #-}
 -- | Getting definitional equations from QuickSpec
 module HipSpec.Trans.DefinitionalEquations
     ( pruneWithDefEqs
@@ -24,7 +24,8 @@ import qualified Halo.FOL.Abstract as H
 
 import HipSpec.Monad hiding (equations,vars)
 import HipSpec.Reasoning
-import HipSpec.StringMarshal
+import HipSpec.GHC.SigMap
+import HipSpec.GHC.Types
 import HipSpec.Trans.QSTerm
 import HipSpec.Trans.Unify
 
@@ -54,15 +55,13 @@ instance MakeEquation Equation where
 instance MakeEquation PEquation where
     makeEquation eq@(e1 :=: e2) = nub (vars e1 ++ vars e2) :\/: eq
 
-pruneWithDefEqs :: (MakeEquation eq,EQR eq ctx cc) => Sig -> ctx -> HS ctx
-pruneWithDefEqs sig ctx = do
-    def_eqs <- getDefEqs sig
+pruneWithDefEqs :: (MakeEquation eq,EQR eq ctx cc) => SigInfo -> ctx -> HS ctx
+pruneWithDefEqs si ctx = do
+    def_eqs <- getDefEqs si
     return $ execEQR ctx (mapM_ unify def_eqs)
 
-getDefEqs :: (MakeEquation eq,EQR eq ctx cc) => Sig -> HS [eq]
-getDefEqs sig = do
-
-    Info{str_marsh} <- getInfo
+getDefEqs :: (MakeEquation eq,EQR eq ctx cc) => SigInfo -> HS [eq]
+getDefEqs SigInfo{..} = do
 
     theory <- getTheory
 
@@ -74,7 +73,7 @@ getDefEqs sig = do
 
         lookup_func x = fromMaybe [] (M.lookup x func_map)
 
-        def_eqs = definitionalEquations str_marsh lookup_func sig
+        def_eqs = definitionalEquations sig_map lookup_func sig
 
     writeMsg $ DefinitionalEquations (map (showEquation sig) def_eqs)
 
@@ -82,8 +81,8 @@ getDefEqs sig = do
 
 definitionalEquations
     :: (Signature a,MakeEquation eq)
-    => StrMarsh -> (Var -> [H.Formula']) -> a -> [eq]
-definitionalEquations str_marsh lookup_var sig =
+    => SigMap -> (Var -> [H.Formula']) -> a -> [eq]
+definitionalEquations sig_map lookup_var sig =
     trace ("Sig syms: " ++ show sig_syms) $
     concatMap (map makeEquation . fetch_sym) sig_syms
   where
@@ -91,7 +90,7 @@ definitionalEquations str_marsh lookup_var sig =
     sig_syms = nubSortedOn name $ sigSyms sig
 
     type_matcher :: [Var] -> [Var -> Maybe Symbol]
-    type_matcher = tryMatchTypes str_marsh sig
+    type_matcher = tryMatchTypes sig_map sig
 
     sig_syms_map :: Map String Symbol
     sig_syms_map = M.fromList [ (name s,s) | s <- sig_syms ]
@@ -105,7 +104,7 @@ definitionalEquations str_marsh lookup_var sig =
         res = M.lookup nm sig_syms_map
 
     fetch_sym :: Symbol -> [Equation]
-    fetch_sym s = case maybeLookupSym str_marsh s of
+    fetch_sym s = case maybeLookupSym sig_map s of
         Just v | not (isDataConId v) ->
             trace ("Trying " ++ showOutputable v ++ " with "
                              ++ show (length (lookup_var v)) ++ " formulas.") $
@@ -119,8 +118,8 @@ sigSyms = map (some (sym . unConstant)) . TypeRel.toList . constants . signature
 sigVars :: Signature a => a -> [Symbol]
 sigVars = map (some (sym . unVariable)) . TypeRel.toList . variables . signature
 
-tryMatchTypes :: Signature a => StrMarsh -> a -> [Var] -> [Var -> Maybe Symbol]
-tryMatchTypes str_marsh sig =
+tryMatchTypes :: Signature a => SigMap -> a -> [Var] -> [Var -> Maybe Symbol]
+tryMatchTypes sig_map sig =
     trace (concatMap type_repr types_init) $
     \ qs_init ->
        let res = fmap (flip M.lookup) res_map
@@ -132,7 +131,7 @@ tryMatchTypes str_marsh sig =
     vs = sigVars sig
 
     types_init :: [(Type,Symbol)]
-    types_init = [ (typeRepToType str_marsh (symbolType v),v) | v <- vs ]
+    types_init = [ (typeRepToType sig_map (symbolType v),v) | v <- vs ]
 
     type_repr :: (Type,Symbol) -> String
     type_repr (t,s) = showOutputable t ++ ":" ++ show s ++ ", \n"

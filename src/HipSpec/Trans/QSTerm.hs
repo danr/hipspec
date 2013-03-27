@@ -19,14 +19,13 @@ import Test.QuickSpec.TestTotality
 import Halo.Names
 import Halo.Util
 
-import HipSpec.StringMarshal
+import HipSpec.GHC.SigMap
 import HipSpec.Trans.Property
 
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.Maybe
 import Data.List
-import qualified Data.Typeable as Typeable
 import Data.Typeable (Typeable)
 
 import CoreSyn as C hiding (Expr)
@@ -37,44 +36,30 @@ import Var
 
 import Control.Monad
 
-lookupSym :: StrMarsh -> Symbol -> Id
-lookupSym m s = fromMaybe (error err_str) (maybeLookupSym m s)
-  where
-    err_str = "Cannot translate QuickSpec's " ++ show s ++
-             " to Core representation! Debug the string marshallings" ++
-             " with --db-str-marsh (and --db-names)"
-
-lookupTyCon :: StrMarsh -> Typeable.TyCon -> TyCon
-lookupTyCon m s = fromMaybe (error err_str) (maybeLookupTyCon m s)
-  where
-    err_str = "Cannot translate Data.Typeable type constructor " ++ show s ++
-             " to Core representation! Debug the string marshallings" ++
-             " with --db-str-marsh (and --db-names)"
-
-typeRepToType :: StrMarsh -> Ty.TypeRep -> Type
-typeRepToType str_marsh = go
+typeRepToType :: SigMap -> Ty.TypeRep -> Type
+typeRepToType sig_map = go
   where
     go :: Ty.TypeRep -> Type
     go t | Just (ta,tb) <- splitArrow t = go ta `GhcType.mkFunTy` go tb
     go t = let (ty_con,ts) = Ty.splitTyConApp t
-           in  lookupTyCon str_marsh ty_con `GhcType.mkTyConApp` map go ts
+           in  lookupTyCon sig_map ty_con `GhcType.mkTyConApp` map go ts
 
-termToExpr :: StrMarsh -> Map Symbol Var -> Term -> CoreExpr
-termToExpr str_marsh var_rename_map = go
+termToExpr :: SigMap -> Map Symbol Var -> Term -> CoreExpr
+termToExpr sig_map var_rename_map = go
   where
     go t = case t of
         T.App e1 e2 -> go e1 `C.App` go e2
         T.Var s   -> C.Var (fromMaybe (err s) (M.lookup s var_rename_map))
-        T.Const s -> C.Var (lookupSym str_marsh s)
+        T.Const s -> C.Var (lookupSym sig_map s)
 
     err (name -> s) = error $ "QuickSpec's " ++ s ++ " never got a variable"
 
-symbType :: StrMarsh -> Symbol -> Type
-symbType str_marsh = typeRepToType str_marsh . symbolType
+symbType :: SigMap -> Symbol -> Type
+symbType sig_map = typeRepToType sig_map . symbolType
 
 -- TODO: remove code duplication between this and eqToProp
-peqToProp :: Typeable a => Sig -> StrMarsh -> TypedEquation a -> Property PEquation
-peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
+peqToProp :: Typeable a => Sig -> SigMap -> TypedEquation a -> Property PEquation
+peqToProp sig sig_map (e1 :==: e2) = (mk_prop [])
     { propOffsprings = fmap concat . forM occuring_vars $ \ partial_one -> do
          isTrue <- testEquation sig e1 e2 partial_one
          if isTrue then
@@ -96,7 +81,7 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
             , let v = var_rename_map M.! t
             ]
         , propVars       = prop_vars
-        , propType       = typeRepToType str_marsh (termType t1)
+        , propType       = typeRepToType sig_map (termType t1)
         , propName       = repr
         , propRepr       = repr
         , propVarRepr    = map (show . fst) var_rename
@@ -111,7 +96,7 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
     occuring_vars :: [Symbol]
     occuring_vars = nub (vars t1 ++ vars t2)
 
-    term_to_expr = termToExpr str_marsh var_rename_map
+    term_to_expr = termToExpr sig_map var_rename_map
 
     lit = term_to_expr t1 :== term_to_expr t2
 
@@ -120,17 +105,17 @@ peqToProp sig str_marsh (e1 :==: e2) = (mk_prop [])
     var_rename
         = zip occuring_vars
         $ mkVarNamesOfTypeWithOffset 1000
-        $ map (symbType str_marsh) occuring_vars
+        $ map (symbType sig_map) occuring_vars
 
     var_rename_map = M.fromList var_rename
 
 -- TODO: remove code duplication between this and peqToProp
-eqToProp :: (Equation -> String) -> StrMarsh -> Equation -> Property Equation
-eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
+eqToProp :: (Equation -> String) -> SigMap -> Equation -> Property Equation
+eqToProp show_eq sig_map eq@(e1 :=: e2) = Property
     { propLiteral    = lit
     , propAssume     = []
     , propVars       = prop_vars
-    , propType       = typeRepToType str_marsh (termType e1)
+    , propType       = typeRepToType sig_map (termType e1)
     , propName       = repr
     , propRepr       = repr
     , propVarRepr    = map (show . fst) var_rename
@@ -144,7 +129,7 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     occuring_vars :: [Symbol]
     occuring_vars = nub (vars e1 ++ vars e2)
 
-    term_to_expr = termToExpr str_marsh var_rename_map
+    term_to_expr = termToExpr sig_map var_rename_map
 
     lit = term_to_expr e1 :== term_to_expr e2
 
@@ -153,7 +138,7 @@ eqToProp show_eq str_marsh eq@(e1 :=: e2) = Property
     var_rename
         = zip occuring_vars
         $ mkVarNamesOfTypeWithOffset 1000
-        $ map (symbType str_marsh) occuring_vars
+        $ map (symbType sig_map) occuring_vars
 
     var_rename_map = M.fromList var_rename
 

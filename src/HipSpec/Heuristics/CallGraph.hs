@@ -5,7 +5,7 @@ module HipSpec.Heuristics.CallGraph where
 import Test.QuickSpec.Term
 
 import HipSpec.Heuristics.Calls
-import HipSpec.StringMarshal
+import HipSpec.GHC.SigMap
 
 import Halo.Shared (isDataConId)
 import Halo.Util
@@ -18,7 +18,7 @@ import Id
 import Data.Maybe
 import Data.Graph hiding (edges)
 
-sortByCallGraph :: StrMarsh -> (a -> [Symbol]) -> [a] -> [[a]]
+sortByCallGraph :: SigMap -> (a -> [Symbol]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph
 
 sortByGraph :: forall a s . Ord s => Map s [s] -> (a -> [s]) -> [a] -> [[a]]
@@ -51,8 +51,8 @@ isSupersetOf :: Eq a => [a] -> [a] -> Bool
 as `isSupersetOf` bs = all (`elem` as) bs
 
 -- | Calculate the call graph for the QuickSpec string marshallings
-transitiveCallGraph :: StrMarsh -> Map Symbol [Symbol]
-transitiveCallGraph (si,_) = M.fromList
+transitiveCallGraph :: SigMap -> Map Symbol [Symbol]
+transitiveCallGraph (SigMap si _) = M.fromList
     [ (s,mapMaybe (`M.lookup` ism) (varSetElems (transCalls M.empty i)))
     | (i,s) <- is
     ]

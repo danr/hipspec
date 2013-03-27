@@ -1,15 +1,11 @@
-{-# LANGUAGE RecordWildCards, DisambiguateRecordFields #-}
+{-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
 module HipSpec.Init (processFile,lint) where
-
-import Test.QuickSpec.Signature
 
 import HipSpec.Monad
 
-import HipSpec.Execute
+import HipSpec.GHC.Entry
 
-import HipSpec.StringMarshal
 import HipSpec.Trans.Property
-import HipSpec.Trans.SrcRep
 import HipSpec.Complement
 
 import qualified Data.Map as M
@@ -23,35 +19,22 @@ import Halo.Shared
 
 import Data.Maybe
 
-import CoreSyn
-
 import Control.Monad
 
 import Data.Void
 
-processFile :: (Maybe Sig -> [Property Void] -> HS a) -> HS a
+processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> HS a
 processFile cont = do
 
     params@Params{..} <- getParams
 
-    exec_res@ExecuteResult{..} <- liftIO (execute file)
+    EntryResult{sig_info,core_props} <- liftIO (execute params)
 
-    liftIO $ putStrLn (maybe "" show signature_sig)
+    liftIO $ putStrLn (maybe "" (show . sig) sig_info)
 
-    when dump_core $ liftIO $ do
-        putStrLn "== INIT CORE =="
-        putStrLn $ showOutputable init_core_binds
-
-    when db_core_lint $ lint "INIT" init_core_binds
-
-    let isPropBinder (x,_) = isPropType x
-
-        core_props = filter isPropBinder $ flattenBinds init_core_binds
-
-    liftIO $ do
-        when dump_props $ do
-            putStrLn "== PROPS =="
-            putStrLn $ showOutputable core_props
+    liftIO $ when dump_props $ do
+        putStrLn "== PROPS =="
+        putStrLn $ showOutputable core_props
 
     let halo_env = mkEnv HaloConf
             { use_bottom         = bottoms
@@ -61,19 +44,15 @@ processFile cont = do
         props = (consistency ? (inconsistentProperty:))
               $ mapMaybe (uncurry trProperty) core_props
 
-    str_marsh@(ids,_) <- liftIO $ makeStringMarshallings params exec_res
+    initialize halo_env $ do
 
-    initialize
-        (\ hs_info -> hs_info
-            { halo_env  = halo_env
-            , str_marsh = str_marsh
-            }) $ do
+        let ids = maybe [] (map snd . M.toList . sym_map . sig_map) sig_info
 
-        let qs_theory = nubSorted $ map (idToContent . snd) (M.toList ids)
+            qs_theory = nubSorted $ map idToContent ids
 
         -- Generate theory for the QuickSpec functions and constructors, so
-        -- it can be used in
+        -- it can be used in definitional equations
         complement qs_theory
 
-        cont signature_sig props
+        cont sig_info props
 

@@ -43,7 +43,7 @@ complement desired_content = do
 generate :: HipSpecContent -> HS [HipSpecSubtheory]
 generate content = do
     p <- getParams
-    Info{halo_env} <- getInfo
+    halo_env <- getHaloEnv
     res <- case content of
         Data ty_con -> single $ fmap (setExtraDependencies p . vacuous)
                               $ tyConSubtheory (conf halo_env) ty_con

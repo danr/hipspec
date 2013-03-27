@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, CPP, ViewPatterns #-}
+{-# LANGUAGE PatternGuards, CPP, ViewPatterns, NamedFieldPuns #-}
 {-
 
     Shared functions operating on GHC
@@ -236,4 +236,10 @@ typeTyCons = nub . go where
 
 varTypeTyCons :: Var -> [TyCon]
 varTypeTyCons = typeTyCons . varType
+
+-- | The unfolding of an Id
+unfolding :: Id -> Maybe CoreExpr
+unfolding v = case realIdUnfolding v of
+    CoreUnfolding{uf_tmpl} -> Just uf_tmpl
+    _ -> Nothing
 

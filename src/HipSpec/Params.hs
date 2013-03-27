@@ -29,6 +29,9 @@ data Params = Params
     , isolate             :: Bool
     , only_user_stated    :: Bool
     , explore_theory      :: Bool
+    , auto                :: Bool
+    , extra               :: [String]
+    , only                :: [String]
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
@@ -90,6 +93,11 @@ defParams = Params
     , z_encode_filenames  = False   &= name "z"  &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 
+    , auto                = False   &= groupname "\nSignature settings"
+                                    &= name "a" &= help "Automatically make signature from the functions used in properties (transitively)"
+    , extra               = []                  &= help "Functions to add to the signature that cannot be found from the properties"
+    , only                = []                  &= help "Only try to prove these properties (also affects --auto)"
+
     , processes           = 2    &= groupname "\nProving settings"
                                  &= name "N" &= help "Prover processes (default 2)"
     , batchsize           = 1    &= name "B" &= help "Equations to process simultaneously (default 1)"
@@ -98,7 +106,7 @@ defParams = Params
     , methods             = "pi"             &= help "Methods to use (p)lain definition equality, (i)nduction, (a)pproximation lemma (default pi)"
     , explore_theory      = False   &= name "e"  &= help "Print explored theory"
 
-    , consistency         = False   &= name "C" &= help "Add a consistency check"
+    , consistency         = False   &= name "C" &= help "Add a consistency check (try to prove false)"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
 
@@ -108,20 +116,19 @@ defParams = Params
     , smt_data_types      = False   &= help "Use SMT data types instead of own axiomatization (cannot be combined with --bottoms)"
     , bottoms             = False   &= name "b"  &= help "Add bottoms"
 
-
     , swap_repr           = False   &= groupname "\nEquation ordering"
                                     &= name "s" &= help "Swap equations with their representative"
     , prepend_pruned      = False   &= name "r" &= help "Add nice pruned equations from in front"
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , interesting_cands   = False   &= name "i" &= help "Add interesting candidates after theorems"
-    , assoc_important     = False   &= name "a" &= help "Associativity is important, try it first"
+    , assoc_important     = False               &= help "Associativity is important, try it first"
     , call_graph          = False   &= name "c" &= name "cg" &= help "Sort equations by the call graph"
 
-    , inddepth            = 1   &= name "d" &= groupname "\nStructural induction"
-                                            &= help "Maximum depth (default 1)"
-    , indvars             = 2   &= name "v" &= help "Maximum variables (default 2)"
-    , indhyps             = 200 &= name "H" &= help "Maximum hypotheses (default 200)"
-    , indobligs           = 25  &= name "O" &= help "Maximum obligations (default 25)"
+    , inddepth            = 1       &= name "d" &= groupname "\nStructural induction"
+                                                &= help "Maximum depth (default 1)"
+    , indvars             = 2       &= name "v" &= help "Maximum variables (default 2)"
+    , indhyps             = 200     &= name "H" &= help "Maximum hypotheses (default 200)"
+    , indobligs           = 25      &= name "O" &= help "Maximum obligations (default 25)"
 
     , db_str_marsh        = False   &= groupname "\nDebugging"
                                     &= help "Debug string marshallings (QuickSpec Strings -> GHC Core representations)"

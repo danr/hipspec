@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, RecordWildCards #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
@@ -26,7 +26,8 @@ import HipSpec.MainLoop
 import HipSpec.Heuristics.Associativity
 import HipSpec.Heuristics.CallGraph
 import HipSpec.Trans.DefinitionalEquations
-import HipSpec.StringMarshal (maybeLookupSym)
+import HipSpec.GHC.SigMap (maybeLookupSym)
+import HipSpec.GHC.Types
 
 import Prelude hiding (read)
 
@@ -46,29 +47,27 @@ import qualified Data.ByteString.Lazy as B
 main :: IO ()
 main = runHS $ do
     writeMsg Started
-    processFile $ \ m_sig user_props -> do
+    processFile $ \ m_sig_info user_props -> do
 
         writeMsg FileProcessed
 
-        case m_sig of
+        case m_sig_info of
 
             Nothing -> void (runMainLoop NoCC user_props [])
 
-            Just sig -> do
+            Just (sig_info@SigInfo{..}) -> do
 
-                Info{str_marsh} <- getInfo
-
-                (eqs,reps,classes) <- runQuickSpec sig
+                (eqs,reps,classes) <- runQuickSpec sig_info
 
                 Params{bottoms,explore_theory} <- getParams
 
                 if bottoms then do
 
-                    let qsconjs = map (some (peqToProp sig str_marsh)) eqs
+                    let qsconjs = map (some (peqToProp sig sig_map)) eqs
 
-                    (ctx_init,tot_thms,tot_conjs) <- proveTotality sig reps
+                    (ctx_init,tot_thms,tot_conjs) <- proveTotality sig_info reps
 
-                    ctx_with_def <- pruneWithDefEqs sig ctx_init
+                    ctx_with_def <- pruneWithDefEqs sig_info ctx_init
 
                     void $ runMainLoop
                             ctx_with_def
@@ -77,12 +76,12 @@ main = runHS $ do
 
                 else do
 
-                    let qsconjs = map (eqToProp (showEquation sig) str_marsh)
+                    let qsconjs = map (eqToProp (showEquation sig) sig_map)
                                       (map (some eraseEquation) eqs)
 
                         ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
-                    ctx_with_def <- pruneWithDefEqs sig ctx_init
+                    ctx_with_def <- pruneWithDefEqs sig_info ctx_init
 
                     ctx_final <- runMainLoop ctx_with_def
                                              (qsconjs ++ map vacuous user_props)
@@ -127,14 +126,13 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     return ctx_final
 
-runQuickSpec :: Sig -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
-runQuickSpec sig = do
+runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
+runQuickSpec SigInfo{..} = do
 
     Params{..} <- getParams
-    Info{..} <- getInfo
 
     when dump_call_graph $ do
-       let callg = transitiveCallGraph str_marsh
+       let callg = transitiveCallGraph sig_map
        liftIO $ forM_ (M.toList callg) $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
 
     r <- liftIO $ generate (const totalGen) sig
@@ -156,7 +154,7 @@ runQuickSpec sig = do
                                    )
                 )
             . (if call_graph
-                   then sortByCallGraph str_marsh equation_funs
+                   then sortByCallGraph sig_map equation_funs
                    else (:[]))
             . if quadratic
                    then concatMap ( several (map (Some . uncurry (:==:))
@@ -176,17 +174,15 @@ runQuickSpec sig = do
 
     return (eqs,reps,classes)
 
-proveTotality :: Sig -> [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
-proveTotality sig univ = do
-
-    Info{..} <- getInfo
+proveTotality :: SigInfo -> [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
+proveTotality SigInfo{..} univ = do
 
     tot_list <- liftIO $ testTotality sig
 
     let tot_props
             = [ tot_prop
               | (sym,totality) <- tot_list
-              , Just v <- [maybeLookupSym str_marsh sym]
+              , Just v <- [maybeLookupSym sig_map sym]
               , not (isDataConId v)
               , Just tot_prop <- [totalityProperty v totality]
               ]
