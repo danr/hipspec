@@ -28,6 +28,7 @@ data Params = Params
     , consistency         :: Bool
     , isolate             :: Bool
     , only_user_stated    :: Bool
+    , user_stated_first   :: Bool
     , explore_theory      :: Bool
     , auto                :: Bool
     , extra_trans         :: [String]
@@ -113,6 +114,7 @@ defParams = Params
     , consistency         = False   &= name "C" &= help "Add a consistency check (try to prove false)"
     , isolate             = False   &= name "l" &= help "Isolate user props, i.e. do not use user stated properties as lemmas"
     , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
+    , user_stated_first   = False   &= name "U" &= help "Put user stated properties first in the loop"
 
     , case_lift_inner     = False   &= groupname "\nTranslation settings"
                                     &= help "Lift all inner cases to top level"

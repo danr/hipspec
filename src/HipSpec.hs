@@ -59,7 +59,10 @@ main = runHS $ do
 
                 (eqs,reps,classes) <- runQuickSpec sig_info
 
-                Params{bottoms,explore_theory} <- getParams
+                Params{bottoms,explore_theory,user_stated_first} <- getParams
+
+                let (~+) | user_stated_first = flip (++)
+                         | otherwise         = (++)
 
                 if bottoms then do
 
@@ -71,7 +74,7 @@ main = runHS $ do
 
                     void $ runMainLoop
                             ctx_with_def
-                            (qsconjs ++ map vacuous user_props ++ map vacuous tot_conjs)
+                            (qsconjs ~+ map vacuous user_props ++ map vacuous tot_conjs)
                             (map vacuous tot_thms)
 
                 else do
@@ -84,7 +87,7 @@ main = runHS $ do
                     ctx_with_def <- pruneWithDefEqs sig_info ctx_init
 
                     ctx_final <- runMainLoop ctx_with_def
-                                             (qsconjs ++ map vacuous user_props)
+                                             (qsconjs ~+ map vacuous user_props)
                                              []
 
                     when explore_theory $ do
@@ -109,6 +112,8 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
 
+    Params{only_user_stated} <- getParams
+
     let showProperties = map propName
         theorems' = map thm_prop
                   $ filter (\ t -> not (definitionalTheorem t) ||
@@ -121,7 +126,8 @@ runMainLoop ctx_init initial_props initial_thms = do
         { proved      = showProperties $ notQS theorems'
         , unproved    = showProperties $ notQS conjectures
         , qs_proved   = showProperties $ fromQS theorems'
-        , qs_unproved = showProperties $ fromQS conjectures
+        , qs_unproved =
+            if only_user_stated then [] else showProperties $ fromQS conjectures
         }
 
     return ctx_final
