@@ -2,7 +2,7 @@ module Reverse where
 
 import Prelude hiding (reverse,(++))
 import HipSpec.Prelude
-import List hiding (sig)
+import List (List(..),(++),length)
 
 reverse :: List -> List
 reverse (Cons x xs) = reverse xs ++ Cons x Nil

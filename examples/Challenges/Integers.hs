@@ -15,6 +15,7 @@ instance Arbitrary Z where
   arbitrary = oneof [P `fmap` arbitrary,N `fmap` arbitrary]
 
 -- Natural subtraction
+(-) :: Nat -> Nat -> Z
 Z   - Z     = P Z
 S m - Z     = P (S m)
 Z   - S n   = N n
@@ -29,11 +30,13 @@ prop_neg_involutive :: Z -> Prop Z
 prop_neg_involutive x = x =:= neg (neg x)
 
 -- Integer addition
+(+.) :: Z -> Z -> Z
 N m +. N n = N (S (m + n))
 N m +. P n = n - S m
 P m +. N n = m - S n
 P m +. P n = P (m + n)
 
+zero :: Z
 zero = P Z
 
 prop_add_ident_left :: Z -> Prop Z
@@ -54,12 +57,14 @@ prop_add_inv_left x = neg x +. x =:= zero
 prop_add_inv_right :: Z -> Prop Z
 prop_add_inv_right x = x +. neg x =:= zero
 
--- Integer addition
+-- Integer subtraction
+(-.) :: Z -> Z -> Z
 N m -. N n = n - m
 N m -. P n = N (n + m)
 P m -. N n = P (S (n + m))
 P m -. P n = m - n
 
+abs :: Z -> Nat
 abs (P n) = n
 abs (N n) = S n
 
@@ -68,9 +73,11 @@ data Sign = Pos | Neg deriving (Eq,Show,Ord,Typeable)
 instance Arbitrary Sign where
   arbitrary = elements [Pos,Neg]
 
+opposite :: Sign -> Sign
 opposite Pos = Neg
 opposite Neg = Pos
 
+(*%) :: Sign -> Sign -> Sign
 Pos *% x = x
 Neg *% x = opposite x
 
@@ -93,6 +100,7 @@ sign :: Z -> Sign
 sign (P _) = Pos
 sign (N _) = Neg
 
+(<|) :: Sign -> Nat -> Z
 Pos <| n     = P n
 Neg <| Z     = P Z
 Neg <| (S m) = N m
@@ -101,6 +109,7 @@ Neg <| (S m) = N m
 (*.) :: Z -> Z -> Z
 i *. j = (sign i *% sign j) <| (abs i * abs j)
 
+one :: Z
 one = P (S Z)
 
 prop_mul_ident_left :: Z -> Prop Z
