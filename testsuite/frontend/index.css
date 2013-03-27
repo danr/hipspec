@@ -1,3 +1,11 @@
+a {
+  text-decoration: underline;
+  color: blue;
+  cursor: pointer; }
+
+a:visited {
+  color: purple; }
+
 pre.inline {
   display: inline-block;
   margin: 0px; }
@@ -39,6 +47,9 @@ body {
 
 .PlainProof {
   background: #eeee88; }
+
+.FailedProof {
+  background: #eebbbb; }
 
 .Finished {
   background: #eeeebb; }

@@ -67,7 +67,7 @@
 
           <table ng-hide='empty(table)'>
             <tr>
-              <th>File</th>
+              <th>Instance</th>
               <th>Time (s)</th>
               <th>Attempts</th>
             </tr>
@@ -97,7 +97,7 @@
                     <th>Message</th>
                   </tr>
                   <tr ng-repeat="msg in result" ng-show="interestingType(msg.type)">
-                    <td>{{ msg.time | seconds }}</td>
+                    <td>{{ msg.time | seconds }} s</td>
                     <td>
                       <div ng-class="msg.type">
                         <div ng-switch="msg.type">
@@ -111,12 +111,18 @@
                             QuickSpec done, {{ msg.classes }} classes, {{ msg.eqs }} equations.
                           </div>
                           <div ng-switch-when="InductiveProof">
-                            <pre class="inline">{{ msg.prop_name }}</pre>
+                            <pre class="inline">{{ msg.prop_name }}</pre> proved by induction on
+                                {{ msg.vars.join(", ") }}</span>
                           </div>
                           <div ng-switch-when="PlainProof">
-                            <pre class="inline">{{ msg.prop_name }}</pre>
+                            <pre class="inline">{{ msg.prop_name }}</pre> proved without induction
+                          </div>
+                          <div ng-switch-when="FailedProof">
+                            <pre class="inline">{{ msg.prop_name }}</pre> failed to be proved
                           </div>
                           <div ng-switch-when="Finished">
+                            Finished
+                            <!--
                             <div>
                               <b>Proved:</b> <pre class="inline" ng-repeat="prop in msg.proved">{{ prop }}, </pre>
                             </div>
@@ -129,6 +135,7 @@
                              <div>
                               <b>Unproved from QuickSpec:</b> <pre class="inline" ng-repeat="prop in msg.qs_unproved">{{ prop }}, </pre>
                             </div>
+                            -->
                           </div>
                         </div>
                       </div>

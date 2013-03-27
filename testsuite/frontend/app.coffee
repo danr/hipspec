@@ -23,28 +23,14 @@ hipspec_module.factory 'config', () ->
         name: 'Productive Use of Failure'
         files: ['Definitions.hs', 'Properties.hs']
     ,
-        short: 'prod'
-        name: "Zeno's results on Productive Use of Failure"
-        files: []
-        zeno_style: true
-    ,
         short: 'zeno'
         name: 'Zeno/IsaPlanner'
         files: ['Definitions.hs', 'Properties.hs']
     ,
-        short: 'mini'
-        name: 'Mini'
-        files: ['Mini.hs']
-    ,
         short: 'examples'
         name: 'Examples'
         files:
-            [ 'AppendLists.hs'
-              'BinLists.hs'
-              'Implies.hs'
-              'ListMonad.hs'
-              'Nat.hs'
-              'Nicomachus.hs'
+            [ 'Nicomachus.hs'
               'Reverse.hs'
               'Rotate.hs'
             ]
@@ -59,9 +45,7 @@ hipspec_module.factory 'request', ($http) ->
 
     zeno_style: (testsuite) -> $http.get "#{testsuite.short}/zeno_results.json"
 
-    list: (testsuite) -> $http.get "#{testsuite.short}/json_list"
-
-    log: (testsuite, instance) -> $http.get "#{testsuite.short}/#{instance}"
+    results: (testsuite) -> $http.get "#{testsuite.short}/result.json"
 
 hipspec_module.controller 'TestsuiteCtrl', ($scope, config) ->
 
@@ -96,7 +80,9 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http, $q) ->
         num_solved = 0
         solved = {}
         for i, log of $scope.results
+            if i == "dummy" then continue
             for [ time, message ] in log
+                # console.log time, message
                 [[type,obj]] = _.pairs message
                 res = {}
                 if type == "Finished"
@@ -114,6 +100,7 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http, $q) ->
                             solved[prop] = true
                             num_solved++
                     res.time = time
+            console.log res
             table[i] = res
         $scope.headers = headers
         $scope.table = table
@@ -141,11 +128,11 @@ hipspec_module.controller 'CompareCtrl', ($scope, request, $http, $q) ->
                     $scope.num_solved = num_solved
                     $scope.solved = solved
             else
-                request.list($scope.testsuite).success (list) ->
+                request.results($scope.testsuite).success (res) ->
                     empty()
-                    $q.all(request.log($scope.testsuite, i) for i in list).then (logs) ->
-                        $scope.results = _.object list, _.map logs, (res) -> res.data
-                        process_results()
+                    console.log res
+                    $scope.results = res
+                    process_results()
 
 hipspec_module.controller 'ExplorationCtrl', ($scope) ->
 
@@ -159,7 +146,7 @@ hipspec_module.controller 'ExplorationCtrl', ($scope) ->
             for [time, message] in $scope.results[instance]
                 [[type,obj]] = _.pairs message
                 if type == "ExploredTheory"
-                    $scope.equations = obj.equations
+                    $scope.equations = obj
                     $scope.explored = true
                     $scope.exploration_time = time
                     break
@@ -169,19 +156,25 @@ hipspec_module.controller 'ExplorationCtrl', ($scope) ->
 hipspec_module.controller 'InstanceCtrl', ($scope) ->
 
     $scope.interestingType = (type) ->
-        String _.contains ["FileProcessed","QuickSpecDone","InductiveProof","PlainProof","Finished","ExploredTheory"], type
+        String _.contains ["FileProcessed","QuickSpecDone","InductiveProof","PlainProof","FailedProof","Finished","ExploredTheory"], type
 
     $scope.result = []
     $scope.show = false
 
     $scope.toggle_shown = (instance) ->
         $scope.show = !$scope.show
+
         x = $scope.results[instance]
         res = []
 
         for [time, message] in x
 
             [[type,obj]] = _.pairs message
+
+            console.log type, obj
+            if type == "InductiveProof" and _.isEmpty obj.vars
+                console.log "Setting plain proof"
+                type = "PlainProof"
 
             if _.isArray obj
                 obj = {}

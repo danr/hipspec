@@ -1,21 +1,21 @@
-HIPSPEC_BASE_FLAGS = -luU --smt-data-types
-HIPSPEC_FLAGS = --cg --q
+HIPSPEC_BASE_FLAGS = --smt-data-types --verbosity=85
+HIPSPEC_FLAGS = --cg -luU
 
 results:
 	mkdir -p results
 
 define make_target
-results/$(1).json: results
+results/$(1).json:
 	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$$@
 targets += results/$(1).json
 endef
 
 $(foreach prop,$(props),$(eval $(call make_target,$(prop))))
 
-result.json: $(targets)
+result.json: results $(targets)
 	echo "{" >> $@
-	for i in $(targets); do echo "'$$i':" >> $@; cat $$i >> $@; echo "," >> $@; done
-	echo "'dummy':null}" >> $@
+	for i in $(targets); do echo "\"$$i\":" >> $@; cat $$i >> $@; echo "," >> $@; done
+	echo "\"dummy\":null}" >> $@
 
 all: result.json
 

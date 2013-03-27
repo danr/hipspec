@@ -5,7 +5,7 @@ targets := results/fold.json results/map.json results/nat.json results/length.js
 
 include ../Makefile.common
 
-HIPSPEC_BASE_FLAGS = --smt-data-types -e
+HIPSPEC_FLAGS = --cg -e
 
 results/fold.json: results
 	hipspec --extra-trans=++,foldl,foldr --auto PrecisionRecall $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$@
