@@ -14,8 +14,8 @@ module HipSpec.GHC.SigMap
     , makeSigMap
     ) where
 
-import Test.QuickSpec.Signature hiding (size)
-import Test.QuickSpec.Term hiding (Var,symbols)
+import Test.QuickSpec.Signature
+import Test.QuickSpec.Term hiding (Var,symbols,size)
 import Test.QuickSpec.Utils.Typed (typeRepTyCons)
 
 import DataCon
