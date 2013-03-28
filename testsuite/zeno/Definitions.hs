@@ -45,7 +45,7 @@ S x <= S y = x <= y
 Z   < Z   = False
 Z   < S _ = True
 S _ < Z   = False
-S x < S y = x <= y
+S x < S y = x < y
 
 (+) :: Nat -> Nat -> Nat
 Z     + y = y

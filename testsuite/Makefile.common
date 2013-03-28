@@ -17,6 +17,14 @@ endef
 
 $(foreach prop,$(props),$(eval $(call make_target,$(prop))))
 
+define make_expensive_target
+results/$(1).json:
+	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_EXPENSIVE_FLAGS) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$$@
+targets += results/$(1).json
+endef
+
+$(foreach prop,$(expensive_props),$(eval $(call make_expensive_target,$(prop))))
+
 result.json: results $(targets)
 	echo "{" >> $@
 	for i in $(targets); do echo "\"$$i\":" >> $@; cat $$i >> $@; echo "," >> $@; done
