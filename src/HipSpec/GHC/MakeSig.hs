@@ -38,7 +38,7 @@ makeSignature Params{..} named_things prop_ids = do
             putStrLn $ "Transitive ids: " ++ showOutputable interesting_ids
             putStrLn $ "Final ids: " ++ showOutputable ids
 
-    if null entries
+    if length entries < 3
         then return Nothing
         else fromDynamic `fmap` dynCompileExpr (expr_str ",")
   where
@@ -86,11 +86,15 @@ makeSignature Params{..} named_things prop_ids = do
         | i <- ids
         ] ++
         [ unwords
-            [ "vars"
+            [ if pvars then "pvars" else "vars"
             , show ["x","y","z"]
             , "(Prelude.undefined :: " ++ showOutputable t ++ ")"
             ]
         | t <- types
+        ] ++
+        [ "Test.QuickSpec.Signature.withTests " ++ show tests
+        , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
+        , "Test.QuickSpec.Signature.withSize " ++ show size
         ]
 
     types = nubBy eqType $ concat

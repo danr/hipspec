@@ -34,6 +34,10 @@ data Params = Params
     , extra_trans         :: [String]
     , extra               :: [String]
     , only                :: [String]
+    , pvars               :: Bool
+    , quick_check_size    :: Int
+    , tests               :: Int
+    , size                :: Int
 
     , case_lift_inner     :: Bool
     , var_scrut_constr    :: Bool
@@ -102,6 +106,10 @@ defParams = Params
     , extra               = []                  &= help "Functions to add to the signature that cannot be found from the properties"
     , extra_trans         = []                  &= help "Like --extra, but also add the functions (and constructors) it calls (transitively)"
     , only                = []                  &= help "Only try to prove these properties (also affects --auto)"
+    , pvars               = False               &= help "Use pvars instead of vars in the --auto signature"
+    , quick_check_size    = 20                  &= help "Set the withQuickCheckSize in the --auto signature (default 20)"
+    , tests               = 100                 &= help "Set the withTests in the --auto signature (default 100)"
+    , size                = 1000                &= help "Set the withSize in the --auto signature (default \"unlimited\")"
 
     , processes           = 2    &= groupname "\nProving settings"
                                  &= name "N" &= help "Prover processes (default 2)"

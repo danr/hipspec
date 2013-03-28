@@ -23,7 +23,7 @@ mainLoop :: forall eq ctx cc .
      => ctx                                 -- ^ The initial context
      -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
-     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unthms
+     -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
 mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
   where
     show_eqs = map propRepr
@@ -32,8 +32,8 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
          -> ctx                                 -- ^ Prune state, to handle the congurece closure
          -> [Property eq]                       -- ^ Equations processed, but failed
          -> [Property eq]                       -- ^ Equations to process
-         -> [Theorem eq]                        -- ^ Equations thms
-         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and unthms
+         -> [Theorem eq]                        -- ^ Proved equations
+         -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
     loop False ctx []  failed thms = return (thms,failed,ctx)
     loop True  ctx []  failed thms = do writeMsg Loop
                                         loop False ctx (reverse failed) [] thms

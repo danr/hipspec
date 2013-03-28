@@ -10,16 +10,12 @@ import HipSpec.GHC.GetSig
 import HipSpec.GHC.Scope
 import HipSpec.Params
 
-import Test.QuickSpec.Signature
-
 import CoreMonad
 import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
 import StaticFlags
-
-import Data.Monoid
 
 import Var
 
@@ -122,8 +118,7 @@ execute params@Params{..} = do
         -- Make signature map
         sig_info <- case m_sig of
             Nothing -> return Nothing
-            Just sig0 -> do
-                let sig = sig0 `mappend` withTests 100
+            Just sig -> do
                 sig_map <- makeSigMap params sig named_things
                 return $ Just SigInfo
                     { sig     = sig
