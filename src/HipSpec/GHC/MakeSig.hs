@@ -34,7 +34,7 @@ makeSignature Params{..} named_things prop_ids = do
         when dump_auto_info $ do
             putStrLn $ "--extra=" ++ show extra' ++ ":" ++ showOutputable extra_ids
             putStrLn $ "--extra-trans=" ++ show extra_trans' ++ ":" ++ showOutputable extra_trans_ids
-            putStrLn $ "Prop ids: " ++ show prop_ids ++ " (only=" ++ show only ++ ")"
+            putStrLn $ "Prop ids: " ++ showOutputable prop_ids ++ " (only=" ++ show only ++ ")"
             putStrLn $ "Transitive ids: " ++ showOutputable interesting_ids
             putStrLn $ "Final ids: " ++ showOutputable ids
 
