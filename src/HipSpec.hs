@@ -37,6 +37,7 @@ import Halo.Util
 import Halo.Shared
 
 import Data.List
+import Data.Maybe
 import Data.Ord
 
 import Control.Monad
@@ -137,9 +138,11 @@ runQuickSpec SigInfo{..} = do
 
     Params{..} <- getParams
 
-    when dump_call_graph $ do
-       let callg = transitiveCallGraph sig_map
-       liftIO $ forM_ (M.toList callg) $ \ (s,ss) -> putStrLn $ show s ++ " calls " ++ show ss
+    let callg = transitiveCallGraph sig_map
+
+    when dump_call_graph $ liftIO $ forM_ (M.toList callg) $ \ (s,ss) ->
+        putStrLn $ show s ++ " calls " ++ show ss
+
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -151,6 +154,36 @@ runQuickSpec SigInfo{..} = do
         equation_funs (some eraseEquation -> t1 :=: t2)
             = funs t1 `union` funs t2
 
+        equations' :: [Several Expr] -> [Some TypedEquation]
+        equations' = concatMap (several (map Some . toEquations))
+
+        term_calls :: Expr a -> [Symbol]
+        term_calls e
+            = nubSorted
+            . concat
+            . mapMaybe (`M.lookup` callg)
+            . funs . term $ e
+
+        eq_calls :: TypedEquation a -> [Symbol]
+        eq_calls (e1 :==: e2) = nubSorted (term_calls e1 ++ term_calls e2)
+
+        toEquations :: [Expr a] -> [TypedEquation a]
+        toEquations es@(x:xs)
+            | call_graph = [ toEquation y (reverse ys)
+                           | y:ys <- tails (reverse es)
+                           , not (null ys)
+                           ]
+            | otherwise = [ y :==: x | y <- xs ]
+        toEquations [] = error "HipSpec.toEquations internal error"
+
+        toEquation :: Expr a -> [Expr a] -> TypedEquation a
+        toEquation e rcs = foldr1 best (map (e :==:) rcs)
+          where
+            best eq1 eq2
+                | eq_calls eq1 == term_calls e             = eq1
+                | eq_calls eq2 `isSupersetOf` eq_calls eq1 = eq1
+                | otherwise                                = eq2
+
         classToEqs :: [Several Expr] -> [Some TypedEquation]
         classToEqs
             = concatMap
@@ -159,13 +192,13 @@ runQuickSpec SigInfo{..} = do
                                    )
                 )
             . (if call_graph
-                   then sortByCallGraph sig_map equation_funs
+                   then sortByGraph callg equation_funs
                    else (:[]))
             . if quadratic
                    then concatMap ( several (map (Some . uncurry (:==:))
                                   . uniqueCartesian)
                                   )
-                   else equations
+                   else equations'
 
         ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
 
