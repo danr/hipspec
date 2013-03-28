@@ -35,7 +35,7 @@ import UniqSupply
 -- | Filters away definitional theorems (those that didn't need induction to be
 --   proved)
 interestingLemmas :: [Theorem eq] -> [Property eq]
-interestingLemmas = map thm_prop . filter (not . definitionalTheorem)
+interestingLemmas = map thm_prop . filter (\t -> not (definitionalTheorem t) || isUserStated (thm_prop t))
 
 -- | Try to prove some properties in a theory, given some lemmas
 tryProve :: forall eq . [Property eq] -> [Theorem eq]
