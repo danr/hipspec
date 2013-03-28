@@ -105,7 +105,7 @@ withPrevious xs = zip xs (inits xs)
 --
 -- > uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
 uniqueCartesian :: [a] -> [(a,a)]
-uniqueCartesian as = concat [ zip (repeat x) xs | (x,xs) <- inspect as ]
+uniqueCartesian as = concat [ zip (repeat x) xs | (x:xs) <- inits as ]
 
 -- | /O(n log n)/ nub, but destroys ordering
 nubSorted :: Ord a => [a] -> [a]
