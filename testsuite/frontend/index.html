@@ -113,10 +113,16 @@
                           </div>
                           <div ng-switch-when="InductiveProof">
                             <pre class="inline">{{ msg.prop_name }}</pre> proved by induction on
-                                {{ msg.vars.join(", ") }}</span>
+                                <pre class="inline">{{ msg.vars.join(", ") }}</pre></span>
+                            <span ng-hide="empty(msg.used_lemmas)">
+                               using <pre class="inline">{{ msg.used_lemmas.join(", ") }}</pre>
+                            </span>
                           </div>
                           <div ng-switch-when="PlainProof">
                             <pre class="inline">{{ msg.prop_name }}</pre> proved without induction
+                            <span ng-hide="empty(msg.used_lemmas)">
+                               using <pre class="inline">{{ msg.used_lemmas.join(", ") }}</pre>
+                            </span>
                           </div>
                           <div ng-switch-when="FailedProof">
                             <pre class="inline">{{ msg.prop_name }}</pre> failed to be proved

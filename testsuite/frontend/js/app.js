@@ -216,6 +216,9 @@
     $scope.interestingType = function(type) {
       return String(_.contains(["FileProcessed", "QuickSpecDone", "InductiveProof", "PlainProof", "FailedProof", "Finished", "ExploredTheory"], type));
     };
+    $scope.empty = function(x) {
+      return _.isEmpty(x);
+    };
     $scope.result = [];
     $scope.show = false;
     return $scope.toggle_shown = function(instance) {

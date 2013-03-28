@@ -163,6 +163,8 @@ hipspec_module.controller 'InstanceCtrl', ($scope) ->
     $scope.interestingType = (type) ->
         String _.contains ["FileProcessed","QuickSpecDone","InductiveProof","PlainProof","FailedProof","Finished","ExploredTheory"], type
 
+    $scope.empty = (x) -> _.isEmpty(x)
+
     $scope.result = []
     $scope.show = false
 
