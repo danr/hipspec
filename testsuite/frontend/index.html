@@ -28,7 +28,8 @@
           <h2>{{ testsuite.name }}</h2>
           <ul>
             <li ng-repeat="file in testsuite.files">
-              <a ng-click="viewFile(testsuite,file)">{{ file }}</a>
+              <!-- <a ng-click="viewFile(testsuite,file)">{{ file }}</a> -->
+              <a ng-href="{{ testsuite.short }}/{{ file }}">{{ file }}</a>
             </li>
           </ul>
           <div>

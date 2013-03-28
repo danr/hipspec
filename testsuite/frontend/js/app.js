@@ -42,6 +42,11 @@
         name: 'Productive Use of Failure',
         files: ['Definitions.hs', 'Properties.hs']
       }, {
+        short: 'prod',
+        name: "Zeno's result on Productive Use of Failure",
+        files: [],
+        zeno_style: true
+      }, {
         short: 'zeno',
         name: 'Zeno/IsaPlanner',
         files: ['Definitions.hs', 'Properties.hs']
@@ -52,7 +57,7 @@
       }, {
         short: 'precision-recall',
         name: 'Precision/Recall',
-        files: []
+        files: ['PrecisionRecall.hs']
       }
     ];
   });
