@@ -91,13 +91,13 @@ main = runHS $ do
                                              []
 
                     when explore_theory $ do
-                        let pruner   = prune ctx_with_def (map erase reps) id
+                        let pruner   = prune ctx_init (map erase reps) id
                             provable = evalEQR ctx_final . equal
                             explored_theory
-                                = pruner $ filter provable
+                                = filter (not . evalEQR ctx_with_def . equal)
+                                $ pruner $ filter provable
                                 $ map (some eraseEquation) (equations classes)
-                        writeMsg $ ExploredTheory $
-                            map (showEquation sig) explored_theory
+                        writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory
 
         Params{json} <- getParams
 
@@ -151,7 +151,6 @@ runQuickSpec SigInfo{..} = do
         equation_funs (some eraseEquation -> t1 :=: t2)
             = funs t1 `union` funs t2
 
-        -- TODO: Hook this together with sortByGraph callg
         classToEqs :: [Several Expr] -> [Some TypedEquation]
         classToEqs
             = concatMap
