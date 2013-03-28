@@ -4,7 +4,7 @@ targets := results/nicomachus.json results/reverse.json results/rotate.json
 
 include ../Makefile.common
 
-HIPSPEC_FLAGS = --cg -u
+HIPSPEC_FLAGS = --cg -u -p Z
 
 results/nicomachus.json: results
 	hipspec Nicomachus --auto $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$@
