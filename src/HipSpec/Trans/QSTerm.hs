@@ -1,4 +1,4 @@
-{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables #-}
+{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, RecordWildCards #-}
 -- | Translating from QuickSpec -> Core
 module HipSpec.Trans.QSTerm
     ( typeRepToType
@@ -10,7 +10,7 @@ module HipSpec.Trans.QSTerm
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation
-import Test.QuickSpec.Signature(Sig)
+import Test.QuickSpec.Signature (disambiguate)
 import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
     (Total,equal,vars)
 import qualified Test.QuickSpec.Utils.Typeable as Ty
@@ -19,6 +19,7 @@ import Test.QuickSpec.TestTotality
 import Halo.Names
 import Halo.Util
 
+import HipSpec.GHC.Types
 import HipSpec.GHC.SigMap
 import HipSpec.Trans.Property
 
@@ -58,8 +59,8 @@ symbType :: SigMap -> Symbol -> Type
 symbType sig_map = typeRepToType sig_map . symbolType
 
 -- TODO: remove code duplication between this and eqToProp
-peqToProp :: Typeable a => Sig -> SigMap -> TypedEquation a -> Property PEquation
-peqToProp sig sig_map (e1 :==: e2) = (mk_prop [])
+peqToProp :: Typeable a => SigInfo -> TypedEquation a -> Property PEquation
+peqToProp SigInfo{..} (e1 :==: e2) = (mk_prop [])
     { propOffsprings = fmap concat . forM occuring_vars $ \ partial_one -> do
          isTrue <- testEquation sig e1 e2 partial_one
          if isTrue then
@@ -90,11 +91,14 @@ peqToProp sig sig_map (e1 :==: e2) = (mk_prop [])
         , propOops       = False
         }
       where
-        repr = showPEquation sig (partials :\/: t1 :=: t2)
+        repr = show (map disambig partials :\/:
+                        mapVars disambig t1 :=: mapVars disambig t2)
         totals = filter (`notElem` partials) $ occuring_vars
 
+    disambig = disambiguate sig (vars t1 ++ vars t2)
+
     occuring_vars :: [Symbol]
-    occuring_vars = nub (vars t1 ++ vars t2)
+    occuring_vars = map disambig (nub (vars t1 ++ vars t2))
 
     term_to_expr = termToExpr sig_map var_rename_map
 
@@ -110,8 +114,8 @@ peqToProp sig sig_map (e1 :==: e2) = (mk_prop [])
     var_rename_map = M.fromList var_rename
 
 -- TODO: remove code duplication between this and peqToProp
-eqToProp :: (Equation -> String) -> SigMap -> Equation -> Property Equation
-eqToProp show_eq sig_map eq@(e1 :=: e2) = Property
+eqToProp :: SigInfo -> Equation -> Property Equation
+eqToProp SigInfo{..} eq@(e1 :=: e2) = Property
     { propLiteral    = lit
     , propAssume     = []
     , propVars       = prop_vars
@@ -124,10 +128,12 @@ eqToProp show_eq sig_map eq@(e1 :=: e2) = Property
     , propOops       = False
     }
   where
-    repr = show_eq eq
+    repr = show (mapVars disambig e1 :=: mapVars disambig e2)
+
+    disambig = disambiguate sig (vars e1 ++ vars e2)
 
     occuring_vars :: [Symbol]
-    occuring_vars = nub (vars e1 ++ vars e2)
+    occuring_vars = map disambig (nub (vars e1 ++ vars e2))
 
     term_to_expr = termToExpr sig_map var_rename_map
 

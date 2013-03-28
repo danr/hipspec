@@ -67,7 +67,7 @@ main = runHS $ do
 
                 if bottoms then do
 
-                    let qsconjs = map (some (peqToProp sig sig_map)) eqs
+                    let qsconjs = map (some (peqToProp sig_info)) eqs
 
                     (ctx_init,tot_thms,tot_conjs) <- proveTotality sig_info reps
 
@@ -80,7 +80,7 @@ main = runHS $ do
 
                 else do
 
-                    let qsconjs = map (eqToProp (showEquation sig) sig_map)
+                    let qsconjs = map (eqToProp sig_info)
                                       (map (some eraseEquation) eqs)
 
                         ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
