@@ -6,7 +6,7 @@
 -}
 module Definitions where
 
-import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..))
+import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),return)
 import HipSpec.Prelude
 
 -- Booleans
@@ -35,6 +35,10 @@ instance Arbitrary Nat where
     let nats = iterate S Z
     in (nats !!) `fmap` choose (0,5)
 
+instance Partial Nat where
+  unlifted Z = return Z
+  unlifted (S x) = fmap S (lifted x)
+
 (+) :: Nat -> Nat -> Nat
 Z   + y = y
 S x + y = S (x + y)
@@ -58,42 +62,38 @@ Z   <= S _ = True
 S _ <= Z   = False
 S x <= S y = x <= y
 
-one, zero :: Nat
-zero = Z
-one = S Z
-
 double :: Nat -> Nat
-double Z = Z
+double Z     = Z
 double (S x) = S (S (double x))
 
 even :: Nat -> Bool
-even Z = True
-even (S Z) = False
+even Z         = True
+even (S Z)     = False
 even (S (S x)) = even x
 
 half :: Nat -> Nat
-half Z = Z
-half (S Z) = Z
+half Z         = Z
+half (S Z)     = Z
 half (S (S x)) = S (half x)
 
 mult :: Nat -> Nat -> Nat -> Nat
-mult Z _ acc = acc
+mult Z     _ acc = acc
 mult (S x) y acc = mult x y (y + acc)
 
 fac :: Nat -> Nat
-fac Z = S Z
+fac Z     = S Z
 fac (S x) = S x * fac x
 
 qfac :: Nat -> Nat -> Nat
-qfac Z acc = acc
+qfac Z     acc = acc
 qfac (S x) acc = qfac x (S x * acc)
 
 exp :: Nat -> Nat -> Nat
-exp _ Z = S Z
+exp _ Z     = S Z
 exp x (S n) = x * exp x n
 
 qexp :: Nat -> Nat -> Nat -> Nat
-qexp x Z acc = acc
+qexp x Z     acc = acc
 qexp x (S n) acc = qexp x n (x * acc)
 
 -- Abstract Lists

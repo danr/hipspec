@@ -1,5 +1,10 @@
+ifndef HIPSPEC_BASE_FLAGS
 HIPSPEC_BASE_FLAGS = --smt-data-types --verbosity=85
+endif
+
+ifndef HIPSPEC_FLAGS
 HIPSPEC_FLAGS = --cg -luU
+endif
 
 results:
 	mkdir -p results

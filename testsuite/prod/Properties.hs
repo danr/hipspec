@@ -108,13 +108,13 @@ prop_T31 x = qrev (qrev x Nil) Nil =:= x
 prop_T32 x = rotate (length x) x =:= x
 
 
-prop_T33 x = fac x =:= qfac x one
+prop_T33 x = fac x =:= qfac x (S Z)
 
 
-prop_T34 x y = x * y =:= mult x y zero
+prop_T34 x y = x * y =:= mult x y Z
 
 
-prop_T35 x y = exp x y =:= qexp x y one
+prop_T35 x y = exp x y =:= qexp x y (S Z)
 
 
 prop_T36 x y z = givenBool (x `elem` y) (proveBool (x `elem` (y +++ z)))
