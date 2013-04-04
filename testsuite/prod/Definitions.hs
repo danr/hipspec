@@ -176,7 +176,7 @@ qrevflat' (LCons (Cons x xs) xss) acc = qrevflat (LCons xs xss) (Cons x acc)
 -- Nat lists
 
 data NList = NCons Nat NList | NNil
-  deriving (Eq,Typeable,Ord)
+  deriving (Eq,Typeable,Ord,Show)
 
 instance Arbitrary NList where
     arbitrary = toNList `fmap` arbitrary
