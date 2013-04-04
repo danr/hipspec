@@ -30,6 +30,9 @@ not False = True
 
 data Nat = S Nat | Z deriving (Eq,Show,Typeable,Ord)
 
+instance CoArbitrary Nat where
+    coarbitrary = coarbitraryShow
+
 instance Arbitrary Nat where
   arbitrary =
     let nats = iterate S Z
