@@ -1,9 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable, TemplateHaskell #-}
-module Main where
+module BinLists where
 
 import Prelude hiding ((+), (*), (++), (&&),(||),not)
 
-import HipSpec
 import HipSpec.Prelude
 
 import Data.Typeable
@@ -48,7 +47,8 @@ s (OneAnd xs) = ZeroAnd (s xs)
 
 plus :: Bin -> Bin -> Bin
 plus One xs = s xs
-plus xs One = s xs
+plus xs@ZeroAnd{} One = s xs
+plus xs@OneAnd{} One = s xs
 plus (ZeroAnd xs) (ZeroAnd ys) = ZeroAnd (plus xs ys)
 plus (ZeroAnd xs) (OneAnd ys) = OneAnd (plus xs ys)
 plus (OneAnd xs) (ZeroAnd ys) = OneAnd (plus xs ys)
@@ -60,6 +60,7 @@ prop_s n = toNat (s n) =:= S (toNat n)
 prop_plus :: Bin -> Bin -> Prop Nat
 prop_plus x y = toNat (x `plus` y) =:= toNat x + toNat y
 
+{-
 main :: IO ()
 main = hipSpec $(fileName)
     [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
@@ -77,10 +78,11 @@ main = hipSpec $(fileName)
     , fun1 "S" S
     , fun2 "+" (+)
     ]
+    -}
 
 instance Arbitrary Bin where
   arbitrary = sized arbBin
-    where 
+    where
       arbBin s = frequency
         [ (1, return One)
         , (s, ZeroAnd <$> arbBin (s `div` 2))
@@ -97,3 +99,4 @@ instance Arbitrary Nat where
   arbitrary = sized $ \s -> do
     x <- choose (0,round (sqrt (toEnum s)))
     return (toEnum x)
+
