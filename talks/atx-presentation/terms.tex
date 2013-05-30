@@ -1,0 +1,32 @@
+\newcommand\vb[1]{{\tt #1}}
+
+\begin{tabular}{>{\footnotesize}l >{\footnotesize}l >{\footnotesize}l >{\footnotesize}l}
+\vb{[]}&
+\vb{[]++[]}&
+\vb{qrev [] []}&
+\vb{qrev (rev xs) []}\\
+\vb{qrev [] (rev xs)}&
+\vb{qrev (rev xs) ys}&
+\vb{qrev [] xs}&
+\vb{qrev xs []}\\
+\vb{[]++qrev xs ys}&
+\vb{qrev [] (xs++ys)}&
+\vb{(x:xs)++[]}&
+\vb{qrev xs ys++[]}\\
+\vb{qrev (x:[]) xs}&
+\vb{qrev [] (x:xs)}&
+\vb{rev []}&
+\vb{rev (qrev ys xs)}\\
+\vb{rev (rev xs)}&
+\vb{[]++rev xs}&
+\vb{rev xs}&
+\vb{rev xs++ys}\\
+\vb{xs}&
+\vb{[]++xs}&
+\vb{xs++[]}&
+\vb{(xs++ys)++[]}\\
+\vb{[]++(xs++ys)}&
+\vb{xs++ys}&
+\vb{(x:[])++xs}&
+\vb{xs++(x:[])}
+\end{tabular}

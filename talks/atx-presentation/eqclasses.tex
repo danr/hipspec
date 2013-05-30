@@ -1,0 +1,60 @@
+\tikzstyle{eqblock} = [rectangle, draw=Purpleee, thick, text width=4.75em]
+\newcommand\vb[1]{\mbox{{\tt #1}}}
+\makebox[\textwidth][c]{
+\begin{tikzpicture}
+
+\node at (0,2) [eqblock,text width=90] (src) {
+\vb{xs}\\
+\vb{xs++[]}\\
+\vb{[]++xs}\\
+\vb{qrev [] xs}\\
+\vb{rev (rev xs)}\\
+\vb{qrev (rev xs) []}\\
+};
+
+
+\node at (0,-2) [eqblock,text width=90] {
+\vb{xs++ys}\\
+\vb{qrev (rev xs) ys}\\
+\vb{[]++(xs++ys)}\\
+\vb{qrev [] (xs++ys)}\\
+\vb{(xs++ys)++[]}\\
+};
+
+\node at (4,2) [eqblock,text width=60] {
+\vb{[]}\\
+\vb{rev []}\\
+\vb{qrev [] []}\\
+\vb{[]++[]}\\
+};
+
+\node at (4,-2)  [eqblock,text width=80] {
+\vb{x:xs}\\
+\vb{[]++(x:xs)}\\
+\vb{qrev [] (x:xs)}\\
+\vb{(x:xs)++[]}\\
+\vb{(x:[])++xs}\\
+\vb{qrev (x:[]) xs}\\
+};
+
+\node at (8,2)  [eqblock,text width=120] {
+\vb{qrev xs ys}\\
+\vb{rev (qrev ys xs)}\\
+\vb{rev xs++ys}\\
+\vb{[]++qrev xs ys}\\
+\vb{qrev [] (qrev xs ys)}\\
+\vb{qrev xs ys++[]}\\
+\vb{qrev (qrev ys xs) []}\\
+
+};
+
+\node at (8,-2)  [eqblock,text width=100] {
+\vb{rev xs}\\
+\vb{qrev xs []}\\
+\vb{[]++rev xs}\\
+\vb{qrev [] (rev xs)}\\
+};
+
+\end{tikzpicture}
+}
+

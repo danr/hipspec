@@ -6,6 +6,7 @@
 
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows,calc}
+\usepackage{verbatim}
 
 % \usepackage[utf8]{inputenc}
 % \usepackage[T1]{fontenc}
@@ -44,11 +45,11 @@
 \usepackage{mathspec,xltxtra,xunicode}
 % \setsansfont{Gill Sans}
 
-\setmainfont[Scale=1]{Gill Sans}
+% \setmainfont[Scale=1]{Gill Sans}
 %\setmonofont[Scale=0.8]{Monaco}
 \setmonofont{Inconsolata}
 
-\setmathsfont(Digits,Latin,Greek){Gill Sans}
+% \setmathsfont(Digits,Latin,Greek){Gill Sans}
 
 \usefonttheme[onlymath]{serif}
 
@@ -60,8 +61,7 @@
 \usepackage{listings}
 
 \lstnewenvironment{codex}[1][]%
-  {
-   \noindent
+  {\noindent
    \minipage{\linewidth}
    \vspace{0.2\baselineskip}
 %   \vspace{-0.4\baselineskip}
@@ -73,14 +73,14 @@
   {%\vspace{-0.8\baselineskip}
    \endminipage}
 
-\title{ {\Huge HipSpec} }
-\subtitle{ {\LARGE Automating Inductive Proofs \\ of Program Properties} }
-\institute{ Chalmers University of Technology | University of Gothenburg }
+\title{{\Huge HipSpec}}
+\subtitle{{\LARGE Automating Inductive Proofs \\ using Theory Exploration}}
+\institute{Chalmers University of Technology}
 
-\author{ {\Large Dan Ros\'en}
+\author{Dan Ros\'en
      \vspace{\baselineskip} \\
-     Koen Claessen, Moa Johansson, Nicholas Smallbone }
-\date{July 1, 2012}
+     Koen Claessen, Moa Johansson, Nicholas Smallbone}
+\date{May 31, 2013}
 
 \newcommand\fa[1]{ \forall \, #1 . \,}
 \newcommand\faa[2]{ \forall \, #1 , #2 . \,}
@@ -103,15 +103,260 @@
 
 \maketitle
 
+\defverbatim{\rotatedef}{%
+\begin{verbatim}
+    rotate Z     xs     = xs
+    rotate (S n) []     = []
+    rotate (S n) (x:xs) = rotate n (xs ++ [x])
+\end{verbatim}
+}
+
+\defverbatim{\rotateex}{%
+\begin{verbatim}
+    rotate 1 [1,2,3,4] = [2,3,4,1]
+    rotate 2 [1,2,3,4] = [3,4,1,2]
+    rotate 3 [1,2,3,4] = [4,1,2,3]
+    rotate 4 [1,2,3,4] = [1,2,3,4]
+\end{verbatim}
+}
+
+\defverbatim{\rotateprop}{%
+\begin{equation*}
+    \fa{\xs} \hs{rotate (length xs) xs} = \hs{xs}
+\end{equation*}
+}
+
+\defverbatim{\rotategen}{%
+\begin{equation*}
+    \faa{\xs}{\ys} \hs{rotate (length (xs ++ ys)) (xs ++ ys)} = \hs{ys ++ xs}
+\end{equation*}
+}
+
+\defverbatim{\rotatestep}{%
+\begin{align*}
+    \hs{rotate (length (x:xs)) (x:xs) } & = \\
+    \hs{rotate (S (length xs)) (x:xs) } & = \\
+    \hs{rotate (length xs) (xs ++ [x])} & =
+\end{align*}
+}
+
+\begin{frame}[fragile]
+    \frametitle{Rotate example}
+
+    \begin{overprint}
+    \rotatedef
+
+    \onslide<1> \rotateex
+
+    \onslide<2> \rotateex \rotateprop
+
+    \onslide<3> \rotateprop
+
+    \onslide<4> \rotateprop \rotatestep
+
+    \onslide<5> \rotateprop \rotatestep
+    \begin{center}
+      {\color{red} Stuck!}
+    \end{center}
+
+    \end{overprint}
+
+\end{frame}
+
+% Rotate demo
+
+% We're doing theory exploration right now, to conjecture useful lemmas,
+% done by a tool called QuickSpec,
+% Now we've started proving things by induction, and these properties
+% were not specified in the source code but were conjectured during TE
+% oh there's our property being proved! hooray!
+
+\begin{frame}
+    \frametitle{HipSpec vs Rotate}
+
+    \rotategen
+
+    \pause
+    \begin{center}
+    (also requires associativity and right identity of \hs{++})
+    \end{center}
+
+\end{frame}
+
+\begin{comment} % old setting
+  Prove properties of functional programs using rewriting and
+  induction.
+
+  {\color{Purpleee} Problem:} Som properties require lemmas to be proved, that
+
+  \begin{itemize}
+    \item Needs to be conjectured,
+    \item Requires induction to be proved, and
+    \item Might require lemmas themselves
+  \end{itemize}
+\end{comment}
+
+
+\begin{frame}
+    \frametitle{QuickSpec: the Theory Exploration Phase}
+    Generates a bunch of terms: % well-typed
+    \dn
+    \input{terms}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Partitioning into Equivalence Classes}
+
+    \input{eqclasses}
+    % read off the equations from the classes
+
+    % completeness up to some depth
+
+    % false properties are not a problem given that
+    % the function definitions do not have tricky corner cases
+    % that the random value generators do not cover
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Hip: The Haskell Inductive Prover}
+
+  \begin{itemize}
+    \item Translate to typed first order logic
+          % Translates the function definitions to typed first order logic
+    \item Apply structural induction
+          % Applies structural induction on properties
+  \end{itemize}
+
+  Also supports higher-order functions and partial application
+\end{frame}
+
+\begin{frame}
+  \frametitle{Overview of HipSpec}
+  \input{hipspec-picture}
+  \pause
+  \begin{itemize}
+    \item Try to prove ``smallest'' unproved equation
+    \item Terminate everything is proved (or when the current theory cannot prove any more open conjectures)
+  \end{itemize}
+\end{frame}
+
+% here we can contrast with other kinds of theory exploration
+% system
+
+\begin{frame}
+  \frametitle{Rotate, revisited}
+
+    \rotateprop \rotatestep
+    \begin{center}
+      {\color{red} Stuck!}
+    \end{center}
+
+\end{frame}
+
+% "So the tools IsaCosy and IsaScheme can conjecture a theory,
+% but not fully automatically when proving a user-stated property,
+% which is what HipSpec can. But HipSpec can also be run without
+% specifying what to prove! Let's have a look at the output
+% of when rotate was run"
+
+% See, the property we wanted to prove was conjectured by quickspec.
+% And of course it is! It is within the depth limit, so this is fully
+% expected. So we could run this example without specifying that this
+% is the property we want to show, and it will still prove it!
+% But instead of looking at that, let's look at another common
+% problem in this literature, namely rev/qrev...
+% (explanation + BAM)
+% Another example is this, so we have unary/peano nats and plus
+% and multiplication defined over this. So we should expect
+% that hipspec can prove that this is a commutative semiring...
+% let's try...
+
+\begin{frame}
+  \frametitle{HipSpec the Theory Exploration System}
+
+  % so this is what we just seen
+
+  \begin{center}
+      Saturate a theory and have it nicely presented
+  \end{center}
+
+  \dn
+  \pause
+
+  % other examples that we can do:
+
+  \begin{itemize}
+      \item \hs{data Integer = Positive Nat | Negative Nat}
+      \item \hs{data BinNat  = Zero | ZeroAnd BinNat | OneAnd BinNat}
+  \end{itemize}
+
+  % so this is an interesting piece of work to hook this up
+  % with an interactive theorem prover, isa/coq/agda
+  % ... could make us spend less time on proving boring properties ;)
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Conjecturing Conditionals}
+
+  \begin{verbatim}
+    isort :: [Nat] -> [Nat]
+
+    insert :: Nat -> [Nat] -> [Nat]
+
+    sorted :: [Nat] -> Bool
+  \end{verbatim}
+
+  \begin{equation*}
+    \fa{\xs}  \hs{sorted (isort xs)} = \hs{True}
+  \end{equation*}
+
+  % It's one property that we currently cannot prove fully automatically
+
+  Requires:
+
+  \begin{equation*}
+    \fa{\xs}  \hs{sorted xs} = \hs{True} \Rightarrow
+              \hs{sorted (insert x xs)} = \hs{True}
+  \end{equation*}
+
+  % How do we conjecture such properties?
+  % Currently, QuickSpec is implemented at looking at equivalence classes that
+  % are unconditionally true... would like to have some kind of precondition on
+  % certain equivalence classes to talk about when xs is always sorted, for
+  % instance. Another problem might be that it is so uncommon to generate
+  % sorted lists, so we will probably need to incorporate other ongoing work on
+  % generating random values satisfying some predicate.
+
+\end{frame}
+
+% how to jump to conclusions/rounding off here in a reasonable way?
+
+\begin{frame}
+  \frametitle{Conclusions}
+  \begin{itemize}
+    \item Evaluate your programs!
+    \item Completeness up to a certain depth: \\
+          \emph{If the lemma is there, HipSpec will eventually try to prove it!}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{}
+\begin{center}
+\hs{github.com/danr/hipspec}
+\end{center}
+\end{frame}
+
 \begin{frame}[fragile]
   \frametitle{What is HipSpec?}
 \tikzstyle{block} = [rectangle, draw=Purpleee, thick, text width=4.75em, text centered]
 
 
-\makebox[\textwidth][c]{
+\makebox[\textwidth][c]{\
 \begin{tikzpicture}
 
-  \node at (0,0) [block,text width=120] (src) {
+  \node at (0,0) [block,text width=120] (src) {\
 \\
 \textbf{Haskell source}
 {\small
@@ -124,19 +369,20 @@
 \end{align*}
 }
 };
-\pause
-  \node at (5,2) [block,text width=120] (hip) {
+%\pause
+  \node at (5,2) [block,text width=120] (hip) {\
 \textbf{Hip}
 \\
 \emph{Haskell Inductive Prover}
 \begin{itemize}
 \item FOL translation
 \item Apply induction
-\item Success\pause, or stuck!
+\item Success\ % \pause
+, or stuck!
 \end{itemize}
 };
-\invisible<1-3>{
-  \node at (5,-2)  [block,text width=120] (qs) {
+%\invisible<1-3>{
+  \node at (5,-2)  [block,text width=120] (qs) {\
 \textbf{QuickSpec}
 \\
 Eq-theory from testing:
@@ -149,539 +395,22 @@ Eq-theory from testing:
 &\hs{xs ++ (ys ++ zs) =} \\
 &\quad\hs{(xs ++ ys) ++ zs}
 \end{align*}
-}};
+}
+};
 
-  \onslide<5>{
+ % \onslide<5>{
     \node at (8.5,-2) [block] (lemmas)
        {\textbf{HipSpec} \\ \emph{Use these as lemmas!!}};
-  }
+ % }
 
 \end{tikzpicture}
-}
-}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-  \frametitle{Example functional program and property}
-  %\begin{center}
-
-    \begin{verbatim}
-        rev (x:xs) = rev xs ++ [x]
-        rev []     = []
-
-        qrev (x:xs) ys = qrev xs (x:ys)
-        qrev []     ys = ys
-    \end{verbatim}
-
-    \begin{equation*}
-    \text{Goal:} \quad \fa{\xs} \hs{rev xs} = \hs{qrev xs []}
-    \end{equation*}
-
-%    \pause
-%
-%       \begin{align*}
-%         \text{lhs:} \quad & \hs{rev xs} = ... \\
-%         \text{rhs:} \quad & \hs{qrev xs []} = ...
-%       \end{align*}
-%
-%    \pause
-%
-%    \begin{center}
-%      {\color{red} Stuck!}
-%    \end{center}
-
-\end{frame}
-
-%   \begin{align*}
-%     & \text{to show: } && \hs{rev (x:xs)} = \hs{qrev (x:xs) []} \\
-%     \\
-%     & \text{lhs:}      && \hs{rev (x:xs)} = \hs{rev xs ++ [x]} \\
-%     &                  && = \hs{qrev xs [] ++ [x]} \\
-%     & \text{rhs: }     && \hs{qrev (x:xs) []} = \hs{qrev xs [x]}
-%   \end{align*}
-
-%\begin{frame}[fragile]
-%  \frametitle{Case split}
-%
-%  In a well-typed language, any list such as $\xs$ is either nil or cons!
-%      \begin{mathpar}
-%        \inferrule*
-%           {
-%             \p{\nil}
-%             \\
-%             \faa{\x}{\xs} \p{\xxs}
-%           }
-%           { \fa{\xs} \p{\xs} }
-%      \end{mathpar}
-%
-%  \pause
-%
-%  \begin{equation*}
-%   \p{\xs} \Leftrightarrow \hs{rev xs} = \hs{qrev xs []}
-%  \end{equation*}
-%
-%  \invisible<1-2>{
-%  \only<1-3>{
-%
-%     Nil case:
-%
-%     \begin{align*}
-%       \text{lhs:} \quad & \hs{rev []} = \nil  \\
-%       \text{rhs:} \quad & \hs{qrev [] []} = \nil
-%     \end{align*}
-%
-%     \pause
-%     \begin{center}{\color{MyGreen} Hooray!}\end{center}
-%  }
-%  \only<4-5>{
-%     Cons case:
-%
-%     \begin{align*}
-%       \text{lhs:} \quad & \hs{rev (x:xs)} = \hs{rev xs ++ [x]} \\
-%       \text{rhs:} \quad & \hs{qrev (x:xs) []} = \hs{qrev xs [x]}
-%     \end{align*}
-%
-%     \onslide<5>{\begin{center}{\color{red} Stuck!!!}\end{center}}
-%  }
-%  }
-%\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Structural induction}
-
-  \begin{mathpar}
-    \inferrule*
-       {
-         \p{\nil}
-         \\
-         \faa{\x}{\xs} \p{\xs} \implies \p{\xxs}
-       }
-       { \fa{\xs} \p{\xs} }
-  \end{mathpar}
-
-  \pause
-
-  \begin{align*}
-    \text{lhs:} \quad & \hs{rev (x:xs)} = \hs{rev xs ++ [x]} \onslide<4->{\highlight{ = \hs{qrev xs [] ++ [x]}}} \\
-    \text{rhs:} \quad & \hs{qrev (x:xs) []} = \hs{qrev xs [x]}
-  \end{align*}
-
-  \pause
-
-  \begin{equation*}
-  \textsf{hypothesis:} \quad \hs{rev xs} = \hs{qrev xs []}
-  \end{equation*}
-
-  \pause
-  \pause
-  \begin{center}{\color{red} \Large Stuck!!!}\end{center}
-
-\end{frame}
-\begin{frame}[fragile]
-  \frametitle{How do we proceed?}
-
-    \begin{verbatim}
-        rev (x:xs) = rev xs ++ [x]
-        rev []     = []
-
-        qrev (x:xs) ys = qrev xs (x:ys)
-        qrev []     ys = ys
-    \end{verbatim}
-
-  \up\up
-
-  \begin{align*}
-    \text{lhs:} \quad & \hs{rev (x:xs)} = \hs{rev xs ++ [x]}  = \hs{qrev xs [] ++ [x]} \\
-    \text{rhs:} \quad & \hs{qrev (x:xs) []} = \hs{qrev xs [x]}
-  \end{align*}
-
-  \pause
-
-  What about...
-  \begin{equation*}
-    \textsf{New Goal:} \quad \faa{\xs}{\highlight{\ys}} \hs{rev xs}\highlight{\hs{ ++ ys}} = \hs{qrev xs }\highlight{\ys}
-  \end{equation*}
-
-  \pause
-
-  Then with $\ys = \nil$, we get
-  \begin{equation*}
-    \onslide<4>{\hs{rev xs} = }\hs{rev xs ++ []} = \hs{qrev xs []}
-  \end{equation*}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-  \frametitle{The crucial lemma}
-
-  \begin{equation*}
-  \textsf{New Goal:} \quad \faa{\xs}{\ys} \hs{rev xs ++ ys} = \hs{qrev xs ys}
-  \end{equation*}
-
-
-  \vspace{\baselineskip}
-
-  Induction on $\xs$
-
-  \dn \pause
-
-  Base, to show: $\fa{\ys} \hs{rev [] ++ ys} = \hs{qrev xs []}$
-
-  \begin{align*}
-    \text{lhs:} \quad & \hs{rev [] ++ ys} = \ys  \\
-    \text{rhs:} \quad & \hs{qrev [] ys} = \ys
-  \end{align*}
-
-   \pause
-
-  {\begin{center}{\color{MyGreen} Hooray!}\end{center}}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{The crucial lemma}
-  Step, to show: $\fa{\ys} \hs{rev (x:xs) ++ ys} = \hs{qrev (x:xs) ys}$
-
-  \dn
-
-  Hypothesis: $\fa{\ys} \hs{rev xs ++ ys} = \hs{qrev xs ys}$
-
-  \pause
-
-  \begin{align*}
-  \text{lhs } = \;\; & \hs{rev (x:xs) ++ ys}      && =\{\text{definition of \hs{rev}}\} \\
-                     & \hs{(rev xs ++ [x]) ++ ys} && =\{\text{associativity of \hs{++}}\} \\
-                     & \hs{rev xs ++ ([x] ++ ys)} && =\{\text{definition of \hs{++}}\} \\
-                     & \hs{rev xs ++ (x:ys)}      && =\{\text{induction hypothesis on $\hs{(x:ys)}$}\} \\
-                     & \hs{qrev xs (x:ys)}        && =\{\text{definition of \hs{qrev}}\} \\
-                     & \hs{qrev (x:xs) ys}        && = \text{rhs}
-  \end{align*}
-
-  \pause
-  {\begin{center}{\color{MyGreen} \Large HOORAY!}\end{center}}
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Success}
-
-     We managed to prove
-
-     \begin{equation*}
-     \fa{\xs} \hs{rev xs} = \hs{qrev xs []}
-     \end{equation*}
-
-     Using:
-
-     \begin{itemize}
-       \item $\faa{\xs}{\ys} \hs{rev xs ++ ys} = \hs{qrev xs ys}$
-       \item Induction
-         \pause
-       \item But we also needed associativity of \hs{++} and $\fa{\xs} \hs{xs ++ []} = \xs$,
-             which need induction to be proved
-     \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Setting}
-
-  Prove properties of functional programs using rewriting and
-  induction.
-
-  \dn
-
-  {\color{Purpleee} Problem:} Some of these properties require lemmas, that
-
-  \begin{itemize}
-    \item Needs to be conjectured,
-    \item Requires induction to be proved, and
-    \item Might require lemmas themselves
-  \end{itemize}
-
-\end{frame}
-
-\begin{frame}
-  \frametitle{Enter HipSpec}
-
-  Solves this problems by:
-
-  \begin{itemize}
-    \item Generates an equational theory by counter-example testing,
-    \item Try to prove this theory by applying induction
-    \item Then, try to prove the user-stated properties
-    \item Proof search with first-order theorem provers
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Overview of HipSpec}
-  \input{hipspec-picture}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Overview of HipSpec}
-  \def\hlqs{} % Highlight QuickSpec
-  \input{hipspec-picture}
-  \undef\hlqs
-\end{frame}
-
-\newcommand\vb[1]{\mbox{{\tt #1}}}
-
-\tikzstyle{eqblock} = [rectangle, draw=Purpleee, thick, text width=4.75em]
-
-\begin{frame}[fragile]
-\frametitle{Equivalence classes partitioning}
-
-Generates a bunch of terms:
-
-\dn
-
-
-\begin{tabular}{>{\footnotesize}l >{\footnotesize}l >{\footnotesize}l >{\footnotesize}l}
-\vb{[]}&
-\vb{[]++[]}&
-\vb{qrev [] []}&
-\vb{qrev (rev xs) []}\\
-\vb{qrev [] (rev xs)}&
-\vb{qrev (rev xs) ys}&
-\vb{qrev [] xs}&
-\vb{qrev xs []}\\
-\vb{[]++qrev xs ys}&
-\vb{qrev [] (xs++ys)}&
-\vb{(x:xs)++[]}&
-\vb{qrev xs ys++[]}\\
-\vb{qrev (x:[]) xs}&
-\vb{qrev [] (x:xs)}&
-\vb{rev []}&
-\vb{rev (qrev ys xs)}\\
-\vb{rev (rev xs)}&
-\vb{[]++rev xs}&
-\vb{rev xs}&
-\vb{rev xs++ys}\\
-\vb{xs}&
-\vb{[]++xs}&
-\vb{xs++[]}&
-\vb{(xs++ys)++[]}\\
-\vb{[]++(xs++ys)}&
-\vb{xs++ys}&
-\vb{(x:[])++xs}&
-\vb{xs++(x:[])}
-\end{tabular}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Equivalence classes partitioning}
-
-\makebox[\textwidth][c]{
-\begin{tikzpicture}
-
-\node at (0,2) [eqblock,text width=90] (src) {
-\vb{xs}\\
-\vb{xs++[]}\\
-\vb{[]++xs}\\
-\vb{qrev [] xs}\\
-\vb{rev (rev xs)}\\
-\vb{qrev (rev xs) []}\\
-};
-
-
-\node at (0,-2) [eqblock,text width=90] {
-\vb{xs++ys}\\
-\vb{qrev (rev xs) ys}\\
-\vb{[]++(xs++ys)}\\
-\vb{qrev [] (xs++ys)}\\
-\vb{(xs++ys)++[]}\\
-};
-
-\node at (4,2) [eqblock,text width=60] {
-\vb{[]}\\
-\vb{rev []}\\
-\vb{qrev [] []}\\
-\vb{[]++[]}\\
-};
-
-\node at (4,-2)  [eqblock,text width=80] {
-\vb{x:xs}\\
-\vb{[]++(x:xs)}\\
-\vb{qrev [] (x:xs)}\\
-\vb{(x:xs)++[]}\\
-\vb{(x:[])++xs}\\
-\vb{qrev (x:[]) xs}\\
-};
-
-\node at (8,2)  [eqblock,text width=120] {
-\vb{qrev xs ys}\\
-\vb{rev (qrev ys xs)}\\
-\vb{rev xs++ys}\\
-\vb{[]++qrev xs ys}\\
-\vb{qrev [] (qrev xs ys)}\\
-\vb{qrev xs ys++[]}\\
-\vb{qrev (qrev ys xs) []}\\
-
-};
-
-\node at (8,-2)  [eqblock,text width=100] {
-\vb{rev xs}\\
-\vb{qrev xs []}\\
-\vb{[]++rev xs}\\
-\vb{qrev [] (rev xs)}\\
-};
-
-\end{tikzpicture}
+%}
 }
 
 \end{frame}
 
-\begin{frame}[fragile]
-  \frametitle{Example of pruned equations from QuickSpec}
 
-\begin{verbatim}
-Universe has 2893 terms, 1824 classes
-== equations ==
- 1: xs++[] == xs
- 2: qrev xs [] == rev xs
- 3: []++xs == xs
- 4: qrev [] xs == xs
- 5: (x:xs)++ys == x:(xs++ys)
- 6: (xs++ys)++zs == xs++(ys++zs)
- 7: qrev xs ys++zs == qrev xs (ys++zs)
- 8: qrev (x:xs) ys == qrev xs (x:ys)
- 9: qrev (xs++ys) zs == qrev ys (qrev xs zs)
-10: qrev (qrev xs ys) zs == qrev ys (xs++zs)
-\end{verbatim}
-
-\end{frame}
-
-\begin{frame}
-  \frametitle{Overview of HipSpec}
-  \def\hltrans{} % Highlight translation
-  \input{hipspec-picture}
-  \undef\hltrans
-\end{frame}
-
-\newcommand\fn[1]{\mathrm{#1}}
-\newcommand\fcons   [2]{\fn{cons}(#1,#2)}
-\newcommand\frev    [1]{\fn{rev}(#1)}
-\newcommand\fxs     [0]{\textsf{xs}}
-\newcommand\fx      [0]{\textsf{x}}
-\newcommand\fys     [0]{\textsf{ys}}
-\newcommand\fy      [0]{\textsf{y}}
-\newcommand\fappend [2]{\fn{append}(#1,#2)}
-\newcommand\fnil    [0]{\fn{nil}}
-
-\begin{frame}[fragile]
-  \frametitle{Hip : The Haskell Inductive Prover}
-
-  \begin{itemize}
-    \item Translates the Haskell source definitions to first order logic
-\up
-  \end{itemize}
-  \begin{verbatim}
-      rev (x:xs) = rev xs ++ [x]
-      rev []     = []
-  \end{verbatim}
-\up
-Function definition axioms:
-\begin{align*}
-1 && \faa{\fx}{\fxs} & \frev{\fcons{\fx}{\fxs}} = \fappend{\frev{\fxs}}{\fcons{\fx}{\fnil}} \\
-2 &&                 & \frev{\fnil}             = \fnil
-\end{align*}
-Data type axioms:
-\begin{align*}
-3 && \faaaa{\fx}{\fxs}{\fy}{\fys} & \fcons{\fx}{\fxs} = \fcons{\fy}{\fys} \implies \fx = \fy \land \fxs = \fys \\
-4 && \faa{\fx}{\fxs} & \fnil \neq \fcons{\fx}{\fxs}
-\end{align*}
-\up
-  \begin{itemize}
-  \item Also supports higher-order functions and partial application
-  \item Applies structural induction on properties
-  \end{itemize}
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Picking a conjecture, and the main loop}
-
-  \def\onlyloop{}
-  \input{hipspec-picture}
-  \undef\onlyloop
-
-  \begin{enumerate}
-    \item Try to prove ``smallest'' unproved equation this round
-    \item Failure: save this for next round
-    \item Success: extend the theory
-    \item When a round did not lead to any successes, or everything proved, terminate.
-  \end{enumerate}
-
-  \pause
-
-  We use light-weight reasoning by means of a congruence closure to
-  prune away conjecture that can be proved without induction. % equations from QuickSpec holding up to equality.
-
-\end{frame}
-
-\begin{frame}
-  \frametitle{}
-    \begin{center}
-    {\color{Purpleee} \Huge Demo!}
-    \end{center}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Evaluation - First Test Suite}
-
-  First suite from
-  \emph{Case-Analysis for Rippling and Inductive Proof}
-  \hspace{1em} by Johansson, Dixon and Bundy (2010)
-
-  \dn
-
-  85 conjectures, 71 equational.
-
-  \pause
-
-  \begin{center}
-  \begin{tabular}{l l}
-    Tool       & Proved conjectures (of 85) \\
-    \hline
-    Zeno       & 82 \\[3pt]
-    ACL2s      & 74 \\[3pt]
-    IsaPlanner & 47 \\[3pt]
-    Dafny      & 45 \\[3pt]
-    HipSpec    & 67 (of 71)
-  \end{tabular}
-  \end{center}
-
-  \pause
-
-  \invisible<1-2>{
-     %Buggy!? wtf latex
-     \only<1-3>{
-       Unproved:
-       \up
-       \begin{center}
-       \begin{tabular}{>{\small}l >{\small}l}
-       \hs{count n xs = count n (sort xs)}, & \hs{len (filter p xs) <= len xs } \\
-       \hs{sorted (sort xs) = True},        & \hs{len (delete n xs) <= len xs }
-       \end{tabular}
-       \end{center}
-       But they require conditional lemmas!
-     }
-     \only<4>{
-       Two properties only proved by HipSpec!
-       \begin{center}
-       \begin{tabular}{>{\small}l}
-       \hs{rev (drop i xs) = take (len xs - i) (rev xs)} \\
-       \hs{rev (take i xs) = drop (len xs - i) (rev xs)}
-       \end{tabular}
-       \end{center}
-       Requires a bunch of quite far-fetched lemmas
-     }
-  }
-\end{frame}
+\begin{comment}
 
 \begin{frame}[fragile]
   \frametitle{Evaluation - Second Test Suite}
@@ -718,17 +447,6 @@ Data type axioms:
 
 \end{frame}
 
-\begin{frame}
-  \frametitle{}
-    \begin{center}
-    {\color{Purpleee} \Huge Success!\pause?}
-
-    \vspace{\baselineskip}
-
-    There might be some limitations... ;)
-    \end{center}
-\end{frame}
-
 \begin{frame}[fragile]
   \frametitle{Future work and current limitations}
 
@@ -740,6 +458,7 @@ Data type axioms:
   \end{itemize}
 
 \end{frame}
+
 
 \begin{frame}[fragile]
   \frametitle{Conclusion}
@@ -937,148 +656,7 @@ instance Arbitary SortedList where
   \end{verbatim}
 \end{frame}
 
-
-%
-%%
-%%
-%%\begin{frame}
-%%  \frametitle{Behind the Scenes}
-%%%  \begin{itemize}
-%%%    \item Translation to first order logic\\
-%%%    \item Trying different induction techniques\\
-%%%    \item Running automated theorem provers\\
-%%%  \end{itemize}
-%%\end{frame}
-%%
-%%
-%%\begin{frame}[fragile]
-%%\frametitle{Structural Induction Example}
-%%
-%%\begin{mathpar}
-%%  \inferrule*
-%%    {
-%%      P(\leaf{x})
-%%      \and
-%%      P(u)\wedge P(v)\rightarrow P(\fork{u}{v})
-%%    }
-%%    { P(t) }
-%%\end{mathpar}
-%%
-%%
-%%\begin{frame}[fragile]
-%%\frametitle{Future Work: Lemma synthesis from QuickSpec}
-%%
-%%\begin{verbatim}
-%%1: return x := x:[]
-%%2: x:xs := return x++xs
-%%== equations ==
-%%1: x:[] == return x
-%%2: xs++[] == xs
-%%3: []++xs == xs
-%%4: reverse [] == []
-%%5: (x:xs)++ys == x:(xs++ys)
-%%6: (xs++ys)++zs == xs++(ys++zs)
-%%7: reverse (return x) == return x
-%%8: reverse (reverse xs) == xs
-%%9: reverse xs++return x == reverse (x:xs)
-%%10: reverse xs++reverse ys == reverse (ys++xs)
-%%\end{verbatim}
-%%\end{frame}
-%%
-%%%% MOVE TO END
-%%\begin{frame}
-%%  \frametitle{Related Work}
-%%  \begin{itemize}
-%%    \item Zeno (Sonnex, Drossopoulou, Eisenbach) {\footnotesize(Imperial College)}
-%%
-%%    \item Combining Interactive and Automatic Reasoning about Functional Programs \\
-%%          (Bove, Dybjer, Sicard)
-%%    \item Dependently Typed Programming based on Automated Theorem Proving \\
-%%          (Armstrong, Foster, Struth) {\footnotesize(Univ. of Sheffield)}
-%%  \end{itemize}
-%%\end{frame}
-%%
-%%\begin{frame}
-%%\frametitle{Conclusion}
-%%
-%%\begin{itemize}
-%%\item FOL is expressible enough for various Haskell concepts; pattern
-%%  matching, infinite data structures and higher order functions
-%%\item Thanks to referential transparency
-%%\item Possible to prove many properties without proving termination
-%%\end{itemize}
-%%\end{frame}
-%%
-%
-%
-%
-%
-%%%%%% Old macros
-%
-%%\makeatletter
-%%\newcommand*{\rom}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@.}}
-%%\newcommand*{\romnodot}[1]{\text{\footnotesize\expandafter\@slowromancap\romannumeral #1@}}
-%%\makeatother
-%
-%%\newcommand\note[1]{\mbox{}\marginpar{\footnotesize\raggedright\hspace{0pt}\emph{#1}}}
-%%\newcommand\note[1]{}
-%%\newcommand\PA{\mathcal{P\!A}}
-%%\newcommand\hs[1]{\verb~#1~}
-%%\newcommand\ts[1]{\verb~#1~}
-%%\newcommand\fn[1]{#1}
-%%\newcommand\ptr[1]{\fn{\operatorname{#1-ptr}}}
-%%\newcommand\appfn{@}
-%%\newcommand\app[2]{#1 \, \appfn \, #2}
-%%\newcommand\appp[2]{(#1) \, \appfn \, #2}
-%%\newcommand\ex[1]{\exists \, #1 \, . \,}
-%%\newcommand\nexxx[3]{\nexists \, #1 , #2 , #3 . \,}
-%%
-%%\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}%\usetikzlibrary {\trees,positioning,arrows}
-%%
-%%\newcommand\fixb[0]{ ^{\bullet}}
-%%\newcommand\fixw[0]{ ^{\circ}}
-%%
-%%\newcommand\tofix[1]{#1^{\bullet}}
-%%\newcommand\unfix[1]{#1^{\circ}}
-%%
-%%\newcommand\append[0]{\texttt{\small{++}}}
-%%
-%%\newcommand{\xsys}[2]{#1 \, xs \, #2 & = #1 \, ys #2}
-%%\newcommand{\desca}[1]{  & \hspace{44.5mm}                            \{ \text{#1} \}}
-%%\newcommand{\descra}[1]{ & \hspace{35mm} \Rightarrow     \hspace{4mm} \{ \text{#1} \}}
-%%\newcommand{\descla}[1]{ & \hspace{35mm} \Leftarrow      \hspace{4mm} \{ \text{#1} \}}
-%%\newcommand{\desclra}[1]{& \hspace{35mm} \Leftrightarrow \hspace{4mm} \{ \text{#1} \}}
-%%
-%%\newcommand\lub[1]{\sqcup_{#1}}
-%%
-%%\newcommand\defof[1]{definition of #1}
-%%
-%%\newcommand\w[0]{\,\,}
-%%\newcommand\eq[0]{ = }
-%%
-%%\newcommand{\defBNF}[4] {\text{#1}\quad&#2&::=&\;#3&\text{#4}}
-%%\newcommand{\defaltBNF}[2] {&&|&\;#1&\text{#2}}
-%%
-%%\newcommand{\hstup}[2]{\hs{(} #1 \hs{,} #2 \hs{)}}
-%%
-%%\newcommand{\nsqsubseteq}{\,\,\, /\!\!\!\!\!\!\sqsubseteq}
-%%
-%%\newcommand{\bindname}{>\!\!>\!\!=}
-%%\newcommand{\bind}[2]{#1 \bindname #2}
-%%\newcommand{\bindp}[3]{\fn{bind'}(#1,#2,#3)}
-%%\newcommand{\fork}[2]{\fn{fork}(#1,#2)}
-%%\newcommand{\forkr}[1]{\fn{right}(#1)}
-%%\newcommand{\forkl}[1]{\fn{left}(#1)}
-%%\newcommand{\leaf}[1]{\fn{leaf}(#1)}
-%%\newcommand{\unleaf}[1]{\fn{unleaf}(#1)}
-%%\newcommand{\return}[1]{\fn{return}(#1)}
-%%
-%%\newcommand{\bindb}[2]{#1 \tofix{\bindname} #2}
-%%\newcommand{\bindw}[2]{#1 \unfix{\bindname} #2}
-%%
-%%
-%%\newcommand\Inf{\fn{Inf}}
-%%\newcommand\Total{\fn{Total}}
-%%\newcommand\Fin{\fn{Fin}}
+\end{comment}
 
 \end{document}
+
