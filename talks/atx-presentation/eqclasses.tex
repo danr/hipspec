@@ -1,60 +1,79 @@
+\defverbatim{\cla}{%
+\begin{verbatim}
+xs
+xs++[]
+[]++xs
+rot Z xs
+rot (len xs) xs
+\end{verbatim}
+}
+
+\defverbatim{\clb}{%
+\begin{verbatim}
+xs++ys
+[]++(xs++ys)
+rot Z (xs++ys)
+(xs++ys)++[]
+rot (len ys) (ys++xs)
+\end{verbatim}
+}
+
+\defverbatim{\clc}{%
+\begin{verbatim}
+xs++(ys++ys)
+(xs++ys)++ys
+\end{verbatim}
+}
+
+\defverbatim{\cld}{%
+\begin{verbatim}
+rot n (xs++xs)
+rot n xs++rot n xs
+\end{verbatim}
+}
+
+\defverbatim{\cle}{%
+\begin{verbatim}
+len xs
+len (rot n xs)
+\end{verbatim}
+}
+
+\defverbatim{\clf}{%
+\begin{verbatim}
+len (xs++ys)
+len (ys++xs)
+\end{verbatim}
+}
+
+\defverbatim{\clg}{%
+\begin{verbatim}
+rot n (rot m xs)
+rot m (rot n xs)
+\end{verbatim}
+}
+
+
 \tikzstyle{eqblock} = [rectangle, draw=Purpleee, thick, text width=4.75em]
 \newcommand\vb[1]{\mbox{{\tt #1}}}
-\makebox[\textwidth][c]{
+\makebox[\textwidth][c]{%
 \begin{tikzpicture}
 
-\node at (0,2) [eqblock,text width=90] (src) {
-\vb{xs}\\
-\vb{xs++[]}\\
-\vb{[]++xs}\\
-\vb{qrev [] xs}\\
-\vb{rev (rev xs)}\\
-\vb{qrev (rev xs) []}\\
-};
+\node at (0.5,2) [eqblock,text width=85] {\cla};
 
+\node at (0.5,-2) [eqblock,text width=115] {\clb};
 
-\node at (0,-2) [eqblock,text width=90] {
-\vb{xs++ys}\\
-\vb{qrev (rev xs) ys}\\
-\vb{[]++(xs++ys)}\\
-\vb{qrev [] (xs++ys)}\\
-\vb{(xs++ys)++[]}\\
-};
+\node at (6,3) [eqblock,text width=65] {\clc} ;
 
-\node at (4,2) [eqblock,text width=60] {
-\vb{[]}\\
-\vb{rev []}\\
-\vb{qrev [] []}\\
-\vb{[]++[]}\\
-};
+\node at (6,1)  [eqblock,text width=100] {\cld};
 
-\node at (4,-2)  [eqblock,text width=80] {
-\vb{x:xs}\\
-\vb{[]++(x:xs)}\\
-\vb{qrev [] (x:xs)}\\
-\vb{(x:xs)++[]}\\
-\vb{(x:[])++xs}\\
-\vb{qrev (x:[]) xs}\\
-};
+\node at (8,-1)  [eqblock,text width=80] {\cle};
 
-\node at (8,2)  [eqblock,text width=120] {
-\vb{qrev xs ys}\\
-\vb{rev (qrev ys xs)}\\
-\vb{rev xs++ys}\\
-\vb{[]++qrev xs ys}\\
-\vb{qrev [] (qrev xs ys)}\\
-\vb{qrev xs ys++[]}\\
-\vb{qrev (qrev ys xs) []}\\
+\node at (4.5,-1)  [eqblock,text width=70] {\clf};
 
-};
-
-\node at (8,-2)  [eqblock,text width=100] {
-\vb{rev xs}\\
-\vb{qrev xs []}\\
-\vb{[]++rev xs}\\
-\vb{qrev [] (rev xs)}\\
-};
+\node at (6.5,-3)  [eqblock,text width=90] {\clg};
 
 \end{tikzpicture}
 }
+
 

@@ -1,17 +1,4 @@
-
-% A little hack so this can be compiled stand alone
-\ifx\maindocument\undefined
-    \documentclass{article}
-    \usepackage[latin1]{inputenc}
-    \usepackage{tikz}
-    \usetikzlibrary{shapes,arrows,calc}
-
-    \begin{document}
-    \pagestyle{empty}
-    \def\donext{\end{document}}
-\else
-    \def\donext{}
-\fi
+\newcommand{\h}[2]{\action<#1->{#2}}
 
 % Define block styles
 \tikzstyle{bigblock}   = [rectangle, draw=Purpleee, thick,
@@ -29,51 +16,42 @@
 \makebox[\textwidth][c]{
 \begin{tikzpicture}
 
-\ifx\onlyloop\undefined
     % Place nodes
     \node at (-0.75,0)     [bigblock] (src)  {Haskell Source};
-\else
-\fi
+    \pause
+
     \node at (4,1.5)  [smallblock] (conj) {Conjectures};
+    \draw [arr] (src)  to [bend left=15] node [above]
+       {
+         QuickSpec
+       } (conj);
+
+    \pause
     \node at (4,-1.5) [smallblock] (thy)  {First-Order Theory};
-    \node at (8.5,0)     [smallblock,text width=8em] (atp)  {Theorem Prover \\ {\small (E, Vampire, z3...)}};
-   % Draw edges
+    \draw [arr] (src)  to [bend left=-15] node [below,text centered,text width=5em]
+       {
+         Translation (Hip)
+       } (thy);
+    \pause
+    \node at (8.5,0)     [smallblock,text width=8em] (atp)  {Theorem Prover \\ {\small (E, Vampire, Z3...)}};
 
     \node at (4.5,0) (text) {Induction (Hip)};
 
-\ifx\onlyloop\undefined
-    \draw [arr] (src)  to [bend left=15] node [above]
-       {
-       \ifx\hlqs\undefined
-         QuickSpec
-       \else
-         \colorbox{PurpleL}{QuickSpec}
-       \fi
-       } (conj);
-    \draw [arr] (src)  to [bend left=-15] node [below,text centered,text width=5em]
-       {
-       \ifx\hltrans\undefined
-         Translation (Hip)
-       \else
-         \colorbox{PurpleL}{Translation}
-         \colorbox{PurpleL}{(Hip)}
-       \fi
-       } (thy);
-\else
-\fi
 
     \draw [arr] (conj) to [bend right=17]  (atp);
     \draw [arr] (thy)  to [bend right=-17] (atp);
 
-    \draw [arr] (atp)  to [bend left=-15]
-        node [right,near start] {\texttt{ Timeout}}
-        node [above right,very near end] {Open conjecture} (conj);
+    \pause
     \draw [arr] (atp)  to [bend left=15]
         node [right,near start] {\texttt{ Theorem}}
         node [below right,very near end] {Extend theory} (thy);
+
+    \pause
+    \draw [arr] (atp)  to [bend left=-15]
+        node [right,near start] {\texttt{ Timeout}}
+        node [above right,very near end] {Open conjecture} (conj);
 
 \end{tikzpicture}
 }
 
 
-\donext

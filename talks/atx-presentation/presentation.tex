@@ -2,7 +2,6 @@
 %!TEX encoding = UTF-8 Unicode
 
 \documentclass[serif,professionalfont]{beamer}
-\def\maindocument{} % To tell tikz images that they are not stand alone
 
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows,calc}
@@ -135,9 +134,9 @@
 
 \defverbatim{\rotatestep}{%
 \begin{align*}
-    \hs{rotate (length (x:xs)) (x:xs) } & = \\
-    \hs{rotate (S (length xs)) (x:xs) } & = \\
-    \hs{rotate (length xs) (xs ++ [x])} & =
+    \hs{rotate (length (a:as)) (a:as) } & = \\
+    \hs{rotate (S (length as)) (a:as) } & = \\
+    \hs{rotate (length as) (as ++ [a])} & =
 \end{align*}
 }
 
@@ -214,7 +213,7 @@
     \input{terms}
 \end{frame}
 
-\begin{frame}
+\begin{frame}[fragile]
     \frametitle{Partitioning into Equivalence Classes}
 
     \input{eqclasses}
@@ -243,21 +242,46 @@
 \begin{frame}
   \frametitle{Overview of HipSpec}
   \input{hipspec-picture}
-  \pause
-  \begin{itemize}
-    \item Try to prove ``smallest'' unproved equation
-    \item Terminate everything is proved (or when the current theory cannot prove any more open conjectures)
-  \end{itemize}
 \end{frame}
 
-\begin{frame}
+
+\begin{frame}[fragile]
   \frametitle{Prioritising Equations}
-  \begin{itemize}
+  % TODO example equations
+
+  \begin{overprint}
+  \begin{enumerate}
       \item Call graph
-      \item Number of variables
-      \item Size of term
-  \end{itemize}
+      \action<3->{\item Size of term}
+      \action<4->{\item Number of variables}
+  \end{enumerate}
+
+  \dn
+
+  \onslide<2>
+  \begin{verbatim}
+  xs++[] = xs
+  length (xs++ys) = length (ys++xs)
+  rotate (length xs) (xs ++ ys) = ys ++ xs
+  \end{verbatim}
+
+  \onslide<3>
+  \begin{verbatim}
+  xs++[] = xs
+  (xs++ys)++zs = xs++(ys++zs)
+  \end{verbatim}
+
+  \onslide<4>
+  \begin{verbatim}
+  (xs++ys)++zs = xs++(ys++zs)
+  (xs++xs)++ys = xs++(xs++ys)
+  (xs++xs)++xs = xs++(xs++xs)
+  \end{verbatim}
+  \end{overprint}
+
 \end{frame}
+
+% so, how well does this work, well let's look at our..
 
 \begin{frame}
   \frametitle{Evaluation Results}
@@ -285,6 +309,8 @@
 \end{center}
 
 \end{frame}
+
+% so what is it that we cannot prove? let's look at this
 
 \begin{frame}[fragile]
   \frametitle{Conjecturing Conditionals}
@@ -320,17 +346,12 @@
 
 \end{frame}
 
-\begin{frame}[fragile]
-  \frametitle{Example tricky equational proof}
-
+\defverbatim{\tricky}{%
   \begin{equation*}
       \faa{\hs{i}}{\xs} \hs{rev (drop i xs)} = \hs{take (length xs - i) (rev xs)}
   \end{equation*}
-
-  \pause
-
-  \dn
-
+}
+\defverbatim{\trickylemmas}{%
   Required lemmas:
 
   \begin{center}
@@ -342,40 +363,40 @@
   take (length xs) (xs ++ ys) = xs
   \end{verbatim}
   \end{center}
+}
 
-  \begin{comment}
-  \pause
-
-  \begin{align*}
-  & \hspace{-2em} \small \hs{rev (drop i xs)}                                                   & \small = \left\{ 5 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len (rev (drop i xs))) (rev (drop i xs)++rev (take i xs))}   & \small = \left\{ 2 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len (drop i xs)) (rev (drop i xs)++rev (take i xs))}         & \small = \left\{ 1 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev (drop i xs)++rev (take i xs))}                & \small = \left\{ 4 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev (take i xs++drop i xs))}                      & \small = \left\{ 3 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev xs)}
-  \end{align*}
-  \end{comment}
-\end{frame}
-
-% here we can contrast with other kinds of theory exploration
-% system
+% so these theorem provers work top-down
 
 \begin{frame}
-  \frametitle{Rotate, revisited}
+  \frametitle{$\top$ vs $\bot$}
 
-    \rotateprop \rotatestep \stuck
-
-    \pause
+    \begin{overprint}
 
     \begin{itemize}
-        \item Top-down: Rippling/critics-based provers, ACL, Zeno
-            \pause
-        \item Bottom-up: IsaCosy, IsaScheme, HipSpec
+      \item Top-down: Rippling/critics-based provers, ACL, Zeno
+      \onslide<5->{\item Bottom-up: IsaCoSy, IsaScheme, HipSpec}
     \end{itemize}
+
+    % looking at the stuck proof (maybe change to another example)
+
+    \onslide<2>
+    \rotateprop \rotatestep \stuck
+
+    % this is one example where I think it would be really hard
+
+    \onslide<3> \tricky
+
+    % so why hard... well look at the lemmas you need
+
+    \onslide<4->
+    \tricky
+    \dn
+    \trickylemmas
+    \end{overprint}
 
 \end{frame}
 
-% "So the tools IsaCosy and IsaScheme can conjecture a theory,
+% "So the tools IsaCoSy and IsaScheme can conjecture a theory,
 % but not fully automatically when proving a user-stated property,
 % which is what HipSpec can. But HipSpec can also be run without
 % specifying what to prove! Let's have a look at the output
@@ -396,20 +417,27 @@
 \begin{frame}
   \frametitle{HipSpec the Theory Exploration System}
 
-  % so this is what we just seen
 
-  \begin{center}
-      Saturate a theory and have it nicely presented
-  \end{center}
+  Precision/recall analysis against Isabelle standard library
 
-  \dn
+  % on nats and lists, it's all in the paper and all systems
+  % get good results on the analysis, but there is one thing that HipSpec
+  % shines on
+
   \pause
 
-  % other examples that we can do:
+  \dn
+
+  What the other systems do in hours, HipSpec does \emph{under a minute}!
+
+  \pause
+
+  \dn
 
   \begin{itemize}
-      \item \hs{data Integer = Positive Nat | Negative Nat}
-      \item \hs{data BinNat  = Zero | ZeroAnd BinNat | OneAnd BinNat}
+    \item \hs{data BinNat  = Zero | ZeroAnd BinNat | OneAnd BinNat}
+    \pause
+    \item \hs{data Integer = Positive Nat | Negative Nat}
   \end{itemize}
 
   % so this is an interesting piece of work to hook this up
@@ -418,37 +446,24 @@
 
 \end{frame}
 
-\begin{frame}[fragile]
-  \frametitle{Theory Exploration Results}
-  \newcommand{\h}[2]{\action<#1->{#2}}
-  \begin{center}
-  \begin{tabular}{lc>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c}
-                           & Isabelle & \h{2}{HipSpec}    & \h{3}{IsaCoSy} & \h{3}{IsaScheme}  \\
-      \cline{2-5}
-   \textbf{\#Thms Nats}    & 12       & \h{2}{10     }    & \h{3}{16     } & \h{3}{16*      }  \\
-  \hline
-    Precision              & -        & \h{2}{80\%   }    & \h{3}{63\%   } & \h{3}{100\%*   }  \\
-    Recall                 & -        & \h{2}{73\%   }    & \h{3}{83\%   } & \h{3}{46\%*    }  \\
-  \hline
-   \textbf{\#Thms Lists}   & 9        & \h{4}{10     }    & \h{4}{24     } & \h{4}{13       }  \\
-  \hline
-    Precision              & -        & \h{4}{90\%   }    & \h{4}{38\%   } & \h{4}{70\%     }  \\
-    Recall                 & -        & \h{4}{100\%  }    & \h{4}{100\%  } & \h{4}{100\%    }  \\
-   \hline
-   \h{5}{\textbf{Runtime}} &          & \h{5}{30 seconds} & \h{5}{hours}   & \h{5}{hours}
-  \end{tabular}
-  \end{center}
-
-\end{frame}
-
 % how to jump to conclusions/rounding off here in a reasonable way?
+
+% so I think the bottom-up approach is the right way to go,
+% and why do I think this?
 
 \begin{frame}
   \frametitle{Conclusions}
   \begin{itemize}
     \item Evaluate your programs!
+    % When we do a proof by hand of a functional program,
+    % we rather have some insight in what a particular function does,
+    % rather than looking at the definition syntactically.
+    % A way to to get this intuition of what a program does for
+    % a computer is of course to evaluate it!
+    \pause
     \item Completeness up to a certain depth: \\
           \emph{If the lemma is there, HipSpec will eventually try to prove it!}
+    % and I think this is crucial to the good results we get
   \end{itemize}
 \end{frame}
 
