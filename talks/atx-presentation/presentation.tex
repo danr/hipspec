@@ -105,6 +105,7 @@
 
 \defverbatim{\rotatedef}{%
 \begin{verbatim}
+    rotate :: Nat -> [a] -> [a]
     rotate Z     xs     = xs
     rotate (S n) []     = []
     rotate (S n) (x:xs) = rotate n (xs ++ [x])
@@ -128,7 +129,7 @@
 
 \defverbatim{\rotategen}{%
 \begin{equation*}
-    \faa{\xs}{\ys} \hs{rotate (length (xs ++ ys)) (xs ++ ys)} = \hs{ys ++ xs}
+    \faa{\xs}{\ys} \hs{rotate (length xs) (xs ++ ys)} = \hs{ys ++ xs}
 \end{equation*}
 }
 
@@ -138,6 +139,18 @@
     \hs{rotate (S (length xs)) (x:xs) } & = \\
     \hs{rotate (length xs) (xs ++ [x])} & =
 \end{align*}
+}
+
+\defverbatim[colored]{\stuck}{%
+\begin{center}
+  {\color{red} Stuck!}
+\end{center}
+}
+
+\defverbatim{\sortedprop}{%
+\begin{equation*}
+  \fa{\xs}  \hs{sorted (isort xs)} = \hs{True}
+\end{equation*}
 }
 
 \begin{frame}[fragile]
@@ -154,10 +167,7 @@
 
     \onslide<4> \rotateprop \rotatestep
 
-    \onslide<5> \rotateprop \rotatestep
-    \begin{center}
-      {\color{red} Stuck!}
-    \end{center}
+    \onslide<5> \rotateprop \rotatestep \stuck
 
     \end{overprint}
 
@@ -199,7 +209,7 @@
 
 \begin{frame}
     \frametitle{QuickSpec: the Theory Exploration Phase}
-    Generates a bunch of terms: % well-typed
+    Generates well-typed terms up to some depth:
     \dn
     \input{terms}
 \end{frame}
@@ -222,9 +232,9 @@
 
   \begin{itemize}
     \item Translate to typed first order logic
-          % Translates the function definitions to typed first order logic
     \item Apply structural induction
-          % Applies structural induction on properties
+          % in many different ways
+
   \end{itemize}
 
   Also supports higher-order functions and partial application
@@ -240,16 +250,128 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Prioritising Equations}
+  \begin{itemize}
+      \item Call graph
+      \item Number of variables
+      \item Size of term
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Evaluation Results}
+
+1st test suite from \emph{Case-analysis for Rippling and Inductive Proof}:
+
+\begin{center}
+\begin{tabular}{c>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c}
+   \#Props  & HipSpec & Zeno & ACL2s & IsaPlanner & Dafny \\
+\hline
+    85      & 80      & 82   & 74    & 47         & 45    \\
+\end{tabular}
+\end{center}
+
+\pause
+
+2nd test suite from \emph{Productive use of Failure in Inductive Proof}:
+
+\begin{center}
+\begin{tabular}{c>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c}
+    \#Props  & HipSpec & CLAM & Zeno \\
+\hline
+    50       & 44      & 41   & 21
+\end{tabular}
+\end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Conjecturing Conditionals}
+
+  \sortedprop
+
+  \begin{verbatim}
+    isort :: [Nat] -> [Nat]
+
+    insert :: Nat -> [Nat] -> [Nat]
+
+    sorted :: [Nat] -> Bool
+  \end{verbatim}
+
+  \pause
+
+  % It's one property that we currently cannot prove fully automatically
+
+  Requires:
+
+  \begin{equation*}
+    \fa{\xs}  \hs{sorted xs} = \hs{True} \Rightarrow
+              \hs{sorted (insert x xs)} = \hs{True}
+  \end{equation*}
+
+  % How do we conjecture such properties?
+  % Currently, QuickSpec is implemented at looking at equivalence classes that
+  % are unconditionally true... would like to have some kind of precondition on
+  % certain equivalence classes to talk about when xs is always sorted, for
+  % instance. Another problem might be that it is so uncommon to generate
+  % sorted lists, so we will probably need to incorporate other ongoing work on
+  % generating random values satisfying some predicate.
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Example tricky equational proof}
+
+  \begin{equation*}
+      \faa{\hs{i}}{\xs} \hs{rev (drop i xs)} = \hs{take (length xs - i) (rev xs)}
+  \end{equation*}
+
+  \pause
+
+  \dn
+
+  Required lemmas:
+
+  \begin{center}
+  \begin{verbatim}
+  length (drop x xs)          = length xs - x
+  length (rev xs)             = length xs
+  take x xs ++ drop x xs      = xs
+  rev xs ++ rev ys            = rev (ys++xs)
+  take (length xs) (xs ++ ys) = xs
+  \end{verbatim}
+  \end{center}
+
+  \begin{comment}
+  \pause
+
+  \begin{align*}
+  & \hspace{-2em} \small \hs{rev (drop i xs)}                                                   & \small = \left\{ 5 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len (rev (drop i xs))) (rev (drop i xs)++rev (take i xs))}   & \small = \left\{ 2 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len (drop i xs)) (rev (drop i xs)++rev (take i xs))}         & \small = \left\{ 1 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-i) (rev (drop i xs)++rev (take i xs))}                & \small = \left\{ 4 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-i) (rev (take i xs++drop i xs))}                      & \small = \left\{ 3 \right\} \\[-3pt]
+  & \hspace{-2em} \small \hs{take (len xs-i) (rev xs)}
+  \end{align*}
+  \end{comment}
+\end{frame}
+
 % here we can contrast with other kinds of theory exploration
 % system
 
 \begin{frame}
   \frametitle{Rotate, revisited}
 
-    \rotateprop \rotatestep
-    \begin{center}
-      {\color{red} Stuck!}
-    \end{center}
+    \rotateprop \rotatestep \stuck
+
+    \pause
+
+    \begin{itemize}
+        \item Top-down: Rippling/critics-based provers, ACL, Zeno
+            \pause
+        \item Bottom-up: IsaCosy, IsaScheme, HipSpec
+    \end{itemize}
 
 \end{frame}
 
@@ -297,36 +419,25 @@
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Conjecturing Conditionals}
-
-  \begin{verbatim}
-    isort :: [Nat] -> [Nat]
-
-    insert :: Nat -> [Nat] -> [Nat]
-
-    sorted :: [Nat] -> Bool
-  \end{verbatim}
-
-  \begin{equation*}
-    \fa{\xs}  \hs{sorted (isort xs)} = \hs{True}
-  \end{equation*}
-
-  % It's one property that we currently cannot prove fully automatically
-
-  Requires:
-
-  \begin{equation*}
-    \fa{\xs}  \hs{sorted xs} = \hs{True} \Rightarrow
-              \hs{sorted (insert x xs)} = \hs{True}
-  \end{equation*}
-
-  % How do we conjecture such properties?
-  % Currently, QuickSpec is implemented at looking at equivalence classes that
-  % are unconditionally true... would like to have some kind of precondition on
-  % certain equivalence classes to talk about when xs is always sorted, for
-  % instance. Another problem might be that it is so uncommon to generate
-  % sorted lists, so we will probably need to incorporate other ongoing work on
-  % generating random values satisfying some predicate.
+  \frametitle{Theory Exploration Results}
+  \newcommand{\h}[2]{\action<#1->{#2}}
+  \begin{center}
+  \begin{tabular}{lc>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c}
+                           & Isabelle & \h{2}{HipSpec}    & \h{3}{IsaCoSy} & \h{3}{IsaScheme}  \\
+      \cline{2-5}
+   \textbf{\#Thms Nats}    & 12       & \h{2}{10     }    & \h{3}{16     } & \h{3}{16*      }  \\
+  \hline
+    Precision              & -        & \h{2}{80\%   }    & \h{3}{63\%   } & \h{3}{100\%*   }  \\
+    Recall                 & -        & \h{2}{73\%   }    & \h{3}{83\%   } & \h{3}{46\%*    }  \\
+  \hline
+   \textbf{\#Thms Lists}   & 9        & \h{4}{10     }    & \h{4}{24     } & \h{4}{13       }  \\
+  \hline
+    Precision              & -        & \h{4}{90\%   }    & \h{4}{38\%   } & \h{4}{70\%     }  \\
+    Recall                 & -        & \h{4}{100\%  }    & \h{4}{100\%  } & \h{4}{100\%    }  \\
+   \hline
+   \h{5}{\textbf{Runtime}} &          & \h{5}{30 seconds} & \h{5}{hours}   & \h{5}{hours}
+  \end{tabular}
+  \end{center}
 
 \end{frame}
 
@@ -346,6 +457,28 @@
 \begin{center}
 \hs{github.com/danr/hipspec}
 \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Conditionals as functions}
+
+  \sortedprop
+
+\begin{verbatim}
+  whenSorted :: [Nat] -> [Nat]
+  whenSorted xs = if sorted xs then xs else []
+\end{verbatim}
+
+  \begin{equation*}
+    \faa{\hs{x}}{\xs} \hs{sorted (insert x (whenSorted xs))} = \hs{True}
+  \end{equation*}
+
+\begin{verbatim}
+  sorted (insert x (whenSorted xs))
+= sorted (insert x (if sorted xs then xs else []))
+= if sorted xs then sorted (insert x xs)
+               else sorted (insert x [])
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -377,7 +510,7 @@
 \begin{itemize}
 \item FOL translation
 \item Apply induction
-\item Success\ % \pause
+\item Success% \pause
 , or stuck!
 \end{itemize}
 };
@@ -408,255 +541,6 @@ Eq-theory from testing:
 }
 
 \end{frame}
-
-
-\begin{comment}
-
-\begin{frame}[fragile]
-  \frametitle{Evaluation - Second Test Suite}
-
-  Second test suite from
-      \emph{Productive Use of Failure in Inductive Proof}
-      \hspace{1em} by Bundy and Ireland (1995)
-
-  \dn
-
-  Their tool CLAM supposedly proves all, but some properties contrived
-  towards their tool, cf \hs{rev (rev xs ++ []) = xs}
-
-  \dn
-
-  49 theorems, 38 equational. \pause HipSpec proves 36!
-
-  \pause
-  \dn
-
-  Unproved:
-  \begin{center}
-  \begin{tabular}{>{\small}c >{\small}l}
-  No  & Conjecture \\
-  \hline
-  T14 & \verb!ordered (isort xs) = True! \\
-  T50 & \verb!count x (isort xs) = count x xs! \\
-  \end{tabular}
-  \end{center}
-
-  \dn
-
-  Zeno? \pause Proves 21/49
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Future work and current limitations}
-
-  \begin{itemize}
-    \item Better heuristics (Equation order)
-    \item Big theories and scalability
-    \item Conditional properties
-    \item Non-terminating programs and infinite values
-  \end{itemize}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-  \frametitle{Conclusion}
-
-  Exploring the laws that hold through testing does not only help your
-  understanding, but also helps to prove properties.
-
-  \dn
-
-  A form of completeness from QuickSpec: If there are laws up to a
-  certain term size then QuickSpec is guaranteed to find them.
-
-  \dn
-
-  \emph{If the lemma is there, HipSpec will eventually try to prove it!}
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Extra slides}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Obtaining HipSpec}
-
-  \begin{itemize}
-
-    \item Clone the repository:
-      \\ \hs{git clone http://github.com/danr/hipspec}
-
-    \item Installation (requires GHC):
-       \\ \hs{cd hipspec}
-       \\ \hs{git submodule update --init}
-       \\ \hs{cabal install}
-
-    \item Install a theorem prover (say eprover)
-
-    \item Try an example!
-       \\ \hs{cd testsuite/}
-       \\ \hs{runghc Reverse.hs}
-
-  \end{itemize}
-
-  % These slides:
-  % \hs{http://web.student.chalmers.se/\~{}danr/hipspec-slides.pdf}
-
-\end{frame}
-\begin{frame}[fragile]
-
-  \frametitle{Future work: Big theories}
-
-  Taking all your functions from a big program:
-
-  \begin{itemize}
-    \item Testing takes a long time
-    \item Lemmas become unrelated
-  \end{itemize}
-
-  \pause
-
-  \vspace{\baselineskip}
-
-  How do we know when functions are related?
-
-  \begin{equation*}
-    \hs{length (xs ++ ys)} = \hs{length (ys ++ xs)}
-  \end{equation*}
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Future work: Conditional properties}
-
-  Lemmas with implications:
-
-  \begin{equation*}
-    \hs{sorted xs} = \hs{True} \implies \hs{sorted (insert x xs)} = \hs{True}
-  \end{equation*}
-
-  \pause
-  {\color{Purpleee} A trick:} use a new data type, abstract for HipSpec:
-
-  \begin{verbatim}
-data SortedList = SortedList { getSortedList :: [Nat] }
-
-instance Arbitary SortedList where
-  arbitrary = SortedList . scanl1 (+) `fmap` arbitrary
-  \end{verbatim}
-
-  \vspace{-\baselineskip}
-
-  \pause
-  Now, we can state the property in terms of a sorted list \hs{sl}:
-
-  \begin{equation*}
-    \hs{sorted (insert x (getSortedList sl))} = \hs{True}
-  \end{equation*}
-
-  Need a notation to HipSpec that \hs{SortedList} has
-  a \hs{sorted} invariant.
-
-
-\end{frame}
-
-
-
-% \begin{frame}[fragile]
-%   \frametitle{Related work}
-%
-%   {\color{red} incomplete slide}
-%
-%   \begin{itemize}
-%
-%     \item Syntactic inductive approaches (rippling)
-%
-%     \item IsaCosy
-%
-%     \item Zeno
-%
-%   \end{itemize}
-% \end{frame}
-
-
-\begin{frame}[fragile]
-  \frametitle{Proof: \Large\texttt{rev (drop i xs) = take (len xs-i) (rev xs)}}
-  \begin{center}
-  \begin{tabular}{>{\small}c >{\small}l}
-   No & Conjecture \\
-   \hline
-  1 & \verb!len (drop x xs) = len xs-x!               \\[-1pt]
-  2 & \verb!len xs          = len (rev xs)!           \\[-1pt]
-  3 & \verb!xs              = take x xs++drop x xs!   \\[-1pt]
-  4 & \verb!rev (ys++xs)    = rev xs++rev ys!         \\[-1pt]
-  5 & \verb!xs              = take (len xs) (xs++ys)!
-  \end{tabular}
-  \end{center}
-
-  \begin{align*}
-  & \hspace{-2em} \small \hs{rev (drop i xs)}                                                   & \small = \left\{ 5 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len (rev (drop i xs))) (rev (drop i xs)++rev (take i xs))}   & \small = \left\{ 2 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len (drop i xs)) (rev (drop i xs)++rev (take i xs))}         & \small = \left\{ 1 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev (drop i xs)++rev (take i xs))}                & \small = \left\{ 4 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev (take i xs++drop i xs))}                      & \small = \left\{ 3 \right\} \\[-3pt]
-  & \hspace{-2em} \small \hs{take (len xs-i) (rev xs)}
-  \end{align*}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Future work: Conditional properties II}
-
-  What about
-
-  \begin{equation*}
-    \hs{x < y} = \hs{True} \land
-    \hs{y < z} = \hs{True} \implies
-    \hs{x < z} = \hs{True}
-  \end{equation*}
-
-  \pause
-  Same trick?
-
-  \begin{verbatim}
-    data Pair = Pair { smaller :: Nat , larger :: Nat }
-  \end{verbatim}
-
-  Can we state the property?
-
-  \begin{equation*}
-    \hs{smaller p1 < larger p2} = \hs{True}
-  \end{equation*}
-
-  \pause
-  {\color{red} Problem:} how are \hs{p1} and \hs{p2} related?
-
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Limitation: Expensive calculations}
-
-  Imagine a program which does exponentiation, \hs{**}, on
-  unary nats \hs{data Nat = Zero | Succ Nat}
-
-  \vspace{\baselineskip}
-
-  Too expensive to caluclate \hs{x ** (y ** z)}.
-
-  \vspace{\baselineskip}
-
-  \pause
-
-  \begin{verbatim}
-  f x y = if y == 1000000000000
-               then 0
-               else x + y
-  \end{verbatim}
-\end{frame}
-
-\end{comment}
 
 \end{document}
 
