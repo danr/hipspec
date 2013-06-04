@@ -208,6 +208,9 @@ runQuickSpec SigInfo{..} = do
         prunedEqs = pruner (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
+    when dump_eqclasses $ do
+        liftIO $ mapM_ print (map (several (map term)) classes)
+
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
     return (eqs,reps,classes)

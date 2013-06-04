@@ -65,6 +65,7 @@ data Params = Params
     , dump_call_graph     :: Bool
     , dump_core           :: Bool
     , dump_props          :: Bool
+    , dump_eqclasses      :: Bool
     , debug               :: Bool
     }
   deriving (Show,Data,Typeable)
@@ -154,6 +155,7 @@ defParams = Params
     , dump_call_graph     = False   &= help "Print the QuickSpec signature's call graph"
     , dump_core           = False   &= help "Dump core bindings when obtained and translated"
     , dump_props          = False   &= help "Dump bindings that are considered properties"
+    , dump_eqclasses      = False   &= help "Print the equivalence classes from QuickSpec"
     , debug               = False   &= help "Write various debug messages"
     }
     &= summary "\n\

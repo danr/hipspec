@@ -150,7 +150,7 @@ msgVerbosity m = case m of
     FileProcessed            -> 60
     Started                  -> 60
     StartingUserLemmas       -> 60
-    DefinitionalEquations{}  -> 80
+    DefinitionalEquations{}  -> 105
     QuickSpecDone{}          -> 70
     Discarded{}              -> 90
     -- 100: default
