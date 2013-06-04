@@ -126,18 +126,40 @@
 \end{equation*}
 }
 
-\defverbatim{\rotategen}{%
-\begin{equation*}
-    \faa{\xs}{\ys} \hs{rotate (length xs) (xs ++ ys)} = \hs{ys ++ xs}
-\end{equation*}
-}
-
 \defverbatim{\rotatestep}{%
 \begin{align*}
     \hs{rotate (length (a:as)) (a:as) } & = \\
     \hs{rotate (S (length as)) (a:as) } & = \\
     \hs{rotate (length as) (as ++ [a])} & =
 \end{align*}
+}
+
+\defverbatim{\rotateih}{%
+\begin{equation*}
+    \hs{rotate (length as) as} = \hs{as}
+\end{equation*}
+}
+
+\defverbatim{\rotategen}{%
+\begin{equation*}
+    \faa{\xs}{\ys} \hs{rotate (length xs) (xs ++ ys)} = \hs{ys ++ xs}
+\end{equation*}
+}
+
+\defverbatim{\rotategenstep}{%
+ \begin{align*}
+     & \hs{rotate (length (a:as)) (a:as ++ bs)} & = & \\
+     & \hs{rotate (S (length as)) (a:as ++ bs)} & = & \\
+     & \hs{rotate (length as) (as ++ bs ++ [a]) } & = & \{ \mathsf{IH} \} \\
+     & \hs{bs ++ [a] ++ as                      } & = & \\
+     & \hs{bs ++ (a:as)                         } & = &
+\end{align*}
+}
+
+\defverbatim{\rotategenih}{%
+\begin{equation*}
+    \fa{\ys} \hs{rotate (length as) (as ++ ys)} = \hs{ys ++ as}
+\end{equation*}
 }
 
 \defverbatim[colored]{\stuck}{%
@@ -152,23 +174,65 @@
 \end{equation*}
 }
 
+\defverbatim{\insertlemma}{%
+\begin{equation*}
+  \fa{\xs}  \hs{sorted xs} = \hs{True} \Rightarrow
+            \hs{sorted (insert x xs)} = \hs{True}
+\end{equation*}
+}
+
+
+\begin{frame}
+    \frametitle{Setting}
+    \begin{itemize}
+        \item Automating proofs by induction of functional programs
+        \item Terminating subset of Haskell
+    \end{itemize}
+\end{frame}
+
 \begin{frame}[fragile]
-    \frametitle{Rotate example}
+    \frametitle{Rotate Example}
 
     \begin{overprint}
     \rotatedef
+    \action<2->{\dn\rotateprop}
 
     \onslide<1> \rotateex
 
-    \onslide<2> \rotateex \rotateprop
+    \onslide<2> \rotateex
 
-    \onslide<3> \rotateprop
+    \onslide<3>
+        hypothesis: \rotateih
+        conclusion: \rotatestep
 
-    \onslide<4> \rotateprop \rotatestep
-
-    \onslide<5> \rotateprop \rotatestep \stuck
+    \onslide<4>
+        hypothesis: \rotateih
+        conclusion: \rotatestep
+        \stuck
 
     \end{overprint}
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{Rotate-length Generalisation}
+
+    \rotategen
+
+    \pause
+
+    conclusion:
+
+    \rotategenstep
+
+    hypothesis:
+
+    \rotategenih
+
+    \pause
+
+    Bundy, Basin, Hutter, Ireland: automated induction challenge in
+    \emph{Rippling: meta-level guidance for mathematical reasoning}
 
 \end{frame}
 
@@ -179,18 +243,6 @@
 % Now we've started proving things by induction, and these properties
 % were not specified in the source code but were conjectured during TE
 % oh there's our property being proved! hooray!
-
-\begin{frame}
-    \frametitle{HipSpec vs Rotate}
-
-    \rotategen
-
-    \pause
-    \begin{center}
-    (also requires associativity and right identity of \hs{++})
-    \end{center}
-
-\end{frame}
 
 \begin{comment} % old setting
   Prove properties of functional programs using rewriting and
@@ -247,18 +299,25 @@
 
 \begin{frame}[fragile]
   \frametitle{Prioritising Equations}
-  % TODO example equations
 
   \begin{overprint}
+  \begin{minipage}{.5\linewidth}
   \begin{enumerate}
       \item Call graph
       \action<3->{\item Size of term}
       \action<4->{\item Number of variables}
   \end{enumerate}
+  \end{minipage}%
+  \begin{minipage}{.5\linewidth}
+  \input{callgraph}
+  \end{minipage}
 
+  \dn
   \dn
 
   \onslide<2>
+
+
   \begin{verbatim}
   xs++[] = xs
   length (xs++ys) = length (ys++xs)
@@ -331,10 +390,7 @@
 
   Requires:
 
-  \begin{equation*}
-    \fa{\xs}  \hs{sorted xs} = \hs{True} \Rightarrow
-              \hs{sorted (insert x xs)} = \hs{True}
-  \end{equation*}
+  \insertlemma
 
   % How do we conjecture such properties?
   % Currently, QuickSpec is implemented at looking at equivalence classes that
@@ -373,7 +429,7 @@
     \begin{overprint}
 
     \begin{itemize}
-      \item Top-down: Rippling/critics-based provers, ACL, Zeno
+      \item Top-down: Rippling/critics-based provers, ACL2, Zeno
       \onslide<5->{\item Bottom-up: IsaCoSy, IsaScheme, HipSpec}
     \end{itemize}
 
@@ -435,8 +491,6 @@
   \dn
 
   \begin{itemize}
-    \item \hs{data BinNat  = Zero | ZeroAnd BinNat | OneAnd BinNat}
-    \pause
     \item \hs{data Integer = Positive Nat | Negative Nat}
   \end{itemize}
 
@@ -454,16 +508,17 @@
 \begin{frame}
   \frametitle{Conclusions}
   \begin{itemize}
-    \item Evaluate your programs!
+    \item Evaluate your programs
     % When we do a proof by hand of a functional program,
     % we rather have some insight in what a particular function does,
     % rather than looking at the definition syntactically.
     % A way to to get this intuition of what a program does for
     % a computer is of course to evaluate it!
     \pause
-    \item Completeness up to a certain depth: \\
-          \emph{If the lemma is there, HipSpec will eventually try to prove it!}
+    \item ``Completeness'' up to a certain depth
     % and I think this is crucial to the good results we get
+    \pause
+    \item Progress in automated induction
   \end{itemize}
 \end{frame}
 
@@ -475,9 +530,9 @@
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Conditionals as functions}
+  \frametitle{Conditionals as Functions}
 
-  \sortedprop
+  \insertlemma
 
 \begin{verbatim}
   whenSorted :: [Nat] -> [Nat]
@@ -488,12 +543,15 @@
     \faa{\hs{x}}{\xs} \hs{sorted (insert x (whenSorted xs))} = \hs{True}
   \end{equation*}
 
+\pause
+
 \begin{verbatim}
   sorted (insert x (whenSorted xs))
 = sorted (insert x (if sorted xs then xs else []))
 = if sorted xs then sorted (insert x xs)
                else sorted (insert x [])
 \end{verbatim}
+
 \end{frame}
 
 \begin{frame}[fragile]

@@ -1,0 +1,16 @@
+\tikzstyle{cgblob} = [rectangle, rounded corners=10, draw=Purpleee, thick, text width=40, text height=10, text centered]
+\tikzstyle{cgarr} = [->,>=stealth',semithick]
+%\makebox[\textwidth][c]{\
+\begin{tikzpicture}
+
+    \node at (0,1.6) [cgblob] (app) {\hs{(++)}\vphantom{g}} ;
+
+    \node at (2.4,1.6) [cgblob] (len) {\hs{length}\vphantom{g}} ;
+
+    \node at (1.2,0)  [cgblob] (rot) {\hs{rotate}\vphantom{g}} ;
+
+    \draw [cgarr] (rot) to (app) {} ;
+    \draw [cgarr] (rot) to (len) {} ;
+
+\end{tikzpicture}
+%}
