@@ -1,6 +1,8 @@
 %!TEX TS-program = xelatex
 %!TEX encoding = UTF-8 Unicode
 
+% alias hipspec='hipspec --auto --cg --verbosity=40 --smt-data-types'
+
 \documentclass[serif,professionalfont]{beamer}
 
 \usepackage{tikz}
@@ -79,7 +81,7 @@
 \author{Dan Ros\'en
      \vspace{\baselineskip} \\
      Koen Claessen, Moa Johansson, Nicholas Smallbone}
-\date{May 31, 2013}
+ \date{} % June 4, 2013}
 
 \newcommand\fa[1]{ \forall \, #1 . \,}
 \newcommand\faa[2]{ \forall \, #1 , #2 . \,}
@@ -105,9 +107,9 @@
 \defverbatim{\rotatedef}{%
 \begin{verbatim}
     rotate :: Nat -> [a] -> [a]
-    rotate Z     xs     = xs
-    rotate (S n) []     = []
-    rotate (S n) (x:xs) = rotate n (xs ++ [x])
+    rotate Zero     xs     = xs
+    rotate (Succ n) []     = []
+    rotate (Succ n) (x:xs) = rotate n (xs ++ [x])
 \end{verbatim}
 }
 
@@ -152,7 +154,7 @@
      & \hs{rotate (S (length as)) (a:as ++ bs)} & = & \\
      & \hs{rotate (length as) (as ++ bs ++ [a]) } & = & \{ \mathsf{IH} \} \\
      & \hs{bs ++ [a] ++ as                      } & = & \\
-     & \hs{bs ++ (a:as)                         } & = &
+     & \hs{bs ++ (a:as)                         } & &
 \end{align*}
 }
 
@@ -182,13 +184,13 @@
 }
 
 
-\begin{frame}
-    \frametitle{Setting}
-    \begin{itemize}
-        \item Automating proofs by induction of functional programs
-        \item Terminating subset of Haskell
-    \end{itemize}
-\end{frame}
+%\begin{frame}
+%    \frametitle{Setting}
+%    \begin{itemize}
+%        \item Automating proofs by induction of functional programs
+%        \item Terminating subset of Haskell
+%    \end{itemize}
+%\end{frame}
 
 \begin{frame}[fragile]
     \frametitle{Rotate Example}
@@ -215,7 +217,7 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{Rotate-length Generalisation}
+    \frametitle{Rotate-length Helper Lemma}
 
     \rotategen
 
@@ -309,7 +311,7 @@
   \end{enumerate}
   \end{minipage}%
   \begin{minipage}{.5\linewidth}
-  \input{callgraph}
+      \action<1-2>{\input{callgraph}}
   \end{minipage}
 
   \dn
@@ -343,7 +345,7 @@
 % so, how well does this work, well let's look at our..
 
 \begin{frame}
-  \frametitle{Evaluation Results}
+  \frametitle{Evaluation Results I}
 
 1st test suite from \emph{Case-analysis for Rippling and Inductive Proof}:
 
@@ -355,9 +357,17 @@
 \end{tabular}
 \end{center}
 
-\pause
+\begin{itemize}
+  \item Quite easy: around 60 provable without lemmas
+  \item Some require conditional lemmas \\ (can't generate with QuickSpec)
+\end{itemize}
 
-2nd test suite from \emph{Productive use of Failure in Inductive Proof}:
+\end{frame}
+
+\begin{frame}
+  \frametitle{Evaluation Results II}
+
+2nd test suite from \emph{Productive Use of Failure in Inductive Proof}:
 
 \begin{center}
 \begin{tabular}{c>{\hskip0.5em}c>{\hskip0.5em}c>{\hskip0.5em}c}
@@ -366,6 +376,10 @@
     50       & 44      & 41   & 21
 \end{tabular}
 \end{center}
+
+\begin{itemize}
+  \item Harder test suite: need lemmas and generalisations
+\end{itemize}
 
 \end{frame}
 
@@ -424,7 +438,7 @@
 % so these theorem provers work top-down
 
 \begin{frame}
-  \frametitle{$\top$ vs $\bot$}
+  \frametitle{Two Approaches to Lemma Discovery}
 
     \begin{overprint}
 
@@ -471,24 +485,40 @@
 % let's try...
 
 \begin{frame}
-  \frametitle{HipSpec the Theory Exploration System}
 
 
-  Precision/recall analysis against Isabelle standard library
+\frametitle{Theory Exploration Results}
+\begin{itemize}
+\item Produce background theory comparable to human.
+\item Comparison with Isabelle libraries.
+\item \textbf{HipSpec runs in minutes.} IsaCoSy/IsaScheme sometimes hours.
+\end{itemize}
+ \begin{table}[htd]
+\begin{center}
+\begin{tabular}{l|c|c|c||c}
+%\hline
+                           & HipSpec & IsaCoSy & IsaScheme & Isabelle\\
+ \hline
+ \textbf{\#Thms Naturals}  & 10      & 16      & 16*       & 12\\
+ \hline
+  Precision                & 80\%    & 63\%    & 100\%*    & -\\
+  Recall                   & 73\%    & 83\%    & 46\%*     & -\\
+\hline
+ \textbf{\#Thms Lists}     & 10      & 24      & 13        & 9 \\
+  \hline
+  Precision                & 90\%    & 38\%    & 70\%      & -\\
+  Recall                   & 100\%   & 100\%   & 100\%     & -\\
+%\hline
+\end{tabular}
+\end{center}
+\caption{Theory Exploration results. IsaScheme was evaluated on a natural number theory also including exponentiation.}
+\label{tab:expl}
+\end{table}%
 
-  % on nats and lists, it's all in the paper and all systems
-  % get good results on the analysis, but there is one thing that HipSpec
-  % shines on
+\end{frame}
 
-  \pause
-
-  \dn
-
-  What the other systems do in hours, HipSpec does \emph{under a minute}!
-
-  \pause
-
-  \dn
+\begin{frame}
+  \frametitle{}
 
   \begin{itemize}
     \item \hs{data Integer = Positive Nat | Negative Nat}

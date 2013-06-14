@@ -25,13 +25,7 @@ instance Enum Nat where
   fromEnum (S n) = succ (fromEnum n)
 
 instance Arbitrary Nat where
-  arbitrary = sized arbSized
-
-instance Partial Nat where
-  unlifted Z = return Z
-  unlifted (S x) = fmap S (lifted x)
-
-arbSized s = do
-  x <- choose (0,round (sqrt (toEnum s)))
-  return (toEnum x)
+  arbitrary = sized $ \ s -> do
+    x <- choose (0,round (sqrt (toEnum s)))
+    return (toEnum x)
 
