@@ -8,6 +8,9 @@ import HscTypes
 import StaticFlags
 import CoreSyn
 
+import CoreMonad (liftIO)
+import SimplCore
+
 import Unfoldings
 
 import Data.Maybe
@@ -59,7 +62,14 @@ readBinds file = do
         t <- typecheckModule p
         d <- desugarModule t
 
-        let modguts = dm_core_module d
+
+        -- Get the session so we can use core2core optimise
+        hsc_env <- getSession
+        -- Get the modguts (and optimise it)
+        modguts <- liftIO (core2core hsc_env (dm_core_module d))
+
+        -- Or use this if we don't want optimisation
+        -- let modguts = dm_core_module d
 
         return (fixUnfoldings (mg_binds modguts))
 
