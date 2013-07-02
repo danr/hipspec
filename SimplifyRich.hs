@@ -15,7 +15,15 @@ module SimplifyRich where
 import Rich
 
 simpFun :: Eq a => Function a -> Function a
-simpFun fn = fn { fn_body = simpExpr (fn_body fn) }
+simpFun (Function f tvs t b) = Function f tvs t b'
+  where
+    b' = simpExpr $ case b of
+        -- Sometimes functions look like this
+        -- f = let g = K[g] in g,
+        -- then we simply replace it to f = K[f]
+        Let [Function g [] _ e] (Var g' []) | g == g' -> (Var f [] // g) e
+        _ -> b
+
 
 simpExpr :: Eq a => Expr a -> Expr a
 simpExpr = transformExpr $ \ e0 -> case e0 of
