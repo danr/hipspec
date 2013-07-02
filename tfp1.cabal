@@ -29,5 +29,4 @@ executable tfp1
         ghc-paths    == 0.1.*,
         containers   == 0.5.*,
         mtl          == 2.1.*,
-        pretty       >= 1.1,
-        void
+        pretty       >= 1.1

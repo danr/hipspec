@@ -3,6 +3,7 @@
 --
 -- It is Rich because it has lambdas, let and cases at any level.
 module Rich where
+{-# ANN module "HLint: ignore Use camelCase" #-}
 
 data Program a = Program
     { prog_data  :: [Datatype a]
@@ -49,8 +50,21 @@ data Expr a
     | Lam a (Expr a)
     | Case (Expr a) a [Alt a]
     -- ^ Scrutinee expression, variable it is saved to, and the branches
+    --   This variable is mainly useful in Default branches
     | Let [Function a] (Expr a)
   deriving (Eq,Ord,Show,Functor)
+
+collectArgs :: Expr a -> (Expr a,[Expr a])
+collectArgs (App e1 e2) =
+    let (e,es) = collectArgs e1
+    in  (e,es ++ [e2])
+collectArgs e           = (e,[])
+
+collectBinders :: Expr a -> ([a],Expr a)
+collectBinders (Lam x e) =
+    let (xs,e') = collectBinders e
+    in  (x:xs,e')
+collectBinders e         = ([],e)
 
 type Alt a = (Pattern a,Expr a)
 

@@ -18,8 +18,10 @@ import Data.List
 
 import Control.Monad
 
-readBinds :: FilePath -> IO [CoreBind]
-readBinds file = do
+data Optimise = Optimise | Don'tOptimise
+
+readBinds :: Optimise -> FilePath -> IO [CoreBind]
+readBinds opt file = do
 
     -- Use -threaded
     addWay WayThreaded
@@ -62,14 +64,13 @@ readBinds file = do
         t <- typecheckModule p
         d <- desugarModule t
 
-
-        -- Get the session so we can use core2core optimise
-        hsc_env <- getSession
-        -- Get the modguts (and optimise it)
-        modguts <- liftIO (core2core hsc_env (dm_core_module d))
-
-        -- Or use this if we don't want optimisation
-        -- let modguts = dm_core_module d
+        modguts <- case opt of
+            Optimise ->  do
+                -- Get the session so we can use core2core optimise
+                hsc_env <- getSession
+                -- Get the modguts (and optimise it)
+                liftIO (core2core hsc_env (dm_core_module d))
+            Don'tOptimise -> return (dm_core_module d)
 
         return (fixUnfoldings (mg_binds modguts))
 

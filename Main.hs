@@ -2,11 +2,11 @@ module Main where
 
 import Read
 import Utils
-import Unfoldings
 import CoreToRich
 import PrettyRich
 
 import Name
+import Unique
 import CoreSyn
 
 import Control.Monad
@@ -16,11 +16,19 @@ import Text.PrettyPrint.HughesPJ
 
 main :: IO ()
 main = do
-    [file] <- getArgs
-    cb <- readBinds file
---    putStrLn (showOutputable cb)
-    let cb' = fixUnfoldings cb
-    forM_ (flattenBinds cb') $ \ (v,e) -> case trDefn v e of
-        Right fn -> putStrLn (render (ppFun text (fmap getOccString fn)))
-        Left err -> putStrLn (showOutputable (v,e)) >> print err
+    args <- getArgs
+    let (opt,file) = case args of
+            [f,"-O"] -> (Optimise,f)
+            [f]      -> (Don'tOptimise,f)
+            _        -> error "Usage: FILENAME [-O]"
+    cb <- readBinds opt file
+    forM_ (flattenBinds cb) $ \ (v,e) -> do
+        putStrLn (showOutputable v ++ " = " ++ showOutputable e)
+        case trDefn v e of
+            Right fn -> putStrLn (render (ppFun text (fmap name fn)))
+            Left err -> print err
+        putStrLn ""
+  where
+    name :: Name -> String
+    name nm = getOccString nm -- ++ "_" ++ showOutputable (getUnique nm)
 
