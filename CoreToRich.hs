@@ -37,7 +37,7 @@ data Err
     | CoercionExpr CoreExpr
     | CastExpr CoreExpr
     | Fail String
-    | UnificationError C.Type C.Type [TyVar] DataCon CoreExpr
+    | UnificationError C.Type C.Type [TyVar] DataCon CoreExpr (Maybe TvSubst)
 
 instance Show Err where
     show err = case err of
@@ -47,13 +47,15 @@ instance Show Err where
         TypeExpr e              -> "Type expression: " ++ showOutputable e
         CoercionExpr e          -> "Coercion expression: " ++ showOutputable e
         CastExpr e              -> "Cast expression: " ++ showOutputable e
-        UnificationError t1 t2 tvs dc e ->
-            "Unification error between "
-            ++ showOutputable t1 ++ " and "
-            ++ showOutputable t2 ++ " when resolving type variables "
-            ++ showOutputable tvs ++ " for constructor "
-            ++ showOutputable dc ++ " originating from expression: "
-            ++ showOutputable e
+        UnificationError t1 t2 tvs dc e mu ->
+            "Unification error between " ++ showOutputable t1
+            ++ " and " ++ showOutputable t2
+            ++ "\nWhen resolving type variables " ++ showOutputable tvs
+            ++ " for constructor " ++ showOutputable dc ++
+            (case mu of
+                Just u -> "\nObtained unifier: " ++ showOutputable u
+                Nothing -> " without unifier")
+            ++ "\nOriginating from expression: " ++ showOutputable e
         Fail s -> "Internal failure: " ++ s
 
 instance Error Err where
@@ -118,7 +120,7 @@ trExpr e0 = case e0 of
 
                     let dc_tvs = dataConUnivTyVars dc
                         res_ty = dataConOrigResTy dc
-                        mu = tcUnifyTys (const BindMe) [t] [res_ty]
+                        mu = tcUnifyTys (const BindMe) [res_ty] [t]
                         unif_err = UnificationError t res_ty dc_tvs dc e0
 
                     case mu of
@@ -126,8 +128,8 @@ trExpr e0 = case e0 of
                             Just tys -> do
                                 tys' <- mapM trType tys
                                 (,) (ConPat (dataConName dc) tys' (map varName bs)) <$> trExpr rhs
-                            Nothing -> throwError unif_err
-                        Nothing -> throwError unif_err
+                            Nothing -> throwError (unif_err (Just u))
+                        Nothing -> throwError (unif_err Nothing)
 
                 (LitAlt lit,[],rhs) -> (,) <$> (LitPat <$> trLit lit) <*> trExpr rhs
                 _                   -> fail "Default or LitAlt with variable bindings"
