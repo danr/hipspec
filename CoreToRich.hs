@@ -16,6 +16,8 @@ import Name(Name)
 import TyCon
 import Type as C
 
+import IdInfo
+
 import Unify
 
 import Utils (showOutputable)
@@ -85,7 +87,15 @@ trDefn v e = do
 -- not immediately available in GHC Core, so this has to be reconstructed.
 trExpr :: CoreExpr -> TM (R.Expr Binder)
 trExpr e0 = case e0 of
-    C.Var x -> return (R.Var (varName x) [])
+    C.Var x -> (\ nm -> return (R.Var nm [])) $ case idDetails x of
+        DataConWorkId dc -> dataConName dc
+        DataConWrapId dc -> dataConName dc
+        _                -> varName x
+        -- Need to conflate worker and wrapper data constructors otherwise
+        -- they might differ from case alternatives
+        -- (example: created tuples in partition's where clause)
+        -- It is unclear what disasters this might bring.
+
     C.Lit MachStr{} -> return String
     C.Lit l -> R.Lit <$> trLit l
     C.App e (Type t) -> do

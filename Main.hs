@@ -4,6 +4,7 @@ import Read
 import Utils
 import CoreToRich
 import PrettyRich
+import SimplifyRich
 
 import Name
 import Unique
@@ -25,10 +26,13 @@ main = do
     forM_ (flattenBinds cb) $ \ (v,e) -> do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
-            Right fn -> putStrLn (render (ppFun text (fmap name fn)))
+            Right fn -> do
+                let put = putStrLn . render . ppFun text . fmap name
+                put fn
+                put (simpFun fn)
             Left err -> print err
         putStrLn ""
   where
     name :: Name -> String
-    name nm = getOccString nm -- ++ "_" ++ showOutputable (getUnique nm)
+    name nm = getOccString nm ++ "_" ++ showOutputable (getUnique nm)
 

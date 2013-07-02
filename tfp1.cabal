@@ -29,4 +29,6 @@ executable tfp1
         ghc-paths    == 0.1.*,
         containers   == 0.5.*,
         mtl          == 2.1.*,
-        pretty       >= 1.1
+        pretty       >= 1.1,
+        geniplate    >= 0.6
+
