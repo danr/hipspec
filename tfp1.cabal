@@ -5,7 +5,7 @@ name:                tfp1
 version:             0.1
 synopsis:            Typed Functional Programming With Rank 1 Polymorphism
 -- description:
-homepage:            http://github.com/danr/tffp
+homepage:            http://github.com/danr/tfp1
 license:             GPL-3
 license-file:        LICENSE
 author:              Dan Rosén

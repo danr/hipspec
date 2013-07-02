@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
--- | Translation from GHC Core to the subset "Rich Language"
+-- | Translation from GHC Core to the Rich Language, a subset
 module CoreToRich where
 
 import Control.Applicative
@@ -95,21 +95,20 @@ trExpr e0 = case e0 of
             _ -> throwError (TypeApplicationToExpr e0)
     C.App e1 e2 -> R.App <$> trExpr e1 <*> trExpr e2
     C.Lam x e -> R.Lam (varName x) <$> trExpr e
+    -- TODO:
+    --     1) Do we need to make sure x is not a type/coercion?
+    --     2) Should we save the types of the argument and body here?
+
     C.Let bs e -> do
         bs' <- mapM (uncurry trDefn) (flattenBinds [bs])
         e' <- trExpr e
         return (R.Let bs' e')
-    -- TODO:
-    --     1) Do we need to make sure x is not a type/coercion?
-    --     2) Should we save the types of the argument and body here?
 
     C.Case e x _t alts -> do
 
         e' <- trExpr e
 
         let t = exprType e
-
-        -- t' <- trType t
 
         let tr_alt :: CoreAlt -> TM (R.Alt Binder)
             tr_alt alt = case alt of
