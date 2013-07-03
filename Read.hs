@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 module Read where
 
 import DynFlags

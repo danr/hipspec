@@ -37,35 +37,29 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
         , Just (ConPat _ _ bs,rhs)  <- findAlt u ts alts
         -> simpExpr (substMany ((x,e):zip bs args) rhs)
 
-    -- Inlining the scrutinee variable
-    -- For the default branch , we simply replace it with the expression again,
-    -- otherwise it is substituted for the pattern
-    Case e x alts -> Case e x $ flip map alts $ \ (p,rhs) ->
-
-        let subst_expr  = case p of
-                Default        -> e
-                ConPat u ts bs -> apply (Var u ts) (map (`Var` []) bs)
-                LitPat l       -> Lit l
-
-            -- If the scrutinee is just a variable, we inline it too.
-            -- This can lead to triggering many known case.
-            subst = substMany . (`zip` repeat subst_expr) . (x:) $ case e of
-                Var u [] -> [u]   -- TODO: type variables applied to this variable?
-                _        -> []
-
-        in  (p,simpExpr (subst rhs))
-
-
-    {-
-        (,) p . simpExpr $ case p of
-            Default        -> (e // x) rhs
-            ConPat u ts bs -> (apply (Var u ts) (map (`Var` []) bs) // x) rhs
-            LitPat l       -> (Lit l // x) rhs
-            -}
+    Case e x alts -> Case e x [ (p,simpExpr (removeScrutinee e x rhs))
+                              | (p,rhs) <- alts
+                              ]
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
     Let [Function f [] _ b] e | not (f `occursIn` b) -> simpExpr ((b // f) e)
 
     _ -> e0
+
+-- | Removes the scrutinee variable (and also the expression if it is a variable),
+--   by inlining the pattern or the expression again (if it is a Default alt)
+removeScrutinee :: Expr a -> a -> Alt a -> Expr a
+removeScrutinee e x (p,rhs) = subst rhs
+  where
+    subst_expr  = case p of
+        Default        -> e
+        ConPat u ts bs -> apply (Var u ts) (map (`Var` []) bs)
+        LitPat l       -> Lit l
+
+    -- If the scrutinee is just a variable, we inline it too.
+    -- This can lead to triggering many known case.
+    subst = substMany . (`zip` repeat subst_expr) . (x:) $ case e of
+        Var u [] -> [u]   -- TODO: type variables applied to this variable?
+        _        -> []
 

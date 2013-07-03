@@ -1,10 +1,12 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, TemplateHaskell #-}
 -- | The Rich expression language, a subset of GHC Core
 --
 -- It is Rich because it has lambdas, let and cases at any level.
 module Rich where
 
 import Data.Generics.Geniplate
+import Data.Foldable (Foldable,toList)
+import Data.List (nub)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -29,6 +31,18 @@ data Constructor a = Constructor
     --   arguments that are bound in the data type
     }
   deriving (Eq,Ord,Show,Functor)
+
+-- | Types
+--
+--   No higher-kinded type variables. Do we need this?
+data Type a
+    = TyVar a
+    | ArrTy (Type a) (Type a)
+    | TyCon a [Type a]
+  deriving (Eq,Ord,Show,Functor,Foldable)
+
+freeTyVars :: Type a -> [a]
+freeTyVars = nub . toList
 
 -- | Function definition
 data Function a = Function
@@ -55,32 +69,50 @@ data Expr a
     | Case (Expr a) a [Alt a]
     -- ^ Scrutinee expression, variable it is saved to, and the branches
     --   This variable is mainly useful in Default branches
+    --   It does not exist in the simple language.
     | Let [Function a] (Expr a)
   deriving (Eq,Ord,Show,Functor)
 
--- | Does this variable occur in this expression?
--- Used to see if a function is recursive
-occursIn :: Eq a => a -> Expr a -> Bool
-occursIn x = go
+type Alt a = (Pattern a,Expr a)
+
+-- | Patterns in branches
+data Pattern a
+    = Default
+    | ConPat
+        { pat_con     :: a
+        , pat_ty_args :: [Type a]
+        , pat_args    :: [a]
+        }
+    | LitPat Integer
+  deriving (Eq,Ord,Show,Functor)
+
+freeVars :: Eq a => Expr a -> [a]
+freeVars = go
   where
+    rm u = filter (/= u)
+    rms us = filter (`notElem` us)
+
     go e0 = case e0 of
-        Var u _       -> x == u
-        App e1 e2     -> go e1 || go e2
-        Lit{}         -> False
-        String        -> False
-        Lam u _ e _   -> x /= u && go e
-        -- The scrutinee variable in case could shadow this variable
-        Case e u alts -> go e || (x /= u && any go' alts)
-        Let fns e     -> go'' fns e
+        Var u _       -> [u]
+        App e1 e2     -> go e1 `union` go e2
+        Lit{}         -> []
+        String        -> []
+        Lam u _ e _   -> rm u (go e x)
+        Case e u alts -> go e `union` rm u (concatMap go alts)
+        Let fns e     -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
 
-    -- The bound variables in con patterns can shadow this variable
-    go' (ConPat u _ bs,rhs) = x == u || (all (/= x) bs && go rhs)
-    go' (Default,rhs) = go rhs
-    go' (LitPat{},rhs) = go rhs
+    go' (ConPat _ _ bs,rhs) = rms bs (go rhs)
+    go' (Default,rhs)       = go rhs
+    go' (LitPat{},rhs)      = go rhs
 
-    -- The function name could shadow this variable
-    go'' [] e = go e
-    go'' (Function u _ _ b:xs) e = x /= u && (go b || go'' xs e)
+    bf (Function u _ _ _) = u
+    fb (Function _ _ _ b) = b
+
+
+-- | Does this variable occur in this expression?
+--   Used to see if a function is recursive
+occursIn :: Eq a => a -> Expr a -> Bool
+occursIn x e = x `elem` freeVars e
 
 transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
 transformExpr = $(genTransformBi 'transformExpr)
@@ -111,23 +143,14 @@ collectArgs (App e1 e2) =
 collectArgs e           = (e,[])
 
 collectBinders :: Expr a -> ([(a,Type a)],Expr a)
-collectBinders (Lam x t e _) =
+collectBinders (Lam x t e t') =
     let (xs,e') = collectBinders e
     in  ((x,t):xs,e')
 collectBinders e         = ([],e)
 
-type Alt a = (Pattern a,Expr a)
-
--- | Patterns in branches
-data Pattern a
-    = Default
-    | ConPat
-        { pat_con     :: a
-        , pat_ty_args :: [Type a]
-        , pat_args    :: [a]
-        }
-    | LitPat Integer
-  deriving (Eq,Ord,Show,Functor)
+lambdaBodyType :: Type a -> Expr a -> Type a
+lambdaBodyType t (Lam _ _ e t') = lambdaBodyType t' e
+lambdaBodyType t _              = t
 
 findAlt :: Eq a => a -> [Type a] -> [Alt a] -> Maybe (Alt a)
 findAlt x ts alts = go alts
@@ -137,19 +160,15 @@ findAlt x ts alts = go alts
     go (_:xs) = go xs
     go []     = Nothing
 
+makeLambda :: [(a,Type a)] -> Expr a -> Type a -> (Expr a,Type a)
+makeLambda []         e t' = (e,t')
+makeLambda ((x,t):xs) e t' =
+    let (e',t'') = makeLambda xs e t'
+    in  (Lam x t e' t'',ArrTy t t'')
 
 findDefault :: [Alt a] -> Maybe (Alt a)
 findDefault alts = case alts  of
     alt@(Default,_):_ -> Just alt
     _:xs              -> findDefault xs
     []                -> Nothing
-
--- | Types
---
---   No higher-kinded type variables. Do we need this?
-data Type a
-    = TyVar a
-    | ArrTy (Type a) (Type a)
-    | TyCon a [Type a]
-  deriving (Eq,Ord,Show,Functor)
 
