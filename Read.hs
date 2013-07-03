@@ -8,15 +8,20 @@ import HscTypes
 import StaticFlags
 import CoreSyn
 
-import CoreMonad (liftIO)
+import UniqSupply
+import Data.IORef
+import GhcMonad
+
 import SimplCore
 
 import Unfoldings
+import RemoveDefault
 
 import Data.Maybe
 import Data.List
 
 import Control.Monad
+import Control.Applicative
 
 data Optimise = Optimise | Don'tOptimise
 
@@ -72,5 +77,13 @@ readBinds opt file = do
                 liftIO (core2core hsc_env (dm_core_module d))
             Don'tOptimise -> return (dm_core_module d)
 
-        return (fixUnfoldings (mg_binds modguts))
+        fixUnfoldings <$> ghcRunUniqSM (removeDefaults (mg_binds modguts))
+
+ghcRunUniqSM :: UniqSM a -> Ghc a
+ghcRunUniqSM m = do
+    nc_ref <- hsc_NC <$> getSession
+    nc <- liftIO $ readIORef nc_ref
+    let (a,us') = initUs (nsUniqs nc) m
+    liftIO $ writeIORef nc_ref (nc { nsUniqs = us' })
+    return a
 
