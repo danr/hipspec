@@ -120,9 +120,11 @@ trExpr e0 = case e0 of
         e' <- trExpr e
         return (R.Let bs' e')
 
-    C.Case e x _t alts -> do
+    C.Case e x br_ty alts -> do
 
         e' <- trExpr e
+
+        br_ty' <- trType br_ty
 
         let t = exprType e
 
@@ -141,14 +143,16 @@ trExpr e0 = case e0 of
                         Just u -> case mapM (lookupTyVar u) dc_tvs of
                             Just tys -> do
                                 tys' <- mapM trType tys
-                                (,) (ConPat (dataConName dc) tys' (map varName bs)) <$> trExpr rhs
+                                typed_bound <- forM bs $ \ b ->
+                                    (,) (varName b) <$> trType (varType b)
+                                (,) (ConPat (dataConName dc) tys' typed_bound) <$> trExpr rhs
                             Nothing -> throwError (unif_err (Just u))
                         Nothing -> throwError (unif_err Nothing)
 
                 (LitAlt lit,[],rhs) -> (,) <$> (LitPat <$> trLit lit) <*> trExpr rhs
                 _                   -> fail "Default or LitAlt with variable bindings"
 
-        R.Case e' (varName x) <$> mapM tr_alt alts
+        R.Case e' (varName x) br_ty' <$> mapM tr_alt alts
 
     C.Tick _ e -> trExpr e
     C.Type{} -> throwError (TypeExpr e0)

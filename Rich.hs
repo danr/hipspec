@@ -6,7 +6,7 @@ module Rich where
 
 import Data.Generics.Geniplate
 import Data.Foldable (Foldable,toList)
-import Data.List (nub)
+import Data.List (nub,union)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -41,7 +41,7 @@ data Type a
     | TyCon a [Type a]
   deriving (Eq,Ord,Show,Functor,Foldable)
 
-freeTyVars :: Type a -> [a]
+freeTyVars :: Eq a => Type a -> [a]
 freeTyVars = nub . toList
 
 -- | Function definition
@@ -66,10 +66,11 @@ data Expr a
     --   (pattern match failure also creates a string literal)
     | Lam a (Type a) (Expr a) (Type a)
     -- ^ Lam x t e t' means x :: t, and e :: t', i.e. the expression has type t -> t'
-    | Case (Expr a) a [Alt a]
-    -- ^ Scrutinee expression, variable it is saved to, and the branches
+    | Case (Expr a) a (Type a) [Alt a]
+    -- ^ Scrutinee expression, variable it is saved to, the branches' types, and the branches
     --   This variable is mainly useful in Default branches
     --   It does not exist in the simple language.
+    --   The type is needed if this case is lifted to the top level.
     | Let [Function a] (Expr a)
   deriving (Eq,Ord,Show,Functor)
 
@@ -81,7 +82,7 @@ data Pattern a
     | ConPat
         { pat_con     :: a
         , pat_ty_args :: [Type a]
-        , pat_args    :: [a]
+        , pat_args    :: [(a,Type a)]
         }
     | LitPat Integer
   deriving (Eq,Ord,Show,Functor)
@@ -93,15 +94,15 @@ freeVars = go
     rms us = filter (`notElem` us)
 
     go e0 = case e0 of
-        Var u _       -> [u]
-        App e1 e2     -> go e1 `union` go e2
-        Lit{}         -> []
-        String        -> []
-        Lam u _ e _   -> rm u (go e x)
-        Case e u alts -> go e `union` rm u (concatMap go alts)
-        Let fns e     -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
+        Var u _         -> [u]
+        App e1 e2       -> go e1 `union` go e2
+        Lit{}           -> []
+        String          -> []
+        Lam u _ e _     -> rm u (go e)
+        Case e u _ alts -> go e `union` rm u (concatMap go' alts)
+        Let fns e       -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
 
-    go' (ConPat _ _ bs,rhs) = rms bs (go rhs)
+    go' (ConPat _ _ bs,rhs) = rms (map fst bs) (go rhs)
     go' (Default,rhs)       = go rhs
     go' (LitPat{},rhs)      = go rhs
 
@@ -118,6 +119,7 @@ transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
 transformExpr = $(genTransformBi 'transformExpr)
 
 -- | Substitution, substitutes a variable (not applied to any types) for an expression
+--   TODO: What to do when it has types applied to it? Any examples?
 (//) :: Eq a => Expr a -> a -> Expr a -> Expr a
 e // x = transformExpr $ \ e0 -> case e0 of
     Var y [] | x == y -> e
@@ -126,11 +128,10 @@ e // x = transformExpr $ \ e0 -> case e0 of
 substMany :: Eq a => [(a,Expr a)] -> Expr a -> Expr a
 substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 
-{-
-tySubst :: Eq a => a -> [Type a] -> Expr a -> Expr a -> Expr a
-tySubst x tys e = transformExpr $ \ e0 -> case e0 of
-    Var y tvs | x == y && length tvs == length tys ->
-    -}
+tySubst :: Eq a => a -> ([Type a] -> Expr a) -> Expr a -> Expr a
+tySubst x k = transformExpr $ \ e0 -> case e0 of
+    Var y tvs | x == y -> k tvs
+    _ -> e0
 
 apply :: Expr a -> [Expr a] -> Expr a
 apply e (x:xs) = apply (App e x) xs
@@ -143,13 +144,13 @@ collectArgs (App e1 e2) =
 collectArgs e           = (e,[])
 
 collectBinders :: Expr a -> ([(a,Type a)],Expr a)
-collectBinders (Lam x t e t') =
+collectBinders (Lam x t e _) =
     let (xs,e') = collectBinders e
     in  ((x,t):xs,e')
 collectBinders e         = ([],e)
 
 lambdaBodyType :: Type a -> Expr a -> Type a
-lambdaBodyType t (Lam _ _ e t') = lambdaBodyType t' e
+lambdaBodyType _ (Lam _ _ e t') = lambdaBodyType t' e
 lambdaBodyType t _              = t
 
 findAlt :: Eq a => a -> [Type a] -> [Alt a] -> Maybe (Alt a)

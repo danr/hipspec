@@ -9,10 +9,9 @@ module Simple
     , Alt
     , Expr(..)
     , collectArgs
+    , apply
     , module Rich
     ) where
-
-import Data.Generics.Geniplate
 
 -- Patterns, types and data types are resued from the rich language
 import Rich (Pattern(..),Type(..))

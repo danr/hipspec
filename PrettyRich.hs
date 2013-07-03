@@ -36,7 +36,7 @@ ppExpr i p e0 = case e0 of
                           | (arg,ty) <- args
                           ]
         in  hang ("\\" <+> sep pp_args <+> "->") 2 pp_body
-    Case e x alts -> parensIf (i > 0) $
+    Case e x _ alts -> parensIf (i > 0) $
         hang ("case" <+> ppExpr 0 p e <+> "of" <+> p x <+> "{") 2
              (vcat (punctuate ";" (map (ppAlt p) alts))) !$ "}"
       where
@@ -52,7 +52,7 @@ ppAlt p (pat,rhs) = hang (lhs <+> "->") 2 (ppExpr 0 p rhs)
   where
     lhs = case pat of
         Default        -> "_"
-        ConPat c ts as -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ] <+> sep (map p as)
+        ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ] <+> sep (map (p . fst) bs)
         LitPat i       -> integer i
 
 ppType :: Int -> (a -> Doc) -> Type a -> Doc

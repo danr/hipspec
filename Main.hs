@@ -5,6 +5,7 @@ import Utils
 import CoreToRich
 import PrettyRich
 import SimplifyRich
+import RichToSimple
 
 import Name
 import Unique
@@ -49,8 +50,10 @@ main = do
             Right fn -> do
                 let put = putStrLn . render . ppFun text . fmap name
                 put fn
-                put (simpFun fn)
+                let fn' = simpFun fn
+                put fn'
+                let (simp_fn,simp_fns) = runRTS (rtsFun (fmap Old fn'))
+                mapM_ print (map (fmap (fmap name)) (simp_fn:simp_fns))
             Left err -> print err
         putStrLn ""
-  where
 
