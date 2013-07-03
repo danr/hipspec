@@ -29,7 +29,7 @@ simpExpr :: Eq a => Expr a -> Expr a
 simpExpr = transformExpr $ \ e0 -> case e0 of
 
     -- Beta reduction
-    App (Lam x body) arg -> simpExpr ((arg // x) body)
+    App (Lam x _ body _) arg -> simpExpr ((arg // x) body)
 
     -- Known case on a constructor
     Case e x alts

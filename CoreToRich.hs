@@ -106,7 +106,11 @@ trExpr e0 = case e0 of
               return (R.Var x (ts ++ [t']))
             _ -> throwError (TypeApplicationToExpr e0)
     C.App e1 e2 -> R.App <$> trExpr e1 <*> trExpr e2
-    C.Lam x e -> R.Lam (varName x) <$> trExpr e
+    C.Lam x e -> do
+        t <- trType (varType x)
+        e' <- trExpr e
+        t' <- trType (exprType e)
+        return (R.Lam (varName x) t e' t')
     -- TODO:
     --     1) Do we need to make sure x is not a type/coercion?
     --     2) Should we save the types of the argument and body here?

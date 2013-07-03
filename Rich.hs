@@ -50,7 +50,8 @@ data Expr a
     -- ^ String literals
     --   We semi-support them here to allow calls to error
     --   (pattern match failure also creates a string literal)
-    | Lam a (Expr a)
+    | Lam a (Type a) (Expr a) (Type a)
+    -- ^ Lam x t e t' means x :: t, and e :: t', i.e. the expression has type t -> t'
     | Case (Expr a) a [Alt a]
     -- ^ Scrutinee expression, variable it is saved to, and the branches
     --   This variable is mainly useful in Default branches
@@ -67,7 +68,7 @@ occursIn x = go
         App e1 e2     -> go e1 || go e2
         Lit{}         -> False
         String        -> False
-        Lam u e       -> x /= u && go e
+        Lam u _ e _   -> x /= u && go e
         -- The scrutinee variable in case could shadow this variable
         Case e u alts -> go e || (x /= u && any go' alts)
         Let fns e     -> go'' fns e
@@ -109,10 +110,10 @@ collectArgs (App e1 e2) =
     in  (e,es ++ [e2])
 collectArgs e           = (e,[])
 
-collectBinders :: Expr a -> ([a],Expr a)
-collectBinders (Lam x e) =
+collectBinders :: Expr a -> ([(a,Type a)],Expr a)
+collectBinders (Lam x t e _) =
     let (xs,e') = collectBinders e
-    in  (x:xs,e')
+    in  ((x,t):xs,e')
 collectBinders e         = ([],e)
 
 type Alt a = (Pattern a,Expr a)

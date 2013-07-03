@@ -19,29 +19,31 @@ ppFun p (Function nm tvs ty e) =
 
 ppExpr :: Int -> (a -> Doc) -> Expr a -> Doc
 ppExpr i p e0 = case e0 of
-    Var x ts -> iff (not (null ts) && i > 1) parens $
-                     p x <> cat [ " @" <+> ppType 1 p t | t <- ts ]
+    Var x ts -> parensIf (not (null ts) && i > 1) $
+        p x <> cat [ " @" <+> ppType 1 p t | t <- ts ]
 
-    App{} -> iff (i > 1) parens $
+    App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0
             pp_args    = map (ppExpr 2 p) args
             pp_fun     = ppExpr 1 p fun
         in  hang pp_fun 2 (sep pp_args)
     Lit x         -> integer x
     String        -> "\"\""
-    Lam{} -> iff (i > 0) parens $
+    Lam{} -> parensIf (i > 0) $
         let (args,body) = collectBinders e0
-            pp_args     = map p args
             pp_body     = ppExpr 0 p body
+            pp_args     = [ parens (p arg <+> "::" <+> ppType 0 p ty)
+                          | (arg,ty) <- args
+                          ]
         in  hang ("\\" <+> sep pp_args <+> "->") 2 pp_body
-    Case e x alts -> iff (i > 0) parens $
+    Case e x alts -> parensIf (i > 0) $
         hang ("case" <+> ppExpr 0 p e <+> "of" <+> p x <+> "{") 2
              (vcat (punctuate ";" (map (ppAlt p) alts))) !$ "}"
       where
         (!$) | length alts == 1 = (<+>)
              | otherwise        = ($$)
 
-    Let fns e ->
+    Let fns e -> parensIf (i > 0) $
         hang ("let" <+> "{") 2 (vcat (map (ppFun p) fns) <+> "}" <+> "in") $$
         ppExpr 0 p e
 
@@ -56,10 +58,10 @@ ppAlt p (pat,rhs) = hang (lhs <+> "->") 2 (ppExpr 0 p rhs)
 ppType :: Int -> (a -> Doc) -> Type a -> Doc
 ppType i p t0 = case t0 of
     TyVar x     -> p x
-    ArrTy t1 t2 -> iff (i > 0) parens $ ppType 1 p t1 <+> "->" <+> ppType 0 p t2
+    ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 p t1 <+> "->" <+> ppType 0 p t2
     TyCon tc ts -> p tc <+> sep (map (ppType 1 p) ts)
 
-iff :: Bool -> (a -> a) -> a -> a
-iff True  f = f
-iff False _ = id
+parensIf :: Bool -> Doc -> Doc
+parensIf True  = parens
+parensIf False = id
 
