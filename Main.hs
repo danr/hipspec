@@ -2,10 +2,13 @@ module Main where
 
 import Read
 import Utils
+
 import CoreToRich
-import PrettyRich
 import SimplifyRich
 import RichToSimple
+
+import PrettyRich as PR
+import PrettySimple as PS
 
 import Name
 import Unique
@@ -44,16 +47,26 @@ main = do
         name nm = getOccString nm ++
             if suppress_uniques then "" else "_" ++ showOutputable (getUnique nm)
 
+        name' :: Rename Name -> String
+        name' (Old nm) = name nm
+        name' (New x)  = "_" ++ show x
+
     forM_ (flattenBinds cb) $ \ (v,e) -> do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put = putStrLn . render . ppFun text . fmap name
+                let put = putStrLn . render . PR.ppFun text . fmap name
                 put fn
                 let fn' = simpFun fn
                 put fn'
-                let (simp_fn,simp_fns) = runRTS (rtsFun (fmap Old fn'))
-                mapM_ print (map (fmap (fmap name)) (simp_fn:simp_fns))
+                let simp_fns
+                        = uncurry (:)
+                        . runRTS
+                        . rtsFun
+                        . fmap Old
+                        $ fn'
+                    put' = putStrLn . render . PS.ppFun text . fmap name'
+                mapM_ put' simp_fns
             Left err -> print err
         putStrLn ""
 

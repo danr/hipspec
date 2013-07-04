@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | The Simple expression language, a subset of GHC Core
 --
 -- It is Simple because it lacks lambdas, let and only allows a cascade of
@@ -15,6 +15,8 @@ module Simple
 
 -- Patterns, types and data types are resued from the rich language
 import Rich (Pattern(..),Type(..))
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -27,14 +29,14 @@ data Function a = Function
     , fn_args    :: [a]
     , fn_body    :: Body a
     }
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | The body of a function: cascades of cases, with branches eventually ending
 --   in expressions.
 data Body a
     = Case (Expr a) [Alt a]
     | Body (Expr a)
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 type Alt a = (Pattern a,Body a)
 
@@ -44,7 +46,7 @@ data Expr a
     -- ^ Variables applied to their type arguments
     | App (Expr a) (Expr a)
     | Lit Integer
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =
@@ -54,3 +56,4 @@ collectArgs e           = (e,[])
 
 apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
+

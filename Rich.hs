@@ -1,12 +1,13 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell #-}
 -- | The Rich expression language, a subset of GHC Core
 --
 -- It is Rich because it has lambdas, let and cases at any level.
 module Rich where
 
 import Data.Generics.Geniplate
-import Data.Foldable (Foldable,toList)
 import Data.List (nub,union)
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -14,7 +15,7 @@ data Program a = Program
     { prog_data  :: [Datatype a]
     , prog_fns   :: [Function a]
     }
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Data definition
 data Datatype a = Datatype
@@ -22,7 +23,7 @@ data Datatype a = Datatype
     , data_ty_args :: [a]
     , data_cons    :: [Constructor a]
     }
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 data Constructor a = Constructor
     { con_name :: a
@@ -30,7 +31,7 @@ data Constructor a = Constructor
     -- ^ Arguments to the constructor, /besides/ the type
     --   arguments that are bound in the data type
     }
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Types
 --
@@ -39,10 +40,15 @@ data Type a
     = TyVar a
     | ArrTy (Type a) (Type a)
     | TyCon a [Type a]
-  deriving (Eq,Ord,Show,Functor,Foldable)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 freeTyVars :: Eq a => Type a -> [a]
-freeTyVars = nub . toList
+freeTyVars = go
+  where
+    go t = case t of
+        TyVar x     -> [x]
+        ArrTy t1 t2 -> go t1 `union` go t2
+        TyCon _ ts  -> nub (concatMap go ts)
 
 -- | Function definition
 data Function a = Function
@@ -51,7 +57,10 @@ data Function a = Function
     , fn_type    :: Type a
     , fn_body    :: Expr a
     }
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+mapFnBody :: (Expr a -> Expr a) -> Function a -> Function a
+mapFnBody f fn = fn { fn_body = f (fn_body fn) }
 
 -- | "Rich" expressions, includes lambda, let and case
 data Expr a
@@ -72,7 +81,7 @@ data Expr a
     --   It does not exist in the simple language.
     --   The type is needed if this case is lifted to the top level.
     | Let [Function a] (Expr a)
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 type Alt a = (Pattern a,Expr a)
 
@@ -85,7 +94,7 @@ data Pattern a
         , pat_args    :: [(a,Type a)]
         }
     | LitPat Integer
-  deriving (Eq,Ord,Show,Functor)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 freeVars :: Eq a => Expr a -> [a]
 freeVars = go
@@ -118,8 +127,10 @@ occursIn x e = x `elem` freeVars e
 transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
 transformExpr = $(genTransformBi 'transformExpr)
 
--- | Substitution, substitutes a variable (not applied to any types) for an expression
---   TODO: What to do when it has types applied to it? Any examples?
+-- | Substitution, of simple variables (not applied to any types)
+--
+-- Since there are only have rank-1 types, bound variables from lambdas and
+-- case never have an forall type and thus are not applied to any types.
 (//) :: Eq a => Expr a -> a -> Expr a -> Expr a
 e // x = transformExpr $ \ e0 -> case e0 of
     Var y [] | x == y -> e
@@ -128,6 +139,10 @@ e // x = transformExpr $ \ e0 -> case e0 of
 substMany :: Eq a => [(a,Expr a)] -> Expr a -> Expr a
 substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 
+-- | Substitution, of global variables (that can be applied to types)
+--
+-- Let-bound variables and top-level variables can have a forall-type.
+-- Use this function to substitute such variables.
 tySubst :: Eq a => a -> ([Type a] -> Expr a) -> Expr a -> Expr a
 tySubst x k = transformExpr $ \ e0 -> case e0 of
     Var y tvs | x == y -> k tvs

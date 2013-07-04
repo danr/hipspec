@@ -12,6 +12,7 @@
 -- non-terminating programs/bottoms)
 --
 -- TODO: Inline non-recursive global definitions
+--       Polymorphic lets
 module SimplifyRich where
 
 import Rich
@@ -23,9 +24,9 @@ simpFun (Function f tvs t b) = Function f tvs t b'
         -- Sometimes functions look like this
         -- f = let g = K[g] in g,
         -- then we simply replace it to f = K[f]
+        -- TODO: Polymorphic functions (find examples!)
         Let [Function g [] _ e] (Var g' []) | g == g' -> (Var f [] // g) e
         _ -> b
-
 
 simpExpr :: Eq a => Expr a -> Expr a
 simpExpr = transformExpr $ \ e0 -> case e0 of
@@ -63,6 +64,7 @@ removeScrutinee e x (p,rhs) = subst rhs
     -- If the scrutinee is just a variable, we inline it too.
     -- This can lead to triggering many known case.
     subst = substMany . (`zip` repeat subst_expr) . (x:) $ case e of
-        Var u [] -> [u]   -- TODO: type variables applied to this variable?
+        Var u [] -> [u]   -- The variable can only be locally bound by lambda
+                          -- or case and thus is not applied to type args.
         _        -> []
 
