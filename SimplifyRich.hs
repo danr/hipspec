@@ -17,7 +17,7 @@ module SimplifyRich where
 
 import Rich
 
-simpFun :: Eq a => Function a -> Function a
+simpFun :: Eq a => Function (Typed a) -> Function (Typed a)
 simpFun (Function f tvs t b) = Function f tvs t b'
   where
     b' = simpExpr $ case b of
@@ -28,21 +28,21 @@ simpFun (Function f tvs t b) = Function f tvs t b'
         Let [Function g [] _ e] (Var g' []) | g == g' -> (Var f [] // g) e
         _ -> b
 
-simpExpr :: Eq a => Expr a -> Expr a
+simpExpr :: Eq a => Expr (Typed a) -> Expr (Typed a)
 simpExpr = transformExpr $ \ e0 -> case e0 of
 
     -- Beta reduction
-    App (Lam x _ body _) arg -> simpExpr ((arg // x) body)
+    App (Lam x body) arg -> simpExpr ((arg // x) body)
 
     -- Known case on a constructor
-    Case e x _ alts
+    Case e x alts
         | (Var u ts,args) <- collectArgs e
-        , Just (ConPat _ _ typed_bound,rhs)  <- findAlt u ts alts
-        -> simpExpr (substMany ((x,e):zip (map fst typed_bound) args) rhs)
+        , Just (ConPat _ _ bs,rhs)  <- findAlt u ts alts
+        -> simpExpr (substMany ((x,e):zip bs args) rhs)
 
-    Case e x t alts -> Case e x t [ (p,simpExpr (removeScrutinee e x alt))
-                                  | alt@(p,_) <- alts
-                                  ]
+    Case e x alts -> Case e x [ (p,simpExpr (removeScrutinee e x alt))
+                              | alt@(p,_) <- alts
+                              ]
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
@@ -52,14 +52,13 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
 
 -- | Removes the scrutinee variable (and also the expression if it is a variable),
 --   by inlining the pattern or the expression again (if it is a Default alt)
-removeScrutinee :: Eq a => Expr a -> a -> Alt a -> Expr a
+removeScrutinee :: Eq a => Expr (Typed a) -> Typed a -> Alt (Typed a) -> Expr (Typed a)
 removeScrutinee e x (p,rhs) = subst rhs
   where
     subst_expr  = case p of
         Default  -> e
-        LitPat l -> Lit l
-        ConPat u ts typed_bound ->
-            apply (Var u ts) (map (`Var` []) (map fst typed_bound))
+        LitPat l -> Lit l (error "lit pat type! :(")
+        ConPat u ts bs -> apply (Var u ts) (map (`Var` []) bs)
 
     -- If the scrutinee is just a variable, we inline it too.
     -- This can lead to triggering many known case.

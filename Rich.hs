@@ -8,6 +8,7 @@ import Data.Generics.Geniplate
 import Data.List (nub,union)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.Function (on)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -40,6 +41,10 @@ data Type a
     = TyVar a
     | ArrTy (Type a) (Type a)
     | TyCon a [Type a]
+
+    -- For the types of identifiers
+    | Star
+    | Forall a (Type a)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 freeTyVars :: Eq a => Type a -> [a]
@@ -49,6 +54,8 @@ freeTyVars = go
         TyVar x     -> [x]
         ArrTy t1 t2 -> go t1 `union` go t2
         TyCon _ ts  -> nub (concatMap go ts)
+        Star        -> []
+        Forall x t' -> filter (x /=) (go t')
 
 -- | Function definition
 data Function a = Function
@@ -67,21 +74,32 @@ data Expr a
     = Var a [Type a]
     -- ^ Variables applied to their type arguments
     | App (Expr a) (Expr a)
-    | Lit Integer
+    | Lit Integer (Type a)
     -- ^ Integer literals
-    | String
+    | String (Type a)
     -- ^ String literals
     --   We semi-support them here to allow calls to error
     --   (pattern match failure also creates a string literal)
-    | Lam a (Type a) (Expr a) (Type a)
+    | Lam a (Expr a)
     -- ^ Lam x t e t' means x :: t, and e :: t', i.e. the expression has type t -> t'
-    | Case (Expr a) a (Type a) [Alt a]
+    | Case (Expr a) a [Alt a]
     -- ^ Scrutinee expression, variable it is saved to, the branches' types, and the branches
     --   This variable is mainly useful in Default branches
     --   It does not exist in the simple language.
-    --   The type is needed if this case is lifted to the top level.
     | Let [Function a] (Expr a)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+exprType :: Eq a => Expr (Typed a) -> Type a
+exprType e0 = case e0 of
+    Var (_ ::: ty) ts ->
+        let (tvs,ty') = collectForalls ty
+        in  substManyTys (zip tvs (map forget ts)) ty'
+    App _ e2           -> exprType e2
+    Lit _ t            -> forget t
+    String t           -> forget t
+    Lam (_ ::: t) e    -> ArrTy t (exprType e)
+    Case _ _ ((_,e):_) -> exprType e
+    Let _ e            -> exprType e
 
 type Alt a = (Pattern a,Expr a)
 
@@ -91,7 +109,7 @@ data Pattern a
     | ConPat
         { pat_con     :: a
         , pat_ty_args :: [Type a]
-        , pat_args    :: [(a,Type a)]
+        , pat_args    :: [a]
         }
     | LitPat Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
@@ -103,15 +121,15 @@ freeVars = go
     rms us = filter (`notElem` us)
 
     go e0 = case e0 of
-        Var u _         -> [u]
-        App e1 e2       -> go e1 `union` go e2
-        Lit{}           -> []
-        String          -> []
-        Lam u _ e _     -> rm u (go e)
-        Case e u _ alts -> go e `union` rm u (concatMap go' alts)
-        Let fns e       -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
+        Var u _       -> [u]
+        App e1 e2     -> go e1 `union` go e2
+        Lit{}         -> []
+        String{}      -> []
+        Lam u e       -> rm u (go e)
+        Case e u alts -> go e `union` rm u (concatMap go' alts)
+        Let fns e     -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
 
-    go' (ConPat _ _ bs,rhs) = rms (map fst bs) (go rhs)
+    go' (ConPat _ _ bs,rhs) = rms bs (go rhs)
     go' (Default,rhs)       = go rhs
     go' (LitPat{},rhs)      = go rhs
 
@@ -158,15 +176,11 @@ collectArgs (App e1 e2) =
     in  (e,es ++ [e2])
 collectArgs e           = (e,[])
 
-collectBinders :: Expr a -> ([(a,Type a)],Expr a)
-collectBinders (Lam x t e _) =
+collectBinders :: Expr a -> ([a],Expr a)
+collectBinders (Lam x e) =
     let (xs,e') = collectBinders e
-    in  ((x,t):xs,e')
+    in  (x:xs,e')
 collectBinders e         = ([],e)
-
-lambdaBodyType :: Type a -> Expr a -> Type a
-lambdaBodyType _ (Lam _ _ e t') = lambdaBodyType t' e
-lambdaBodyType t _              = t
 
 findAlt :: Eq a => a -> [Type a] -> [Alt a] -> Maybe (Alt a)
 findAlt x ts alts = go alts
@@ -176,11 +190,9 @@ findAlt x ts alts = go alts
     go (_:xs) = go xs
     go []     = Nothing
 
-makeLambda :: [(a,Type a)] -> Expr a -> Type a -> (Expr a,Type a)
-makeLambda []         e t' = (e,t')
-makeLambda ((x,t):xs) e t' =
-    let (e',t'') = makeLambda xs e t'
-    in  (Lam x t e' t'',ArrTy t t'')
+makeLambda :: [a] -> Expr a -> Expr a
+makeLambda []     e = e
+makeLambda (x:xs) e = Lam x (makeLambda xs e)
 
 findDefault :: [Alt a] -> Maybe (Alt a)
 findDefault alts = case alts  of
@@ -188,3 +200,40 @@ findDefault alts = case alts  of
     _:xs              -> findDefault xs
     []                -> Nothing
 
+data Typed a = (:::)
+    { forget_type :: a
+    , typed_type :: Type a
+    }
+  deriving (Show,Functor,Foldable,Traversable)
+
+forget :: Functor f => f (Typed a) -> f a
+forget = fmap forget_type
+
+instance Eq a => Eq (Typed a) where
+    (==) = (==) `on` forget_type
+
+instance Ord a => Ord (Typed a) where
+    compare = compare `on` forget_type
+
+makeForalls :: [a] -> Type a -> Type a
+makeForalls xs t = foldr Forall t xs
+
+collectForalls :: Type a -> ([a],Type a)
+collectForalls (Forall x t) =
+    let (xs,t') = collectForalls t
+    in  (x:xs,t')
+collectForalls t = ([],t)
+
+transformType :: (Type a -> Type a) -> Type a -> Type a
+transformType = $(genTransformBi 'transformType)
+
+(///) :: Eq a => Type a -> a -> Type a -> Type a
+t /// x = transformType $ \ t0 -> case t0 of
+    TyVar y | x == y -> t
+    _                -> t0
+
+substManyTys :: Eq a => [(a,Type a)] -> Type a -> Type a
+substManyTys xs t0 = foldr (\ (u,t) -> (t /// u)) t0 xs
+
+star :: Functor f => f a -> f (Typed a)
+star = fmap (::: Star)

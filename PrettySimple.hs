@@ -30,12 +30,13 @@ ppAlt p (pat,rhs) = hang (lhs <+> "->") 2 (ppBody p rhs)
   where
     lhs = case pat of
         Default        -> "_"
-        ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ] <+> sep (map (p . fst) bs)
+        ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ]
+                              <+> sep (map p bs)
         LitPat i       -> integer i
 
 ppExpr :: Int -> (a -> Doc) -> Expr a -> Doc
 ppExpr i p e0 = case e0 of
-    Lit x -> integer x
+    Lit x _ -> integer x
 
     Var x ts -> parensIf (not (null ts) && i > 1) $
         p x <> cat [ " @" <+> ppType 1 p t | t <- ts ]

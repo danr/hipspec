@@ -10,6 +10,8 @@ import RichToSimple
 import PrettyRich as PR
 import PrettySimple as PS
 
+import Rich (Typed(..))
+
 import Name
 import Unique
 import CoreSyn
@@ -34,12 +36,13 @@ main :: IO ()
 main = do
     args <- getArgs
 
-    let (opt,(suppress_uniques,file)) = ($ args) $
+    let (opt,(suppress_uniques,(show_types,file))) = ($ args) $
             getFlag' "-O" $
-            getFlag' "-s" $ \ args' ->
+            getFlag' "-s" $
+            getFlag' "-t" $ \ args' ->
                 case args' of
                     [f] -> f
-                    _   -> error "Usage: FILENAME [-O] [-s]"
+                    _   -> error "Usage: FILENAME [-O] [-s] [-t]"
 
     cb <- readBinds (if opt then Optimise else Don'tOptimise) file
 
@@ -51,11 +54,16 @@ main = do
         name' (Old nm) = name nm
         name' (New x)  = "_" ++ show x
 
+        show_typed :: Typed String -> Doc
+        show_typed (x ::: t)
+            | show_types = parens (hang (text x <+> text "::") 2 (ppType 0 text t))
+            | otherwise  = text x
+
     forM_ (flattenBinds cb) $ \ (v,e) -> do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put = putStrLn . render . PR.ppFun text . fmap name
+                let put = putStrLn . render . PR.ppFun show_typed . fmap (fmap name)
                 put fn
                 let fn' = simpFun fn
                 put fn'
@@ -63,9 +71,9 @@ main = do
                         = uncurry (:)
                         . runRTS
                         . rtsFun
-                        . fmap Old
+                        . fmap (fmap Old)
                         $ fn'
-                    put' = putStrLn . render . PS.ppFun text . fmap name'
+                    put' = putStrLn . render . PS.ppFun show_typed . fmap (fmap name')
                 mapM_ put' simp_fns
             Left err -> print err
         putStrLn ""
