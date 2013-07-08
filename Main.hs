@@ -9,8 +9,9 @@ import RichToSimple
 
 import PrettyRich as PR
 import PrettySimple as PS
+import PrettyType
 
-import Rich (Typed(..))
+import Type
 
 import Name
 import Unique

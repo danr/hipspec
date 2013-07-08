@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, PackageImports #-}
 {-
 
     Annoyances with the Default branch:
@@ -63,7 +63,7 @@ import CoreUtils hiding (findAlt)
 import DataCon
 import FastString
 import TyCon
-import Type
+import "ghc" Type
 import Unique
 import UniqSupply
 import Id

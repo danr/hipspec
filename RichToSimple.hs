@@ -53,10 +53,10 @@ clearScope :: RTS v a -> RTS v a
 clearScope = local (const S.empty)
 
 rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
-rtsFun (R.Function f tvs t e) = do
+rtsFun (R.Function f e) = do
     let (args,body) = collectBinders e
     clearScope $ extendScope args $
-        S.Function f tvs t args <$> rtsBody body
+        S.Function f args <$> rtsBody body
 
 rtsBody :: Ord v => R.Expr (Var v) -> RTS v (S.Body (Var v))
 rtsBody e0 = case e0 of
@@ -98,19 +98,26 @@ rtsExpr e0 = case e0 of
 
         free_vars <- freeVarsOf free_vars_overapprox
 
-        let handle_fun (R.Function f tvs _ body) = (subst,fn')
+        let handle_fun (R.Function fn@(f ::: ft) body) = (subst,fn')
               where
+                (tvs,_) = collectForalls ft
+
                 new_lambda = makeLambda free_vars body
 
-                new_type = star (R.exprType new_lambda)
+                new_type_body = R.exprType new_lambda
 
-                new_ty_vars = R.freeTyVars new_type \\ tvs
+                new_ty_vars = freeTyVars new_type_body \\ tvs
 
-                subst = tySubst f $ \ ty_args ->
-                    R.apply (R.Var f (map R.TyVar new_ty_vars ++ ty_args))
-                        (map (`R.Var` []) free_vars)
+                new_type = makeForalls (new_ty_vars ++ tvs) new_type
 
-                fn' = R.Function f (new_ty_vars ++ tvs) new_type new_lambda
+                f' = f ::: new_type
+
+                subst = tySubst fn $ \ ty_args ->
+                    R.Var f' (map (star . TyVar) new_ty_vars ++ ty_args)
+                    `R.apply`
+                    map (`R.Var` []) free_vars
+
+                fn' = R.Function f' new_lambda
 
             (substs,fns') = unzip (map handle_fun fns)
 
@@ -155,15 +162,15 @@ emitFun args body = do
 
     let new_lambda = makeLambda args body
 
-        new_type   :: Type (Var v)
-        new_type   = star (R.exprType new_lambda)
+        new_type   = R.exprType new_lambda
 
-        ty_vars    = R.freeTyVars new_type
+        ty_vars    = freeTyVars new_type
 
-    f <- fresh (forget (S.makeForalls ty_vars new_type))
+    f <- fresh (makeForalls ty_vars new_type)
 
-    emit =<< rtsFun (R.Function f ty_vars new_type new_lambda)
-    return (S.apply (S.Var f (map S.TyVar ty_vars))
+    emit =<< rtsFun (R.Function f new_lambda)
+
+    return (S.apply (S.Var f (map (star . S.TyVar) ty_vars))
                     (map (`S.Var` []) args))
 
 -- | Gets the free vars of an expression
@@ -175,5 +182,5 @@ freeVarsOf :: Ord v => [Var v] -> RTS v [Var v]
 freeVarsOf = filterM (asks . S.member)
 
 typeVarsOf :: Ord v => Type v -> [v]
-typeVarsOf = nub . R.freeTyVars
+typeVarsOf = nub . freeTyVars
 

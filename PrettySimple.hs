@@ -5,14 +5,13 @@ module PrettySimple where
 
 import Text.PrettyPrint.HughesPJ
 
-import PrettyRich (parensIf,ppType)
+import PrettyRich (ppPat)
+import PrettyUtils
+import PrettyType
 import Simple
 
 ppFun :: (a -> Doc) -> Function a -> Doc
-ppFun p (Function nm tvs ty args e) =
-    p nm <+> "::" <+>
-        (if null tvs then empty else "forall" <+> sep (map p tvs) <+> ".")
-        <+> ppType 0 p ty $$
+ppFun p (Function nm args e) =
     hang (p nm <+> sep (map p args) <+> "=") 2 (ppBody p e)
 
 ppBody :: (a -> Doc) -> Body a -> Doc
@@ -26,13 +25,7 @@ ppBody p b = case b of
     Body e -> ppExpr 0 p e
 
 ppAlt :: (a -> Doc) -> Alt a -> Doc
-ppAlt p (pat,rhs) = hang (lhs <+> "->") 2 (ppBody p rhs)
-  where
-    lhs = case pat of
-        Default        -> "_"
-        ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ]
-                              <+> sep (map p bs)
-        LitPat i       -> integer i
+ppAlt p (pat,rhs) = hang (ppPat p pat <+> "->") 2 (ppBody p rhs)
 
 ppExpr :: Int -> (a -> Doc) -> Expr a -> Doc
 ppExpr i p e0 = case e0 of

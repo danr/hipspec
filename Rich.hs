@@ -5,10 +5,11 @@
 module Rich where
 
 import Data.Generics.Geniplate
-import Data.List (nub,union)
+import Data.List (union)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
-import Data.Function (on)
+
+import Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -34,34 +35,9 @@ data Constructor a = Constructor
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
--- | Types
---
---   No higher-kinded type variables. Do we need this?
-data Type a
-    = TyVar a
-    | ArrTy (Type a) (Type a)
-    | TyCon a [Type a]
-
-    -- For the types of identifiers
-    | Star
-    | Forall a (Type a)
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
-freeTyVars :: Eq a => Type a -> [a]
-freeTyVars = go
-  where
-    go t = case t of
-        TyVar x     -> [x]
-        ArrTy t1 t2 -> go t1 `union` go t2
-        TyCon _ ts  -> nub (concatMap go ts)
-        Star        -> []
-        Forall x t' -> filter (x /=) (go t')
-
 -- | Function definition
 data Function a = Function
     { fn_name    :: a
-    , fn_ty_args :: [a]
-    , fn_type    :: Type a
     , fn_body    :: Expr a
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
@@ -74,12 +50,14 @@ data Expr a
     = Var a [Type a]
     -- ^ Variables applied to their type arguments
     | App (Expr a) (Expr a)
-    | Lit Integer (Type a)
+    | Lit Integer a
     -- ^ Integer literals
-    | String (Type a)
+    --   The a is the type constructor
+    | String a
     -- ^ String literals
     --   We semi-support them here to allow calls to error
     --   (pattern match failure also creates a string literal)
+    --   The a is the type constructor
     | Lam a (Expr a)
     -- ^ Lam x t e t' means x :: t, and e :: t', i.e. the expression has type t -> t'
     | Case (Expr a) a [Alt a]
@@ -95,10 +73,11 @@ exprType e0 = case e0 of
         let (tvs,ty') = collectForalls ty
         in  substManyTys (zip tvs (map forget ts)) ty'
     App _ e2           -> exprType e2
-    Lit _ t            -> forget t
-    String t           -> forget t
+    Lit _ (t ::: _)    -> TyCon t []
+    String (t ::: _)   -> TyCon t []
     Lam (_ ::: t) e    -> ArrTy t (exprType e)
     Case _ _ ((_,e):_) -> exprType e
+    Case{}             -> error "Rich.exprType: no alts in case"
     Let _ e            -> exprType e
 
 type Alt a = (Pattern a,Expr a)
@@ -133,8 +112,8 @@ freeVars = go
     go' (Default,rhs)       = go rhs
     go' (LitPat{},rhs)      = go rhs
 
-    bf (Function u _ _ _) = u
-    fb (Function _ _ _ b) = b
+    bf (Function u _) = u
+    fb (Function _ b) = b
 
 
 -- | Does this variable occur in this expression?
@@ -167,8 +146,7 @@ tySubst x k = transformExpr $ \ e0 -> case e0 of
     _ -> e0
 
 apply :: Expr a -> [Expr a] -> Expr a
-apply e (x:xs) = apply (App e x) xs
-apply e []     = e
+apply = foldl App
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =
@@ -200,40 +178,4 @@ findDefault alts = case alts  of
     _:xs              -> findDefault xs
     []                -> Nothing
 
-data Typed a = (:::)
-    { forget_type :: a
-    , typed_type :: Type a
-    }
-  deriving (Show,Functor,Foldable,Traversable)
 
-forget :: Functor f => f (Typed a) -> f a
-forget = fmap forget_type
-
-instance Eq a => Eq (Typed a) where
-    (==) = (==) `on` forget_type
-
-instance Ord a => Ord (Typed a) where
-    compare = compare `on` forget_type
-
-makeForalls :: [a] -> Type a -> Type a
-makeForalls xs t = foldr Forall t xs
-
-collectForalls :: Type a -> ([a],Type a)
-collectForalls (Forall x t) =
-    let (xs,t') = collectForalls t
-    in  (x:xs,t')
-collectForalls t = ([],t)
-
-transformType :: (Type a -> Type a) -> Type a -> Type a
-transformType = $(genTransformBi 'transformType)
-
-(///) :: Eq a => Type a -> a -> Type a -> Type a
-t /// x = transformType $ \ t0 -> case t0 of
-    TyVar y | x == y -> t
-    _                -> t0
-
-substManyTys :: Eq a => [(a,Type a)] -> Type a -> Type a
-substManyTys xs t0 = foldr (\ (u,t) -> (t /// u)) t0 xs
-
-star :: Functor f => f a -> f (Typed a)
-star = fmap (::: Star)

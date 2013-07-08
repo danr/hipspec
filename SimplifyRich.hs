@@ -16,17 +16,17 @@
 module SimplifyRich where
 
 import Rich
+import Type
 
 simpFun :: Eq a => Function (Typed a) -> Function (Typed a)
-simpFun (Function f tvs t b) = Function f tvs t b'
-  where
-    b' = simpExpr $ case b of
-        -- Sometimes functions look like this
-        -- f = let g = K[g] in g,
-        -- then we simply replace it to f = K[f]
-        -- TODO: Polymorphic functions (find examples!)
-        Let [Function g [] _ e] (Var g' []) | g == g' -> (Var f [] // g) e
-        _ -> b
+simpFun (Function f b) = Function f $ simpExpr $ case b of
+    -- Sometimes functions look like this
+    -- f = let g = K[g] in g,
+    -- then we simply replace it to f = K[f]
+    -- TODO: Polymorphic functions (find examples!)
+    Let [Function g e] (Var g' [])
+        | not (isForallTy (typed_type g)), g == g' -> (Var f [] // g) e
+    _ -> b
 
 simpExpr :: Eq a => Expr (Typed a) -> Expr (Typed a)
 simpExpr = transformExpr $ \ e0 -> case e0 of
@@ -46,7 +46,9 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
-    Let [Function f [] _ b] e | not (f `occursIn` b) -> simpExpr ((b // f) e)
+    Let [Function f b] e
+        | not (isForallTy (typed_type f))
+        , not (f `occursIn` b) -> simpExpr ((b // f) e)
 
     _ -> e0
 

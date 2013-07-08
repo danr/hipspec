@@ -1,4 +1,5 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, PackageImports #-}
+
 -- | Translation from GHC Core to the Rich Language, a subset
 module CoreToRich where
 
@@ -6,15 +7,17 @@ import Control.Applicative
 import Control.Monad.Error
 
 import Rich as R
+import Type as R
+
+import CoreUtils as C
 import CoreSyn as C
 
 import DataCon
-import CoreUtils as C
 import Literal
 import Var
 import Name(Name)
 import TyCon
-import Type as C
+import "ghc" Type as C
 import GHC (dataConType)
 
 import IdInfo
@@ -79,8 +82,6 @@ trDefn v e = do
     let tvs_named = map tyVarName tvs
     return Function
         { fn_name    = varName v ::: makeForalls tvs_named ty'
-        , fn_ty_args = star tvs_named
-        , fn_type    = star ty'
         , fn_body    = body'
         }
 
@@ -94,7 +95,7 @@ trDefn v e = do
 trExpr :: CoreExpr -> TM (R.Expr Binder)
 trExpr e0 = case e0 of
     C.Var x -> do
-        ty <- e0type
+        ty <- e0_type
         let var nm = return (R.Var (nm ::: ty) [])
         var $ case idDetails x of
                 DataConWorkId dc -> dataConName dc
@@ -105,8 +106,9 @@ trExpr e0 = case e0 of
         -- (example: created tuples in partition's where clause)
         -- It is unclear what disasters this might bring.
 
-    C.Lit MachStr{} -> String <$> (star <$> e0type)
-    C.Lit l -> R.Lit <$> trLit l <*> (star <$> e0type)
+    C.Lit MachStr{} -> String <$> star e0_ty_con
+    C.Lit l -> R.Lit <$> trLit l <*> star e0_ty_con
+
     C.App e (Type t) -> do
         e' <- trExpr e
         case e' of
@@ -122,7 +124,6 @@ trExpr e0 = case e0 of
         return (R.Lam (varName x ::: t) e')
     -- TODO:
     --     1) Do we need to make sure x is not a type/coercion?
-    --     2) Should we save the types of the argument and body here?
 
     C.Let bs e -> do
         bs' <- mapM (uncurry trDefn) (flattenBinds [bs])
@@ -174,7 +175,13 @@ trExpr e0 = case e0 of
     -- TODO:
     --     Do we need to do something about newtype casts?
   where
-    e0type = trType (C.exprType e0)
+    e0_type = trType (C.exprType e0)
+    e0_ty_con   = do
+        t <- e0_type
+        case t of
+            TyCon x [] -> return x
+            _          -> fail "Literal is not of a type constructor type!"
+
 -- | Translate literals. For now, the only supported literal are integers
 trLit :: Literal -> TM Integer
 trLit (LitInteger x _type) = return x
