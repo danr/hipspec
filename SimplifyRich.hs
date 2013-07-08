@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards,ViewPatterns #-}
 -- | Simplify pass over the rich language:
 --
 --  * Inlines local non-recursive definitions,
@@ -21,12 +21,12 @@ import Type
 simpFun :: Eq a => Function (Typed a) -> Function (Typed a)
 simpFun (Function f b) = Function f $ simpExpr $ case b of
     -- Sometimes functions look like this
-    -- f = let g = K[g] in g,
-    -- then we simply replace it to f = K[f]
+    -- f = \ xs -> let g = K[g] in g,
+    -- then we simply replace it to f = \ xs -> K[f xs]
     -- TODO: Polymorphic functions (find examples!)
-    Let [Function g e] (Var g' [])
+    (collectBinders -> (xs,Let [Function g e] (Var g' [])))
         | not (isForallTy (typed_type g))
-        , g == g' -> (Var f ts // g) e
+        , g == g' -> (Var f ts `apply` map (`Var` []) xs // g) e
       where ts = map (star . TyVar) . fst . collectForalls . typed_type $ f
     _ -> b
 
