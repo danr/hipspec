@@ -188,12 +188,14 @@ trLit (LitInteger x _type) = return x
 trLit l                    = throwError (UnsupportedLiteral l)
 
 trType :: C.Type -> TM (R.Type Name)
-trType t0
-    | Just (t1,t2) <- splitFunTy_maybe t0    = ArrTy <$> trType t1 <*> trType t2
-    | Just (tc,ts) <- splitTyConApp_maybe t0 = TyCon (tyConName tc) <$> mapM trType ts
-    | Just (tv,t) <- splitForAllTy_maybe t0  = Forall (tyVarName tv) <$> trType t
-    | Just tv <- getTyVar_maybe t0           = return (TyVar (tyVarName tv))
-    | otherwise                              = throwError (IllegalType t0)
+trType = go . expandTypeSynonyms
+  where
+    go t0
+        | Just (t1,t2) <- splitFunTy_maybe t0    = ArrTy <$> go t1 <*> go t2
+        | Just (tc,ts) <- splitTyConApp_maybe t0 = TyCon (tyConName tc) <$> mapM go ts
+        | Just (tv,t) <- splitForAllTy_maybe t0  = Forall (tyVarName tv) <$> go t
+        | Just tv <- getTyVar_maybe t0           = return (TyVar (tyVarName tv))
+        | otherwise                              = throwError (IllegalType t0)
 
 assertNotForAllTy :: Var -> TM ()
 assertNotForAllTy v = when (isForAllTy t) (throwError (HigherRankType v t))
