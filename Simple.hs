@@ -76,6 +76,8 @@ exprType e0 = case e0 of
     Var (_ ::: ty) ts ->
         let (tvs,ty') = collectForalls ty
         in  substManyTys (zip tvs (map forget ts)) ty'
-    App _ e2          -> exprType e2
+    App e1 _          -> case exprType e1 of
+                            ArrTy _ t2 -> t2
+                            _          -> error "Simple.exprType: not an arrow type!"
     Lit _ (t ::: _)   -> TyCon t []
 

@@ -77,17 +77,11 @@ rtsExpr e0 = case e0 of
     R.Lit l t   -> return (S.Lit l t)
     R.String{}  -> error "rtsExpr: Strings are not supported!"
 
-    -- Lambda-lifting
-    -- Emits a new function, and replaces the lambda
-    -- with this new function applied to the type variables and free variables.
-    R.Lam{} -> do
-        let (args,body) = R.collectBinders e0
-        free_vars <- exprFreeVars e0
-        emitFun (free_vars ++ args) body
-
-    R.Case{} -> do
-        free_vars <- exprFreeVars e0
-        emitFun free_vars e0
+    -- Lambda-lifting of lambda as case
+    -- Emits a new function, and replaces the body with this new function
+    -- applied to the type variables and free variables.
+    R.Lam{}  -> emitFun e0
+    R.Case{} -> emitFun e0
 
     R.Let fns e -> do
         -- See Example tricky let lifting
@@ -157,8 +151,10 @@ This should be lifted to:
 
 -}
 
-emitFun :: forall v . Ord v => [Var v] -> R.Expr (Var v) -> RTS v (S.Expr (Var v))
-emitFun args body = do
+emitFun :: forall v . Ord v => R.Expr (Var v) -> RTS v (S.Expr (Var v))
+emitFun body = do
+
+    args <- exprFreeVars body
 
     let new_lambda = makeLambda args body
 

@@ -11,7 +11,8 @@ import PrettyRich as PR
 import PrettySimple as PS
 import PrettyType
 
-import LintRich
+import LintRich as LR
+import LintSimple as LS
 import CoreLint
 
 import Type
@@ -72,12 +73,13 @@ main = do
         case trDefn v e of
             Right fn -> do
                 let put = putStrLn . render . PR.ppFun show_typed . fmap (fmap name)
-                    put_lint = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
+                    put_rlint = hPutStr stderr . newline . render . vcat . map (LR.ppErr text show_typed . fmap name) . LR.lint . LR.lintFns . (:[])
+                    put_slint = hPutStr stderr . newline . render . vcat . map (LS.ppErr text show_typed . fmap name') . LS.lint . LS.lintFns
                 put fn
-                put_lint fn
+                put_rlint fn
                 let fn' = simpFun fn
                 put fn'
-                put_lint fn'
+                put_rlint fn'
                 let simp_fns
                         = uncurry (:)
                         . runRTS
@@ -86,6 +88,7 @@ main = do
                         $ fn'
                     put' = putStrLn . render . PS.ppFun show_typed . fmap (fmap name')
                 mapM_ put' simp_fns
+                put_slint simp_fns
             Left err -> print err
         putStrLn ""
 
