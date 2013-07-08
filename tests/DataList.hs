@@ -162,7 +162,6 @@ module DataList
    , intersect         -- :: (Eq a) => [a] -> [a] -> [a]
 
    -- ** Ordered lists
-   , sort              -- :: (Ord a) => [a] -> [a]
    , insert            -- :: (Ord a) => a -> [a] -> [a]
    , mergesort
    , qsort
@@ -188,7 +187,6 @@ module DataList
 
    -- *** User-supplied comparison (replacing an @Ord@ context)
    -- | The function is assumed to define a total ordering.
-   , sortBy            -- :: (a -> a -> Ordering) -> [a] -> [a]
    , insertBy          -- :: (a -> a -> Ordering) -> a -> [a] -> [a]
    , maximumBy         -- :: (a -> a -> Ordering) -> [a] -> a
    , minimumBy         -- :: (a -> a -> Ordering) -> [a] -> a
@@ -793,61 +791,6 @@ permutations xs0        =  xs0 : perms xs0 []
                                      in  (y:us, f (t:y:us) : zs)
 
 
-------------------------------------------------------------------------------
--- Quick Sort algorithm taken from HBC's QSort library.
-
--- | The 'sort' function implements a stable sorting algorithm.
--- It is a special case of 'sortBy', which allows the programmer to supply
--- their own comparison function.
-sort :: (Ord a) => [a] -> [a]
-
--- | The 'sortBy' function is the non-overloaded version of 'sort'.
-sortBy :: (a -> a -> Ordering) -> [a] -> [a]
-
-#ifdef USE_REPORT_PRELUDE
-sort = sortBy compare
-sortBy cmp = foldr (insertBy cmp) []
-#else
-
-{-
-GHC's mergesort replaced by a better implementation, 24/12/2009.
-This code originally contributed to the nhc12 compiler by Thomas Nordin
-in 2002.  Rumoured to have been based on code by Lennart Augustsson, e.g.
-    http://www.mail-archive.com/haskell@haskell.org/msg01822.html
-and possibly to bear similarities to a 1982 paper by Richard O'Keefe:
-"A smooth applicative merge sort".
-
-Benchmarks show it to be often 2x the speed of the previous implementation.
-Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
--}
-
-sort = sortBy compare
-sortBy cmp = mergeAll . sequences
-  where
-    sequences (a:b:xs)
-      | a `cmp` b == GT = descending b [a]  xs
-      | otherwise       = ascending  b (a:) xs
-    sequences xs = [xs]
-
-    descending a as (b:bs)
-      | a `cmp` b == GT = descending b (a:as) bs
-    descending a as bs  = (a:as): sequences bs
-
-    ascending a as (b:bs)
-      | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs
-    ascending a as bs   = as [a]: sequences bs
-
-    mergeAll [x] = x
-    mergeAll xs  = mergeAll (mergePairs xs)
-
-    mergePairs (a:b:xs) = merge a b: mergePairs xs
-    mergePairs xs       = xs
-
-    merge as@(a:as') bs@(b:bs')
-      | a `cmp` b == GT = b:merge as  bs'
-      | otherwise       = a:merge as' bs
-    merge [] bs         = bs
-    merge as []         = as
 
 {-
 sortBy cmp l = mergesort cmp l
@@ -951,7 +894,6 @@ rqpart cmp x (y:ys) rle rgt r =
         GT -> rqpart cmp x ys rle (y:rgt) r
         _  -> rqpart cmp x ys (y:rle) rgt r
 
-#endif /* USE_REPORT_PRELUDE */
 
 -- | The 'unfoldr' function is a \`dual\' to 'foldr': while 'foldr'
 -- reduces a list to a summary value, 'unfoldr' builds a list from

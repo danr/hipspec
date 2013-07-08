@@ -39,7 +39,7 @@ data Err v
 ppErr :: (v -> Doc) -> (Typed v -> Doc) -> Err v -> Doc
 ppErr p pt err = case err of
     AlreadyBound v t1 t2 -> sep
-        [p v,"is bound as:",ppType 0 p t1,", but now as:",ppType 0 p t2]
+        [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
     BoundAsOtherType v t1 t2 -> sep
         [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
     ExprTypeDisagrees e t1 t2 -> sep
