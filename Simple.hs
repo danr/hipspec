@@ -23,7 +23,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
 -- Patterns are resued from the rich language
-import Rich (Pattern(..))
+import Rich (Pattern(..),anyRhs)
 import Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -67,17 +67,12 @@ apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
 
 bodyType :: Eq a => Body (Typed a) -> Type a
-bodyType (Case _ ((_,b):_)) = bodyType b
-bodyType Case{}             = error "Simple.body: no alts in case"
-bodyType (Body e)           = exprType e
+bodyType (Case _ alts) = bodyType (anyRhs "Simple.bodyType" alts)
+bodyType (Body e)      = exprType e
 
 exprType :: Eq a => Expr (Typed a) -> Type a
 exprType e0 = case e0 of
-    Var (_ ::: ty) ts ->
-        let (tvs,ty') = collectForalls ty
-        in  substManyTys (zip tvs (map forget ts)) ty'
-    App e1 _          -> case exprType e1 of
-                            ArrTy _ t2 -> t2
-                            _          -> error "Simple.exprType: not an arrow type!"
-    Lit _ (t ::: _)   -> TyCon t []
+    Var v ts        -> appliedVarType v ts
+    App e _         -> arrowResult "Simple.exprType" (exprType e)
+    Lit _ (t ::: _) -> TyCon t []
 

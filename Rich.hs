@@ -69,20 +69,19 @@ data Expr a
 
 exprType :: Eq a => Expr (Typed a) -> Type a
 exprType e0 = case e0 of
-    Var (_ ::: ty) ts ->
-        let (tvs,ty') = collectForalls ty
-        in  substManyTys (zip tvs (map forget ts)) ty'
-    App e _            -> case exprType e of
-                              ArrTy _ t -> t
-                              _         -> error "Rich.exprType: not a function type"
+    Var v ts           -> appliedVarType v ts
+    App e _            -> arrowResult "Rich.exprType" (exprType e)
     Lit _ (t ::: _)    -> TyCon t []
     String (t ::: _)   -> TyCon t []
     Lam (_ ::: t) e    -> ArrTy t (exprType e)
-    Case _ _ ((_,e):_) -> exprType e
-    Case{}             -> error "Rich.exprType: no alts in case"
+    Case _ _ alts      -> exprType (anyRhs "Rich.exprType" alts)
     Let _ e            -> exprType e
 
 type Alt a = (Pattern a,Expr a)
+
+anyRhs :: String -> [(b,a)] -> a
+anyRhs _ ((_,e):_) = e
+anyRhs s _         = error $ s ++ ": no alts in case"
 
 -- | Patterns in branches
 data Pattern a

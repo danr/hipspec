@@ -95,3 +95,12 @@ collectArrTy (ArrTy t1 t2) =
     in  (t1:ts,t)
 collectArrTy t = ([],t)
 
+appliedVarType :: Eq a => Typed a -> [Type (Typed a)] -> Type a
+appliedVarType (_ ::: t) ts =
+    let (tvs,t') = collectForalls t
+    in  substManyTys (zip tvs (map forget ts)) t'
+
+arrowResult :: String -> Type a -> Type a
+arrowResult _ (ArrTy _ t) = t
+arrowResult s _           = error $ s ++ ": not a function type"
+

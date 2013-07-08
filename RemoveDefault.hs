@@ -57,7 +57,6 @@
 -}
 module RemoveDefault where
 
-
 import CoreSyn
 import CoreUtils hiding (findAlt)
 import DataCon
