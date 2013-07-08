@@ -108,7 +108,7 @@ rtsExpr e0 = case e0 of
 
                 new_ty_vars = freeTyVars new_type_body \\ tvs
 
-                new_type = makeForalls (new_ty_vars ++ tvs) new_type
+                new_type = makeForalls (new_ty_vars ++ tvs) new_type_body
 
                 f' = f ::: new_type
 
