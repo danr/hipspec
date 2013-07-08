@@ -25,7 +25,9 @@ simpFun (Function f b) = Function f $ simpExpr $ case b of
     -- then we simply replace it to f = K[f]
     -- TODO: Polymorphic functions (find examples!)
     Let [Function g e] (Var g' [])
-        | not (isForallTy (typed_type g)), g == g' -> (Var f [] // g) e
+        | not (isForallTy (typed_type g))
+        , g == g' -> (Var f ts // g) e
+      where ts = map (star . TyVar) . fst . collectForalls . typed_type $ f
     _ -> b
 
 simpExpr :: Eq a => Expr (Typed a) -> Expr (Typed a)
