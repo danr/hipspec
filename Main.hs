@@ -25,6 +25,8 @@ import System.Environment
 
 import Text.PrettyPrint
 
+import System.IO
+
 getFlag :: Eq a => a -> [a] -> (Bool,[a])
 getFlag _   []  = (False,[])
 getFlag flg (x:xs)
@@ -70,7 +72,7 @@ main = do
         case trDefn v e of
             Right fn -> do
                 let put = putStrLn . render . PR.ppFun show_typed . fmap (fmap name)
-                    put_lint = putStrLn . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
+                    put_lint = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
                 put fn
                 put_lint fn
                 let fn' = simpFun fn
@@ -87,3 +89,6 @@ main = do
             Left err -> print err
         putStrLn ""
 
+newline :: String -> String
+newline "" = ""
+newline s  = s ++ "\n"
