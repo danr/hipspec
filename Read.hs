@@ -79,6 +79,7 @@ readBinds opt file = do
 
         binds <- ghcRunUniqSM $
 --            (runUQ . mapM (`uqBind` return) <=< removeDefaults)
+            removeDefaults
             (mg_binds modguts)
 
         return (fixUnfoldings binds)

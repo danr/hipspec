@@ -116,6 +116,31 @@ freeVars = go
     bf (Function u _) = u
     fb (Function _ b) = b
 
+letFree :: Expr a -> Bool
+letFree = go
+  where
+    go e0 = case e0 of
+        Var{}     -> True
+        Lit{}     -> True
+        String{}  -> True
+        App e1 e2 -> go e1 && go e2
+        Lam _ e   -> go e
+        Let{}     -> False
+        Case e _ alts -> go e && all (go . snd) alts
+
+-- | Conservative guess of number of occurences for a variable (might overapproximate)
+occurrences :: Eq a => a -> Expr a -> Int
+occurrences x = go
+  where
+    go e0 = case e0 of
+        Var y _ | x == y    -> 1
+                | otherwise -> 0
+        App e1 e2           -> go e1 + go e2
+        Lam _ e             -> go e
+        Case e _ alts       -> go e + sum (map (go . snd) alts)
+        Let fns e           -> go e + sum (map (go . fn_body) fns)
+        Lit{}               -> 0
+        String{}            -> 0
 
 -- | Does this variable occur in this expression?
 --   Used to see if a function is recursive

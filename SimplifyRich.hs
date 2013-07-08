@@ -39,8 +39,10 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
     -- Known case on a constructor
     Case e x alts
         | (Var u ts,args) <- collectArgs e
-        , Just (ConPat _ _ bs,rhs)  <- findAlt u ts alts
+        , Just (ConPat _ _ bs,rhs) <- findAlt u ts alts
         -> simpExpr (substMany ((x,e):zip bs args) rhs)
+
+    Case (Let fns e) x alts -> simpExpr (Let fns (Case e x alts))
 
     Case e x alts -> Case e x [ (p,simpExpr (removeScrutinee e x alt))
                               | alt@(p,_) <- alts
@@ -48,9 +50,14 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
+    -- Cannot inline this to several occasions if e contains a let
     Let [Function f b] e
         | not (isForallTy (typed_type f))
-        , not (f `occursIn` b) -> simpExpr ((b // f) e)
+        , not (f `occursIn` b)
+        , letFree b || occurrences f e <= 1 -> simpExpr ((b // f) e)
+
+
+    Let fns e -> Let (map simpFun fns) (simpExpr e)
 
     _ -> e0
 
