@@ -9,3 +9,7 @@ head Nil        = False
 head' :: [Bool] -> Bool
 head' (x:_) = x
 head' []    = False
+
+empty :: [a] -> Bool
+empty [] = False
+empty _  = True

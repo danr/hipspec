@@ -67,6 +67,9 @@ import "ghc" Type
 import Unique
 import UniqSupply
 import Id
+import DataConPattern
+
+import Utils
 
 import Control.Monad
 import Control.Applicative
@@ -84,7 +87,7 @@ rmdExpr e0 = case e0 of
     Lam x e         -> Lam x <$> rmdExpr e
     Let b e         -> Let <$> rmdBind b <*> rmdExpr e
     Case s t w alts -> Case <$> rmdExpr s <.> t <.> w
-                            <*> (mapM rmdAlt <=< unrollDefault) alts
+                            <*> (mapM rmdAlt <=< unrollDefault (exprType s)) alts
     Cast e c        -> Cast <$> rmdExpr e <.> c
     Tick t e        -> Tick t <$> rmdExpr e
 
@@ -100,8 +103,8 @@ infixl 4 <.>
 (<.>) :: Applicative f => f (a -> b) -> a -> f b
 f <.> x = f <*> pure x
 
-unrollDefault :: forall m . (Applicative m,MonadUnique m) => [CoreAlt] -> m [CoreAlt]
-unrollDefault alts0 = case findDefault alts0 of
+unrollDefault :: forall m . (Applicative m,MonadUnique m) => Type -> [CoreAlt] -> m [CoreAlt]
+unrollDefault t alts0 = case findDefault alts0 of
     (alts,Nothing)      -> return alts
     (alts,Just def_rhs) -> case alts of
         (DataAlt dc,_,_):_ -> unroll (dataConTyCon dc) alts def_rhs
@@ -113,8 +116,8 @@ unrollDefault alts0 = case findDefault alts0 of
   where
     unroll :: TyCon -> [CoreAlt] -> CoreExpr -> m [CoreAlt]
     unroll ty_con alts rhs = case tyConDataCons_maybe ty_con of
-        Just dcs -> forM dcs (\dc -> fromMaybeM (makeAlt rhs dc)
-                                                (findAlt alts dc))
+        Just dcs -> forM dcs $ \ dc ->
+            fromMaybeM (makeAlt t rhs dc) (findAlt alts dc)
         Nothing  -> error "RemoveDefault.unrollDefault: non-data TyCon?"
             -- This could be remedied by just returning alts here,
             -- but it would be interesting what this ty_con really is,
@@ -129,10 +132,14 @@ fromMaybeM :: (Applicative m,MonadUnique m) => Monad m => m a -> Maybe a -> m a
 fromMaybeM _ (Just x) = return x
 fromMaybeM m Nothing  = m
 
-makeAlt :: (Applicative m,MonadUnique m) => CoreExpr -> DataCon -> m CoreAlt
-makeAlt rhs dc = do
-    bound <- mapM (\ ty -> dummy_var ty <$> getUniqueM) (dataConRepArgTys dc)
-    return (DataAlt dc,bound,rhs)
+makeAlt :: (Applicative m,MonadUnique m) => Type -> CoreExpr -> DataCon -> m CoreAlt
+makeAlt t rhs dc = case dcAppliedTo t dc of
+    (_,Just s) -> do
+        bound <- mapM (\ ty -> dummy_var (substTy s ty) <$> getUniqueM) (dataConRepArgTys dc)
+        return (DataAlt dc,bound,rhs)
+    _ -> error $ "RemoveDefault.makeAlt unification error:"
+                 ++ "\n\t" ++ showOutputable t
+                 ++ "\n\t" ++ showOutputable dc
   where
     dummy_var :: Type -> Unique -> Var
     dummy_var ty u = mkSysLocal (fsLit "d") u ty

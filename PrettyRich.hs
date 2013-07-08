@@ -51,5 +51,5 @@ ppPat p pat = case pat of
     Default        -> "_"
     ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ]
                           <+> sep (map p bs)
-    LitPat i       -> integer i
+    LitPat i _     -> integer i
 

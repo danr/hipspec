@@ -20,9 +20,9 @@ import TyCon
 import "ghc" Type as C
 import GHC (dataConType)
 
-import IdInfo
+import DataConPattern
 
-import Unify
+import IdInfo
 
 import Utils (showOutputable)
 
@@ -46,7 +46,7 @@ data Err
     | CastExpr CoreExpr
     | Fail String
     | HigherRankType Var C.Type
-    | UnificationError C.Type C.Type [TyVar] DataCon CoreExpr (Maybe TvSubst)
+    | UnificationError C.Type [TyVar] DataCon CoreExpr (Maybe TvSubst)
 
 instance Show Err where
     show err = case err of
@@ -57,9 +57,8 @@ instance Show Err where
         CoercionExpr e          -> "Coercion expression: " ++ showOutputable e
         CastExpr e              -> "Cast expression: " ++ showOutputable e
         HigherRankType v t      -> showOutputable v ++ " has a higher-rank type: " ++ showOutputable t
-        UnificationError t1 t2 tvs dc e mu ->
-            "Unification error between " ++ showOutputable t1
-            ++ " and " ++ showOutputable t2
+        UnificationError t tvs dc e mu ->
+            "Unification error on " ++ showOutputable t
             ++ "\nWhen resolving type variables " ++ showOutputable tvs
             ++ " for constructor " ++ showOutputable dc ++
             (case mu of
@@ -146,10 +145,8 @@ trExpr e0 = case e0 of
 
                     mapM_ assertNotForAllTy bs
 
-                    let dc_tvs = dataConUnivTyVars dc
-                        res_ty = dataConOrigResTy dc
-                        mu = tcUnifyTys (const BindMe) [res_ty] [t]
-                        unif_err = UnificationError t res_ty dc_tvs dc e0
+                    let (dc_tvs,mu) = dcAppliedTo t dc
+                        unif_err    = UnificationError t dc_tvs dc e0
 
                     case mu of
                         Just u -> case mapM (lookupTyVar u) dc_tvs of
@@ -163,7 +160,13 @@ trExpr e0 = case e0 of
                             Nothing -> throwError (unif_err (Just u))
                         Nothing -> throwError (unif_err Nothing)
 
-                (LitAlt lit,[],rhs) -> (,) <$> (LitPat <$> trLit lit) <*> trExpr rhs
+                (LitAlt lit,[],rhs) -> do
+
+                    let TyCon v [] = t'
+                    lit' <- trLit lit
+                    rhs' <- trExpr rhs
+                    return (LitPat lit' (v ::: Star),rhs')
+
                 _                   -> fail "Default or LitAlt with variable bindings"
 
         R.Case e' (varName x ::: t') <$> mapM tr_alt alts

@@ -72,7 +72,9 @@ exprType e0 = case e0 of
     Var (_ ::: ty) ts ->
         let (tvs,ty') = collectForalls ty
         in  substManyTys (zip tvs (map forget ts)) ty'
-    App _ e2           -> exprType e2
+    App e _            -> case exprType e of
+                              ArrTy _ t -> t
+                              _         -> error "Rich.exprType: not a function type"
     Lit _ (t ::: _)    -> TyCon t []
     String (t ::: _)   -> TyCon t []
     Lam (_ ::: t) e    -> ArrTy t (exprType e)
@@ -90,7 +92,7 @@ data Pattern a
         , pat_ty_args :: [Type a]
         , pat_args    :: [a]
         }
-    | LitPat Integer
+    | LitPat Integer a
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 freeVars :: Eq a => Expr a -> [a]

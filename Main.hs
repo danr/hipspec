@@ -11,6 +11,9 @@ import PrettyRich as PR
 import PrettySimple as PS
 import PrettyType
 
+import LintRich
+import CoreLint
+
 import Type
 
 import Name
@@ -20,7 +23,7 @@ import CoreSyn
 import Control.Monad
 import System.Environment
 
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint
 
 getFlag :: Eq a => a -> [a] -> (Bool,[a])
 getFlag _   []  = (False,[])
@@ -60,14 +63,19 @@ main = do
             | show_types = parens (hang (text x <+> text "::") 2 (ppType 0 text t))
             | otherwise  = text x
 
+    coreLint cb
+
     forM_ (flattenBinds cb) $ \ (v,e) -> do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
                 let put = putStrLn . render . PR.ppFun show_typed . fmap (fmap name)
+                    put_lint = putStrLn . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
                 put fn
+                put_lint fn
                 let fn' = simpFun fn
                 put fn'
+                put_lint fn'
                 let simp_fns
                         = uncurry (:)
                         . runRTS

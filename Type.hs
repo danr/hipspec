@@ -3,7 +3,7 @@
 module Type where
 
 import Data.Generics.Geniplate
-import Data.List (nub,union)
+import Data.List (nub,union,elemIndex)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Function (on)
@@ -20,6 +20,21 @@ data Type a
     | Star
     -- ^ Not used seriously
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+eqType :: Eq a => Type a -> Type a -> Bool
+eqType = (==) `on` deBruijn
+
+deBruijn :: Eq a => Type a -> Type (Either Int a)
+deBruijn = go []
+  where
+    go g t0 = case t0 of
+        ArrTy e1 e2 -> ArrTy (go g e1) (go g e2)
+        TyCon a ts  -> TyCon (Right a) (map (go g) ts)
+        Star -> Star
+        TyVar x -> TyVar $ case elemIndex x g of
+            Just n  -> Left n
+            Nothing -> Right x
+        Forall x t -> go (x:g) t
 
 freeTyVars :: Eq a => Type a -> [a]
 freeTyVars = go
@@ -73,4 +88,10 @@ substManyTys xs t0 = foldr (\ (u,t) -> (t /// u)) t0 xs
 
 star :: Functor f => f a -> f (Typed a)
 star = fmap (::: Star)
+
+collectArrTy :: Type a -> ([Type a],Type a)
+collectArrTy (ArrTy t1 t2) =
+    let (ts,t) = collectArrTy t2
+    in  (t1:ts,t)
+collectArrTy t = ([],t)
 

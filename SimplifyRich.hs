@@ -58,8 +58,8 @@ removeScrutinee :: Eq a => Expr (Typed a) -> Typed a -> Alt (Typed a) -> Expr (T
 removeScrutinee e x (p,rhs) = subst rhs
   where
     subst_expr  = case p of
-        Default  -> e
-        LitPat l -> Lit l (error "lit pat type! :(")
+        Default        -> e
+        LitPat l v     -> Lit l v
         ConPat u ts bs -> apply (Var u ts) (map (`Var` []) bs)
 
     -- If the scrutinee is just a variable, we inline it too.
