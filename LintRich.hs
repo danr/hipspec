@@ -109,7 +109,9 @@ lintExpr e0 = chk_ret $ case e0 of
     Case e x@(_ ::: tx) alts -> do
         ts <- lintExpr e
         unless (ts `eqType` tx) (report (ScrutineeVarIllTyped e0 ts tx))
-        tys <- insertVar x $ mapM (lintAlt ts) alts
+        tys <- (if any (x `occursIn`) (map snd alts)
+                    then insertVar x
+                    else id) (mapM (lintAlt ts) alts)
         case tys of
             [] -> report (CaseWithoutAlts e0) >> return Star
             t:tys' -> do
