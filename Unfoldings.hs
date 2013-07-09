@@ -24,7 +24,7 @@ fixUnfoldings :: [CoreBind] -> [CoreBind]
 fixUnfoldings bs = map (idMap lkup) bs'
   where
     bs' :: [CoreBind]
-    bs' = (mapM (exprMap k) bs) lkup
+    bs' = mapM (exprMap k) bs lkup
 
     lkup :: Id -> Id
     lkup = fixId bs'

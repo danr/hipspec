@@ -69,8 +69,7 @@ insertVar (v ::: t) m = do
         Nothing -> local (M.insert v t) m
 
 insertVars :: Ord v => [Typed v] -> LintM v a -> LintM v a
-insertVars []     m = m
-insertVars (x:xs) m = insertVars xs (insertVar x m)
+insertVars xs m = foldr insertVar m xs
 
 lintVar :: Ord v => Typed v -> LintM v ()
 lintVar (v ::: t) = do

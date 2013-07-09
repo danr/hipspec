@@ -23,6 +23,8 @@ module PolyFOL where
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
 -- | Clauses.
 --
 -- The a type variable is used for many different identifiers:

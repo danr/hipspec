@@ -53,11 +53,11 @@ main = do
 
     let name :: Name -> String
         name nm = getOccString nm ++
-            if suppress_uniques then "" else "_" ++ showOutputable (getUnique nm)
+            if suppress_uniques then "" else '_':showOutputable (getUnique nm)
 
         name' :: Rename Name -> String
         name' (Old nm) = name nm
-        name' (New x)  = "_" ++ show x
+        name' (New x)  = '_':show x
 
         show_typed :: Typed String -> Doc
         show_typed (x ::: t)

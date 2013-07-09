@@ -35,8 +35,7 @@ insertVar x m = do
     local (M.insert x x') m
 
 insertVars :: (Applicative m,MonadUnique m) => [Var] -> UQ m a -> UQ m a
-insertVars []     m = m
-insertVars (x:xs) m = insertVar x (insertVars xs m)
+insertVars xs m = foldr insertVar m xs
 
 lookupVar :: (Applicative m,MonadUnique m) => Var -> UQ m Var
 lookupVar x = fromMaybe x <$> asks (M.lookup x)

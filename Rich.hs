@@ -188,7 +188,7 @@ collectBinders (Lam x e) =
 collectBinders e         = ([],e)
 
 findAlt :: Eq a => a -> [Type a] -> [Alt a] -> Maybe (Alt a)
-findAlt x ts alts = go alts
+findAlt x ts = go
   where
     go (alt@(ConPat x' ts' _,_):_)
         | x == x' && ts == ts' = Just alt
@@ -196,8 +196,7 @@ findAlt x ts alts = go alts
     go []     = Nothing
 
 makeLambda :: [a] -> Expr a -> Expr a
-makeLambda []     e = e
-makeLambda (x:xs) e = Lam x (makeLambda xs e)
+makeLambda xs e = foldr Lam e xs
 
 findDefault :: [Alt a] -> Maybe (Alt a)
 findDefault alts = case alts  of

@@ -23,6 +23,8 @@ import Data.List
 import Control.Monad
 import Control.Applicative
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
 data Optimise = Optimise | Don'tOptimise
 
 readBinds :: Optimise -> FilePath -> IO [CoreBind]
@@ -62,7 +64,7 @@ readBinds opt file = do
                                || ms_mod_name m == mkModuleName "Main"
                                || ml_hs_file (ms_location m) == Just file')
                            mod_graph
-              where replace a b xs = map (\ x -> if x == a then b else x) xs
+              where replace a b = map (\ x -> if x == a then b else x)
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum

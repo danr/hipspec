@@ -8,6 +8,8 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Function (on)
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
 -- | Types
 --
 --   No higher-kinded type variables.
