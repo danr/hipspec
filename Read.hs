@@ -15,7 +15,7 @@ import SimplCore
 
 import Unfoldings
 import RemoveDefault
--- import Uniquify
+import Uniquify
 
 import Data.Maybe
 import Data.List
@@ -78,8 +78,7 @@ readBinds opt file = do
             Don'tOptimise -> return (dm_core_module d)
 
         binds <- ghcRunUniqSM $
---            (runUQ . mapM (`uqBind` return) <=< removeDefaults)
-            removeDefaults
+            (runUQ . mapM (`uqBind` return) <=< removeDefaults)
             (mg_binds modguts)
 
         return (fixUnfoldings binds)

@@ -60,10 +60,11 @@ data Expr a
     --   The a is the type constructor
     | Lam a (Expr a)
     -- ^ Lam x t e t' means x :: t, and e :: t', i.e. the expression has type t -> t'
-    | Case (Expr a) a [Alt a]
+    | Case (Expr a) (Maybe a) [Alt a]
     -- ^ Scrutinee expression, variable it is saved to, the branches' types, and the branches
     --   This variable is mainly useful in Default branches
-    --   It does not exist in the simple language.
+    --   It does not exist in the simple language, and
+    --   it is sometimes inlined and then replaced with Nothing.
     | Let [Function a] (Expr a)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
@@ -106,7 +107,7 @@ freeVars = go
         Lit{}         -> []
         String{}      -> []
         Lam u e       -> rm u (go e)
-        Case e u alts -> go e `union` rm u (concatMap go' alts)
+        Case e u alts -> go e `union` maybe id rm u (concatMap go' alts)
         Let fns e     -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
 
     go' (ConPat _ _ bs,rhs) = rms bs (go rhs)
@@ -203,5 +204,4 @@ findDefault alts = case alts  of
     alt@(Default,_):_ -> Just alt
     _:xs              -> findDefault xs
     []                -> Nothing
-
 

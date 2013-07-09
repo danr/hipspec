@@ -106,12 +106,13 @@ lintExpr e0 = chk_ret $ case e0 of
     Lit _ (t ::: _) -> return (TyCon t [])
     String (t ::: _) -> return (TyCon t [])
     Lam x@(_ ::: t) e -> insertVar x (ArrTy t <$> lintExpr e)
-    Case e x@(_ ::: tx) alts -> do
+    Case e mx {- @(_ ::: tx) -} alts -> do
         ts <- lintExpr e
-        unless (ts `eqType` tx) (report (ScrutineeVarIllTyped e0 ts tx))
-        tys <- (if any (x `occursIn`) (map snd alts)
-                    then insertVar x
-                    else id) (mapM (lintAlt ts) alts)
+        case mx of
+            Just (_ ::: tx) | not (ts `eqType` tx)
+                -> report (ScrutineeVarIllTyped e0 ts tx)
+            _ -> return ()
+        tys <- maybe id insertVar mx (mapM (lintAlt ts) alts)
         case tys of
             [] -> report (CaseWithoutAlts e0) >> return Star
             t:tys' -> do

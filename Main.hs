@@ -7,15 +7,13 @@ import CoreToRich
 import SimplifyRich
 import RichToSimple
 
-import PrettyRich as PR
-import PrettySimple as PS
+import PrettyRich
 import PrettyType
 
-import LintRich as LR
-import LintSimple as LS
-import CoreLint
+import Simple
 
-import Type
+import LintRich
+import CoreLint
 
 import Name
 import Unique
@@ -72,9 +70,9 @@ main = do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put = putStrLn . render . PR.ppFun show_typed . fmap (fmap name)
-                    put_rlint = hPutStr stderr . newline . render . vcat . map (LR.ppErr text show_typed . fmap name) . LR.lint . LR.lintFns . (:[])
-                    put_slint = hPutStr stderr . newline . render . vcat . map (LS.ppErr text show_typed . fmap name') . LS.lint . LS.lintFns
+                let put = putStrLn . render . ppFun show_typed . fmap (fmap name)
+                    put_rlint = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
+                    put_slint = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name') . lint . lintFns . map injectFn
                 put fn
                 put_rlint fn
                 let fn' = simpFun fn
@@ -86,7 +84,7 @@ main = do
                         . rtsFun
                         . fmap (fmap Old)
                         $ fn'
-                    put' = putStrLn . render . PS.ppFun show_typed . fmap (fmap name')
+                    put' = putStrLn . render . ppFun show_typed . injectFn . fmap (fmap name')
                 mapM_ put' simp_fns
                 put_slint simp_fns
             Left err -> print err

@@ -169,7 +169,7 @@ trExpr e0 = case e0 of
 
                 _                   -> fail "Default or LitAlt with variable bindings"
 
-        R.Case e' (varName x ::: t') <$> mapM tr_alt alts
+        R.Case e' (Just (varName x ::: t')) <$> mapM tr_alt alts
 
     C.Tick _ e -> trExpr e
     C.Type{} -> throwError (TypeExpr e0)

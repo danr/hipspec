@@ -3,7 +3,6 @@ module DataConPattern where
 
 import DataCon
 import Var
-import TyCon
 import "ghc" Type
 
 import Unify

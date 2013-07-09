@@ -33,7 +33,7 @@ ppExpr i p e0 = case e0 of
             pp_args     = map p args
         in  hang ("\\" <+> sep pp_args <+> "->") 2 pp_body
     Case e x alts -> parensIf (i > 0) $
-        hang ("case" <+> ppExpr 0 p e <+> "of" <+> p x <+> "{") 2
+        hang ("case" <+> ppExpr 0 p e <+> "of" <+> maybe empty p x <+> "{") 2
              (vcat (punctuate ";" (map (ppAlt p) alts))) !$ "}"
       where
         (!$) | length alts == 1 = (<+>)

@@ -17,6 +17,9 @@ module Simple
     , exprType
     , module Rich
     , module Type
+    , injectFn
+    , injectBody
+    , injectExpr
     ) where
 
 import Data.Foldable (Foldable)
@@ -24,6 +27,7 @@ import Data.Traversable (Traversable)
 
 -- Patterns are resued from the rich language
 import Rich (Pattern(..),anyRhs)
+import qualified Rich as R
 import Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -67,12 +71,25 @@ apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
 
 bodyType :: Eq a => Body (Typed a) -> Type a
-bodyType (Case _ alts) = bodyType (anyRhs "Simple.bodyType" alts)
-bodyType (Body e)      = exprType e
+bodyType = R.exprType . injectBody
 
 exprType :: Eq a => Expr (Typed a) -> Type a
-exprType e0 = case e0 of
-    Var v ts        -> appliedVarType v ts
-    App e _         -> arrowResult "Simple.exprType" (exprType e)
-    Lit _ (t ::: _) -> TyCon t []
+exprType = R.exprType . injectExpr
+
+-- * Injectors to the Rich language (for pretty-printing, linting)
+
+injectFn :: Function a -> R.Function a
+injectFn (Function f as b) = R.Function f (R.makeLambda as (injectBody b))
+
+injectBody :: Body a -> R.Expr a
+injectBody b0 = case b0 of
+    Case e alts -> R.Case (injectExpr e) Nothing
+                          [ (p,injectBody b) | (p,b) <- alts ]
+    Body e      -> injectExpr e
+
+injectExpr :: Expr a -> R.Expr a
+injectExpr e0 = case e0 of
+    Var x ts  -> R.Var x ts
+    App e1 e2 -> R.App (injectExpr e1) (injectExpr e2)
+    Lit l tc  -> R.Lit l tc
 

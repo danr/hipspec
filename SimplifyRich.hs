@@ -37,16 +37,17 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
     App (Lam x body) arg -> simpExpr ((arg // x) body)
 
     -- Known case on a constructor
-    Case e x alts
+    Case e mx alts
         | (Var u ts,args) <- collectArgs e
         , Just (ConPat _ _ bs,rhs) <- findAlt u ts alts
-        -> simpExpr (substMany ((x,e):zip bs args) rhs)
+        -> simpExpr (substMany (maybe id (\ x -> ((x,e):)) mx (zip bs args)) rhs)
 
     Case (Let fns e) x alts -> simpExpr (Let fns (Case e x alts))
 
-    Case e x alts -> Case e x [ (p,simpExpr (removeScrutinee e x alt))
-                              | alt@(p,_) <- alts
-                              ]
+    Case e x alts -> Case e Nothing
+                            [ (p,simpExpr (removeScrutinee e x alt))
+                            | alt@(p,_) <- alts
+                            ]
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
@@ -63,8 +64,8 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
 
 -- | Removes the scrutinee variable (and also the expression if it is a variable),
 --   by inlining the pattern or the expression again (if it is a Default alt)
-removeScrutinee :: Eq a => Expr (Typed a) -> Typed a -> Alt (Typed a) -> Expr (Typed a)
-removeScrutinee e x (p,rhs) = subst rhs
+removeScrutinee :: Eq a => Expr (Typed a) -> Maybe (Typed a) -> Alt (Typed a) -> Expr (Typed a)
+removeScrutinee e mx (p,rhs) = subst rhs
   where
     subst_expr  = case p of
         Default        -> e
@@ -73,7 +74,7 @@ removeScrutinee e x (p,rhs) = subst rhs
 
     -- If the scrutinee is just a variable, we inline it too.
     -- This can lead to triggering many known case.
-    subst = substMany . (`zip` repeat subst_expr) . (x:) $ case e of
+    subst = substMany . (`zip` repeat subst_expr) . maybe id (:) mx $ case e of
         Var u [] -> [u]   -- The variable can only be locally bound by lambda
                           -- or case and thus is not applied to type args.
         _        -> []
