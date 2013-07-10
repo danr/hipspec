@@ -13,6 +13,7 @@ import PrettyType
 
 import Simple as S
 import qualified FunctionalFO as FO
+import qualified PrettyFO as FO
 
 import SimpleToFO as FO
 import Deappify
@@ -82,6 +83,11 @@ main = do
             | show_types = parens (hang (text x <+> text "::") 2 (ppType 0 text t))
             | otherwise  = text x
 
+        show_fo_typed :: FO.FOTyped String -> Doc
+        show_fo_typed (x FO.::: t)
+            | show_types = parens (hang (text x <+> text "::") 2 (FO.ppFOType text t))
+            | otherwise  = text x
+
     coreLint cb
 
     arities <- newIORef M.empty
@@ -113,7 +119,7 @@ main = do
 
                 let fo_fns :: [FO.Function (FO.FOTyped (FOName (Rename Name)))]
                     fo_fns = map stfFun simp_fns
-                    put'' = putStrLn . render . ppFun (show_typed . FO.toTyped) . FO.injectFn . fmap (fmap foname)
+                    put'' = putStrLn . render . FO.ppFun (show_fo_typed . fmap foname)
                 mapM_ put'' fo_fns
                 put_folint fo_fns
 
