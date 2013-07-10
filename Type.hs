@@ -50,7 +50,7 @@ freeTyVars = go
 
 data Typed a = (:::)
     { forget_type :: a
-    , typed_type :: Type a
+    , typed_type  :: Type a
     }
   deriving (Show,Functor,Foldable,Traversable)
 
@@ -65,6 +65,9 @@ instance Ord a => Ord (Typed a) where
 
 makeForalls :: [a] -> Type a -> Type a
 makeForalls xs t = foldr Forall t xs
+
+makeArrows :: [Type a] -> Type a -> Type a
+makeArrows xs t = foldr ArrTy t xs
 
 collectForalls :: Type a -> ([a],Type a)
 collectForalls (Forall x t) =
