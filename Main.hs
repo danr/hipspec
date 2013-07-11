@@ -14,6 +14,7 @@ import RichToSimple
 
 import PrettyRich
 import PrettyUtils
+import PrettyPolyFOL
 
 import Simple as S
 import qualified FunctionalFO as FO
@@ -21,6 +22,8 @@ import qualified PrettyFO as FO
 
 import SimpleToFO as FO
 import Deappify
+
+import qualified ToPolyFOL as P
 
 import LintRich
 import CoreLint
@@ -87,6 +90,12 @@ main = do
             FO.X       -> "x"
             FO.Y       -> "y"
 
+        polyname :: P.Poly (FO.FOName (Rename Name)) -> String
+        polyname x0 = case x0 of
+            P.Id x     -> foname x
+            P.TyFn     -> "fn"
+            P.Proj x i -> "proj_" ++ show i ++ "_" ++ foname x
+
         mk_kit :: (a -> (Doc,Doc)) -> Kit a
         mk_kit lr
             | show_all_types = (snd . lr,snd . lr)
@@ -119,6 +128,7 @@ main = do
                     put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
                     put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
                     put_fo   = put . FO.ppFun (mk_kit show_fo_typed) . fmap (fmap foname)
+                    put_poly = put . vcat . map (ppClause text . fmap polyname)
 
                     put_lints n p = putErr . newline . render . vcat
                                   . map (ppErr text . fmap n) . lint . lintFns . p
@@ -131,12 +141,12 @@ main = do
                 put_rich fn
                 put_rlint fn
 
-                let fn' = simpFun fn
-
                 pass "Rich, simplified"
+                let fn' = simpFun fn
                 put_rich fn'
                 put_rlint fn'
 
+                pass "Simple"
                 let simp_fns :: [S.Function (Typed (Rename Name))]
                     simp_fns
                         = uncurry (:)
@@ -145,14 +155,13 @@ main = do
                         . fmap (fmap Old)
                         $ fn'
 
-                pass "Simple"
                 mapM_ put_simp simp_fns
                 put_slint simp_fns
 
+                pass "First-order functional"
                 let fo_fns :: [FO.Function (FO.Var (Rename Name))]
                     fo_fns = map stfFun simp_fns
 
-                pass "First-order functional"
                 mapM_ put_fo fo_fns
                 put_folint fo_fns
 
@@ -163,12 +172,19 @@ main = do
                     | FO.Function{..} <- fo_fns
                     ]
 
-                lkup <- fmap (flip M.lookup) (readIORef arities)
-                let fo_fns_zapped = mapM zapFn fo_fns lkup
 
                 pass "First-order functional, deappified"
+                lkup <- fmap (flip M.lookup) (readIORef arities)
+                let fo_fns_zapped = mapM zapFn fo_fns lkup
                 mapM_ put_fo fo_fns_zapped
                 put_folint fo_fns_zapped
+
+
+                pass "Polymorphic FOL"
+                let cls = concatMap P.trFun fo_fns_zapped
+
+                put_poly cls
+
                 return ()
             Left err -> putErr (showOutputable v ++ ": " ++ show err ++ "\n")
         putStrLn ""

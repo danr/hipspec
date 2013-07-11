@@ -35,14 +35,15 @@ import Data.Traversable (Traversable)
 data Clause a
     = SortSig
         { sig_id    :: a
+        -- ^ Symbol this signature is for
         , sort_args :: Int
         -- ^ Number of kind arguments, see Note [Simple Kinded Sorts]
         }
     | TypeSig
-        { ty_vars :: [a]
+        { sig_id :: a
+        -- ^ Symbol this signature is for
+        , ty_vars :: [a]
         -- ^ Type variables
-        , sig_id :: a
-        -- ^ Signature for this identifier
         , sig_args :: [Type a]
         -- ^ Types of the arguments
         , sig_res :: Type a
@@ -75,6 +76,7 @@ data ClType
 data Type a
     = TyCon a [Type a]
     | TyVar a
+    | Type
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Term operations
@@ -98,21 +100,46 @@ data Formula a
     -- ^ Negation
     | Q Q a (Type a) (Formula a)
     -- ^ Quantification
-    | Pred a [Term a]
+    | Pred a [Formula a]
     -- ^ Predication
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
+collectFOp :: Formula a -> Maybe (FOp,[Formula a])
+collectFOp f0@(FOp op _ _) = Just (op,go f0)
+  where
+    go (FOp op' f1 f2) | op == op' = go f1 ++ go f2
+    go f = [f]
+collectFOp _              = Nothing
+
+collectQ :: Formula a -> Maybe (Q,([(a,Type a)],Formula a))
+collectQ f0@(Q q _ _ _) = Just (q,go f0)
+  where
+    go (Q q' x t f) | q == q' = let (xs,f') = go f
+                                in  ((x,t):xs,f')
+    go f = ([],f)
+collectQ _             = Nothing
+
 -- * Builders
+
+infix 3 ===, =/=
 
 (===),(=/=) :: Term a -> Term a -> Formula a
 (===) = TOp Equal
 (=/=) = TOp Unequal
+
+infixr 2 /\
+infixr 1 \/
+infixr 0 ==>, ===>, <=>
 
 (/\),(\/),(==>),(<=>) :: Formula a -> Formula a -> Formula a
 (/\)  = FOp And
 (\/)  = FOp Or
 (==>) = FOp Implies
 (<=>) = FOp Equiv
+
+(===>) :: [Formula a] -> Formula a -> Formula a
+[] ===> psi = psi
+xs ===> psi = foldr1 (/\) xs ==> psi
 
 forAll,exists :: a -> Type a -> Formula a -> Formula a
 forAll = Q Forall
@@ -123,9 +150,22 @@ forAlls,existss :: [(a,Type a)] -> Formula a -> Formula a
 
 -- | Terms.
 data Term a
-    = Fun a [Term a]
+    = Apply a [Type a] [Term a]
+    -- ^ Symbol applied to arguments (can be empty)
     | Var a
+    -- ^ Quantified variable
+    | Lit Integer
+    -- ^ An integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+(//) :: Eq a => Term a -> a -> Term a -> Term a
+tm // x = go
+  where
+    go tm0 = case tm0 of
+        Apply f ts as     -> Apply f ts (map go as)
+        Var y | x == y    -> tm
+              | otherwise -> tm0
+        Lit{}             -> tm0
 
 {-
 
