@@ -45,15 +45,14 @@ ppAlt k (pat,rhs) = hang (ppPat k pat <+> "->") 2 (ppExpr 0 k rhs)
 ppPat :: Kit a -> Pattern a -> Doc
 ppPat (p,q) pat = case pat of
     Default        -> "_"
-    ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ]
-                          <+> sep (map q bs)
+    ConPat c ts bs -> hang (p c) 2 (sep ([ "@" <+> ppType 1 p t | t <- ts ] ++ map q bs))
     LitPat i _     -> integer i
 
 ppType :: Int -> (a -> Doc) -> Type a -> Doc
 ppType i p t0 = case t0 of
     TyVar x     -> p x
-    ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 p t1 <+> "->" <+> ppType 0 p t2
-    TyCon tc ts -> p tc <+> sep (map (ppType 1 p) ts)
+    ArrTy t1 t2 -> parensIf (i > 0) $ hang (ppType 1 p t1 <+> "->") 2 (ppType 0 p t2)
+    TyCon tc ts -> hang (p tc) 2 (sep (map (ppType 1 p) ts))
     Star        -> "*"
     Forall{}    -> parensIf (i > 0) $
         let (tvs,t) = collectForalls t0

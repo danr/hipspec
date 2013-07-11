@@ -4,6 +4,8 @@ module Main where
 import Read
 import Utils
 
+import Data.Char
+
 import CoreToRich
 import SimplifyRich
 import RichToSimple
@@ -52,13 +54,15 @@ main :: IO ()
 main = do
     args <- getArgs
 
-    let (opt,(suppress_uniques,(show_types,file))) = ($ args) $
-            getFlag' "-O" $
-            getFlag' "-s" $
-            getFlag' "-t" $ \ args' ->
-                case args' of
-                    [f] -> f
-                    _   -> error "Usage: FILENAME [-O] [-s] [-t]"
+    let (opt,(suppress_uniques,(show_types,(show_all_types,file)))) = ($ args) $
+            getFlag' "-O" $  -- run core2core optimisation
+            getFlag' "-s" $  -- suppress writing uniques
+            getFlag' "-t" $  -- show types on binding variables
+            getFlag' "-T" $  -- show all types
+                \ args' ->
+                    case args' of
+                        [f] -> f
+                        _   -> error "Usage: FILENAME [-O] [-s] [-t] [-T]"
 
     cb <- readBinds (if opt then Optimise else Don'tOptimise) file
 
@@ -78,35 +82,49 @@ main = do
             FO.X       -> "x"
             FO.Y       -> "y"
 
-        kit :: (a -> (Doc,Doc)) -> Kit a
-        kit lr = (fst . lr,snd . lr)
+        mk_kit :: (a -> (Doc,Doc)) -> Kit a
+        mk_kit lr
+            | show_all_types = (snd . lr,snd . lr)
+            | show_types     = (fst . lr,snd . lr)
+            | otherwise      = (fst . lr,fst . lr)
 
         show_typed :: Typed String -> (Doc,Doc)
-        show_typed xt@(x ::: _)
-            | show_types = (text x,parens (ppTyped text xt))
-            | otherwise  = (text x,text x)
+        show_typed xt@(x ::: _) = (text x,parens (ppTyped text xt))
 
         show_fo_typed :: FO.FOTyped String -> (Doc,Doc)
-        show_fo_typed xt@(x FO.::: _)
-            | show_types = (text x,parens (FO.ppFOTyped text xt))
-            | otherwise  = (text x,text x)
+        show_fo_typed xt@(x FO.::: _) = (text x,parens (FO.ppFOTyped text xt))
+
+    let pass = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
 
     coreLint cb
 
     arities <- newIORef M.empty
 
     forM_ (flattenBinds cb) $ \ (v,e) -> do
+        pass "GHC Core"
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put = putStrLn . render . ppFun (kit show_typed) . fmap (fmap name)
-                    put_rlint  = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap name) . lint . lintFns . (:[])
-                    put_slint  = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap name') . lint . lintFns . map injectFn
-                    put_folint = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap foname) . lint . lintFns . map (fmap FO.toTyped . FO.injectFn)
-                put fn
+                let put      = putStrLn . render
+                    put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
+                    put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
+                    put_fo   = put . FO.ppFun (mk_kit show_fo_typed) . fmap (fmap foname)
+
+                    put_lints n p = hPutStr stderr . newline . render . vcat
+                                  . map (ppErr text . fmap n) . lint . lintFns . p
+
+                    put_rlint  = put_lints name (:[])
+                    put_slint  = put_lints name' (map injectFn)
+                    put_folint = put_lints foname (map (fmap FO.toTyped . FO.injectFn))
+
+                pass "Rich"
+                put_rich fn
                 put_rlint fn
+
                 let fn' = simpFun fn
-                put fn'
+
+                pass "Rich, simplified"
+                put_rich fn'
                 put_rlint fn'
 
                 let simp_fns :: [S.Function (Typed (Rename Name))]
@@ -116,14 +134,16 @@ main = do
                         . rtsFun
                         . fmap (fmap Old)
                         $ fn'
-                    put' = putStrLn . render . ppFun (kit show_typed) . injectFn . fmap (fmap name')
-                mapM_ put' simp_fns
+
+                pass "Simple"
+                mapM_ put_simp simp_fns
                 put_slint simp_fns
 
                 let fo_fns :: [FO.Function (FO.Var (Rename Name))]
                     fo_fns = map stfFun simp_fns
-                    put'' = putStrLn . render . FO.ppFun (kit show_fo_typed) . fmap (fmap foname)
-                mapM_ put'' fo_fns
+
+                pass "First-order functional"
+                mapM_ put_fo fo_fns
                 put_folint fo_fns
 
                 modifyIORef arities $ M.union $ M.fromList $ catMaybes
@@ -136,7 +156,8 @@ main = do
                 lkup <- fmap (flip M.lookup) (readIORef arities)
                 let fo_fns_zapped = mapM zapFn fo_fns lkup
 
-                mapM_ put'' fo_fns_zapped
+                pass "First-order functional, deappified"
+                mapM_ put_fo fo_fns_zapped
                 put_folint fo_fns_zapped
                 return ()
             Left err -> print err

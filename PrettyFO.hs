@@ -52,15 +52,15 @@ ppFOType p (FOType tvs args res) = pp_forall $ pp_args $ pp_res
 
     pp_args = case args of
         [] -> id
-        _  -> \ r -> csv (map (ppType p) args) <+> "->" <+> r
+        _  -> \ r -> hang (csv (map (ppType p) args) <+> "->") 2 r
 
     pp_res = ppType p res
 
 ppType :: (a -> Doc) -> Type a -> Doc
 ppType p t0 = case t0 of
     TyVar x     -> p x
-    ArrTy t1 t2 -> "Fn" <+> csv (map (ppType p) [t1,t2])
-    TyCon tc ts -> p tc <+> csv (map (ppType p) ts)
+    ArrTy t1 t2 -> hang "Fn" 2 (csv (map (ppType p) [t1,t2]))
+    TyCon tc ts -> hang (p tc) 2 (csv (map (ppType p) ts))
     Star        -> "*"
     Forall{}    -> error "PrettyFO.ppType: forall in inner FO"
 
