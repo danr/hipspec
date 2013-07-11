@@ -101,7 +101,7 @@ module DataList
 
    , stripPrefix       -- :: Eq a => [a] -> [a] -> Maybe [a]
 
-   , group             -- :: Eq a => [a] -> [[a]]
+--   , group             -- :: Eq a => [a] -> [[a]]
 
    , inits             -- :: [a] -> [[a]]
    , tails             -- :: [a] -> [[a]]
@@ -183,7 +183,8 @@ module DataList
    , deleteFirstsBy    -- :: (a -> a -> Bool) -> [a] -> [a] -> [a]
    , unionBy           -- :: (a -> a -> Bool) -> [a] -> [a] -> [a]
    , intersectBy       -- :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-   , groupBy           -- :: (a -> a -> Bool) -> [a] -> [[a]]
+
+--   , groupBy           -- :: (a -> a -> Bool) -> [a] -> [[a]]
 
    -- *** User-supplied comparison (replacing an @Ord@ context)
    -- | The function is assumed to define a total ordering.
@@ -728,6 +729,22 @@ deleteFirstsBy eq       =  foldl (flip (deleteBy eq))
 --
 -- It is a special case of 'groupBy', which allows the programmer to supply
 -- their own equality test.
+
+{-
+
+    With optimisation, this yields an unboxed tuple:
+
+        ds_dSk =
+          case GHC.List.$wspan @ a (ds_dSh x) xs of _ {
+                (# ww_i1lU, ww_i1lV #) -> (ww_i1lU, ww_i1lV)
+            }
+
+    Which causes the unifier to crash, so this is commented away for now.
+
+-}
+
+{-
+
 group                   :: Eq a => [a] -> [[a]]
 group                   =  groupBy (==)
 
@@ -736,6 +753,8 @@ groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy _  []           =  []
 groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
                            where (ys,zs) = span (eq x) xs
+
+-}
 
 -- | The 'inits' function returns all initial segments of the argument,
 -- shortest first.  For example,

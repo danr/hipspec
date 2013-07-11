@@ -26,6 +26,8 @@ import IdInfo
 
 import Utils (showOutputable)
 
+import TyAppBeta
+
 -- | The binders in our translated expressions.
 --
 --   We cannot use 'Var'/'Id' because 'TyCon's do not have them,
@@ -77,12 +79,13 @@ trDefn v e = do
     ty' <- trType ty
     let (tvs',body) = collectTyBinders e
     when (tvs /= tvs') (fail "Type variables do not match in type and lambda!")
-    body' <- trExpr body
+    body' <- trExpr (tyAppBeta body)
     let tvs_named = map tyVarName tvs
     return Function
         { fn_name    = varName v ::: makeForalls tvs_named ty'
         , fn_body    = body'
         }
+
 
 -- | Translating expressions
 --
@@ -115,7 +118,9 @@ trExpr e0 = case e0 of
                 t' <- star <$> trType t
                 return (R.Var x (ts ++ [t']))
             _ -> throwError (TypeApplicationToExpr e0)
+
     C.App e1 e2 -> R.App <$> trExpr e1 <*> trExpr e2
+
     C.Lam x e -> do
         assertNotForAllTy x
         t <- trType (varType x)
@@ -184,6 +189,7 @@ trExpr e0 = case e0 of
         case t of
             TyCon x [] -> return x
             _          -> fail "Literal is not of a type constructor type!"
+
 
 -- | Translate literals. For now, the only supported literal are integers
 trLit :: Literal -> TM Integer

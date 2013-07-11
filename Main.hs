@@ -94,7 +94,8 @@ main = do
         show_fo_typed :: FO.FOTyped String -> (Doc,Doc)
         show_fo_typed xt@(x FO.::: _) = (text x,parens (FO.ppFOTyped text xt))
 
-    let pass = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
+    let pass  = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
+        putErr = hPutStr stderr
 
     coreLint cb
 
@@ -110,7 +111,7 @@ main = do
                     put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
                     put_fo   = put . FO.ppFun (mk_kit show_fo_typed) . fmap (fmap foname)
 
-                    put_lints n p = hPutStr stderr . newline . render . vcat
+                    put_lints n p = putErr . newline . render . vcat
                                   . map (ppErr text . fmap n) . lint . lintFns . p
 
                     put_rlint  = put_lints name (:[])
@@ -160,7 +161,7 @@ main = do
                 mapM_ put_fo fo_fns_zapped
                 put_folint fo_fns_zapped
                 return ()
-            Left err -> print err
+            Left err -> putErr (showOutputable v ++ ": " ++ show err ++ "\n")
         putStrLn ""
 
 newline :: String -> String
