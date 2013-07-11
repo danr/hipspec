@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
+import FreeTyCons
+
 import Read
 import Utils
 
@@ -26,6 +28,9 @@ import CoreLint
 import Name
 import Unique
 import CoreSyn
+
+import TyCon
+import DataCon
 
 import Control.Monad
 import System.Environment
@@ -99,7 +104,11 @@ main = do
 
     coreLint cb
 
-    arities <- newIORef M.empty
+    arities <- newIORef $ M.fromList
+        [ (Old (dataConName dc),dataConRepArity dc)
+        | tc <- bindsTyCons cb
+        , dc <- tyConDataCons tc
+        ]
 
     forM_ (flattenBinds cb) $ \ (v,e) -> do
         pass "GHC Core"

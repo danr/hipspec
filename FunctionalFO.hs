@@ -49,9 +49,9 @@ data FOTyped a = (:::)
   deriving (Show,Functor,Foldable,Traversable)
 
 data FOType a = FOType
-    [a]      -- ^ Type variables
-    [Type a] -- ^ Argument types
-    (Type a) -- ^ Result type
+    [a]      -- Type variables
+    [Type a] -- Argument types
+    (Type a) -- Result type
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 instance Eq a => Eq (FOTyped a) where
@@ -76,13 +76,7 @@ toType (FOType tvs as r) = makeForalls tvs (makeArrows as r)
 toTyped :: FOTyped a -> Typed a
 toTyped (v ::: t) = v T.::: toType t
 
-bodyType :: Eq a => Body (FOTyped a) -> Type a
-bodyType = R.exprType . fmap toTyped . injectBody
-
-exprType :: Eq a => Expr (FOTyped a) -> Type a
-exprType = R.exprType . fmap toTyped . injectExpr
-
--- * Injectors to the Rich language (for pretty-printing, linting)
+-- * Injectors to the Rich language (for linting)
 
 injectFn :: Function a -> R.Function a
 injectFn (Function f as b) = R.Function f (R.makeLambda as (injectBody b))
