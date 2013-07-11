@@ -46,27 +46,24 @@ trFun (fmap (fmap Id) -> Function (f ::: FOType tvs args_tys res_ty) args body) 
         cls <- map (Clause Nothing Axiom tvs) <$> trBody body
         let ty_cl = TypeSig f tvs (map trType args_tys) (trType res_ty)
         return (ty_cl:cls)
-  where
-    tvs' = [ (tv,Type) | tv <- tvs ]
 
 trBody :: Ord v => Body (FOTyped (Poly v)) -> TrM v [Formula (Poly v)]
 trBody b0 = case b0 of
     Case e alts0 -> do
-        {-
-        scope <- getScope
-        case e of
-            Apply x [] [] | x `elem` scope -> do
-                ...
-        -}
         let (m_def,alts) = partitionAlts alts0
         lhs <- trExpr e
+        dres <- case m_def of
+            Nothing -> return []
+            Just b  -> foldr insertConstraint
+                (trBody b) [ lhs =/= P.Lit i | (p,_) <- alts, let LitPat i _ = p ]
         res <- forM alts $ \ (p,b) -> case p of
             LitPat i _ -> insertConstraint (lhs === P.Lit i) (trBody b)
             ConPat c tys args -> extendScope args $ do
                 let var x = FO.Apply x [] []
                 rhs <- trExpr (FO.Apply c tys (map var args))
                 insertConstraint (lhs === rhs) (trBody b)
-        return (concat res)
+            Default -> error "ToPolyFOL.trBody: duplicate Defaults"
+        return (dres ++ concat res)
     Body e -> do
         lhs <- trLhs
         rhs <- trExpr e
@@ -75,8 +72,14 @@ trBody b0 = case b0 of
         constrs <- gets env_constrs
         return [forAlls scope' (constrs ===> lhs === rhs)]
 
-insertConstraint :: Formula (Poly v) -> TrM v a -> TrM v a
-insertConstraint phi = locally $ \ e -> e { env_constrs = phi : env_constrs e }
+insertConstraint :: Ord v => Formula (Poly v) -> TrM v a -> TrM v a
+insertConstraint phi = case phi of
+    TOp Equal (Var x) tm ->
+        removeFromScope (x ::: error "ToPolyFOL.insertConstraint remove type") .
+        locally (\ e ->
+            e { env_args = map (tm // x) (env_args e) })
+    _ -> locally $ \ e ->
+            e { env_constrs = phi : env_constrs e }
 
 locally :: (Env v -> Env v) -> TrM v a -> TrM v a
 locally f m = do
@@ -96,7 +99,7 @@ trType t0 = case t0 of
     T.ArrTy t1 t2 -> TyCon TyFn [trType t1,trType t2]
     T.TyVar x     -> TyVar x
     T.TyCon tc ts -> TyCon tc (map trType ts)
-    T.Forall x t  -> error "ToPolyFol.trType on Forall"
+    T.Forall{}    -> error "ToPolyFOL.trType on Forall"
     T.Star        -> Type
 
 trExpr :: Ord v => Expr (FOTyped (Poly v)) -> TrM v (Term (Poly v))
