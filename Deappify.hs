@@ -2,7 +2,6 @@
 module Deappify where
 
 import FunctionalFO
-import SimpleToFO
 
 import qualified Type as T
 

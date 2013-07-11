@@ -7,46 +7,58 @@ import Text.PrettyPrint
 
 import Rich
 import PrettyUtils
-import PrettyType
+import Type
 
-ppProg :: (a -> Doc) -> Program a -> Doc
-ppProg p (Program _ds fs) = vcat (map (ppFun p) fs)
+ppProg :: Kit a -> Program a -> Doc
+ppProg k (Program _ds fs) = vcat (map (ppFun k) fs)
 
-ppFun :: (a -> Doc) -> Function a -> Doc
-ppFun p (Function nm e) = hang (p nm <+> "=") 2 (ppExpr 0 p e)
+ppFun :: Kit a -> Function a -> Doc
+ppFun k@(_,q) (Function nm e) = hang (q nm <+> "=") 2 (ppExpr 0 k e)
 
-ppExpr :: Int -> (a -> Doc) -> Expr a -> Doc
-ppExpr i p e0 = case e0 of
+ppExpr :: Int -> Kit a -> Expr a -> Doc
+ppExpr i k@(p,q) e0 = case e0 of
     Var x ts -> parensIf (not (null ts) && i > 1) $
         p x <> cat [ " @" <+> ppType 1 p t | t <- ts ]
 
     App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0
-            pp_args    = map (ppExpr 2 p) args
-            pp_fun     = ppExpr 1 p fun
+            pp_args    = map (ppExpr 2 k) args
+            pp_fun     = ppExpr 1 k fun
         in  hang pp_fun 2 (sep pp_args)
-    Lit x _       -> integer x
-    String{}      -> "\"\""
+    Lit x _  -> integer x
+    String{} -> "\"\""
     Lam{} -> parensIf (i > 0) $
         let (args,body) = collectBinders e0
-            pp_body     = ppExpr 0 p body
-            pp_args     = map p args
+            pp_body     = ppExpr 0 k body
+            pp_args     = map q args
         in  hang ("\\" <+> sep pp_args <+> "->") 2 pp_body
     Case e x alts -> parensIf (i > 0) $
-        hang ("case" <+> ppExpr 0 p e <+> "of" <+> maybe empty p x) 2
-             (inside "{ " "; " "}" (map (ppAlt p) alts))
-
+        hang ("case" <+> ppExpr 0 k e <+> "of" <+> maybe empty q x) 2
+             (inside "{ " "; " "}" (map (ppAlt k) alts))
     Let fns e -> parensIf (i > 0) $
-        hang ("let" <+> "{") 2 (vcat (map (ppFun p) fns) <+> "}" <+> "in") $$
-        ppExpr 0 p e
+        hang ("let" <+> "{") 2 (vcat (map (ppFun k) fns) <+> "}" <+> "in") $$
+        ppExpr 0 k e
 
-ppAlt :: (a -> Doc) -> Alt a -> Doc
-ppAlt p (pat,rhs) = hang (ppPat p pat <+> "->") 2 (ppExpr 0 p rhs)
+ppAlt :: Kit a -> Alt a -> Doc
+ppAlt k (pat,rhs) = hang (ppPat k pat <+> "->") 2 (ppExpr 0 k rhs)
 
-ppPat :: (a -> Doc) -> Pattern a -> Doc
-ppPat p pat = case pat of
+ppPat :: Kit a -> Pattern a -> Doc
+ppPat (p,q) pat = case pat of
     Default        -> "_"
     ConPat c ts bs -> p c <+> sep [ "@" <+> ppType 1 p t | t <- ts ]
-                          <+> sep (map p bs)
+                          <+> sep (map q bs)
     LitPat i _     -> integer i
+
+ppType :: Int -> (a -> Doc) -> Type a -> Doc
+ppType i p t0 = case t0 of
+    TyVar x     -> p x
+    ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 p t1 <+> "->" <+> ppType 0 p t2
+    TyCon tc ts -> p tc <+> sep (map (ppType 1 p) ts)
+    Star        -> "*"
+    Forall{}    -> parensIf (i > 0) $
+        let (tvs,t) = collectForalls t0
+        in  hang ("forall" <+> sep (map p tvs) <+> ".") 2 (ppType 0 p t)
+
+ppTyped :: (a -> Doc) -> Typed a -> Doc
+ppTyped p (x ::: t) = hang (p x <+> "::") 2 (ppType 0 p t)
 

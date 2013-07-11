@@ -3,6 +3,10 @@ module PrettyUtils where
 
 import Text.PrettyPrint
 
+-- | Pretty printing kit, first is for variable bindings, second is for variables
+--   (to be able to say where to print types and where to ignore it)
+type Kit a = (a -> Doc,a -> Doc)
+
 parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens
 parensIf False = id

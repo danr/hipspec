@@ -17,8 +17,7 @@ import Simple as S
 
 import SimplifyRich (removeScrutinee)
 
-import Data.Set (Set)
-import qualified Data.Set as S
+import Scope
 
 import Control.Monad.RWS
 import Control.Applicative
@@ -33,7 +32,7 @@ data Rename a
   deriving (Eq,Ord,Show,Functor)
 
 type RTS v = RWS
-    (Set (Var v))        -- variables in scope
+    (Scope (Var v))        -- variables in scope
     [S.Function (Var v)] -- emitted lifted functions
     Int                  -- name supply
 
@@ -41,16 +40,10 @@ emit :: S.Function (Var v) -> RTS v ()
 emit = tell . (:[])
 
 runRTS :: RTS v a -> (a,[S.Function (Var v)])
-runRTS m = evalRWS m S.empty 0
+runRTS m = evalRWS m emptyScope 0
 
 fresh :: Type (Rename v) -> RTS v (Var v)
 fresh t = state $ \ s -> (New s ::: t,succ s)
-
-extendScope :: Ord v => [Var v] -> RTS v a -> RTS v a
-extendScope = local . S.union . S.fromList
-
-clearScope :: RTS v a -> RTS v a
-clearScope = local (const S.empty)
 
 rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
 rtsFun (R.Function f e) = do
@@ -175,7 +168,7 @@ exprFreeVars = freeVarsOf . R.freeVars
 
 -- | Given a list of variables, gets the free variables and their types
 freeVarsOf :: Ord v => [Var v] -> RTS v [Var v]
-freeVarsOf = filterM (asks . S.member)
+freeVarsOf = pluckScoped
 
 typeVarsOf :: Ord v => Type v -> [v]
 typeVarsOf = nub . freeTyVars

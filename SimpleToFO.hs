@@ -6,14 +6,10 @@ module SimpleToFO where
 import qualified Simple as S
 import Simple hiding (App)
 import FunctionalFO as FO
+import UnPtrLocalFO
 
-type Var a = FOTyped (FOName a)
-
-data FOName a = Orig a | Ptr a | App | X | Y
-  deriving (Eq,Ord,Show,Functor)
-
-stfFun :: Eq a => S.Function (Typed a) -> FO.Function (Var a)
-stfFun (S.Function f as b) =
+stfFun :: Ord a => S.Function (Typed a) -> FO.Function (Var a)
+stfFun (S.Function f as b) = uplFun $
     FO.Function (stfVar f) (map stfPtr as) (stfBody b)
 
 stfVar :: Eq a => Typed a -> Var a

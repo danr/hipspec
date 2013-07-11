@@ -14,7 +14,6 @@ import qualified Data.Map as M
 
 import Text.PrettyPrint
 import PrettyRich
-import PrettyType
 
 type LintM v a = WriterT [Err v] (Reader (Map v (Type v))) a
 
@@ -37,26 +36,28 @@ data Err v
     | IllTypedPattern (Type v) (Pattern (Typed v))
   deriving (Show,Functor)
 
-ppErr :: (v -> Doc) -> (Typed v -> Doc) -> Err v -> Doc
-ppErr p pt err = case err of
+ppErr :: (v -> Doc) -> Err v -> Doc
+ppErr p err = case err of
     AlreadyBound v t1 t2 -> sep
         [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
     BoundAsOtherType v t1 t2 -> sep
         [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
     ExprTypeDisagrees e t1 t2 -> sep
-        [ppExpr 0 pt e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
-    VarIncorrectlyApplied e -> "Variable incorrectly applied: " <+> ppExpr 0 pt e
+        [ppExpr 0 k e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
+    VarIncorrectlyApplied e -> "Variable incorrectly applied: " <+> ppExpr 0 k e
     NotFunctionType e t -> sep
-        [ppExpr 0 pt e,"should be of function type, but is:",ppType 0 p t]
+        [ppExpr 0 k e,"should be of function type, but is:",ppType 0 p t]
     IncorrectApplication e t1 t2 -> sep
-        [ppExpr 0 pt e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+        [ppExpr 0 k e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
     ScrutineeVarIllTyped e t1 t2 -> sep
-        [ppExpr 0 pt e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-    CaseWithoutAlts e -> "Case without alternatives: " <+> ppExpr 0 pt e
+        [ppExpr 0 k e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+    CaseWithoutAlts e -> "Case without alternatives: " <+> ppExpr 0 k e
     AltsRHSIllTyped e ts -> sep $
-        "Alternatives in case differ in type:":ppExpr 0 pt e:map (ppType 0 p) ts
-    ConstructorIncorrectlyApplied pat -> "Constructor incorrectly applied:" <+> ppPat pt pat
-    IllTypedPattern t pat -> ppPat pt pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
+        "Alternatives in case differ in type:":ppExpr 0 k e:map (ppType 0 p) ts
+    ConstructorIncorrectlyApplied pat -> "Constructor incorrectly applied:" <+> ppPat k pat
+    IllTypedPattern t pat -> ppPat k pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
+  where
+    k = (p . forget_type,ppTyped p)
 
 report :: Err v -> LintM v ()
 report = tell . (:[])

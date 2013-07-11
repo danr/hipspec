@@ -4,10 +4,11 @@ module FunctionalFO where
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.Function (on)
 
 import qualified Rich as R
 
-import Type hiding ((:::))
+import Type hiding ((:::),forget_type)
 import qualified Type as T
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -40,17 +41,24 @@ data Expr a
     --   (to be able to infer the type)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
+-- | Eq and Ord instances on the variable name
 data FOTyped a = (:::)
     { forget_type :: a
     , typed_type  :: FOType a
     }
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+  deriving (Show,Functor,Foldable,Traversable)
 
 data FOType a = FOType
     [a]      -- ^ Type variables
     [Type a] -- ^ Argument types
     (Type a) -- ^ Result type
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+instance Eq a => Eq (FOTyped a) where
+    (==) = (==) `on` forget_type
+
+instance Ord a => Ord (FOTyped a) where
+    compare = compare `on` forget_type
 
 data Pattern a
     = Default
@@ -95,4 +103,9 @@ injectExpr :: Expr a -> R.Expr a
 injectExpr e0 = case e0 of
     Apply x ts es -> R.apply (R.Var x (map toType ts)) (map injectExpr es)
     Lit l tc      -> R.Lit l tc
+
+type Var a = FOTyped (FOName a)
+
+data FOName a = Orig a | Ptr a | App | X | Y
+  deriving (Eq,Ord,Show,Functor)
 

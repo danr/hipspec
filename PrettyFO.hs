@@ -7,25 +7,26 @@ import Text.PrettyPrint
 
 import FunctionalFO
 
-import Type
+import Type hiding ((:::))
 import PrettyUtils
 
-ppFun :: (a -> Doc) -> Function a -> Doc
-ppFun p (Function nm as e) = hang (p nm <+> csv (map p as) <+> "=") 2 (ppBody p e)
+ppFun :: Kit a -> Function a -> Doc
+ppFun k@(p,q) (Function nm as e)
+    = hang (q nm) 2 $ hang (csv (map p as) <+> "=") 2 (ppBody k e)
 
-ppBody :: (a -> Doc) -> Body a -> Doc
-ppBody p b0 = case b0 of
-    Case e alts -> hang ("case" <+> ppExpr p e <+> "of") 2
-        (inside "{ " "; " "}" (map (ppAlt p) alts))
-    Body e -> ppExpr p e
+ppBody :: Kit a -> Body a -> Doc
+ppBody k b0 = case b0 of
+    Case e alts -> hang ("case" <+> ppExpr k e <+> "of") 2
+        (inside "{ " "; " "}" (map (ppAlt k) alts))
+    Body e -> ppExpr k e
 
-ppExpr :: (a -> Doc) -> Expr a -> Doc
-ppExpr p e0 = case e0 of
-    Apply f tys args -> hang (p f) 2 (ppTysArgs p tys (map (ppExpr p) args))
+ppExpr :: Kit a -> Expr a -> Doc
+ppExpr k@(p,_) e0 = case e0 of
+    Apply f tys args -> hang (p f) 2 (ppTysArgs p tys (map (ppExpr k) args))
     Lit x _          -> integer x
 
-ppAlt :: (a -> Doc) -> Alt a -> Doc
-ppAlt p (pat,rhs) = hang (ppPat p pat <+> "->") 2 (ppBody p rhs)
+ppAlt :: Kit a -> Alt a -> Doc
+ppAlt k (pat,rhs) = hang (ppPat k pat <+> "->") 2 (ppBody k rhs)
 
 ppTysArgs :: (a -> Doc) -> [FOType a] -> [Doc] -> Doc
 ppTysArgs _ []  []      = empty
@@ -33,11 +34,14 @@ ppTysArgs p tys pp_args = csv $ pp_tys ++ pp_args
   where
     pp_tys  = [ "@" <+> ppFOType p t | t <- tys ]
 
-ppPat :: (a -> Doc) -> Pattern a -> Doc
-ppPat p pat = case pat of
+ppPat :: Kit a -> Pattern a -> Doc
+ppPat (p,q) pat = case pat of
     Default           -> "_"
-    ConPat c tys args -> hang (p c) 2 (ppTysArgs p tys (map p args))
+    ConPat c tys args -> hang (p c) 2 (ppTysArgs p tys (map q args))
     LitPat i _        -> integer i
+
+ppFOTyped :: (a -> Doc) -> FOTyped a -> Doc
+ppFOTyped p (x ::: t) = hang (p x <+> "::") 2 (ppFOType p t)
 
 ppFOType :: (a -> Doc) -> FOType a -> Doc
 ppFOType p (FOType tvs args res) = pp_forall $ pp_args $ pp_res

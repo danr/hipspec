@@ -9,7 +9,7 @@ import SimplifyRich
 import RichToSimple
 
 import PrettyRich
-import PrettyType
+import PrettyUtils
 
 import Simple as S
 import qualified FunctionalFO as FO
@@ -70,23 +70,26 @@ main = do
         name' (Old nm) = name nm
         name' (New x)  = '_':show x
 
-        foname :: FOName (Rename Name) -> String
+        foname :: FO.FOName (Rename Name) -> String
         foname x = case x of
-            Orig nm -> name' nm
-            Ptr nm  -> name' nm ++ "_ptr"
-            FO.App  -> "app"
-            X       -> "x"
-            Y       -> "y"
+            FO.Orig nm -> name' nm
+            FO.Ptr nm  -> name' nm ++ "_ptr"
+            FO.App     -> "app"
+            FO.X       -> "x"
+            FO.Y       -> "y"
 
-        show_typed :: Typed String -> Doc
-        show_typed (x ::: t)
-            | show_types = parens (hang (text x <+> text "::") 2 (ppType 0 text t))
-            | otherwise  = text x
+        kit :: (a -> (Doc,Doc)) -> Kit a
+        kit lr = (fst . lr,snd . lr)
 
-        show_fo_typed :: FO.FOTyped String -> Doc
-        show_fo_typed (x FO.::: t)
-            | show_types = parens (hang (text x <+> text "::") 2 (FO.ppFOType text t))
-            | otherwise  = text x
+        show_typed :: Typed String -> (Doc,Doc)
+        show_typed xt@(x ::: _)
+            | show_types = (text x,parens (ppTyped text xt))
+            | otherwise  = (text x,text x)
+
+        show_fo_typed :: FO.FOTyped String -> (Doc,Doc)
+        show_fo_typed xt@(x FO.::: _)
+            | show_types = (text x,parens (FO.ppFOTyped text xt))
+            | otherwise  = (text x,text x)
 
     coreLint cb
 
@@ -96,10 +99,10 @@ main = do
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put = putStrLn . render . ppFun show_typed . fmap (fmap name)
-                    put_rlint  = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name) . lint . lintFns . (:[])
-                    put_slint  = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap name') . lint . lintFns . map injectFn
-                    put_folint = hPutStr stderr . newline . render . vcat . map (ppErr text show_typed . fmap foname) . lint . lintFns . map (fmap FO.toTyped . FO.injectFn)
+                let put = putStrLn . render . ppFun (kit show_typed) . fmap (fmap name)
+                    put_rlint  = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap name) . lint . lintFns . (:[])
+                    put_slint  = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap name') . lint . lintFns . map injectFn
+                    put_folint = hPutStr stderr . newline . render . vcat . map (ppErr text . fmap foname) . lint . lintFns . map (fmap FO.toTyped . FO.injectFn)
                 put fn
                 put_rlint fn
                 let fn' = simpFun fn
@@ -113,20 +116,20 @@ main = do
                         . rtsFun
                         . fmap (fmap Old)
                         $ fn'
-                    put' = putStrLn . render . ppFun show_typed . injectFn . fmap (fmap name')
+                    put' = putStrLn . render . ppFun (kit show_typed) . injectFn . fmap (fmap name')
                 mapM_ put' simp_fns
                 put_slint simp_fns
 
-                let fo_fns :: [FO.Function (FO.FOTyped (FOName (Rename Name)))]
+                let fo_fns :: [FO.Function (FO.Var (Rename Name))]
                     fo_fns = map stfFun simp_fns
-                    put'' = putStrLn . render . FO.ppFun (show_fo_typed . fmap foname)
+                    put'' = putStrLn . render . FO.ppFun (kit show_fo_typed) . fmap (fmap foname)
                 mapM_ put'' fo_fns
                 put_folint fo_fns
 
                 modifyIORef arities $ M.union $ M.fromList $ catMaybes
                     [ case FO.forget_type fn_name of
-                        Orig nm -> Just (nm,length fn_args)
-                        _       -> Nothing
+                        FO.Orig nm -> Just (nm,length fn_args)
+                        _          -> Nothing
                     | FO.Function{..} <- fo_fns
                     ]
 
