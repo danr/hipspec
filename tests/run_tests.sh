@@ -18,8 +18,10 @@ do
     run "tfp1 -t -O $i"
 done
 
-if [ -n "$ok" ]
+if $ok
 then
+    exit 0
+else
     exit -1
 fi
 
