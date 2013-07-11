@@ -48,7 +48,7 @@ zapExpr e0 k = zap $ case e0 of
             in  Apply (Orig x ::: nt) ts (mapM zapExpr args k)
         _ -> e
 
-pointer :: Expr (Var v) -> Maybe ((v,FOType (FOName v),[FOType (Var v)]),[Expr (Var v)])
+pointer :: Expr (Var v) -> Maybe ((v,FOType (FOName v),[T.Type (Var v)]),[Expr (Var v)])
 pointer e0 = case e0 of
     Apply (Ptr x ::: t) ts []                             -> Just ((x,t,ts),[])
     Apply (App ::: _) _ [e,a] | Just (xt,as) <- pointer e -> Just (xt,as++[a])

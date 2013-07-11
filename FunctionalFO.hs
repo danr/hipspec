@@ -1,5 +1,10 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | The Functional First Order language
+--
+-- The type Function (FOTyped a) is a bit too large, where
+-- functions and constructors only allowed to take (type and value) arguments.
+-- Locally bound variables in the function and the constructor pattern can
+-- never take arguments.
 module FunctionalFO where
 
 import Data.Foldable (Foldable)
@@ -34,8 +39,10 @@ type Alt a = (Pattern a,Body a)
 
 -- | The simple expressions allowed here
 data Expr a
-    = Apply a [FOType a] [Expr a]
+    = Apply a [Type a] [Expr a]
     -- ^ Function (fully) applied to type arguments and arguments
+    -- ^ Only apply it to simple types
+    --   (Fn(A,B) rather than A -> B)
     | Lit Integer a
     -- ^ The integer and its type constructor
     --   (to be able to infer the type)
@@ -64,11 +71,21 @@ data Pattern a
     = Default
     | ConPat
         { pat_con     :: a
-        , pat_ty_args :: [FOType a]
+        , pat_ty_args :: [Type a]
+        -- ^ Only apply it to simple types
+        --   (Fn(A,B) rather than A -> B)
         , pat_args    :: [a]
         }
     | LitPat Integer a
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+partitionAlts :: [Alt a] -> (Maybe (Body a),[Alt a])
+partitionAlts alts = case alts of
+    (Default,rhs):xs -> (Just rhs,xs)
+    alt:xs           -> let (mb,xs') = partitionAlts xs
+                        in  (mb,alt:xs')
+    []               -> (Nothing,[])
+
 
 toType :: FOType a -> Type a
 toType (FOType tvs as r) = makeForalls tvs (makeArrows as r)
@@ -91,11 +108,11 @@ injectPat :: Pattern a -> R.Pattern a
 injectPat p = case p of
     Default        -> R.Default
     LitPat x t     -> R.LitPat x t
-    ConPat c ts as -> R.ConPat c (map toType ts) as
+    ConPat c ts as -> R.ConPat c ts as
 
 injectExpr :: Expr a -> R.Expr a
 injectExpr e0 = case e0 of
-    Apply x ts es -> R.apply (R.Var x (map toType ts)) (map injectExpr es)
+    Apply x ts es -> R.apply (R.Var x ts) (map injectExpr es)
     Lit l tc      -> R.Lit l tc
 
 type Var a = FOTyped (FOName a)

@@ -28,11 +28,11 @@ ppExpr k@(p,_) e0 = case e0 of
 ppAlt :: Kit a -> Alt a -> Doc
 ppAlt k (pat,rhs) = hang (ppPat k pat <+> "->") 2 (ppBody k rhs)
 
-ppTysArgs :: (a -> Doc) -> [FOType a] -> [Doc] -> Doc
+ppTysArgs :: (a -> Doc) -> [Type a] -> [Doc] -> Doc
 ppTysArgs _ []  []      = empty
 ppTysArgs p tys pp_args = csv $ pp_tys ++ pp_args
   where
-    pp_tys  = [ "@" <+> ppFOType p t | t <- tys ]
+    pp_tys  = [ "@" <+> ppType p t | t <- tys ]
 
 ppPat :: Kit a -> Pattern a -> Doc
 ppPat (p,q) pat = case pat of
