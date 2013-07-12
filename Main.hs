@@ -14,7 +14,10 @@ import RichToSimple
 
 import PrettyRich
 import PrettyUtils
-import PrettyPolyFOL
+import PrettyPolyFOL as Poly
+import PrettyAltErgo as AltErgo
+
+import Escape
 
 import Simple as S
 import qualified FunctionalFO as FO
@@ -118,7 +121,8 @@ main = do
                     put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
                     put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
                     put_fo   = put . FO.ppFun text . fmap name'
-                    put_poly = put . vcat . map (ppClause text . fmap polyname)
+                    put_poly     = put . vcat . map (Poly.ppClause text . fmap polyname)
+                    put_alt_ergo = put . vcat . map (AltErgo.ppClause (text . escape) . fmap polyname)
 
                     put_lints n p = putErr . newline . render . vcat
                                   . map (ppErr text . fmap n) . lint . lintFns . p
@@ -163,10 +167,13 @@ main = do
                 mapM_ put_fo fo_fns_zapped
 
 
-                pass "Polymorphic FOL"
+                pass "Polymorphic FOL (tff1 tptp)"
                 let cls = concatMap P.trFun fo_fns_zapped
 
                 put_poly cls
+
+                pass "Polymorphic FOL (Alt-Ergo)"
+                put_alt_ergo cls
 
                 return ()
             Left err -> putErr (showOutputable v ++ ": " ++ show err ++ "\n")

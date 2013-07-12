@@ -52,7 +52,7 @@ ppExpr :: Id a -> Expr a -> Doc
 ppExpr p e0 = case e0 of
     App t1 t2 e1 e2 -> hang "app" 2 (ppTysArgs p [t1,t2] (map (ppExpr p) [e1,e2]))
     Fun f tys args  -> hang (p f) 2 (ppTysArgs p tys (map (ppExpr p) args))
-    Ptr f tys       -> hang (p f) 2 (ppTysArgs p tys [])
+    Ptr f tys       -> hang (p f <> "_ptr") 2 (ppTysArgs p tys [])
     Lit x           -> integer x
 
 ppTysArgs :: (a -> Doc) -> [Type a] -> [Doc] -> Doc
