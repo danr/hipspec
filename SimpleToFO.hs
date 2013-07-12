@@ -8,45 +8,31 @@ import Simple hiding (App)
 import FunctionalFO as FO
 import UnPtrLocalFO
 
-stfFun :: Ord a => S.Function (Typed a) -> FO.Function (Var a)
-stfFun (S.Function f as b) = uplFun $
-    FO.Function (stfVar f) (map stfPtr as) (stfBody b)
-
-stfVar :: Eq a => Typed a -> Var a
-stfVar (v S.::: t) = Orig v FO.::: fmap Orig (trTy t)
+stfFun :: Ord a => S.Function (Typed a) -> FO.Function a
+stfFun (S.Function (f ::: t) as b) = uplFun $
+    FO.Function f tvs (map stfBndr as) res_ty (stfBody b)
   where
-    trTy :: Type a -> FOType a
-    trTy (collectForalls -> (ts,collectArrTy -> (arg,res))) = FOType ts arg res
+    (tvs,collectArrTy -> (_,res_ty)) = collectForalls t
 
-
-stfBody :: Eq a => S.Body (Typed a) -> FO.Body (Var a)
+stfBody :: Eq a => S.Body (Typed a) -> FO.Body a
 stfBody b0 = case b0 of
     S.Case e alts -> FO.Case (stfExpr e) [(stfPat p,stfBody b) | (p,b) <- alts]
     S.Body e      -> FO.Body (stfExpr e)
 
-stfPat :: forall a .Eq a => S.Pattern (Typed a) -> FO.Pattern (Var a)
+stfPat :: forall a .Eq a => S.Pattern (Typed a) -> FO.Pattern a
 stfPat p = case p of
     S.Default        -> FO.Default
-    S.ConPat c ts as -> FO.ConPat (stfVar c) (map (stfType . forget) ts) (map stfPtr as)
+    S.ConPat c ts as -> FO.ConPat (forget_type c) (map forget ts) (map stfBndr as)
+    S.LitPat x _     -> FO.LitPat x
 
-    S.LitPat x tc    -> FO.LitPat x (stfVar tc)
+stfBndr :: Typed a -> (a,Type a)
+stfBndr (x ::: t) = (x,t)
 
-app :: Var a
-app = App FO.::: FOType [X,Y] [ArrTy x y,x] y
-  where [x,y] = map TyVar [X,Y]
-
-stfPtr :: Typed a -> Var a
-stfPtr (v S.::: (collectForalls . fmap Orig -> (ts,t))) = Ptr v FO.::: FOType ts [] t
-
-stfExpr :: Eq a => S.Expr (Typed a) -> FO.Expr (Var a)
+stfExpr :: Eq a => S.Expr (Typed a) -> FO.Expr a
 stfExpr e0 = case e0 of
-    S.Var f ts  -> Apply (stfPtr f) (map (stfType . forget) ts) []
+    S.Var f ts  -> Ptr (forget_type f) (map forget ts)
+    S.Lit x _    -> FO.Lit x
     S.App e1 e2 -> case S.exprType e1 of
-        ArrTy t1 t2 ->
-            Apply app [stfType t1,stfType t2] [stfExpr e1,stfExpr e2]
-        _ -> error "stfExpr: argument not an arrow type!"
-    S.Lit x tc -> FO.Lit x (stfVar tc)
-
-stfType :: Type a -> Type (Var a)
-stfType = fmap (\ t -> Orig t FO.::: FOType [] [] Star)
+        ArrTy t1 t2 -> App t1 t2 (stfExpr e1) (stfExpr e2)
+        _ -> error "SimpleToFO.stfExpr: argument not an arrow type!"
 

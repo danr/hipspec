@@ -44,7 +44,6 @@ import System.IO
 
 import qualified Data.Map as M
 
-import Data.Maybe (catMaybes)
 import Data.IORef
 
 getFlag :: Eq a => a -> [a] -> (Bool,[a])
@@ -82,19 +81,13 @@ main = do
         name' (Old nm) = name nm
         name' (New x)  = '_':show x
 
-        foname :: FO.FOName (Rename Name) -> String
-        foname x = case x of
-            FO.Orig nm -> name' nm
-            FO.Ptr nm  -> name' nm ++ "_ptr"
-            FO.App     -> "app"
-            FO.X       -> "x"
-            FO.Y       -> "y"
-
-        polyname :: P.Poly (FO.FOName (Rename Name)) -> String
+        polyname :: P.Poly (Rename Name) -> String
         polyname x0 = case x0 of
-            P.Id x     -> foname x
+            P.Id x     -> name' x
+            P.Ptr x    -> name' x ++ "_ptr"
+            P.App      -> "app"
             P.TyFn     -> "fn"
-            P.Proj x i -> "proj_" ++ show i ++ "_" ++ foname x
+--            P.Proj x i -> "proj_" ++ show i ++ "_" ++ name' x
 
         mk_kit :: (a -> (Doc,Doc)) -> Kit a
         mk_kit lr
@@ -104,9 +97,6 @@ main = do
 
         show_typed :: Typed String -> (Doc,Doc)
         show_typed xt@(x ::: _) = (text x,parens (ppTyped text xt))
-
-        show_fo_typed :: FO.FOTyped String -> (Doc,Doc)
-        show_fo_typed xt@(x FO.::: _) = (text x,parens (FO.ppFOTyped text xt))
 
     let pass  = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
         putErr = hPutStr stderr
@@ -127,7 +117,7 @@ main = do
                 let put      = putStrLn . render
                     put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
                     put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
-                    put_fo   = put . FO.ppFun (mk_kit show_fo_typed) . fmap (fmap foname)
+                    put_fo   = put . FO.ppFun text . fmap name'
                     put_poly = put . vcat . map (ppClause text . fmap polyname)
 
                     put_lints n p = putErr . newline . render . vcat
@@ -135,7 +125,6 @@ main = do
 
                     put_rlint  = put_lints name (:[])
                     put_slint  = put_lints name' (map injectFn)
-                    put_folint = put_lints foname (map (fmap FO.toTyped . FO.injectFn))
 
                 pass "Rich"
                 put_rich fn
@@ -159,25 +148,19 @@ main = do
                 put_slint simp_fns
 
                 pass "First-order functional"
-                let fo_fns :: [FO.Function (FO.Var (Rename Name))]
+                let fo_fns :: [FO.Function (Rename Name)]
                     fo_fns = map stfFun simp_fns
 
                 mapM_ put_fo fo_fns
-                put_folint fo_fns
 
-                modifyIORef arities $ M.union $ M.fromList $ catMaybes
-                    [ case FO.forget_type fn_name of
-                        FO.Orig nm -> Just (nm,length fn_args)
-                        _          -> Nothing
-                    | FO.Function{..} <- fo_fns
-                    ]
+                modifyIORef arities $ M.union $ M.fromList
+                    [ (fn_name,length fn_args) | FO.Function{..} <- fo_fns ]
 
 
                 pass "First-order functional, deappified"
                 lkup <- fmap (flip M.lookup) (readIORef arities)
                 let fo_fns_zapped = mapM zapFn fo_fns lkup
                 mapM_ put_fo fo_fns_zapped
-                put_folint fo_fns_zapped
 
 
                 pass "Polymorphic FOL"

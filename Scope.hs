@@ -14,29 +14,29 @@ makeScope :: Ord v => [v] -> Set v
 makeScope = S.fromList
 
 -- | Extend the scope with a list of variables
-extendScope :: (MonadReader (Set v) m,Ord v) => [v] -> m a -> m a
+extendScope :: (MonadReader (Scope v) m,Ord v) => [v] -> m a -> m a
 extendScope = local . S.union . makeScope
 
 -- | Removes an entry from the scope
-removeFromScope :: (MonadReader (Set v) m,Ord v) => v -> m a -> m a
+removeFromScope :: (MonadReader (Scope v) m,Ord v) => v -> m a -> m a
 removeFromScope = local . S.delete
 
 -- | Clear the scope
-clearScope :: MonadReader (Set v) m => m a -> m a
+clearScope :: MonadReader (Scope v) m => m a -> m a
 clearScope = local (const emptyScope)
 
 -- | The empty scope
-emptyScope :: Set v
+emptyScope :: Scope v
 emptyScope = S.empty
 
 -- | True if the variable is in scope
-inScope :: (MonadReader (Set v) m,Ord v) => v -> m Bool
+inScope :: (MonadReader (Scope v) m,Ord v) => v -> m Bool
 inScope = asks . S.member
 
 -- | Returns only the elments that are in scope
-pluckScoped :: (MonadReader (Set v) m,Ord v) => [v] -> m [v]
+pluckScoped :: (MonadReader (Scope v) m,Ord v) => [v] -> m [v]
 pluckScoped = filterM inScope
 
 -- | Gets the current scope
-getScope :: (MonadReader (Set v) m,Ord v) => m [v]
+getScope :: (MonadReader (Scope v) m,Ord v) => m [v]
 getScope = asks S.toList

@@ -3,7 +3,7 @@ module Deappify where
 
 import FunctionalFO
 
-import qualified Type as T
+import Type
 
 import Control.Applicative
 
@@ -27,30 +27,31 @@ import Control.Applicative
 
 type Zap v a = (v -> Maybe Int) -> a
 
-zapFn :: Function (Var v) -> Zap v (Function (Var v))
-zapFn (Function v as b) = Function v as <$> zapBody b
+zapFn :: Function v -> Zap v (Function v)
+zapFn fn k = fn { fn_body = zapBody (fn_body fn) k }
 
-zapBody :: Body (Var v) -> Zap v (Body (Var v))
+zapBody :: Body v -> Zap v (Body v)
 zapBody b0 = case b0 of
     Case e alts -> Case <$> zapExpr e <*> sequence [ (,) p <$> zapBody b | (p,b) <- alts ]
     Body e      -> Body <$> zapExpr e
 
-zapExpr :: Expr (Var v) -> Zap v (Expr (Var v))
+zapExpr :: Expr v -> Zap v (Expr v)
 zapExpr e0 k = zap $ case e0 of
-    Apply e ts args -> Apply e ts (mapM zapExpr args k)
-    _ -> e0
+    Fun x ts es     -> Fun x ts (mapM zapExpr es k)
+    App t1 t2 e1 e2 -> App t1 t2 (zapExpr e1 k) (zapExpr e2 k)
+    Ptr{}           -> e0
+    Lit{}           -> e0
   where
     zap e = case pointer e of
-        Just ((x,t,ts),args) | Just arity <- k x, length args == arity ->
-            let FOType tvs [] (T.collectArrTy -> (as,r)) = t
-                (as',rs') = splitAt arity as
-                nt = FOType tvs as' (T.makeArrows rs' r)
-            in  Apply (Orig x ::: nt) ts (mapM zapExpr args k)
+        Just ((x,ts),args)
+            | Just arity <- k x
+            , length args == arity
+            -> Fun x ts (mapM zapExpr args k)
         _ -> e
 
-pointer :: Expr (Var v) -> Maybe ((v,FOType (FOName v),[T.Type (Var v)]),[Expr (Var v)])
+pointer :: Expr v -> Maybe ((v,[Type v]),[Expr v])
 pointer e0 = case e0 of
-    Apply (Ptr x ::: t) ts []                             -> Just ((x,t,ts),[])
-    Apply (App ::: _) _ [e,a] | Just (xt,as) <- pointer e -> Just (xt,as++[a])
-    _                                                     -> Nothing
+    App _ _ fn arg | Just (xt,as) <- pointer fn -> Just (xt,as++[arg])
+    Ptr x ts -> Just ((x,ts),[])
+    _        -> Nothing
 
