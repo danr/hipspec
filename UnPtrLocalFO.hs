@@ -25,7 +25,12 @@ uplBody b0 = case b0 of
     Body b      -> Body <$> uplExpr b
 
 uplAlt :: Ord v => Alt v -> UPL v (Alt v)
-uplAlt (p,b) = (,) p <$> uplBody b
+uplAlt (p,b) = (,) p <$> scopePat p (uplBody b)
+
+scopePat :: Ord v => Pattern v -> UPL v a -> UPL v a
+scopePat p = case p of
+    ConPat _ _ as -> extendScope (map fst as)
+    _             -> id
 
 uplExpr :: Ord v => Expr v -> UPL v (Expr v)
 uplExpr e0 = case e0 of
