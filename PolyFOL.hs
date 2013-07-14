@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
 {-
 
 Type signatures and formulae have a list of top-level quantified
@@ -19,6 +19,8 @@ Type signature example:
 
 -}
 module PolyFOL where
+
+import Data.Generics.Geniplate
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -158,14 +160,22 @@ data Term a
     -- ^ An integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
-(//) :: Eq a => Term a -> a -> Term a -> Term a
-tm // x = go
+tmSubst :: forall a . Eq a => a -> Term a -> Term a -> Term a
+tmSubst x tm = go
   where
-    go tm0 = case tm0 of
-        Apply f ts as     -> Apply f ts (map go as)
-        Var y | x == y    -> tm
-              | otherwise -> tm0
-        Lit{}             -> tm0
+    tr_tm :: (Term a -> Term a) -> Term a -> Term a
+    tr_tm = $(genTransformBi 'tr_tm)
+
+    go :: Term a -> Term a
+    go = tr_tm $ \ tm0 -> case tm0 of
+        Var y | x == y -> tm
+        _              -> tm0
+
+fmSubst :: forall a . Eq a => a -> Term a -> Formula a -> Formula a
+fmSubst x = tr_fm . tmSubst x
+  where
+    tr_fm :: (Term a -> Term a) -> Formula a -> Formula a
+    tr_fm = $(genTransformBi 'tr_fm)
 
 {-
 

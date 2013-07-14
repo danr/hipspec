@@ -211,7 +211,12 @@ insertConstraint :: Ord v => Formula (Poly v) -> TrM v a -> TrM v a
 insertConstraint phi = case phi of
     TOp Equal (Var (Id x)) tm ->
         removeFromScope x .
-        locally (\ e -> e { env_args = map (tm // Id x) (env_args e) })
+        locally
+            (\ e -> e
+                { env_args    = map (tmSubst (Id x) tm) (env_args e)
+                , env_constrs = map (fmSubst (Id x) tm) (env_constrs e)
+                }
+            )
     _ -> locally (\ e -> e { env_constrs = phi : env_constrs e })
 
 locally :: (Env v -> Env v) -> TrM v a -> TrM v a
