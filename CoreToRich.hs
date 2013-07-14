@@ -16,7 +16,7 @@ import DataCon
 import Literal
 import Var
 import Name(Name)
-import TyCon
+import TyCon hiding (data_cons)
 import "ghc" Type as C
 import GHC (dataConType)
 
@@ -49,6 +49,7 @@ data Err
     | Fail String
     | HigherRankType Var C.Type
     | UnificationError C.Type [TyVar] DataCon CoreExpr (Maybe TvSubst)
+    | NonVanillaDataCon DataCon TyCon
 
 instance Show Err where
     show err = case err of
@@ -67,10 +68,36 @@ instance Show Err where
                 Just u -> "\nObtained unifier: " ++ showOutputable u
                 Nothing -> " without unifier")
             ++ "\nOriginating from expression: " ++ showOutputable e
+        NonVanillaDataCon dc tc ->
+            "Data constructor " ++ showOutputable dc ++
+            " from type constructor " ++ showOutputable tc ++
+            " is not Haskell 98!"
         Fail s -> "Internal failure: " ++ s
 
 instance Error Err where
     strMsg = Fail
+
+trTyCon :: TyCon -> TM (Datatype Name)
+trTyCon tc = do
+    dcs <- mapM tr_dc (tyConDataCons tc)
+    return Datatype
+        { data_ty_con = tyConName tc
+        , data_tvs    = map tyVarName tc_tvs
+        , data_cons   = dcs
+        }
+  where
+    tc_tvs = tyConTyVars tc
+
+    tr_dc dc = do
+        unless
+            (isVanillaDataCon dc)
+            (throwError (NonVanillaDataCon dc tc))
+        let dc_tys = dataConInstArgTys dc (map mkTyVarTy tc_tvs)
+        ts <- mapM trType dc_tys
+        return Constructor
+            { con_name = dataConName dc
+            , con_args = ts
+            }
 
 -- | Translate a definition
 trDefn :: Var -> CoreExpr -> TM (Function Binder)
@@ -85,7 +112,6 @@ trDefn v e = do
         { fn_name    = varName v ::: makeForalls tvs_named ty'
         , fn_body    = body'
         }
-
 
 -- | Translating expressions
 --

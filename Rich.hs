@@ -21,9 +21,9 @@ data Program a = Program
 
 -- | Data definition
 data Datatype a = Datatype
-    { data_name    :: a
-    , data_ty_args :: [a]
-    , data_cons    :: [Constructor a]
+    { data_ty_con :: a
+    , data_tvs    :: [a]
+    , data_cons   :: [Constructor a]
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 

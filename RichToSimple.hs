@@ -32,7 +32,7 @@ data Rename a
   deriving (Eq,Ord,Show,Functor)
 
 type RTS v = RWS
-    (Scope (Var v))        -- variables in scope
+    (Scope (Var v))      -- variables in scope
     [S.Function (Var v)] -- emitted lifted functions
     Int                  -- name supply
 
@@ -41,6 +41,9 @@ emit = tell . (:[])
 
 runRTS :: RTS v a -> (a,[S.Function (Var v)])
 runRTS m = evalRWS m emptyScope 0
+
+runRTSFrom :: Int -> RTS v a -> (a,Int,[S.Function (Var v)])
+runRTSFrom c m = runRWS m emptyScope c
 
 fresh :: Type (Rename v) -> RTS v (Var v)
 fresh t = state $ \ s -> (New s ::: t,succ s)

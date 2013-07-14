@@ -8,6 +8,8 @@ import Utils
 
 import Data.Char
 
+import Rich as R
+
 import CoreToRich
 import SimplifyRich
 import RichToSimple
@@ -16,6 +18,11 @@ import PrettyRich
 import PrettyUtils
 import PrettyPolyFOL as Poly
 import PrettyAltErgo as AltErgo
+
+import PolyFOL as Poly
+
+import Data.Ord (comparing)
+import Data.List (sortBy)
 
 import Escape
 
@@ -35,19 +42,19 @@ import Name
 import Unique
 import CoreSyn
 
-import TyCon
-import DataCon
-
 import Control.Monad
 import System.Environment
 
 import Text.PrettyPrint
 
 import System.IO
+import System.Exit
 
 import qualified Data.Map as M
 
 import Data.IORef
+
+import System.Process
 
 getFlag :: Eq a => a -> [a] -> (Bool,[a])
 getFlag _   []  = (False,[])
@@ -90,7 +97,8 @@ main = do
             P.Ptr x    -> name' x ++ "_ptr"
             P.App      -> "app"
             P.TyFn     -> "fn"
---            P.Proj x i -> "proj_" ++ show i ++ "_" ++ name' x
+            P.Proj x i -> "proj_" ++ show i ++ "_" ++ name' x
+            P.QVar i   -> 'x':show i
 
         mk_kit :: (a -> (Doc,Doc)) -> Kit a
         mk_kit lr
@@ -101,34 +109,58 @@ main = do
         show_typed :: Typed String -> (Doc,Doc)
         show_typed xt@(x ::: _) = (text x,parens (ppTyped text xt))
 
-    let pass  = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
+        pass   = putStrLn . (++ " ===\n") . ("\n=== " ++) . map toUpper
         putErr = hPutStr stderr
+
+        put      = putStrLn . render
+        put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
+        put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
+        put_fo   = put . FO.ppFun text . fmap name'
+        put_poly = put . vcat . map (Poly.ppClause text . fmap polyname)
+        alt_ergo = render . vcat . map (AltErgo.ppClause (text . escape) . fmap polyname)
+        put_alt_ergo = putStrLn . alt_ergo
+
+        put_lints n p = putErr . newline . render . vcat
+                      . map (ppErr text . fmap n) . lint . lintFns . p
+
+        put_rlint  = put_lints name (:[])
+        put_slint  = put_lints name' (map injectFn)
 
     coreLint cb
 
-    arities <- newIORef $ M.fromList
-        [ (Old (dataConName dc),dataConRepArity dc)
-        | tc <- bindsTyCons cb
-        , dc <- tyConDataCons tc
-        ]
+    counter_ref <- newIORef 0
 
-    forM_ (flattenBinds cb) $ \ (v,e) -> do
+    let tcs         = bindsTyCons cb
+        m_data_types  = mapM trTyCon tcs
+
+    data_types <- case m_data_types of
+        Right dt -> return dt
+        Left err -> do
+            putErr (show err ++ "\n")
+            exitSuccess
+
+    let dcls = P.appAxioms ++ concatMap (P.trDatatype . fmap Old) data_types
+
+    pass "Datatypes, (ttf1 tptp)"
+    put_poly dcls
+
+    pass "Datatypes, (Alt-Ergo)"
+    put_alt_ergo dcls
+
+    let con_arities = M.fromList
+            [ (Old (R.con_name dc),length (R.con_args dc))
+            | dt <- data_types
+            , dc <- data_cons dt
+            ]
+
+    arities <- newIORef con_arities
+
+    clss <- forM (flattenBinds cb) $ \ (v,e) -> do
+        putStrLn ""
         pass "GHC Core"
         putStrLn (showOutputable v ++ " = " ++ showOutputable e)
         case trDefn v e of
             Right fn -> do
-                let put      = putStrLn . render
-                    put_rich = put . ppFun (mk_kit show_typed) . fmap (fmap name)
-                    put_simp = put . ppFun (mk_kit show_typed) . injectFn . fmap (fmap name')
-                    put_fo   = put . FO.ppFun text . fmap name'
-                    put_poly     = put . vcat . map (Poly.ppClause text . fmap polyname)
-                    put_alt_ergo = put . vcat . map (AltErgo.ppClause (text . escape) . fmap polyname)
-
-                    put_lints n p = putErr . newline . render . vcat
-                                  . map (ppErr text . fmap n) . lint . lintFns . p
-
-                    put_rlint  = put_lints name (:[])
-                    put_slint  = put_lints name' (map injectFn)
 
                 pass "Rich"
                 put_rich fn
@@ -139,14 +171,15 @@ main = do
                 put_rich fn'
                 put_rlint fn'
 
+                counter <- readIORef counter_ref
+
                 pass "Simple"
                 let simp_fns :: [S.Function (Typed (Rename Name))]
-                    simp_fns
-                        = uncurry (:)
-                        . runRTS
-                        . rtsFun
-                        . fmap (fmap Old)
-                        $ fn'
+                    (simp_fns,counter') = (fn'' : fns,c')
+                      where
+                        (fn'',c',fns) = runRTSFrom counter . rtsFun . fmap (fmap Old) $ fn'
+
+                writeIORef counter_ref counter'
 
                 mapM_ put_simp simp_fns
                 put_slint simp_fns
@@ -168,16 +201,36 @@ main = do
 
 
                 pass "Polymorphic FOL (tff1 tptp)"
-                let cls = concatMap P.trFun fo_fns_zapped
+                let cls = concatMap (uncurry (++) . P.trFun) fo_fns_zapped
 
                 put_poly cls
 
                 pass "Polymorphic FOL (Alt-Ergo)"
                 put_alt_ergo cls
 
-                return ()
-            Left err -> putErr (showOutputable v ++ ": " ++ show err ++ "\n")
-        putStrLn ""
+                return cls
+            Left err -> do
+                putErr (showOutputable v ++ ": " ++ show err ++ "\n")
+                exitFailure
+
+    pass "Final Alt-Ergo"
+    let cls = concat clss
+
+        rank :: Clause a -> Int
+        rank Poly.SortSig{} = 0
+        rank Poly.TypeSig{} = 1
+        rank _              = 2
+
+        mlw = "/tmp/tfp1.mlw"
+        thy = alt_ergo (sortBy (comparing rank) (dcls ++ cls))
+
+    putStrLn thy
+
+    writeFile mlw thy
+    (exc,out,err) <- readProcessWithExitCode "alt-ergo" [mlw,"-type-only"] ""
+    putErr (newline out)
+    putErr (newline err)
+    exitWith exc
 
 newline :: String -> String
 newline "" = ""

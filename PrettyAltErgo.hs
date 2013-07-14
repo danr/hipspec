@@ -49,10 +49,10 @@ ppTySig p x args res
         _  -> hang (commasep (map (ppType p) args) <+> "->") 2
 
 ppType :: Id a -> Type a -> Doc
-ppType p = go id
+ppType p = go
   where
-    go par t0 = case t0 of
-        TyCon tc ts -> par (commasepP (map (go parens) ts) <+> p tc)
+    go t0 = case t0 of
+        TyCon tc ts -> commasepP (map go ts) <+> p tc
         TyVar x     -> prime (p x)
         Type        -> error "PrettyAltErgo.ppType: Type"
 
@@ -60,8 +60,7 @@ ppForm :: Id a -> Formula a -> Doc
 ppForm p f0 = case f0 of
     _ | Just (op,fs) <- collectFOp f0 -> inside "(" (ppFOp op) ")" (map (ppForm p) fs)
     Q q x t f         -> hang (ppQ q <+> ppTySig p x [] t <+> ".") 2 (ppForm p f)
-    TOp Equal t1 t2   -> sep [ppTerm p t1 <+> "=",ppTerm p t2]
-    TOp Unequal t1 t2 -> ppForm p (Neg (TOp Equal t1 t2))
+    TOp op t1 t2      -> sep [ppTerm p t1 <+> ppTOp op,ppTerm p t2]
     Neg f             -> "not" <+> parens (ppForm p f)
     Pred q fs         -> p q <> csv (map (ppForm p) fs)
     FOp{}             -> error "PrettyAltErgo.ppForm: FOp"
@@ -77,6 +76,11 @@ ppFOp op = case op of
     Or      -> " or "
     Implies -> " -> "
     Equiv   -> " <-> "
+
+ppTOp :: TOp -> Doc
+ppTOp op = case op of
+    Equal   -> "="
+    Unequal -> "<>"
 
 ppTerm :: Id a -> Term a -> Doc
 ppTerm p = go
