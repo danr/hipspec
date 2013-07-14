@@ -9,10 +9,16 @@ import FunctionalFO as FO
 import UnPtrLocalFO
 
 stfFun :: Ord a => S.Function (Typed a) -> FO.Function a
-stfFun (S.Function (f ::: t) as b) = uplFun $
+stfFun (S.Function (f ::: ty) as b) = uplFun $
     FO.Function f tvs (map stfBndr as) res_ty (stfBody b)
   where
-    (tvs,collectArrTy -> (_,res_ty)) = collectForalls t
+    peel 0 t           = t
+    peel n (ArrTy _ t) = peel (n - 1) t
+    peel _ _           = error "SimpleToFO.peel: not an arrow type!"
+
+    (tvs,ty') = collectForalls ty
+    res_ty    = peel (length as) ty'
+
 
 stfBody :: Eq a => S.Body (Typed a) -> FO.Body a
 stfBody b0 = case b0 of
