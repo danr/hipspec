@@ -2,6 +2,7 @@
 module Main where
 
 import FreeTyCons
+import TyCon (isAlgTyCon)
 
 import Read
 import Utils
@@ -130,8 +131,8 @@ main = do
 
     counter_ref <- newIORef 0
 
-    let tcs         = bindsTyCons cb
-        m_data_types  = mapM trTyCon tcs
+    let tcs          = filter isAlgTyCon (bindsTyCons cb)
+        m_data_types = mapM trTyCon tcs
 
     data_types <- case m_data_types of
         Right dt -> return dt

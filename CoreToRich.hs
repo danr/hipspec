@@ -50,6 +50,7 @@ data Err
     | HigherRankType Var C.Type
     | UnificationError C.Type [TyVar] DataCon CoreExpr (Maybe TvSubst)
     | NonVanillaDataCon DataCon TyCon
+    | NotAlgebraicTyCon TyCon
 
 instance Show Err where
     show err = case err of
@@ -72,6 +73,8 @@ instance Show Err where
             "Data constructor " ++ showOutputable dc ++
             " from type constructor " ++ showOutputable tc ++
             " is not Haskell 98!"
+        NotAlgebraicTyCon tc ->
+            "Type constructor " ++ showOutputable tc ++ " is not algebraic!"
         Fail s -> "Internal failure: " ++ s
 
 instance Error Err where
@@ -79,6 +82,7 @@ instance Error Err where
 
 trTyCon :: TyCon -> TM (Datatype Name)
 trTyCon tc = do
+    unless (isAlgTyCon tc) (throwError (NotAlgebraicTyCon tc))
     dcs <- mapM tr_dc (tyConDataCons tc)
     return Datatype
         { data_ty_con = tyConName tc

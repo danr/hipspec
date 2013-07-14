@@ -1,32 +1,16 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards,PackageImports #-}
 module FreeTyCons (bindsTyCons) where
 
 import CoreSyn
+import CoreUtils (exprType)
 import DataCon
 import TyCon
-import CoreFVs
-import VarSet
 import Id
-
-import Control.Monad
-
-import Data.Maybe
+import "ghc" Type
+import Var
 
 import Data.Set (Set)
 import qualified Data.Set as S
-
--- | Is this Id a data or newtype constructor?
---
---   Note: cannot run isDataConWorkId on things that aren't isId,
---         then we get a panic from idDetails.
-isDataConId :: Id -> Bool
-isDataConId v = isId v && (isConLikeId v || isNewtypeConId v)
-
--- | Is this Id a "constructor" to a newtype?
-isNewtypeConId :: Id -> Bool
-isNewtypeConId i
-    | Just dc <- isDataConId_maybe i = isNewTyCon (dataConTyCon dc)
-    | otherwise = False
 
 bindsTyCons :: [CoreBind] -> [TyCon]
 bindsTyCons = S.toList . S.unions . map bindTyCons
@@ -34,40 +18,39 @@ bindsTyCons = S.toList . S.unions . map bindTyCons
 bindTyCons :: CoreBind -> Set TyCon
 bindTyCons = S.unions . map exprTyCons . rhssOfBind
 
+tyTyCons :: Type -> Set TyCon
+tyTyCons = go . expandTypeSynonyms
+  where
+    go t0
+        | Just (t1,t2) <- splitFunTy_maybe t0    = S.union (go t1) (go t2)
+        | Just (tc,ts) <- splitTyConApp_maybe t0 = S.insert tc (S.unions (map go ts))
+        | Just (_,t) <- splitForAllTy_maybe t0   = go t
+        | otherwise                              = S.empty
+
+varTyCons :: Var -> Set TyCon
+varTyCons = tyTyCons . varType
+
 -- | For all used constructors in expressions and patterns,
 --   return the TyCons they originate from
 exprTyCons :: CoreExpr -> Set TyCon
-exprTyCons e =
-    let safeIdDataCon c = guard (isId c) >> isDataConId_maybe c
+exprTyCons e0 = case e0 of
+    Case e x t alts -> S.unions (varTyCons x:tyTyCons t:exprTyCons e:map altTyCons alts)
+    App e1 e2       -> S.union (exprTyCons e1) (exprTyCons e2)
+    Let bs e        -> S.unions (exprTyCons e:map exprTyCons (rhssOfBind bs))
+    Lam _ e         -> exprTyCons e
+    Cast e _        -> exprTyCons e
+    Tick _ e        -> exprTyCons e
+    Var x           -> varTyCons x
+    Type t          -> tyTyCons t
+    Coercion{}      -> S.empty
+    Lit{}           -> tyTyCons (exprType e0)
 
-        as_exprs = S.fromList
-                 . mapMaybe safeIdDataCon . varSetElems
-                 . exprSomeFreeVars isDataConId $ e
+altTyCons :: CoreAlt -> Set TyCon
+altTyCons (alt,_,rhs) = patTyCons alt `S.union` exprTyCons rhs
 
-        in_patterns = patCons e
-
-    in  S.map dataConTyCon (as_exprs `S.union` in_patterns)
-
--- | Returs the constructors used in patterns
-patCons :: CoreExpr -> Set DataCon
-patCons e0 = case e0 of
-    Case e _ _ alts -> S.unions (patCons e:map patConsAlt alts)
-    App e1 e2  -> patCons e1 `S.union` patCons e2
-    Let bs e   -> S.unions (patCons e:map patCons (rhssOfBind bs))
-    Lam _ e    -> patCons e
-    Cast e _   -> patCons e
-    Tick _ e   -> patCons e
-    Var{}      -> S.empty
-    Lit{}      -> S.empty
-    Type{}     -> S.empty
-    Coercion{} -> S.empty
-
-patConsAlt :: CoreAlt -> Set DataCon
-patConsAlt (alt,_,rhs) = patConsPat alt `S.union` patCons rhs
-
-patConsPat :: AltCon -> Set DataCon
-patConsPat p = case p of
-    DataAlt c -> S.singleton c
+patTyCons :: AltCon -> Set TyCon
+patTyCons p = case p of
+    DataAlt c -> S.singleton (dataConTyCon c)
     LitAlt{}  -> S.empty
     DEFAULT   -> S.empty
 
