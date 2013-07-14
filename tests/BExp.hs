@@ -1,5 +1,13 @@
 module BExp where
 
+import Prelude hiding (not,(&&))
+
+True  && b = b
+False && _ = False
+
+not True = False
+not False = True
+
 data Nat = Zero_nat
          | Suc Nat
 
