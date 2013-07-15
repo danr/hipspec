@@ -18,12 +18,6 @@ instance HasScope v (Scope v) where
     get_scope = id
     mod_scope = id
 
-{-
-instance HasScope v t => HasScope v (t,a) where
-    get_scope         = get_scope . fst
-    mod_scope f (s,a) = (mod_scope f s,a)
-    -}
-
 -- | Make a scope
 makeScope :: Ord v => [v] -> Set v
 makeScope = S.fromList
