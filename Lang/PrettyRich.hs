@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Pretty-printing the rich language, parameterised on how to
 --   pretty-print variables.
-module PrettyRich where
+module Lang.PrettyRich where
 
 import Text.PrettyPrint
 
-import Rich
-import PrettyUtils
-import Type
+import Lang.Rich
+import Lang.PrettyUtils
+import Lang.Type
 
 ppProg :: Kit a -> Program a -> Doc
 ppProg k (Program _ds fs) = vcat (map (ppFun k) fs)

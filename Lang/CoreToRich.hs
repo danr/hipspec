@@ -1,13 +1,13 @@
 {-# LANGUAGE PatternGuards, PackageImports #-}
 
 -- | Translation from GHC Core to the Rich Language, a subset
-module CoreToRich where
+module Lang.CoreToRich where
 
 import Control.Applicative
 import Control.Monad.Error
 
-import Rich as R
-import Type as R
+import Lang.Rich as R
+import Lang.Type as R
 
 import CoreUtils as C
 import CoreSyn as C
@@ -17,16 +17,16 @@ import Literal
 import Var
 import Name(Name)
 import TyCon hiding (data_cons)
-import "ghc" Type as C
+import Type as C
 import GHC (dataConType)
 
-import DataConPattern
+import Lang.DataConPattern
 
 import IdInfo
 
-import Utils (showOutputable)
+import Lang.Utils (showOutputable)
 
-import TyAppBeta
+import Lang.TyAppBeta
 
 -- | The binders in our translated expressions.
 --

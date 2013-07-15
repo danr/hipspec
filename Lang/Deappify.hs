@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns,PatternGuards #-}
-module Deappify where
+module Lang.Deappify where
 
-import FunctionalFO
+import Lang.FunctionalFO
 
-import Type
+import Lang.Type
 
 import Control.Applicative
 

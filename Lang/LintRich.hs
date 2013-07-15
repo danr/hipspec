@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveFunctor,OverloadedStrings #-}
-module LintRich where
+module Lang.LintRich where
 
-import Rich
-import Type
+import Lang.Rich
+import Lang.Type
 
 import Control.Applicative
 import Control.Monad
@@ -13,7 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 
 import Text.PrettyPrint
-import PrettyRich
+import Lang.PrettyRich
 
 type LintM v a = WriterT [Err v] (Reader (Map v (Type v))) a
 

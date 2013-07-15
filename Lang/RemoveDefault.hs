@@ -55,20 +55,20 @@
     with data constructors, we could unroll it.
 
 -}
-module RemoveDefault where
+module Lang.RemoveDefault where
 
 import CoreSyn
 import CoreUtils hiding (findAlt)
 import DataCon
 import FastString
 import TyCon
-import "ghc" Type
+import Type
 import Unique
 import UniqSupply
 import Id
-import DataConPattern
+import Lang.DataConPattern
 
-import Utils
+import Lang.Utils
 
 import Control.Monad
 import Control.Applicative

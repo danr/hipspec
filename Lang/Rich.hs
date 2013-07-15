@@ -2,14 +2,14 @@
 -- | The Rich expression language, a subset of GHC Core
 --
 -- It is Rich because it has lambdas, let and cases at any level.
-module Rich where
+module Lang.Rich where
 
 import Data.Generics.Geniplate
 import Data.List (union)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
-import Type
+import Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell #-}
 -- | Types for the Rich and the Simple language
-module Type where
+module Lang.Type where
 
 import Data.Generics.Geniplate
 import Data.List (nub,union,elemIndex)

@@ -1,11 +1,11 @@
-{-# LANGUAGE PackageImports #-}
-module CoreLint where
+
+module Lang.CoreLint where
 
 import Bag
-import "ghc" CoreLint
+import CoreLint
 import CoreSyn
 
-import Utils
+import Lang.Utils
 
 import System.IO
 

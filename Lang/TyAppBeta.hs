@@ -1,8 +1,8 @@
-{-# LANGUAGE PackageImports #-}
--- | Beta reduction for types (applied to lambdas)
-module TyAppBeta where
 
-import "ghc" Type
+-- | Beta reduction for types (applied to lambdas)
+module Lang.TyAppBeta where
+
+import Type
 
 import CoreSyn
 import qualified CoreSubst as CS

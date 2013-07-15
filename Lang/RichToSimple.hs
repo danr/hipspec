@@ -10,14 +10,14 @@
 --
 -- In the expression (g x) in this context, only x is free.
 --
-module RichToSimple where
+module Lang.RichToSimple where
 
-import Rich as R
-import Simple as S
+import Lang.Rich as R
+import Lang.Simple as S
 
-import SimplifyRich (removeScrutinee)
+import Lang.SimplifyRich (removeScrutinee)
 
-import Scope
+import Lang.Scope
 
 import Control.Monad.RWS
 import Control.Applicative

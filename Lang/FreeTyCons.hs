@@ -1,12 +1,12 @@
-{-# LANGUAGE PatternGuards,PackageImports #-}
-module FreeTyCons (bindsTyCons) where
+{-# LANGUAGE PatternGuards #-}
+module Lang.FreeTyCons (bindsTyCons) where
 
 import CoreSyn
 import CoreUtils (exprType)
 import DataCon
 import TyCon
 import Id
-import "ghc" Type
+import Type
 import Var
 
 import Data.Set (Set)

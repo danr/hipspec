@@ -2,19 +2,19 @@
 -- | Translation from the Functional FO to PolyFOL,
 -- the only thing that needs to be done is getting rid of case,
 -- and translating some types.
-module ToPolyFOL where
+module Lang.ToPolyFOL where
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
-import qualified Type as T
+import qualified Lang.Type as T
 
-import qualified FunctionalFO as FO
-import FunctionalFO hiding (App,Ptr)
-import PolyFOL as P
-import TypedScope
+import qualified Lang.FunctionalFO as FO
+import Lang.FunctionalFO hiding (App,Ptr)
+import Lang.PolyFOL as P
+import Lang.TypedScope
 
-import Rich (Datatype(..),Constructor(..))
+import Lang.Rich (Datatype(..),Constructor(..))
 
 import Control.Applicative
 import Control.Monad.Reader

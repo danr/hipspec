@@ -1,4 +1,4 @@
-module Unfoldings (fixUnfoldings,fixId) where
+module Lang.Unfoldings (fixUnfoldings,fixId) where
 
 import qualified Data.Map as M
 

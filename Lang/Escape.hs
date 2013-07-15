@@ -1,5 +1,5 @@
 -- | Some kind of z-encoding escaping
-module Escape (escape) where
+module Lang.Escape (escape) where
 
 import qualified Data.Map as M
 import Data.Maybe

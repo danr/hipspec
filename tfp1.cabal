@@ -20,7 +20,7 @@ flag Werror
     manual: True
 
 executable tfp1
-    main-is:         Main.hs
+    main-is:         Lang/Main.hs
     if flag(Werror)
         ghc-options: -Werror
     ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all

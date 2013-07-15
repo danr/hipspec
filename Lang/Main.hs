@@ -1,43 +1,43 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import FreeTyCons
+import Lang.FreeTyCons
 import TyCon (isAlgTyCon)
 
-import Read
-import Utils
+import Lang.Read
+import Lang.Utils
 
 import Data.Char
 
-import Rich as R
+import Lang.Rich as R
 
-import CoreToRich
-import SimplifyRich
-import RichToSimple
+import Lang.CoreToRich
+import Lang.SimplifyRich
+import Lang.RichToSimple
 
-import PrettyRich
-import PrettyUtils
-import PrettyPolyFOL as Poly
-import PrettyAltErgo as AltErgo
+import Lang.PrettyRich
+import Lang.PrettyUtils
+import Lang.PrettyPolyFOL as Poly
+import Lang.PrettyAltErgo as AltErgo
 
-import PolyFOL as Poly
+import Lang.PolyFOL as Poly
 
 import Data.Ord (comparing)
 import Data.List (sortBy)
 
-import Escape
+import Lang.Escape
 
-import Simple as S
-import qualified FunctionalFO as FO
-import qualified PrettyFO as FO
+import Lang.Simple as S
+import qualified Lang.FunctionalFO as FO
+import qualified Lang.PrettyFO as FO
 
-import SimpleToFO as FO
-import Deappify
+import Lang.SimpleToFO as FO
+import Lang.Deappify
 
-import qualified ToPolyFOL as P
+import qualified Lang.ToPolyFOL as P
 
-import LintRich
-import CoreLint
+import Lang.LintRich
+import Lang.CoreLint
 
 import Name
 import Unique

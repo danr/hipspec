@@ -3,16 +3,16 @@
 --
 --   The scope needs to be kept track of to not make pointers to the bound
 --   variables.
-module SimpleToFO where
+module Lang.SimpleToFO where
 
 import Control.Monad.Reader
 import Control.Applicative
 
-import qualified Simple as S
-import Simple hiding (App)
-import FunctionalFO as FO
+import qualified Lang.Simple as S
+import Lang.Simple hiding (App)
+import Lang.FunctionalFO as FO
 
-import Scope
+import Lang.Scope
 
 type STF v a = Reader (Scope v) a
 

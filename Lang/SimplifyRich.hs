@@ -13,10 +13,10 @@
 --
 -- TODO: Inline non-recursive global definitions
 --       Polymorphic lets
-module SimplifyRich where
+module Lang.SimplifyRich where
 
-import Rich
-import Type
+import Lang.Rich
+import Lang.Type
 
 simpFun :: Eq a => Function (Typed a) -> Function (Typed a)
 simpFun (Function f b) = Function f $ simpExpr $ case b of

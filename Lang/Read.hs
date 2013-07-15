@@ -1,4 +1,4 @@
-module Read where
+module Lang.Read where
 
 import DynFlags
 import GHC hiding (Sig)
@@ -13,9 +13,9 @@ import GhcMonad
 
 import SimplCore
 
-import Unfoldings
-import RemoveDefault
-import Uniquify
+import Lang.Unfoldings
+import Lang.RemoveDefault
+import Lang.Uniquify
 
 import Data.Maybe
 import Data.List

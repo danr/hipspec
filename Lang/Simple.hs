@@ -6,7 +6,7 @@
 --
 -- There is some code duplication between this and the Rich
 -- language. It is unclear how this could be remedied.
-module Simple
+module Lang.Simple
     ( Function(..)
     , Body(..)
     , Alt
@@ -15,8 +15,8 @@ module Simple
     , apply
     , bodyType
     , exprType
-    , module Rich
-    , module Type
+    , module Lang.Rich
+    , module Lang.Type
     , injectFn
     , injectBody
     , injectExpr
@@ -26,9 +26,9 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
 -- Patterns are resued from the rich language
-import Rich (Pattern(..),anyRhs)
-import qualified Rich as R
-import Type
+import Lang.Rich (Pattern(..),anyRhs)
+import qualified Lang.Rich as R
+import Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 

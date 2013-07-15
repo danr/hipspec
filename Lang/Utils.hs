@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module Utils where
+module Lang.Utils where
 
 import Outputable
 

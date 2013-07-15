@@ -1,9 +1,9 @@
-{-# LANGUAGE PackageImports #-}
-module DataConPattern where
+
+module Lang.DataConPattern where
 
 import DataCon
 import Var
-import "ghc" Type
+import Type
 
 import Unify
 
