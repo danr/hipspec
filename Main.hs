@@ -89,8 +89,14 @@ main = do
             if suppress_uniques then "" else '_':showOutputable (getUnique nm)
 
         name' :: Rename Name -> String
-        name' (Old nm) = name nm
-        name' (New x)  = '_':show x
+        name' (Old nm)   = name nm
+        name' (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
+
+        loc :: Loc (Rename Name) -> String
+        loc lc = case lc of
+            CaseLoc   -> "case"
+            LamLoc    -> "lambda"
+            LetLoc nm -> name' nm
 
         polyname :: P.Poly (Rename Name) -> String
         polyname x0 = case x0 of
@@ -129,8 +135,6 @@ main = do
 
     coreLint cb
 
-    counter_ref <- newIORef 0
-
     let tcs          = filter isAlgTyCon (bindsTyCons cb)
         m_data_types = mapM trTyCon tcs
 
@@ -138,7 +142,7 @@ main = do
         Right dt -> return dt
         Left err -> do
             putErr (show err ++ "\n")
-            exitSuccess
+            exitFailure
 
     let dcls = P.appAxioms ++ concatMap (P.trDatatype . fmap Old) data_types
 
@@ -172,15 +176,9 @@ main = do
                 put_rich fn'
                 put_rlint fn'
 
-                counter <- readIORef counter_ref
-
                 pass "Simple"
                 let simp_fns :: [S.Function (Typed (Rename Name))]
-                    (simp_fns,counter') = (fn'' : fns,c')
-                      where
-                        (fn'',c',fns) = runRTSFrom counter . rtsFun . fmap (fmap Old) $ fn'
-
-                writeIORef counter_ref counter'
+                    simp_fns = uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ fn'
 
                 mapM_ put_simp simp_fns
                 put_slint simp_fns

@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables,DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables,DeriveFunctor,FlexibleInstances,MultiParamTypeClasses #-}
 -- | Translating the rich language to the simple language
 --
 -- Lambdas, lets an inner cases are lifted to the top level.
@@ -27,12 +27,21 @@ import Data.List (nub,(\\))
 type Var a = Typed (Rename a)
 
 data Rename a
-    = Old a   -- an old name
-    | New Int -- a fresh name
+    = Old a                    -- an old name
+    | New [Loc (Rename a)] Int -- a fresh name
   deriving (Eq,Ord,Show,Functor)
 
+data Loc a = CaseLoc | LamLoc | LetLoc a
+  deriving (Eq,Ord,Show,Functor)
+
+newtype Env v = Env (Scope v,[Loc v])
+
+instance HasScope v (Env v) where
+    get_scope (Env (s,_))   = get_scope s
+    mod_scope f (Env (s,a)) = Env (mod_scope f s,a)
+
 type RTS v = RWS
-    (Scope (Var v))      -- variables in scope
+    (Env (Var v))      -- variables in scope
     [S.Function (Var v)] -- emitted lifted functions
     Int                  -- name supply
 
@@ -40,18 +49,27 @@ emit :: S.Function (Var v) -> RTS v ()
 emit = tell . (:[])
 
 runRTS :: RTS v a -> (a,[S.Function (Var v)])
-runRTS m = evalRWS m emptyScope 0
+runRTS m = evalRWS m (Env (emptyScope,[])) 0
 
-runRTSFrom :: Int -> RTS v a -> (a,Int,[S.Function (Var v)])
-runRTSFrom c m = runRWS m emptyScope c
+getLocs :: forall v . RTS v [Loc (Rename v)]
+getLocs = do
+    Env (_,ls) <- ask
+    let ls' :: [Loc (Rename v)]
+        ls' = [ forget l | l <- ls ]
+    return ls'
+
+withNewLoc :: Loc (Rename v) -> RTS v a -> RTS v a
+withNewLoc l = local $ \ (Env (sc,ls)) -> Env (sc,ls ++ [star l])
 
 fresh :: Type (Rename v) -> RTS v (Var v)
-fresh t = state $ \ s -> (New s ::: t,succ s)
+fresh t = do
+    ls <- getLocs
+    state $ \ s -> (New ls s ::: t,succ s)
 
 rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
 rtsFun (R.Function f e) = do
     let (args,body) = collectBinders e
-    clearScope $ extendScope args $
+    withNewLoc (LetLoc (forget_type f)) $ clearScope $ extendScope args $
         S.Function f args <$> rtsBody body
 
 rtsBody :: Ord v => R.Expr (Var v) -> RTS v (S.Body (Var v))
@@ -76,8 +94,8 @@ rtsExpr e0 = case e0 of
     -- Lambda-lifting of lambda as case
     -- Emits a new function, and replaces the body with this new function
     -- applied to the type variables and free variables.
-    R.Lam{}  -> emitFun e0
-    R.Case{} -> emitFun e0
+    R.Lam{}  -> emitFun LamLoc e0
+    R.Case{} -> emitFun CaseLoc e0
 
     R.Let fns e -> do
         -- See Example tricky let lifting
@@ -88,7 +106,18 @@ rtsExpr e0 = case e0 of
 
         free_vars <- freeVarsOf free_vars_overapprox
 
-        let handle_fun (R.Function fn@(f ::: ft) body) = (subst,fn')
+        let handle_fun (R.Function fn@(f ::: ft) body) = withNewLoc (LetLoc f) $ do
+
+                f' <- fresh new_type
+
+                let subst = tySubst fn $ \ ty_args ->
+                        R.Var f' (map (star . TyVar) new_ty_vars ++ ty_args)
+                        `R.apply`
+                        map (`R.Var` []) free_vars
+
+                    fn' = R.Function f' new_lambda
+
+                return (subst,fn')
               where
                 (tvs,_) = collectForalls ft
 
@@ -100,16 +129,7 @@ rtsExpr e0 = case e0 of
 
                 new_type = makeForalls (new_ty_vars ++ tvs) new_type_body
 
-                f' = f ::: new_type
-
-                subst = tySubst fn $ \ ty_args ->
-                    R.Var f' (map (star . TyVar) new_ty_vars ++ ty_args)
-                    `R.apply`
-                    map (`R.Var` []) free_vars
-
-                fn' = R.Function f' new_lambda
-
-            (substs,fns') = unzip (map handle_fun fns)
+        (substs,fns') <- mapAndUnzipM handle_fun fns
 
         -- Substitutions of the functions applied to their new arguments
         let subst :: R.Expr (Var v) -> R.Expr (Var v)
@@ -147,8 +167,8 @@ This should be lifted to:
 
 -}
 
-emitFun :: forall v . Ord v => R.Expr (Var v) -> RTS v (S.Expr (Var v))
-emitFun body = do
+emitFun :: forall v . Ord v => Loc (Rename v) -> R.Expr (Var v) -> RTS v (S.Expr (Var v))
+emitFun l body = do
 
     args <- exprFreeVars body
 
@@ -158,12 +178,14 @@ emitFun body = do
 
         ty_vars    = freeTyVars new_type
 
-    f <- fresh (makeForalls ty_vars new_type)
+    withNewLoc l $ do
 
-    emit =<< rtsFun (R.Function f new_lambda)
+        f <- fresh (makeForalls ty_vars new_type)
 
-    return (S.apply (S.Var f (map (star . S.TyVar) ty_vars))
-                    (map (`S.Var` []) args))
+        emit =<< rtsFun (R.Function f new_lambda)
+
+        return (S.apply (S.Var f (map (star . S.TyVar) ty_vars))
+                        (map (`S.Var` []) args))
 
 -- | Gets the free vars of an expression
 exprFreeVars :: Ord v => R.Expr (Var v) -> RTS v [Var v]

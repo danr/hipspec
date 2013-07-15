@@ -15,7 +15,7 @@ function run {
 for i in `ls *.hs`
 do
     run "tfp1 -t $i"
-#   run "tfp1 -t -O $i"
+    run "tfp1 -t -O $i"
 done
 
 if $ok
