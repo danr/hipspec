@@ -23,7 +23,7 @@ executable tfp1
     main-is:         Main.hs
     if flag(Werror)
         ghc-options: -Werror
-    ghc-options:     -threaded -Wall -rtsopts -package ghc
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
     build-depends:
         base         >= 4 && < 5,
         ghc-paths    == 0.1.*,
