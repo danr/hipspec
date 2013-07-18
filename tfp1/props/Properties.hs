@@ -1,6 +1,6 @@
 module Properties where
 
-import HipSpec.Prelude
+import HipSpec
 import Prelude hiding (zipWith,curry,map,zip)
 
 prop_compose f g h = f . (g . h) =:= (f . g) . h

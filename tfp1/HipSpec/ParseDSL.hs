@@ -1,3 +1,4 @@
+-- | A hacky way of parsing the property language DSL
 module HipSpec.ParseDSL where
 
 import Var
@@ -16,10 +17,10 @@ propType ty = typeIsProp res && not (any typeIsProp args)
     (args,res) = splitFunTys ty'
 
 typeIsProp  :: Outputable a => a -> Bool
-typeIsProp  = isInfixOf "HipSpec.Prelude.Prop" . showOutputable
+typeIsProp  = isInfixOf "HipSpec.Prop" . showOutputable
 
 fromPrelude :: Outputable a => a -> Bool
-fromPrelude = isInfixOf "HipSpec.Prelude" . showOutputable
+fromPrelude = isInfixOf "HipSpec" . showOutputable
 
 isMain      :: Outputable a => a -> Bool
 isMain      = isInfixOf "main" . showOutputable
