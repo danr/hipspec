@@ -31,7 +31,7 @@ indhyps   = 500
 indobligs :: Int
 indobligs = 20
 
-induction :: TyEnv' -> ArityMap -> Property -> [Int] -> Maybe [ProofObligation]
+induction :: TyEnv' -> ArityMap -> Property eq -> [Int] -> Maybe [ProofObligation eq]
 induction ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = do
     -- Applying structural induction
     let vars     = [ (v,t) | v ::: t <- prop_vars ]

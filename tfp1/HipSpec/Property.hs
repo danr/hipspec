@@ -1,5 +1,5 @@
 -- | Properties, represented with the simple language
-{-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor #-}
 module HipSpec.Property
     ( Literal(..)
     , mapLiteral
@@ -28,11 +28,14 @@ import DataCon (dataConName)
 
 import Data.List (intercalate)
 
+import Data.Void
+
 import qualified Lang.PolyFOL as P
 import qualified Lang.ToPolyFOL as P
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
+-- | Literals in propreties
 data Literal = S.Expr TypedName' :=: S.Expr TypedName'
 
 mapLiteral :: (S.Expr TypedName' -> S.Expr TypedName') -> Literal -> Literal
@@ -41,9 +44,25 @@ mapLiteral f (a :=: b) = f a :=: f b
 instance Show Literal where
     show (e1 :=: e2) = showExpr e1 ++ " = " ++ showExpr e2
 
-data Property = Property
+-- | Origins of properties
+data Origin eq
+    = Equation eq
+    -- ^ A Quick-Spec equation
+    | UserStated
+    -- ^ User-stated properties
+  deriving (Eq,Ord,Functor)
+
+instance Show (Origin eq) where
+    show o = case o of
+        Equation{} -> "equation from QuickSpec"
+        UserStated -> "user stated"
+
+-- | Properties
+data Property eq = Property
     { prop_name     :: String
     -- ^ Name (e.g. prop_rotate)
+    , prop_origin   :: Origin eq
+    -- ^ Origin of the property
     , prop_tvs      :: [Name']
     -- ^ Type variables
     , prop_vars     :: [TypedName']
@@ -57,11 +76,13 @@ data Property = Property
     , prop_var_repr :: [String]
     -- ^ Representation of variables (e.g ["xs"])
     }
+  deriving Functor
 
-instance Show Property where
+instance Show (Property eq) where
     show Property{..} = concatMap (++ "\n    ")
         [ "Property"
         , "{ prop_name = " ++ prop_name
+        , ", prop_origin = " ++ show prop_origin
         , ", prop_tvs = " ++ comma (map ppRename prop_tvs)
         , ", prop_vars = " ++ comma (map (render . R.ppTyped (text . ppRename)) prop_vars)
         , ", prop_goal = " ++ show prop_goal
@@ -89,11 +110,11 @@ instance Show Err where
         PropertyWithCase b  -> "Property with a case: " ++ showBody b
         Internal s          -> s
 
-trProperties :: [S.Function (S.Var Name)] -> Either Err [Property]
+trProperties :: [S.Function (S.Var Name)] -> Either Err [Property Void]
 trProperties = mapM trProperty
 
 -- | Translates a property that has been translated to a simple function earlier
-trProperty :: S.Function (S.Var Name) -> Either Err Property
+trProperty :: S.Function (S.Var Name) -> Either Err (Property Void)
 trProperty (S.Function (p ::: t) args b) = case b of
     Case{} -> throwError (PropertyWithCase b)
     Body e -> do
@@ -106,6 +127,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
 
         return $ initFields Property
             { prop_name     = ppRename p
+            , prop_origin   = UserStated
             , prop_tvs      = tvs
             , prop_vars     = args
             , prop_goal     = goal
@@ -114,7 +136,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
             , prop_var_repr = err
             }
 
-initFields :: Property -> Property
+initFields :: Property eq -> Property eq
 initFields p@Property{..} = p
     { prop_repr     = intercalate " => " (map show (prop_assums ++ [prop_goal]))
     , prop_var_repr = map (ppRename . S.forget_type) prop_vars
@@ -139,7 +161,7 @@ parseProperty e = case collectArgs e of
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore
-tvSkolemProp :: Property -> (Property,[P.Clause LogicId],[Content])
+tvSkolemProp :: Property eq -> (Property eq,[P.Clause LogicId],[Content])
 tvSkolemProp p@Property{..} =
     ( p
         { prop_tvs  = []
@@ -167,7 +189,7 @@ tvSkolemProp p@Property{..} =
     sk_lit     = mapLiteral expr_subst
 
 -- | Eta-expands a property, if possible
-etaExpandProp :: Property -> Property
+etaExpandProp :: Property eq -> Property eq
 etaExpandProp p@Property{..}
     | e :=: _ <- prop_goal
     , (ts,_res_ty) <- collectArrTy (S.exprType e)
@@ -178,9 +200,5 @@ etaExpandProp p@Property{..}
                 { prop_vars = prop_vars ++ new_vars
                 , prop_goal = mapLiteral (`S.apply` new_exprs) prop_goal
                 }
-
 etaExpandProp p = p
-
-
-
 

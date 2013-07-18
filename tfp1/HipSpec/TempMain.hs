@@ -12,6 +12,7 @@ import HipSpec.Plain
 import HipSpec.Induction
 import HipSpec.Trim
 import HipSpec.ThmLib
+import HipSpec.Params
 
 import qualified Lang.Simple as S
 import qualified Lang.RichToSimple as S
@@ -24,11 +25,10 @@ import Lang.FreeTyCons
 
 import TyCon (isAlgTyCon)
 
-import System.Environment
-
 import UniqSupply
 
 import Control.Monad
+import Control.Applicative
 
 import Data.List (partition)
 
@@ -37,9 +37,10 @@ import Data.Maybe(catMaybes)
 
 main :: IO ()
 main = do
-    [file] <- getArgs
 
-    var_props <- execute file
+    params <- sanitizeParams <$> cmdArgs defParams
+
+    var_props <- execute (file params)
 
     us0 <- mkSplitUniqSupply 'h'
 

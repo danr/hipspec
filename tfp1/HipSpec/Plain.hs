@@ -11,7 +11,7 @@ import Lang.PolyFOL as P
 import Lang.ToPolyFOL
 import Lang.Simple
 
-plain :: ArityMap -> Property -> ProofObligation
+plain :: ArityMap -> Property eq -> ProofObligation eq
 plain am prop_orig@(tvSkolemProp -> (Property{..},sorts,ignore)) = Obligation
     { ob_prop = prop_orig
     , ob_info = Induction [] 0 1
