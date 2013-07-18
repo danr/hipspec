@@ -3,10 +3,11 @@ module Lang.Escape (escape) where
 
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Char
 
 -- | Escaping
 escape :: String -> String
-escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
+escape = leading . concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
   where
     escapes = M.fromList $ map (uncurry (flip (,)))
         [ ("za",'@')
@@ -40,3 +41,8 @@ escape = concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
         , ("zV",'\\')
         , ("zz",'z')
         ]
+
+leading :: String -> String
+leading xs@(x:_) | isDigit x = '_':xs
+                 | otherwise = xs
+leading []                   = "_"

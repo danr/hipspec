@@ -12,6 +12,8 @@ import Data.Maybe
 import Data.Graph
 import Data.Tree
 
+import Data.List
+
 -- | Trim down a grand theory, from the recursive dependencies from a set
 --   of interesting subtheories.
 --
@@ -35,18 +37,21 @@ trim grand_theory =
         toVertex   :: Content -> Maybe Vertex
         (g,fromVertex,toVertex) = graphFromEdges gr
 
-        err :: Content -> Vertex
-        err content = error $ "HipSpec.Trim.trim: Trying to find dependencies of "
-                            ++ show content ++ " which could not be found!"
-
-        findVertex :: Content -> Vertex
-        findVertex v = fromMaybe (err v) (toVertex v)
-
         get_subtheory :: (Subtheory,Content,[Content]) -> Subtheory
         get_subtheory (s,_,_) = s
 
     in  \ important ->
-            let forest :: Forest Vertex
+            let err :: Content -> Vertex
+                err content = error $ "HipSpec.Trim.trim: Trying to find dependencies of "
+                                    ++ show content ++ " which could not be found, when searching for:\n"
+                                    ++ intercalate "," (map show important)
+                                    ++ "\nWhole theory defines:\n"
+                                    ++ intercalate "," (map (show . defines) grand_theory)
+
+                findVertex :: Content -> Vertex
+                findVertex v = fromMaybe (err v) (toVertex v)
+
+                forest :: Forest Vertex
                 forest = dfs g (map findVertex important)
 
             in  map (get_subtheory . fromVertex) (concatMap flatten forest)

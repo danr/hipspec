@@ -1,46 +1,46 @@
 {-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, RecordWildCards #-}
 module Main where
 
-{-
 import Test.QuickSpec.Main (prune)
 import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol)
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
 import Test.QuickSpec.Utils.Typed
-import Test.QuickSpec.TestTotality
+-- import Test.QuickSpec.TestTotality
 import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
 import qualified Test.QuickSpec.TestTree as TestTree
 
 import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
-import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
--}
+-- import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
 
 import HipSpec.Reasoning
 
--- import Data.Void
+import Data.Void
 
 import HipSpec.ThmLib
-import HipSpec.Property
--- import HipSpec.Trans.QSTerm
+import HipSpec.Property hiding (Literal(..))
+import HipSpec.QSTerm
 import HipSpec.Init
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
--- import HipSpec.Heuristics.Associativity
--- import HipSpec.Heuristics.CallGraph
+
+import HipSpec.Heuristics.Associativity
+import HipSpec.Heuristics.CallGraph
+import HipSpec.Util
+
+
 -- import HipSpec.Trans.DefinitionalEquations
 -- import HipSpec.GHC.SigMap (maybeLookupSym)
 -- import HipSpec.GHC.Types
 
 import Prelude hiding (read)
 
-{-
 import qualified Data.Map as M
 
 import Data.List
 import Data.Maybe
 import Data.Ord
--}
 
 import Control.Monad
 
@@ -48,12 +48,11 @@ import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
 main :: IO ()
-main = processFile $ \ user_props -> do
+main = processFile $ \ m_sig_info user_props -> do
     writeMsg FileProcessed
 
-    void (runMainLoop NoCC user_props [])
+    -- void (runMainLoop NoCC user_props [])
 
-{-
     case m_sig_info of
 
         Nothing -> void (runMainLoop NoCC user_props [])
@@ -62,11 +61,12 @@ main = processFile $ \ user_props -> do
 
             (eqs,reps,classes) <- runQuickSpec sig_info
 
-            Params{bottoms,explore_theory,user_stated_first} <- getParams
+            Params{explore_theory,user_stated_first} <- getParams
 
             let (~+) | user_stated_first = flip (++)
                      | otherwise         = (++)
 
+{-
             if bottoms then do
 
                 let qsconjs = map (some (peqToProp sig_info)) eqs
@@ -81,27 +81,29 @@ main = processFile $ \ user_props -> do
                         (map vacuous tot_thms)
 
             else do
+                        -}
 
-                let qsconjs = map (eqToProp sig_info)
-                                  (map (some eraseEquation) eqs)
+            let qsconjs = map (eqToProp sig_info)
+                              (map (some eraseEquation) eqs)
 
-                    ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
+                ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
-                ctx_with_def <- pruneWithDefEqs sig_info ctx_init
-
-                ctx_final <- runMainLoop ctx_with_def
-                                         (qsconjs ~+ map vacuous user_props)
-                                         []
-
-                when explore_theory $ do
-                    let pruner   = prune ctx_init (map erase reps) id
-                        provable = evalEQR ctx_final . equal
-                        explored_theory
-                            = filter (not . evalEQR ctx_with_def . equal)
-                            $ pruner $ filter provable
-                            $ map (some eraseEquation) (equations classes)
-                    writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory
+{-
+            ctx_with_def <- pruneWithDefEqs sig_info ctx_init
 -}
+
+            ctx_final <- runMainLoop ctx_init {- ctx_with_def -}
+                                     (qsconjs ~+ map vacuous user_props)
+                                     []
+
+            when explore_theory $ do
+                let pruner   = prune ctx_init (map erase reps) id
+                    provable = evalEQR ctx_final . equal
+                    explored_theory
+                        = filter (not . evalEQR ctx_init {- ctx_with_def -} . equal)
+                        $ pruner $ filter provable
+                        $ map (some eraseEquation) (equations classes)
+                writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory
 
     Params{json} <- getParams
 
@@ -135,7 +137,6 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     return ctx_final
 
-{-
 runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec SigInfo{..} = do
 
@@ -143,8 +144,10 @@ runQuickSpec SigInfo{..} = do
 
     let callg = transitiveCallGraph sig_map
 
-    when dump_call_graph $ liftIO $ forM_ (M.toList callg) $ \ (s,ss) ->
-        putStrLn $ show s ++ " calls " ++ show ss
+    debugWhen PrintCallGraph $ "\nCall Graph:\n" ++ unlines
+        [ show s ++ " calls " ++ show ss
+        | (s,ss) <- M.toList callg
+        ]
 
 
     r <- liftIO $ generate (const totalGen) sig
@@ -211,12 +214,14 @@ runQuickSpec SigInfo{..} = do
         prunedEqs = pruner (equations classes)
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
-    when dump_eqclasses $ do
-        liftIO $ mapM_ print (map (several (map term)) classes)
+    debugWhen PrintEqClasses $ "\nEquivalence classes:\n" ++ unlines
+        (map show (map (several (map term)) classes))
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
     return (eqs,reps,classes)
+
+{-
 
 proveTotality :: SigInfo -> [Tagged Term] -> HS (PER.Context,[Theorem Void],[Property Void])
 proveTotality SigInfo{..} univ = do

@@ -1,10 +1,13 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP,PatternGuards #-}
 module Lang.Utils where
 
 import Outputable
 
 import Var (Var,varName)
-import Name (getOccString)
+import Name (Name,getOccString)
+import DataCon
+import Id
+import TyCon
 
 #if __GLASGOW_HASKELL__ >= 706
 import DynFlags (tracingDynFlags)
@@ -22,5 +25,23 @@ showOutputable :: Outputable a => a -> String
 showOutputable = portableShowSDoc . ppr
 
 varToString :: Var -> String
-varToString = getOccString . varName
+varToString = nameToString . varName
 
+nameToString :: Name -> String
+nameToString = getOccString
+
+-- | Is this Id a "constructor" to a newtype?
+--   This is the only way I have found to do it...
+isNewtypeConId :: Id -> Bool
+isNewtypeConId i
+    | Just dc <- isDataConId_maybe i = isNewTyCon (dataConTyCon dc)
+    | otherwise = False
+
+-- | Is this Id a data or newtype constructor?
+--
+--   Note: cannot run isDataConWorkId on things that aren't isId,
+--         then we get a panic from idDetails.
+--
+--         (mainly from type variables)
+isDataConId :: Id -> Bool
+isDataConId v = isId v && (isConLikeId v || isNewtypeConId v)

@@ -1,19 +1,18 @@
 -- | Gets the GHC Core information we need, also sets up the system for later
 --   QuickSpec execution
 {-# LANGUAGE RecordWildCards #-}
-module HipSpec.Read where
+module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
 import HipSpec.ParseDSL
 
--- import Data.List.Split (splitOn)
+import Data.List.Split (splitOn)
 
-{-
 import HipSpec.GHC.Types
 import HipSpec.GHC.SigMap
 import HipSpec.GHC.MakeSig
 import HipSpec.GHC.GetSig
+
 import HipSpec.Params
--}
 
 -- import CoreMonad
 import DynFlags
@@ -25,11 +24,7 @@ import StaticFlags
 import Var
 
 import Lang.Unfoldings
--- import Lang.Utils
-
--- import HipSpec.GHC.Delude
--- import Halo.Shared
--- import Halo.Unfoldings
+import Lang.Utils
 
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -39,8 +34,8 @@ import Data.List
 
 import Control.Monad
 
-execute :: FilePath -> IO [Var]
-execute file = do
+execute :: Params  -> IO EntryResult
+execute params@Params{..} = do
 
     -- Use -threaded
     addWay WayThreaded
@@ -90,12 +85,6 @@ execute file = do
             fix_id :: Id -> Id
             fix_id = fixId binds
 
-{-
-        when dump_core $ liftIO $ do
-            putStrLn "== INIT CORE =="
-            putStrLn $ showOutputable binds
-            -}
-
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
@@ -110,19 +99,17 @@ execute file = do
         -- Get everything in scope
         named_things <- getNamedThings fix_id
 
-        let {- only' :: [String]
+        let only' :: [String]
             only' = concatMap (splitOn ",") only
-            -}
 
             props :: [Var]
             props =
                 [ i
                 | (_,AnId i) <- M.toList named_things
                 , varWithPropType i
---                , null only' || varString i `elem` only'
+                , null only' || varToString i `elem` only'
                 ]
 
-        {-
         -- Make or get signature
         m_sig <- if auto
             then makeSignature params named_things props
@@ -137,16 +124,14 @@ execute file = do
                     { sig     = sig
                     , sig_map = sig_map
                     }
-        -}
 
         -- Wrapping up
-        return props
-
-        {- EntryResult
-            { prop_ids = props
---            , sig_info = sig_info
+        return EntryResult
+            { sig_info = sig_info
+            , prop_ids = props ++ case sig_info of
+                Just (SigInfo _ (SigMap m _)) -> M.elems m
+                Nothing                       -> []
             }
-            -}
 
 qualifiedImportDecl :: ModuleName -> ImportDecl name
 qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }

@@ -13,25 +13,32 @@ module HipSpec.Params
     , cmdArgs
     , DebugFlag(..)
     , Technique(..)
+    , whenFlag
     ) where
 
-import System.Console.CmdArgs hiding (verbosity)
+import System.Console.CmdArgs hiding (verbosity,auto)
 import HipSpec.ATP.Provers
 import Data.Maybe(isNothing)
 import Data.Char
 import Data.List (intercalate)
 import Data.List.Split
+import Control.Monad(when)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Debugging flags
 data DebugFlag
-    = PrintNames
-    | PrintRich
-    | PrintSimple
-    | PrintFunFO
+--    = PrintRich
+    = PrintSimple
+--    | PrintFunFO
     | PrintPolyFOL
     | PrintProps
+    | PrintCallGraph
+    | PrintAutoSig
+    | DebugAutoSig
+    | DebugScope
+    | DebugStrConv
+    | PrintEqClasses
     | TranslateOnly
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
@@ -42,13 +49,18 @@ defStr x xs | x `elem` xs = " (default)"
 -- | Descrptions of debug flags
 debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
-    PrintNames    -> "Print names"
-    PrintRich     -> "Print Rich IR"
-    PrintSimple   -> "Print Simple IR"
-    PrintFunFO    -> "Print First-Order Functional IR"
-    PrintPolyFOL  -> "Print Polymorphic FOL"
-    PrintProps    -> "Print properties"
-    TranslateOnly -> "Stop after translating"
+--    PrintRich      -> "Print Rich IR"
+    PrintSimple    -> "Print Simple IR"
+--    PrintFunFO     -> "Print First-Order Functional IR"
+    PrintPolyFOL   -> "Print Polymorphic FOL"
+    PrintProps     -> "Print properties"
+    PrintCallGraph -> "Print the call graph"
+    PrintAutoSig   -> "Print generated signature"
+    DebugAutoSig   -> "Print debug information about generated signature"
+    DebugScope     -> "Print names in scope"
+    DebugStrConv   -> "Print debug information about string conversions in QuickSpec signature"
+    PrintEqClasses -> "Print initial equivalence classes from QuickSpec"
+    TranslateOnly  -> "Stop after translating"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol
@@ -86,28 +98,30 @@ data Params = Params
     , provers             :: [ProverName]
 
     , interesting_cands   :: Bool
+    , only                :: [String]
 
-{-
-    , consistency         :: Bool
+--     , consistency         :: Bool
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
     , auto                :: Bool
     , extra_trans         :: [String]
     , extra               :: [String]
-    , only                :: [String]
     , pvars               :: Bool
     , quick_check_size    :: Int
     , tests               :: Int
     , size                :: Int
 
+{-
     , smt_data_types      :: Bool
     , bottoms             :: Bool
+-}
+
 
     , swap_repr           :: Bool
+    , quadratic           :: Bool
     , prepend_pruned      :: Bool
     , assoc_important     :: Bool
     , call_graph          :: Bool
--}
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -182,18 +196,16 @@ defParams = Params
     , reverse_video       = False   &= name "rv" &= help "Reverse video (i.e. assume that the terminal background is black)"
     , z_encode_filenames  = False   &= name "z"  &= help "z-encode filenames when saving tptp (necessary for windows)"
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
-{-
+    , only                = []                  &= help "Only try to prove these properties (also affects --auto)"
 
     , auto                = False   &= groupname "\nSignature settings"
                                     &= name "a" &= help "Automatically make signature from the functions used in properties (transitively)"
     , extra               = []                  &= help "Functions to add to the signature that cannot be found from the properties"
     , extra_trans         = []                  &= help "Like --extra, but also add the functions (and constructors) it calls (transitively)"
-    , only                = []                  &= help "Only try to prove these properties (also affects --auto)"
     , pvars               = False               &= help "Use pvars instead of vars in the --auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize in the --auto signature (default 20)"
     , tests               = 100                 &= help "Set the withTests in the --auto signature (default 100)"
     , size                = 1000                &= help "Set the withSize in the --auto signature (default \"unlimited\")"
-    -}
 
     , processes           = 2    &= groupname "\nProving settings"
                                  &= name "N" &= help "Prover processes (default 2)"
@@ -218,14 +230,16 @@ defParams = Params
     , interesting_cands   = False   &= groupname "\nEquation ordering"
                                     &= name "i" &= help "Add interesting candidates after theorems"
 
-{-
     , explore_theory      = False   &= name "e"  &= help "Print explored theory"
 
-    , consistency         = False   &= name "C" &= help "Add a consistency check (try to prove false)"
     , user_stated_first   = False   &= name "U" &= help "Put user stated properties first in the loop"
 
+--    , consistency         = False   &= name "C" &= help "Add a consistency check (try to prove false)"
+
+{-
     , smt_data_types      = False   &= help "Use SMT data types instead of own axiomatization (cannot be combined with --bottoms)"
     , bottoms             = False   &= name "b"  &= help "Add bottoms"
+-}
 
     , swap_repr           = False   &= groupname "\nEquation ordering"
                                     &= name "s" &= help "Swap equations with their representative"
@@ -233,7 +247,6 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , assoc_important     = False               &= help "Associativity is important, try it first"
     , call_graph          = False   &= name "c" &= name "cg" &= help "Sort equations by the call graph"
--}
 
     , inddepth            = 1       &= name "d" &= groupname "\nStructural induction"
                                                 &= help "Maximum depth (default 1)"
@@ -276,4 +289,8 @@ defParams = Params
     \\n\
     \            hipspec v3.0 by Dan Rosén, danr@chalmers.se   \n"
     &= program "hipspec"
+
+whenFlag :: Monad m => Params -> DebugFlag -> m () -> m ()
+whenFlag p flg = when (flg `elem` debug_flags p)
+
 

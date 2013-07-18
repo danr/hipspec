@@ -1,7 +1,10 @@
 -- | Properties, represented with the simple language
+--
+--   TODO: Make nicer pretty printers representations
 {-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor #-}
 module HipSpec.Property
     ( Literal(..)
+    , Origin(..)
     , mapLiteral
     , Property(..)
     , propEquation

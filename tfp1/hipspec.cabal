@@ -60,6 +60,9 @@ executable hipspec
         transformers         >= 0.3,
         split                >= 0.1,
 
+        -- QuickSpec
+        quickspec            == 0.9.1,
+
         -- Printing messages
         time                 >= 1.4,
         aeson                >= 0.6,

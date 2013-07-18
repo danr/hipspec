@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
-module HipSpec.Init (processFile) where
+module HipSpec.Init (processFile,SigInfo(..)) where
 
 import Control.Monad
 
@@ -29,19 +29,19 @@ import UniqSupply
 
 import System.Exit
 
-processFile :: ([Property Void] -> HS a) -> IO a
+processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
 processFile cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
 
-    var_props <- execute file
+    EntryResult{..} <- execute params
 
     us0 <- mkSplitUniqSupply 'h'
 
     let not_dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
 
         vars = filterVarSet not_dsl $
-               unionVarSets (map transCalls var_props)
+               unionVarSets (map transCalls prop_ids)
 
         (binds,_us1) = initUs us0 $ sequence
             [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
@@ -92,5 +92,5 @@ processFile cont = do
 
         when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
-        cont tr_props
+        cont sig_info tr_props
 

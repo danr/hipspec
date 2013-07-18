@@ -91,6 +91,6 @@ getParams = HS $ asks params
 
 debugWhen :: DebugFlag -> String -> HS ()
 debugWhen flg s = do
-    Params{debug_flags} <- getParams
-    when (flg `elem` debug_flags) $ liftIO $ putStrLn s
+    p <- getParams
+    whenFlag p flg $ liftIO $ putStrLn s
 

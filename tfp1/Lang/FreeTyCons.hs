@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module Lang.FreeTyCons (bindsTyCons,exprsTyCons) where
+module Lang.FreeTyCons (bindsTyCons,exprsTyCons,varTyCons) where
 
 import CoreSyn
 import CoreUtils (exprType)
