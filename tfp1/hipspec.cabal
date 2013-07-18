@@ -43,7 +43,7 @@ library
 executable hipspec
     -- hs-source-dirs: src
 
-    main-is:         HipSpec/TempMain.hs
+    main-is:         HipSpec/Main.hs
 
     if flag(Werror)
         ghc-options: -Werror
@@ -57,6 +57,13 @@ executable hipspec
         pretty               >= 1.1,
         geniplate            >= 0.6,
         void                 >= 0.5.3,
+        transformers         >= 0.3,
+        split                >= 0.1,
+
+        -- Printing messages
+        time                 >= 1.4,
+        aeson                >= 0.6,
+        bytestring           >= 0.10,
 
         -- Command-line arguments
         cmdargs              >= 0.9,
@@ -69,5 +76,5 @@ executable hipspec
         process              >= 1.0.1.1,
         stm                  >= 2.0,
         directory            >= 1.0,
-        split                >= 0.1
+        filepath             >= 1.0
 

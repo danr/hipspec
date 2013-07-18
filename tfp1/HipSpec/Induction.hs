@@ -10,6 +10,7 @@ import HipSpec.Theory
 import HipSpec.Translate
 import HipSpec.Property
 import HipSpec.Literal
+import HipSpec.Params
 
 import Lang.RichToSimple (Loc(..),Rename(..))
 import qualified Lang.Simple as S
@@ -25,14 +26,8 @@ import qualified Induction.Structural as IS
 import Control.Monad
 import Data.Maybe (isJust)
 
-indhyps :: Int
-indhyps   = 500
-
-indobligs :: Int
-indobligs = 20
-
-induction :: TyEnv' -> ArityMap -> Property eq -> [Int] -> Maybe [ProofObligation eq]
-induction ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = do
+induction :: Params -> TyEnv' -> ArityMap -> Property eq -> [Int] -> Maybe [ProofObligation eq]
+induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = do
     -- Applying structural induction
     let vars     = [ (v,t) | v ::: t <- prop_vars ]
         obligs   = subtermInduction ty_env vars coords
@@ -56,7 +51,7 @@ induction ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = 
     return
         [ Obligation
             { ob_prop = prop
-            , ob_info = Induction
+            , ob_info = ObInduction
                 { ind_coords    = coords
                 , ind_num       = n
                 , ind_nums      = n_obligs

@@ -4,10 +4,14 @@ module HipSpec.Property
     ( Literal(..)
     , mapLiteral
     , Property(..)
+    , propEquation
+    , isUserStated
+    , isFromQS
     , trProperty
     , trProperties
     , tvSkolemProp
     , etaExpandProp
+    , varsFromCoords
     ) where
 
 import Control.Monad.Error
@@ -51,6 +55,16 @@ data Origin eq
     | UserStated
     -- ^ User-stated properties
   deriving (Eq,Ord,Functor)
+
+isUserStated :: Property eq -> Bool
+isUserStated p = case prop_origin p of
+    UserStated -> True
+    _          -> False
+
+isFromQS :: Property eq -> Bool
+isFromQS p = case prop_origin p of
+    Equation{} -> True
+    _          -> False
 
 instance Show (Origin eq) where
     show o = case o of
@@ -201,4 +215,12 @@ etaExpandProp p@Property{..}
                 , prop_goal = mapLiteral (`S.apply` new_exprs) prop_goal
                 }
 etaExpandProp p = p
+
+varsFromCoords :: Property eq -> [Int] -> [String]
+varsFromCoords p cs = [ prop_var_repr p !! c | c <- cs ]
+
+propEquation :: Property eq -> Maybe eq
+propEquation p = case prop_origin p of
+    Equation eq -> Just eq
+    _           -> Nothing
 

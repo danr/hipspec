@@ -30,6 +30,8 @@ data Prover = Prover
     -- ^ System command to createProcess
     , prover_desc           :: String
     -- ^ Description in the parameter list
+    , prover_name           :: ProverName
+    -- ^ Refers to its name
     , prover_cannot_stdin   :: Bool
     -- ^ This prover cannot read from stdin, so instead read from file
     , prover_args           :: String -> Double -> [String]
@@ -48,10 +50,15 @@ data Prover = Prover
 data InputFormat = AltErgoFmt
   deriving (Eq,Ord,Show)
 
+extension :: InputFormat -> String
+extension fmt = case fmt of
+    AltErgoFmt -> "mlw"
+
 altErgo :: Prover
 altErgo = Prover
     { prover_cmd            = "alt-ergo"
     , prover_desc           = "Alt-Ergo"
+    , prover_name           = AltErgo
     , prover_cannot_stdin   = True
     , prover_args           = \ f t -> [f,"-timelimit",showCeil t,"-triggers-var"]
     , prover_process_output = searchOutput

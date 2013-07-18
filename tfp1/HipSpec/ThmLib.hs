@@ -1,9 +1,12 @@
-{-# LANGUAGE RecordWildCards,DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric,RecordWildCards,DeriveFunctor #-}
 module HipSpec.ThmLib where
 
 import HipSpec.Property
 import HipSpec.Theory
 import HipSpec.ATP.Provers
+
+import Data.Aeson
+import GHC.Generics
 
 import Control.Concurrent.STM.Promise.Tree
 import Data.List(intercalate)
@@ -38,13 +41,15 @@ data Obligation eq a = Obligation
   deriving (Show,Functor)
 
 data ObInfo
-    = Induction
+    = ObInduction
         { ind_coords :: [Int]
         , ind_num    :: Int
         , ind_nums   :: Int
         }
-  deriving Show
+  deriving (Eq,Ord,Show,Generic)
+
+instance ToJSON ObInfo
 
 obInfoFileName :: ObInfo -> String
-obInfoFileName (Induction cs n _)
+obInfoFileName (ObInduction cs n _)
     = intercalate "_" (map show cs) ++ "__" ++ show n

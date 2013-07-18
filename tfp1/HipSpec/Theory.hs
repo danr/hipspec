@@ -4,6 +4,7 @@ module HipSpec.Theory
     , ArityMap
     , combineArityMap
     , Content(..)
+    , Theory
     , Subtheory(..)
     , dependencies
     , subtheory
@@ -58,6 +59,8 @@ instance Show Content where
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
         AppThy        -> "AppThy"
+
+type Theory = [Subtheory]
 
 data Subtheory = Subtheory
     { defines :: Content
