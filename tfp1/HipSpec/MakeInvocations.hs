@@ -22,16 +22,9 @@ import Data.Maybe
 
 import Control.Monad
 
--- | Filters away definitional theorems (those that didn't need induction to be proved)
-interestingLemmas :: [Theorem eq] -> [Property eq]
-interestingLemmas
-    = map thm_prop
-    . filter (\t -> not (definitionalTheorem t || isUserStated (thm_prop t)))
-    --     isolate of user properties happens later in tryProve
-
 -- | Try to prove a property, given some lemmas
 tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
-tryProve prop (interestingLemmas -> lemmas0) = do
+tryProve prop lemmas0 = do
 
     Params{..} <- getParams
 
@@ -41,9 +34,15 @@ tryProve prop (interestingLemmas -> lemmas0) = do
 
         Env{theory,arity_map} <- getEnv
 
-        let lemmas
-                | isolate   = filter (not . isUserStated) lemmas0
-                | otherwise = lemmas0
+        let isolation
+                | isolate   = not . isUserStated
+                | otherwise = const True
+
+            lemmas
+                = filter isolation
+                . map thm_prop
+                . filter (not . definitionalTheorem)
+                $ lemmas0
 
             enum_lemmas = zip [0..] lemmas
 
