@@ -100,7 +100,7 @@ trTyCons tcs = case mapM trTyCon tcs of
                   , [ case collectArrTy t of
                         (ts,r) | same_ty_con r -> case ts of
                             [] -> Rec r
-                            _  -> Exp r ts
+                            _  -> Exp t ts
                         _                      -> NonRec t
                     | t <- con_args'
                     ]
