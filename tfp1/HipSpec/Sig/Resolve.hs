@@ -5,14 +5,14 @@
     bindings, data constructors or type constructors.
 
 -}
-module HipSpec.Sig.Map
-    ( SigMap(..)
-    , SigInfo(..)
+module HipSpec.Sig.Resolve
+    ( ResolveMap(..)
     , lookupSym
     , lookupTyCon
     , maybeLookupSym
     , maybeLookupTyCon
-    , makeSigMap
+    , makeResolveMap
+    , debugStr
     ) where
 
 import Test.QuickSpec.Signature
@@ -27,7 +27,6 @@ import HipSpec.Params
 
 import Data.Either
 import Data.Maybe
-import Data.List (intercalate)
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -35,56 +34,41 @@ import qualified Data.Typeable as Typeable
 
 import HipSpec.GHC.Utils
 
--- | Signature from QuickSpec
-data SigInfo = SigInfo
-    { sig     :: Sig
-    , sig_map :: SigMap
-    }
 
 -- | Mappings for QuickSpec symbols and Typeable Tycons to GHC Core structures
-data SigMap = SigMap
-    { sym_map   :: Map Symbol Id            -- Would like to have it to Name + Type {- ^ orig type -} + [Type] {- ^ applied tys -}
-    , tycon_map :: Map Typeable.TyCon TyCon -- TyCon is fine (but do we need this if we have the previous?
+data ResolveMap = ResolveMap
+    { sym_map   :: Map Symbol Id
+    , tycon_map :: Map Typeable.TyCon TyCon
     }
 
-maybeLookupSym :: SigMap -> Symbol -> Maybe Id
+
+maybeLookupSym :: ResolveMap -> Symbol -> Maybe Id
 maybeLookupSym sm s = M.lookup s (sym_map sm)
 
-maybeLookupTyCon :: SigMap -> Typeable.TyCon -> Maybe TyCon
+maybeLookupTyCon :: ResolveMap -> Typeable.TyCon -> Maybe TyCon
 maybeLookupTyCon sm t = M.lookup t (tycon_map sm)
 
-debug_str :: String
-debug_str =
-    "Debug the conversions between QuickSpec signatures and GHC Core " ++
+debugStr :: String
+debugStr =
+    "\nDebug the conversions between QuickSpec signatures and GHC Core " ++
     "structures with --debug-scope and debug-str-conv."
 
-lookupSym :: SigMap -> Symbol -> Id
+lookupSym :: ResolveMap -> Symbol -> Id
 lookupSym m s = fromMaybe (error err_str) (maybeLookupSym m s)
   where
-    err_str = "Cannot translate QuickSpec's " ++ show s ++
-              " to Core representation! " ++ debug_str
+    err_str =
+        "Cannot translate QuickSpec's " ++ show s ++
+        " to Core representation! " ++ debugStr
 
-lookupTyCon :: SigMap -> Typeable.TyCon -> TyCon
+lookupTyCon :: ResolveMap -> Typeable.TyCon -> TyCon
 lookupTyCon m s = fromMaybe (error err_str) (maybeLookupTyCon m s)
   where
-    err_str = "Cannot translate Data.Typeable type constructor " ++ show s ++
-             " to Core representation! " ++ debug_str
+    err_str =
+        "Cannot translate Data.Typeable type constructor " ++ show s ++
+        " to Core representation! " ++ debugStr
 
-showTyThing :: TyThing -> String
-showTyThing t = case t of
-    AnId{}     -> "AnId " ++ s
-    ADataCon{} -> "ADataCon " ++ s
-    ATyCon{}   -> "ATyCon " ++ s
-    ACoAxiom{} -> "ACoAxiom " ++ s
-  where
-    s = showOutputable t
-
-showTyThings :: [TyThing] -> String
-showTyThings [] = "nothing"
-showTyThings xs = intercalate "," (map showTyThing xs)
-
-makeSigMap :: Params -> Sig -> Map Name TyThing -> Ghc SigMap
-makeSigMap p@Params{..} sig named_things = do
+makeResolveMap :: Params -> Sig -> Map Name TyThing -> Ghc ResolveMap
+makeResolveMap p@Params{..} sig named_things = do
 
     sig_names :: Map Symbol [Name] <- M.fromList `fmap`
         mapM (\ symb -> fmap ((,) symb) (parseName (name symb)))
@@ -118,12 +102,12 @@ makeSigMap p@Params{..} sig named_things = do
             ]
         putStrLn "Symbol translation"
         mapM_ putStrLn
-            [ " " ++ show s ++ " -> " ++ showTyThings ts
+            [ " " ++ show s ++ " -> " ++ showOutputable ts
             | (s,ts) <- M.toList symb_tr
             ]
         putStrLn "Type constructor translation"
         mapM_ putStrLn
-            [ " " ++ show tc ++ " -> " ++ showTyThings ts
+            [ " " ++ show tc ++ " -> " ++ showOutputable ts
             | (tc,ts) <- M.toList tyc_tr
             ]
 
@@ -131,7 +115,7 @@ makeSigMap p@Params{..} sig named_things = do
         justOr k h a xs = maybe (Left (h a xs)) Right (listToMaybe $ mapMaybe k xs)
 
         err s a ts = show a ++ " should be a " ++ s ++ ", but is bound to "
-                            ++ showTyThings ts
+                            ++ showOutputable ts
                             ++ ", fix your signature!"
 
         symb_sn :: Either [String] (Map Symbol Id)
@@ -165,7 +149,7 @@ makeSigMap p@Params{..} sig named_things = do
                     [ show tc ++ " -> " ++ showOutputable tc'
                     | (tc,tc') <- M.toList tyc
                     ]
-            return SigMap
+            return ResolveMap
                 { sym_map   = symb
                 , tycon_map = tyc
                 }

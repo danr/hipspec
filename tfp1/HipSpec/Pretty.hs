@@ -46,6 +46,9 @@ showBody = render . R.ppExpr 0 simpKit . S.injectBody
 showType :: S.Type Name' -> String
 showType = render . R.ppType 0 (text . ppRename)
 
+showTyped :: Typed Name' -> String
+showTyped = render . R.ppTyped (text . ppRename)
+
 -- | Printing names
 polyname :: Poly (Name') -> String
 polyname x0 = case x0 of

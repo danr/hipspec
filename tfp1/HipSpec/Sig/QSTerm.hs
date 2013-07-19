@@ -1,82 +1,40 @@
 {-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, RecordWildCards #-}
 -- | Translating from QuickSpec -> Core
 --
---   There are no type variables here, properties could be generalised with a later pass...
-module HipSpec.Sig.QSTerm (typeRepToType,eqToProp) where
+--   There are no type variables here, properties are to be generalised in a
+--   later pass.
+module HipSpec.Sig.QSTerm (eqToProp) where
 
 import Test.QuickSpec.Term as T
-import Test.QuickSpec.Utils.Typed
 import Test.QuickSpec.Equation as E
 import Test.QuickSpec.Signature (disambiguate)
 
-{-
-import Test.QuickSpec.Reasoning.PartialEquationalReasoning hiding
-    (Total,equal,vars)
--}
-
-import qualified Test.QuickSpec.Utils.Typeable as Ty
--- import Test.QuickSpec.TestTotality
-
--- import Halo.Names
-import HipSpec.GHC.Utils
-
-import HipSpec.Sig.Map
+import HipSpec.Read (SigInfo(..))
+import HipSpec.Sig.Symbols
+import HipSpec.Utils
 import HipSpec.Property as P
-
-import qualified Data.Map as M
-import Data.Map (Map)
-import Data.Maybe
-import Data.List
--- import Data.Typeable (Typeable)
-
-import Id
-import TyCon (tyConName)
-
-
 import qualified HipSpec.Lang.Simple as S
-import qualified HipSpec.Lang.RichToSimple as S
-import HipSpec.Lang.CoreToRich (trVar)
 
 import HipSpec.Theory
 
-typeRepToType :: SigMap -> Ty.TypeRep -> S.Type Name'
-typeRepToType sig_map = go
-  where
-    go t | Just (ta,tb) <- splitArrow t = S.ArrTy (go ta) (go tb)
-    go t = S.TyCon (S.Old (tyConName (lookupTyCon sig_map ty_con))) (map go ts)
-      where  (ty_con,ts) = Ty.splitTyConApp t
-
-symbType :: SigMap -> Symbol -> S.Type Name'
-symbType sig_map = typeRepToType sig_map . symbolType
-
-termToExpr :: SigMap -> Map Symbol TypedName' -> Term -> S.Expr TypedName'
-termToExpr sig_map var_rename_map = go
+termToExpr :: SymbolMap -> Term -> S.Expr TypedName'
+termToExpr sm = go
   where
     go t = case t of
         T.App e1 e2 -> S.App (go e1) (go e2)
-        T.Var s     -> mkVar (fromMaybe (err s) (M.lookup s var_rename_map))
-        T.Const s   -> mkVar (trVar' (lookupSym sig_map s))
-
-    mkVar x = S.Var x []
-
-    err (name -> s) = error $ "QuickSpec's " ++ s ++ " never got a variable"
-
-trVar' :: Var -> TypedName'
-trVar' x = fmap S.Old $ case trVar x of
-    Right x' -> x'
-    Left err -> error $ "Error when translating from QuickSpec: " ++ show err
-                     ++ " from variable " ++ showOutputable x
+        T.Var s     -> S.Var (lookupVar sm s) []
+        T.Const s   -> lookupCon sm s
 
 eqToProp :: SigInfo -> Equation -> Property Equation
 eqToProp SigInfo{..} eq@(e1 E.:=: e2) = Property
     { prop_name      = repr
     , prop_origin    = Equation eq
     , prop_tvs       = []
-    , prop_vars      = map snd var_rename
+    , prop_vars      = map (lookupVar symbol_map) occuring_vars
     , prop_goal      = goal
     , prop_assums    = []
     , prop_repr      = repr
-    , prop_var_repr  = map (show . fst) var_rename
+    , prop_var_repr  = map (show . disambig) occuring_vars
     }
   where
     repr = show (mapVars disambig e1 E.:=: mapVars disambig e2)
@@ -84,17 +42,9 @@ eqToProp SigInfo{..} eq@(e1 E.:=: e2) = Property
     disambig = disambiguate sig (vars e1 ++ vars e2)
 
     occuring_vars :: [Symbol]
-    occuring_vars = map disambig (nub (vars e1 ++ vars e2))
+    occuring_vars = nubSorted (vars e1 ++ vars e2)
 
-    term_to_expr = termToExpr sig_map var_rename_map
+    term_to_expr = termToExpr symbol_map
 
     goal = term_to_expr e1 P.:=: term_to_expr e2
-
-    var_rename :: [(Symbol,TypedName')]
-    var_rename =
-        [ (v,S.New [] x S.::: symbType sig_map v)
-        | (v,x) <- zip occuring_vars [0..]
-        ]
-
-    var_rename_map = M.fromList var_rename
 

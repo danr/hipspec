@@ -3,17 +3,20 @@
 {-# LANGUAGE RecordWildCards #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
+import Test.QuickSpec.Signature (Sig)
+
 import HipSpec.ParseDSL
 
 import Data.List.Split (splitOn)
 
-import HipSpec.Sig.Map
+import HipSpec.Sig.Resolve
 import HipSpec.Sig.Make
 import HipSpec.Sig.Get
+import HipSpec.Sig.Symbols
 
 import HipSpec.Params
 
--- import CoreMonad (liftIO)
+import CoreMonad (liftIO)
 import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
@@ -43,6 +46,13 @@ data EntryResult = EntryResult
     { sig_info  :: Maybe SigInfo
     , prop_ids  :: [Var]
     , extra_tcs :: [TyCon]
+    }
+
+-- | Signature from QuickSpec
+data SigInfo = SigInfo
+    { sig         :: Sig
+    , resolve_map :: ResolveMap
+    , symbol_map  :: SymbolMap
     }
 
 execute :: Params  -> IO EntryResult
@@ -127,24 +137,24 @@ execute params@Params{..} = do
             else getSignature (map fst $ M.toList named_things)
 
         -- Make signature map
-        sig_info <- case m_sig of
-            Nothing -> return Nothing
+        (sig_info,extra_ids,extra_tcs) <- case m_sig of
+            Nothing -> return (Nothing,[],[])
             Just sig -> do
-                sig_map <- makeSigMap params sig named_things
-                return $ Just SigInfo
-                    { sig     = sig
-                    , sig_map = sig_map
-                    }
+                resolve_map <- makeResolveMap params sig named_things
+                let symbol_map = makeSymbolMap resolve_map sig
+                    (ids,tcs) = case resolve_map of
+                        ResolveMap m n -> (M.elems m,M.elems n)
+
+                whenFlag params DebugStrConv (liftIO (putStrLn (show symbol_map)))
+
+                return (Just SigInfo{..},ids,tcs)
+
 
         -- Wrapping up
         return EntryResult
             { sig_info  = sig_info
-            , prop_ids  = props ++ case sig_info of
-                Just (SigInfo _ (SigMap m _)) -> M.elems m
-                Nothing                       -> []
-            , extra_tcs = case sig_info of
-                Just (SigInfo _ (SigMap _ m)) -> M.elems m
-                Nothing                       -> []
+            , prop_ids  = props ++ extra_ids
+            , extra_tcs = extra_tcs
             }
 
 qualifiedImportDecl :: ModuleName -> ImportDecl name

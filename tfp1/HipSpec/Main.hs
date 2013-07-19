@@ -31,7 +31,7 @@ import HipSpec.Utils
 
 
 -- import HipSpec.Trans.DefinitionalEquations
--- import HipSpec.Sig.Map (maybeLookupSym)
+-- import HipSpec.Sig.Resolve (maybeLookupSym)
 -- import HipSpec.Sig.Types
 
 import Prelude hiding (read)
@@ -90,6 +90,9 @@ main = processFile $ \ m_sig_info user_props -> do
 
             mapM_ (checkLint . lintProperty) qsconjs
 
+            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++ unlines (map show qsconjs)
+
+
             let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
 {-
@@ -120,9 +123,11 @@ main = processFile $ \ m_sig_info user_props -> do
 runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS ctx
 runMainLoop ctx_init initial_props initial_thms = do
 
-    (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
+    params@Params{only_user_stated} <- getParams
 
-    Params{only_user_stated} <- getParams
+    whenFlag params QuickSpecOnly (liftIO exitSuccess)
+
+    (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
 
     let showProperties = map prop_name
         theorems' = map thm_prop
@@ -144,15 +149,14 @@ runMainLoop ctx_init initial_props initial_thms = do
 runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec SigInfo{..} = do
 
-    params@Params{..} <- getParams
+    Params{..} <- getParams
 
-    let callg = transitiveCallGraph sig_map
+    let callg = transitiveCallGraph resolve_map
 
     debugWhen PrintCallGraph $ "\nCall Graph:\n" ++ unlines
         [ show s ++ " calls " ++ show ss
         | (s,ss) <- M.toList callg
         ]
-
 
     r <- liftIO $ generate (const totalGen) sig
 
@@ -223,8 +227,6 @@ runQuickSpec SigInfo{..} = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
-    whenFlag params QuickSpecOnly (liftIO exitSuccess)
-
     return (eqs,reps,classes)
 
 {-
@@ -237,7 +239,7 @@ proveTotality SigInfo{..} univ = do
     let tot_props
             = [ tot_prop
               | (sym,totality) <- tot_list
-              , Just v <- [maybeLookupSym sig_map sym]
+              , Just v <- [maybeLookupSym resolve_map sym]
               , not (isDataConId v)
               , Just tot_prop <- [totalityProperty v totality]
               ]
