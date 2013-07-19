@@ -32,7 +32,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Typeable as Typeable
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 maybeLookupSym :: SigMap -> Symbol -> Maybe Id
 maybeLookupSym sm s = M.lookup s (sym_map sm)

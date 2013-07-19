@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
-module HipSpec.Calls
+module HipSpec.GHC.Calls
     ( module VarSet
     , Constructors(..)
     , exprCalls
@@ -15,9 +15,9 @@ import CoreFVs
 import DataCon
 import TyCon
 
-import Lang.Utils
-import Lang.Unfoldings
-import Lang.FreeTyCons
+import HipSpec.GHC.Utils
+import HipSpec.GHC.Unfoldings
+import HipSpec.GHC.FreeTyCons
 
 import qualified Data.Set as S
 

@@ -13,7 +13,7 @@ import GhcMonad
 
 import SimplCore
 
-import Lang.Unfoldings
+import HipSpec.GHC.Unfoldings
 import Lang.RemoveDefault
 import Lang.Uniquify
 

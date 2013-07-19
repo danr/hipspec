@@ -17,7 +17,7 @@ import Lang.Type (Typed(..))
 
 import Name
 import Unique
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 type Name' = Rename Name
 

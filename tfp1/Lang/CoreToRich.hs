@@ -24,7 +24,7 @@ import Lang.DataConPattern
 
 import IdInfo
 
-import Lang.Utils (showOutputable)
+import HipSpec.GHC.Utils (showOutputable)
 
 import Lang.TyAppBeta
 

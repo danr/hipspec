@@ -23,8 +23,8 @@ import StaticFlags
 
 import Var
 
-import Lang.Unfoldings
-import Lang.Utils
+import HipSpec.GHC.Unfoldings
+import HipSpec.GHC.Utils
 
 import qualified Data.Map as M
 import Data.Map (Map)

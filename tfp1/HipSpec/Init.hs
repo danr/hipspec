@@ -7,7 +7,7 @@ import Control.Monad
 import Data.List (partition)
 import Data.Void
 
-import HipSpec.Calls
+import HipSpec.GHC.Calls
 import HipSpec.Monad
 import HipSpec.ParseDSL
 import HipSpec.Property
@@ -16,9 +16,9 @@ import HipSpec.Theory
 import HipSpec.Translate
 import HipSpec.Params
 
-import Lang.FreeTyCons
+import HipSpec.GHC.FreeTyCons
 import Lang.RemoveDefault
-import Lang.Unfoldings
+import HipSpec.GHC.Unfoldings
 import Lang.Uniquify
 
 import qualified Lang.RichToSimple as S

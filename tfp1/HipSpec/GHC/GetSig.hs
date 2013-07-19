@@ -4,7 +4,7 @@ import Test.QuickSpec.Signature
 
 import GHC hiding (Sig)
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import Data.Dynamic
 

@@ -16,10 +16,10 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import HipSpec.ParseDSL
-import HipSpec.Calls
+import HipSpec.GHC.Calls
 import HipSpec.Params
 
 import Test.QuickSpec.Signature

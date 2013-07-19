@@ -1,11 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import Lang.FreeTyCons
+import HipSpec.GHC.FreeTyCons
 import TyCon (isAlgTyCon)
 
 import Lang.Read
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import Data.Char
 

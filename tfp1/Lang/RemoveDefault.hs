@@ -68,7 +68,7 @@ import UniqSupply
 import Id
 import Lang.DataConPattern
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import Control.Monad
 import Control.Applicative

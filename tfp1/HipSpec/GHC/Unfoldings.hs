@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Lang.Unfoldings (unfolding,maybeUnfolding,fixUnfoldings,fixId) where
+module HipSpec.GHC.Unfoldings (unfolding,maybeUnfolding,fixUnfoldings,fixId) where
 
 import qualified Data.Map as M
 
@@ -14,7 +14,7 @@ import Id
 
 import Data.Maybe
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 -- | The unfolding of an Id
 unfolding :: Id -> CoreExpr

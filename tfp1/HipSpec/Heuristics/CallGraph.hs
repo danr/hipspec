@@ -4,10 +4,10 @@ module HipSpec.Heuristics.CallGraph where
 
 import Test.QuickSpec.Term
 
-import HipSpec.Calls
+import HipSpec.GHC.Calls
 import HipSpec.GHC.SigMap
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import Data.Map (Map)
 import qualified Data.Map as M

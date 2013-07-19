@@ -3,7 +3,7 @@ module HipSpec.ParseDSL where
 
 import Var
 import Type
-import Lang.Utils
+import HipSpec.GHC.Utils
 import Data.List
 import Outputable
 

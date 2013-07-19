@@ -18,7 +18,7 @@ import qualified Test.QuickSpec.Utils.Typeable as Ty
 -- import Test.QuickSpec.TestTotality
 
 -- import Halo.Names
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import HipSpec.GHC.Types
 import HipSpec.GHC.SigMap

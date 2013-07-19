@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP,PatternGuards #-}
-module Lang.Utils where
+module HipSpec.GHC.Utils where
 
 import Outputable
 

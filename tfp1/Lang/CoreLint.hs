@@ -5,7 +5,7 @@ import Bag
 import CoreLint
 import CoreSyn
 
-import Lang.Utils
+import HipSpec.GHC.Utils
 
 import System.IO
 
