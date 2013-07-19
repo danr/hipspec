@@ -63,6 +63,7 @@ executable hipspec
 
         -- QuickSpec
         quickspec            == 0.9.1,
+        unification-fd       >= 0.8,
 
         -- Printing messages
         time                 >= 1.4,

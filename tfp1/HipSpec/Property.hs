@@ -16,6 +16,7 @@ module HipSpec.Property
     , etaExpandProp
     , varsFromCoords
     , lintProperty
+    , generaliseProperty
     ) where
 
 import Control.Monad.Error
@@ -26,11 +27,13 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.RichToSimple as S
 import HipSpec.Lang.PrettyRich as R
 import HipSpec.Lint
+import HipSpec.Unify
 
 import Text.PrettyPrint hiding (comma)
 
 import HipSpec.ParseDSL
 import HipSpec.Theory
+import HipSpec.Utils
 
 import TysWiredIn (trueDataCon,boolTyConName)
 import DataCon (dataConName)
@@ -255,3 +258,31 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
     lint_err e = "Lint error in literal\n\t" ++ show lit ++ ":\n" ++ e
 
+generaliseProperty :: Property eq -> Property eq
+generaliseProperty prop@Property{..}
+    | null prop_tvs
+    , Right vars <- m_vars =
+        let lkup (U x)     = x
+            lkup (Fresh i) = New [] (fromIntegral i)
+
+            fix_ty t = fmap lkup (toType t)
+
+            vars'    = [ v ::: fix_ty t | (v,t) <- vars ]
+
+            fix_lit  = mapLiteral (substMany (zip vars' (map (`Var` []) vars')))
+                                -- NOTE: Typed's Eq ignores the type so this
+                                --       actually performs something
+                                --
+        in  initFields prop
+                { prop_tvs    = nubSorted (concatMap (freeTyVars . typed_type) vars')
+                , prop_vars   = vars'
+                , prop_goal   = fix_lit prop_goal
+                , prop_assums = map fix_lit prop_assums
+                }
+  where
+    genLit (e1 :=: e2) = void (genExpr e1) >> void (genExpr e2)
+
+    m_vars = runGen
+        $ withScope (map forget_type prop_vars)
+        $ mapM_ genLit (prop_goal:prop_assums)
+generaliseProperty prop = prop

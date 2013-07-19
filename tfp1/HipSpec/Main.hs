@@ -85,7 +85,7 @@ main = processFile $ \ m_sig_info user_props -> do
             else do
                         -}
 
-            let qsconjs = map (eqToProp sig_info)
+            let qsconjs = map (generaliseProperty . eqToProp sig_info)
                               (map (some eraseEquation) eqs)
 
             mapM_ (checkLint . lintProperty) qsconjs
