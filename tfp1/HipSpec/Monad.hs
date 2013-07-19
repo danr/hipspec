@@ -4,6 +4,7 @@ module HipSpec.Monad
     , runHS
     , writeMsg
     , debugWhen
+    , whenFlag
     , getParams
     , getEnv
     , Env(..)

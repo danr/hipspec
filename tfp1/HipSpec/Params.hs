@@ -41,6 +41,7 @@ data DebugFlag
     | DebugStrConv
     | PrintEqClasses
     | TranslateOnly
+    | QuickSpecOnly
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defStr :: Eq a => a -> [a] -> String
@@ -63,6 +64,7 @@ debugDesc flg = case flg of
     DebugStrConv   -> "Print string conversions in signature"
     PrintEqClasses -> "Print initial equivalence classes from QuickSpec"
     TranslateOnly  -> "Stop after translating"
+    QuickSpecOnly  -> "Stop after QuickSpec"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol

@@ -45,7 +45,7 @@ processFile cont = do
     let not_dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
 
         vars = filterVarSet not_dsl $
-               unionVarSets (map transCalls prop_ids)
+               unionVarSets (map (transCalls Without) prop_ids)
 
         (binds,_us1) = initUs us0 $ sequence
             [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)

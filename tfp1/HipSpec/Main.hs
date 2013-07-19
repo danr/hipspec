@@ -47,6 +47,8 @@ import Control.Monad
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
+import System.Exit (exitSuccess)
+
 main :: IO ()
 main = processFile $ \ m_sig_info user_props -> do
     writeMsg FileProcessed
@@ -140,7 +142,7 @@ runMainLoop ctx_init initial_props initial_thms = do
 runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec SigInfo{..} = do
 
-    Params{..} <- getParams
+    params@Params{..} <- getParams
 
     let callg = transitiveCallGraph sig_map
 
@@ -218,6 +220,8 @@ runQuickSpec SigInfo{..} = do
         (map show (map (several (map term)) classes))
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
+
+    whenFlag params QuickSpecOnly (liftIO exitSuccess)
 
     return (eqs,reps,classes)
 

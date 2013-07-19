@@ -19,7 +19,7 @@ import qualified Data.Map as M
 import Lang.Utils
 
 import HipSpec.ParseDSL
-import HipSpec.Heuristics.Calls
+import HipSpec.Calls
 import HipSpec.Params
 
 import Test.QuickSpec.Signature

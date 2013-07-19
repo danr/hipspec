@@ -1,8 +1,7 @@
 {-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
--- Calls a function does
--- Looks at the core unfolding, or in an extra-supplied map
 module HipSpec.Calls
     ( module VarSet
+    , Constructors(..)
     , exprCalls
     , calls
     , transCalls
@@ -13,34 +12,46 @@ import CoreSyn
 import Id
 import VarSet
 import CoreFVs
+import DataCon
+import TyCon
 
+import Lang.Utils
 import Lang.Unfoldings
+import Lang.FreeTyCons
+
+import qualified Data.Set as S
+
+data Constructors = With | Without deriving Eq
 
 -- | The vars this expression calls
-exprCalls :: CoreExpr -> VarSet
-exprCalls = exprSomeFreeVars $ \ v ->
-    (isLocalId v || isGlobalId v) && not (isId v && isConLikeId v)
+exprCalls :: Constructors -> CoreExpr -> VarSet
+exprCalls cons = exprSomeFreeVars $ \ v ->
+          (isLocalId v || isGlobalId v || (cons == With && isDataConId v && not (isNewtypeConId v)))
+       && (cons == With || not (isDataConId v))
 
 -- | The functions this functions calls (not transitively)
-calls :: Id -> VarSet
-calls v = case maybeUnfolding v of
-    Just e -> exprCalls e
+calls :: Constructors -> Id -> VarSet
+calls c v = cons `unionVarSet` case maybeUnfolding v of
+    Just e -> exprCalls c e
     _      -> emptyVarSet
+  where
+    cons | c == With = mkVarSet (concatMap (map dataConWorkId .  tyConDataCons)
+                                           (S.toList (varTyCons v)))
+         | otherwise = emptyVarSet
 
 -- | The functions this function calls transitively
-transCalls :: Id -> VarSet
-transCalls = transFrom . unitVarSet
+transCalls :: Constructors -> Id -> VarSet
+transCalls c = transFrom c . unitVarSet
 
 -- | The transitive closure of calls from this set
-transFrom :: VarSet -> VarSet
-transFrom = go emptyVarSet
+transFrom :: Constructors -> VarSet -> VarSet
+transFrom c = go emptyVarSet
   where
     go visited queue
         | isEmptyVarSet to_visit = visited
         | otherwise = go (visited `unionVarSet` to_visit)
-                         (foldVarSet (\ i vs -> calls i `unionVarSet` vs)
+                         (foldVarSet (\ i vs -> calls c i `unionVarSet` vs)
                                      emptyVarSet
                                      to_visit)
       where to_visit = queue `minusVarSet` visited
-
 
