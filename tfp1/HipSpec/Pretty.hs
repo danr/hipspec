@@ -3,7 +3,7 @@ module HipSpec.Pretty where
 import Text.PrettyPrint
 import Lang.PrettyAltErgo
 
-import Lang.Escape
+import HipSpec.Utils.ZEncode
 
 import qualified Lang.Simple as S
 import qualified Lang.PrettyRich as R

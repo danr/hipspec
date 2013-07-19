@@ -25,7 +25,7 @@ import Lang.PolyFOL as Poly
 import Data.Ord (comparing)
 import Data.List (sortBy)
 
-import Lang.Escape
+import HipSpec.Utils.ZEncode
 
 import Lang.Simple as S
 import qualified Lang.FunctionalFO as FO

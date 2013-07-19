@@ -6,7 +6,7 @@ import HipSpec.Monad
 import HipSpec.Property
 import HipSpec.ThmLib
 import HipSpec.MakeInvocations
-import HipSpec.Util
+import HipSpec.Utils
 
 import Data.List
 import Data.Ord

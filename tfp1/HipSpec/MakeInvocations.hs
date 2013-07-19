@@ -12,7 +12,7 @@ import HipSpec.Theory
 import HipSpec.Property
 import HipSpec.Lemma
 import HipSpec.Trim
-import HipSpec.Util
+import HipSpec.Utils
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))

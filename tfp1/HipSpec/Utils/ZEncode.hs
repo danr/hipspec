@@ -1,13 +1,13 @@
 -- | Some kind of z-encoding escaping
-module Lang.Escape (escape) where
+module HipSpec.Utils.ZEncode (escape) where
 
+import Data.Char
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Char
 
 -- | Escaping
 escape :: String -> String
-escape = leading . concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
+escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
   where
     escapes = M.fromList $ map (uncurry (flip (,)))
         [ ("za",'@')
@@ -42,7 +42,7 @@ escape = leading . concatMap (\c -> fromMaybe [c] (M.lookup c escapes))
         , ("zz",'z')
         ]
 
-leading :: String -> String
-leading xs@(x:_) | isDigit x = '_':xs
-                 | otherwise = xs
-leading []                   = "_"
+    leading :: String -> String
+    leading xs@(x:_) | isDigit x = '_':xs
+                     | otherwise = xs
+    leading []                   = "_"

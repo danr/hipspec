@@ -27,7 +27,7 @@ import HipSpec.MainLoop
 
 import HipSpec.Heuristics.Associativity
 import HipSpec.Heuristics.CallGraph
-import HipSpec.Util
+import HipSpec.Utils
 
 
 -- import HipSpec.Trans.DefinitionalEquations

@@ -17,7 +17,7 @@ import Id
 import Data.Maybe
 import Data.Graph hiding (edges)
 
-import HipSpec.Util
+import HipSpec.Utils
 
 sortByCallGraph :: SigMap -> (a -> [Symbol]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph

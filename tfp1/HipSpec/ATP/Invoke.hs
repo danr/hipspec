@@ -25,7 +25,7 @@ import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
 import HipSpec.Monad
 
-import Lang.Escape
+import HipSpec.Utils.ZEncode
 
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>),(<.>))

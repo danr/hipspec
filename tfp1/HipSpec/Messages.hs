@@ -12,7 +12,8 @@ import Data.List
 import HipSpec.ThmLib
 import HipSpec.Params
 
-import HipSpec.Util
+import HipSpec.Utils
+import HipSpec.Utils.Colour
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
