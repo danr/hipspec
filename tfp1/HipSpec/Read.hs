@@ -13,7 +13,7 @@ import HipSpec.Sig.Get
 
 import HipSpec.Params
 
--- import CoreMonad
+-- import CoreMonad (liftIO)
 import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
@@ -31,12 +31,18 @@ import Data.Map (Map)
 import Data.Maybe
 import Data.List
 
+import TysWiredIn
+import DataCon (dataConName)
+import TyCon (TyCon,tyConName)
+import BasicTypes (TupleSort(BoxedTuple))
+
 import Control.Monad
 
 -- | The result from calling GHC
 data EntryResult = EntryResult
-    { sig_info :: Maybe SigInfo
-    , prop_ids :: [Var]
+    { sig_info  :: Maybe SigInfo
+    , prop_ids  :: [Var]
+    , extra_tcs :: [TyCon]
     }
 
 execute :: Params  -> IO EntryResult
@@ -132,9 +138,12 @@ execute params@Params{..} = do
 
         -- Wrapping up
         return EntryResult
-            { sig_info = sig_info
-            , prop_ids = props ++ case sig_info of
+            { sig_info  = sig_info
+            , prop_ids  = props ++ case sig_info of
                 Just (SigInfo _ (SigMap m _)) -> M.elems m
+                Nothing                       -> []
+            , extra_tcs = case sig_info of
+                Just (SigInfo _ (SigMap _ m)) -> M.elems m
                 Nothing                       -> []
             }
 
@@ -153,12 +162,20 @@ getNamedThings fix_id = do
 
     -- Get the types of all names in scope
     ns <- getNamesInScope
+
     maybe_named_things <- mapM lookup_name ns
 
-    return $ M.fromList
+    return $ M.fromList $
         [ (n,mapTyThingId fix_id tyth)
         | Just (n,tyth) <- maybe_named_things
-        ]
+        ] ++
+        -- These built in constructors are not in scope by default (!?), so we add them here
+        -- Note that tuples up to size 8 are only supported...
+        concat
+            [ (tyConName tc,ATyCon tc) :
+              [ (dataConName dc,ADataCon dc) | dc <- tyConDataCons tc ]
+            | tc <- [listTyCon,unitTyCon,pairTyCon] ++ map (tupleTyCon BoxedTuple) [3..8]
+            ]
 
 mapTyThingId :: (Id -> Id) -> TyThing -> TyThing
 mapTyThingId k (AnId i) = AnId (k i)

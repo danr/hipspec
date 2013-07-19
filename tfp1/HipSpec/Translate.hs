@@ -28,7 +28,7 @@ import qualified Data.Set as S
 
 import Var
 
-import TyCon (TyCon)
+import TyCon (TyCon,isNewTyCon)
 
 import Induction.Structural
 
@@ -48,14 +48,17 @@ type TyEnv' = TyEnv Con (Type Name')
 
 -- | Translates the type constructors
 trTyCons :: [TyCon] -> (ArityMap,[Subtheory],TyEnv')
-trTyCons tcs = case mapM trTyCon tcs of
+trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
     Right data_types -> (con_arities,subthys,ty_env)
       where
         subthys = concat
             [ calcDeps subtheory
-                { defines = Type data_ty_con
-                , clauses = cls
-                }
+                  { defines = Type data_ty_con
+                  , clauses =
+                      if isNewTyCon tc
+                          then [ cl | cl@P.SortSig{} <- cls ]
+                          else cls
+                  }
               : concat
               [ [ Subtheory
                   { defines = Definition dc
@@ -68,20 +71,23 @@ trTyCons tcs = case mapM trTyCon tcs of
                   }
                 ]
               | (dc,dc_ptr_cls) <- dc_ptr_clss
+              , not (isNewTyCon tc)
               ]
-            | dt@Datatype{..} <- data_types
+            | (tc,dt@Datatype{..}) <- data_types
             , let (cls,dc_ptr_clss) = P.trDatatype (fmap Old dt)
             ]
 
         con_arities = M.fromList
             [ (Old (R.con_name dc),length (R.con_args dc))
-            | dt <- data_types
+            | (tc,dt) <- data_types
+            , not (isNewTyCon tc)
             , dc <- data_cons dt
             ]
 
         m_tcs = M.fromList
-            [ (data_ty_con,dt)
-            | dt@Datatype{..} <- map (fmap Old) data_types
+            [ (Old data_ty_con,fmap Old dt)
+            | (tc,dt@Datatype{..}) <- data_types
+            , not (isNewTyCon tc)
             ]
 
         ty_env :: TyEnv'

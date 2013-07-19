@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module HipSpec.GHC.FreeTyCons (bindsTyCons,exprsTyCons,varTyCons) where
+module HipSpec.GHC.FreeTyCons (bindsTyCons,bindsTyCons',varTyCons) where
 
 import CoreSyn
 import CoreUtils (exprType)
@@ -12,14 +12,14 @@ import Var
 import Data.Set (Set)
 import qualified Data.Set as S
 
-exprsTyCons :: [CoreExpr] -> [TyCon]
-exprsTyCons = S.toList . S.unions . map exprTyCons
-
 bindsTyCons :: [CoreBind] -> [TyCon]
-bindsTyCons = S.toList . S.unions . map bindTyCons
+bindsTyCons = S.toList . S.unions . map bindTyCons . flattenBinds
 
-bindTyCons :: CoreBind -> Set TyCon
-bindTyCons = S.unions . map exprTyCons . rhssOfBind
+bindsTyCons' :: [(Var,CoreExpr)] -> [TyCon]
+bindsTyCons' = S.toList . S.unions . map bindTyCons
+
+bindTyCons :: (Var,CoreExpr) -> Set TyCon
+bindTyCons (v,e) = S.union (exprTyCons e) (varTyCons v)
 
 tyTyCons :: Type -> Set TyCon
 tyTyCons = go . expandTypeSynonyms

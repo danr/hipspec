@@ -4,7 +4,7 @@ module HipSpec.Init (processFile,SigInfo(..)) where
 import Control.Monad
 
 
-import Data.List (partition)
+import Data.List (partition,union)
 import Data.Void
 
 import HipSpec.GHC.Calls
@@ -54,7 +54,7 @@ processFile cont = do
             ]
 
         tcs = filter (\ x -> isAlgTyCon x && not (typeIsProp x))
-                     (exprsTyCons (map snd binds))
+                     (bindsTyCons' binds `union` extra_tcs)
 
         (am_tcs,data_thy,ty_env') = trTyCons tcs
 

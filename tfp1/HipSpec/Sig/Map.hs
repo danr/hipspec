@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,ViewPatterns #-}
+{-# LANGUAGE RecordWildCards,ViewPatterns,ScopedTypeVariables #-}
 {-
 
     Find appropriate translations of QuickSpec strings to core
@@ -27,6 +27,7 @@ import HipSpec.Params
 
 import Data.Either
 import Data.Maybe
+import Data.List (intercalate)
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -54,8 +55,8 @@ maybeLookupTyCon sm t = M.lookup t (tycon_map sm)
 
 debug_str :: String
 debug_str =
-    "Debug the marshallings between QuickSpec signatures and GHC Core " ++
-    "structures with --db-sig-marsh and --db-names."
+    "Debug the conversions between QuickSpec signatures and GHC Core " ++
+    "structures with --debug-scope and debug-str-conv."
 
 lookupSym :: SigMap -> Symbol -> Id
 lookupSym m s = fromMaybe (error err_str) (maybeLookupSym m s)
@@ -69,13 +70,26 @@ lookupTyCon m s = fromMaybe (error err_str) (maybeLookupTyCon m s)
     err_str = "Cannot translate Data.Typeable type constructor " ++ show s ++
              " to Core representation! " ++ debug_str
 
+showTyThing :: TyThing -> String
+showTyThing t = case t of
+    AnId{}     -> "AnId " ++ s
+    ADataCon{} -> "ADataCon " ++ s
+    ATyCon{}   -> "ATyCon " ++ s
+    ACoAxiom{} -> "ACoAxiom " ++ s
+  where
+    s = showOutputable t
+
+showTyThings :: [TyThing] -> String
+showTyThings [] = "nothing"
+showTyThings xs = intercalate "," (map showTyThing xs)
+
 makeSigMap :: Params -> Sig -> Map Name TyThing -> Ghc SigMap
 makeSigMap p@Params{..} sig named_things = do
 
-    sig_names <- M.fromList `fmap`
+    sig_names :: Map Symbol [Name] <- M.fromList `fmap`
         mapM (\ symb -> fmap ((,) symb) (parseName (name symb)))
              (constantSymbols sig)
-    sig_tycons <- M.fromList `fmap`
+    sig_tycons :: Map Typeable.TyCon [Name] <- M.fromList `fmap`
         mapM (\ tc -> fmap ((,) tc) (parseName (Typeable.tyConName tc)))
              (concatMap (typeRepTyCons . symbolType) (symbols sig))
 
@@ -85,13 +99,40 @@ makeSigMap p@Params{..} sig named_things = do
         tyc_tr :: Map Typeable.TyCon [TyThing]
         tyc_tr = trans named_things sig_tycons
 
-        justOr :: (a -> Maybe b) -> (c -> [a] -> e) -> c -> [a] -> Either e b
+
+    whenFlag p DebugScope $ liftIO $ do
+        putStrLn "Names in scope"
+        mapM_ putStrLn
+            [ " " ++ showOutputable n ++ " :: " ++ showOutputable t
+            | (n,t) <- M.toList named_things
+            ]
+        putStrLn "Functions and constructors"
+        mapM_ putStrLn
+            [ " " ++ name n ++ " -> " ++ showOutputable ns
+            | (n,ns) <- M.toList sig_names
+            ]
+        putStrLn "Type constructors"
+        mapM_ putStrLn
+            [ " " ++ show tc ++ " -> " ++ showOutputable ns
+            | (tc,ns) <- M.toList sig_tycons
+            ]
+        putStrLn "Symbol translation"
+        mapM_ putStrLn
+            [ " " ++ show s ++ " -> " ++ showTyThings ts
+            | (s,ts) <- M.toList symb_tr
+            ]
+        putStrLn "Type constructor translation"
+        mapM_ putStrLn
+            [ " " ++ show tc ++ " -> " ++ showTyThings ts
+            | (tc,ts) <- M.toList tyc_tr
+            ]
+
+    let justOr :: (a -> Maybe b) -> (c -> [a] -> e) -> c -> [a] -> Either e b
         justOr k h a xs = maybe (Left (h a xs)) Right (listToMaybe $ mapMaybe k xs)
 
         err s a ts = show a ++ " should be a " ++ s ++ ", but is bound to "
-                             ++ showOutputable ts
-                             ++ ", fix your signature!"
-
+                            ++ showTyThings ts
+                            ++ ", fix your signature!"
 
         symb_sn :: Either [String] (Map Symbol Id)
         symb_sn = sanity (k `justOr` err "function or constructor") symb_tr
@@ -105,23 +146,6 @@ makeSigMap p@Params{..} sig named_things = do
           where
             k (ATyCon ty_con) = Just ty_con
             k _               = Nothing
-
-    whenFlag p DebugScope $ liftIO $ do
-        putStrLn "Names in scope"
-        mapM_ putStrLn
-            [ showOutputable n ++ " :: " ++ showOutputable t
-            | (n,t) <- M.toList named_things
-            ]
-        putStrLn "Functions and constructors"
-        mapM_ putStrLn
-            [ name n ++ " -> " ++ showOutputable ns
-            | (n,ns) <- M.toList sig_names
-            ]
-        putStrLn "Type constructors"
-        mapM_ putStrLn
-            [ show tc ++ " -> " ++ showOutputable ns
-            | (tc,ns) <- M.toList sig_tycons
-            ]
 
     liftIO $ do
         print_errs symb_sn
