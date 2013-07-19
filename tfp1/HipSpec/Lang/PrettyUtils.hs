@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Lang.PrettyUtils where
+module HipSpec.Lang.PrettyUtils where
 
 import Text.PrettyPrint
 

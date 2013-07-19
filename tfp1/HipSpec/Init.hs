@@ -17,12 +17,12 @@ import HipSpec.Translate
 import HipSpec.Params
 
 import HipSpec.GHC.FreeTyCons
-import Lang.RemoveDefault
+import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
-import Lang.Uniquify
+import HipSpec.Lang.Uniquify
 
-import qualified Lang.RichToSimple as S
-import qualified Lang.Simple as S
+import qualified HipSpec.Lang.RichToSimple as S
+import qualified HipSpec.Lang.Simple as S
 
 import TyCon (isAlgTyCon)
 import UniqSupply

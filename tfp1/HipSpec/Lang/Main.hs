@@ -4,40 +4,40 @@ module Main where
 import HipSpec.GHC.FreeTyCons
 import TyCon (isAlgTyCon)
 
-import Lang.Read
+import HipSpec.Lang.Read
 import HipSpec.GHC.Utils
 
 import Data.Char
 
-import Lang.Rich as R
+import HipSpec.Lang.Rich as R
 
-import Lang.CoreToRich
-import Lang.SimplifyRich
-import Lang.RichToSimple
+import HipSpec.Lang.CoreToRich
+import HipSpec.Lang.SimplifyRich
+import HipSpec.Lang.RichToSimple
 
-import Lang.PrettyRich
-import Lang.PrettyUtils
-import Lang.PrettyPolyFOL as Poly
-import Lang.PrettyAltErgo as AltErgo
+import HipSpec.Lang.PrettyRich
+import HipSpec.Lang.PrettyUtils
+import HipSpec.Lang.PrettyPolyFOL as Poly
+import HipSpec.Lang.PrettyAltErgo as AltErgo
 
-import Lang.PolyFOL as Poly
+import HipSpec.Lang.PolyFOL as Poly
 
 import Data.Ord (comparing)
 import Data.List (sortBy)
 
 import HipSpec.Utils.ZEncode
 
-import Lang.Simple as S
-import qualified Lang.FunctionalFO as FO
-import qualified Lang.PrettyFO as FO
+import HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.FunctionalFO as FO
+import qualified HipSpec.Lang.PrettyFO as FO
 
-import Lang.SimpleToFO as FO
-import Lang.Deappify
+import HipSpec.Lang.SimpleToFO as FO
+import HipSpec.Lang.Deappify
 
-import qualified Lang.ToPolyFOL as P
+import qualified HipSpec.Lang.ToPolyFOL as P
 
-import Lang.LintRich
-import Lang.CoreLint
+import HipSpec.Lang.LintRich
+import HipSpec.Lang.CoreLint
 
 import Name
 import Unique

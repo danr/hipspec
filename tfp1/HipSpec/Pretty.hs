@@ -1,19 +1,19 @@
 module HipSpec.Pretty where
 
 import Text.PrettyPrint
-import Lang.PrettyAltErgo
+import HipSpec.Lang.PrettyAltErgo
 
 import HipSpec.Utils.ZEncode
 
-import qualified Lang.Simple as S
-import qualified Lang.PrettyRich as R
-import qualified Lang.PrettyUtils as P
+import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.PrettyRich as R
+import qualified HipSpec.Lang.PrettyUtils as P
 
-import Lang.ToPolyFOL (Poly(..))
-import Lang.PolyFOL (Clause(..))
+import HipSpec.Lang.ToPolyFOL (Poly(..))
+import HipSpec.Lang.PolyFOL (Clause(..))
 
-import Lang.RichToSimple (Rename(..),Loc(..))
-import Lang.Type (Typed(..))
+import HipSpec.Lang.RichToSimple (Rename(..),Loc(..))
+import HipSpec.Lang.Type (Typed(..))
 
 import Name
 import Unique

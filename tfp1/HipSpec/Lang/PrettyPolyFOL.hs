@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings,PatternGuards #-}
-module Lang.PrettyPolyFOL where
+module HipSpec.Lang.PrettyPolyFOL where
 
 import Text.PrettyPrint
 
-import Lang.PolyFOL
-import Lang.PrettyUtils
+import HipSpec.Lang.PolyFOL
+import HipSpec.Lang.PrettyUtils
 
 type Id a = a -> Doc
 

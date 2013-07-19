@@ -18,7 +18,7 @@ Type signature example:
     map : (Fn(a,b) * List(a)) -> List(b)
 
 -}
-module Lang.PolyFOL where
+module HipSpec.Lang.PolyFOL where
 
 import Data.Generics.Geniplate
 

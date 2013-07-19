@@ -6,9 +6,9 @@ import HipSpec.Theory as T
 import HipSpec.Literal
 import HipSpec.Property
 
-import Lang.PolyFOL as P
-import Lang.ToPolyFOL
-import Lang.Simple
+import HipSpec.Lang.PolyFOL as P
+import HipSpec.Lang.ToPolyFOL
+import HipSpec.Lang.Simple
 
 trLemma :: ArityMap -> Int -> Property eq -> Subtheory
 trLemma am i Property{..} = calcDeps subtheory

@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns,PatternGuards #-}
-module Lang.Deappify where
+module HipSpec.Lang.Deappify where
 
-import Lang.FunctionalFO
+import HipSpec.Lang.FunctionalFO
 
-import Lang.Type
+import HipSpec.Lang.Type
 
 import Control.Applicative
 

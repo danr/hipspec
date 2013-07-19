@@ -12,13 +12,13 @@ import HipSpec.Property
 import HipSpec.Literal
 import HipSpec.Params
 
-import Lang.RichToSimple (Loc(..),Rename(..))
-import qualified Lang.Simple as S
-import Lang.Simple (Type,Typed(..))
+import HipSpec.Lang.RichToSimple (Loc(..),Rename(..))
+import qualified HipSpec.Lang.Simple as S
+import HipSpec.Lang.Simple (Type,Typed(..))
 
-import Lang.PolyFOL hiding (Type(..),Term(..))
-import qualified Lang.PolyFOL as P
-import Lang.ToPolyFOL
+import HipSpec.Lang.PolyFOL hiding (Type(..),Term(..))
+import qualified HipSpec.Lang.PolyFOL as P
+import HipSpec.Lang.ToPolyFOL
 
 import Induction.Structural hiding (Obligation)
 import qualified Induction.Structural as IS

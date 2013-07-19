@@ -21,9 +21,9 @@ import Control.Monad.Error
 
 import Name
 
-import Lang.Simple as S
-import Lang.RichToSimple as S
-import Lang.PrettyRich as R
+import HipSpec.Lang.Simple as S
+import HipSpec.Lang.RichToSimple as S
+import HipSpec.Lang.PrettyRich as R
 
 import Text.PrettyPrint hiding (comma)
 
@@ -37,8 +37,8 @@ import Data.List (intercalate)
 
 import Data.Void
 
-import qualified Lang.PolyFOL as P
-import qualified Lang.ToPolyFOL as P
+import qualified HipSpec.Lang.PolyFOL as P
+import qualified HipSpec.Lang.ToPolyFOL as P
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 

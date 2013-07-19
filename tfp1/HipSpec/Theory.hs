@@ -15,9 +15,9 @@ module HipSpec.Theory
 
 import HipSpec.Pretty
 
-import Lang.RichToSimple (Rename(..))
-import Lang.PolyFOL
-import Lang.ToPolyFOL (Poly(..))
+import HipSpec.Lang.RichToSimple (Rename(..))
+import HipSpec.Lang.PolyFOL
+import HipSpec.Lang.ToPolyFOL (Poly(..))
 
 import Name
 

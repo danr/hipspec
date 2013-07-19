@@ -1,4 +1,4 @@
-module Lang.Read where
+module HipSpec.Lang.Read where
 
 import DynFlags
 import GHC hiding (Sig)
@@ -14,8 +14,8 @@ import GhcMonad
 import SimplCore
 
 import HipSpec.GHC.Unfoldings
-import Lang.RemoveDefault
-import Lang.Uniquify
+import HipSpec.Lang.RemoveDefault
+import HipSpec.Lang.Uniquify
 
 import Data.Maybe
 import Data.List

@@ -1,13 +1,13 @@
 {-# LANGUAGE PatternGuards, PackageImports #-}
 
--- | Translation from GHC Core to the Rich Language, a subset
-module Lang.CoreToRich where
+-- | Translation from GHC Core to the Rich HipSpec.Language, a subset
+module HipSpec.Lang.CoreToRich where
 
 import Control.Applicative
 import Control.Monad.Error
 
-import Lang.Rich as R
-import Lang.Type as R
+import HipSpec.Lang.Rich as R
+import HipSpec.Lang.Type as R
 
 import CoreUtils as C
 import CoreSyn as C
@@ -20,13 +20,13 @@ import TyCon hiding (data_cons)
 import Type as C
 import GHC (dataConType)
 
-import Lang.DataConPattern
+import HipSpec.Lang.DataConPattern
 
 import IdInfo
 
 import HipSpec.GHC.Utils (showOutputable)
 
-import Lang.TyAppBeta
+import HipSpec.Lang.TyAppBeta
 
 -- | The binders in our translated expressions.
 --

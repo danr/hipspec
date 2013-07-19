@@ -1,6 +1,6 @@
 
 -- | Beta reduction for types (applied to lambdas)
-module Lang.TyAppBeta where
+module HipSpec.Lang.TyAppBeta where
 
 import Type
 

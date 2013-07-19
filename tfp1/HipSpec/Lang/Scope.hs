@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts,MultiParamTypeClasses,FlexibleInstances,
              TypeSynonymInstances,ScopedTypeVariables,FunctionalDependencies #-}
 -- | Some common utilites for a MonadReader that keeps track of variables in scope
-module Lang.Scope where
+module HipSpec.Lang.Scope where
 
 import Control.Monad.Reader
 

@@ -3,7 +3,7 @@
 --
 -- The targets are local lets that happily gets the same name, and also
 -- scrutinee vars that can get the same name if they are never used.
-module Lang.Uniquify where
+module HipSpec.Lang.Uniquify where
 
 import CoreSyn
 

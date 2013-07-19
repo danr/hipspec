@@ -1,5 +1,5 @@
 
-module Lang.DataConPattern where
+module HipSpec.Lang.DataConPattern where
 
 import DataCon
 import Var

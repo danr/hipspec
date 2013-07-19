@@ -6,7 +6,7 @@
 --
 -- There is some code duplication between this and the Rich
 -- language. It is unclear how this could be remedied.
-module Lang.Simple
+module HipSpec.Lang.Simple
     ( Function(..)
     , Body(..)
     , Alt
@@ -16,8 +16,8 @@ module Lang.Simple
     , bodyType
     , exprType
     , exprTySubst
-    , module Lang.Rich
-    , module Lang.Type
+    , module HipSpec.Lang.Rich
+    , module HipSpec.Lang.Type
     , injectFn
     , injectBody
     , injectExpr
@@ -30,9 +30,9 @@ import Data.Traversable (Traversable)
 import Data.Generics.Geniplate
 
 -- Patterns are resued from the rich language
-import Lang.Rich (Pattern(..),anyRhs)
-import qualified Lang.Rich as R
-import Lang.Type
+import HipSpec.Lang.Rich (Pattern(..),anyRhs)
+import qualified HipSpec.Lang.Rich as R
+import HipSpec.Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 

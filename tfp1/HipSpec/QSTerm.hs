@@ -34,9 +34,9 @@ import Id
 import TyCon (tyConName)
 
 
-import qualified Lang.Simple as S
-import qualified Lang.RichToSimple as S
-import Lang.CoreToRich (trVar)
+import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.RichToSimple as S
+import HipSpec.Lang.CoreToRich (trVar)
 
 import HipSpec.Theory
 

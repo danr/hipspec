@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Pretty-printing the functional language, parameterised on how to
 --   pretty-print variables.
-module Lang.PrettyFO where
+module HipSpec.Lang.PrettyFO where
 
 import Text.PrettyPrint
 
-import Lang.FunctionalFO
+import HipSpec.Lang.FunctionalFO
 
-import Lang.Type hiding ((:::))
-import Lang.PrettyUtils
+import HipSpec.Lang.Type hiding ((:::))
+import HipSpec.Lang.PrettyUtils
 
 type Id a = a -> Doc
 

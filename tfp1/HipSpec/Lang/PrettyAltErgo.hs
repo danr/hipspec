@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings,PatternGuards #-}
-module Lang.PrettyAltErgo where
+module HipSpec.Lang.PrettyAltErgo where
 
 import Text.PrettyPrint
 
-import Lang.PolyFOL
-import Lang.PrettyUtils
+import HipSpec.Lang.PolyFOL
+import HipSpec.Lang.PrettyUtils
 
 import Control.Monad
 

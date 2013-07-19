@@ -1,5 +1,5 @@
 
-module Lang.CoreLint where
+module HipSpec.Lang.CoreLint where
 
 import Bag
 import CoreLint

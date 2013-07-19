@@ -3,22 +3,22 @@ module HipSpec.Translate where
 
 import HipSpec.Theory
 
-import qualified Lang.Rich as R
-import Lang.Rich (Datatype(..),Constructor(..))
+import qualified HipSpec.Lang.Rich as R
+import HipSpec.Lang.Rich (Datatype(..),Constructor(..))
 
-import Lang.CoreToRich
-import Lang.SimplifyRich
-import Lang.RichToSimple hiding (Var)
-import qualified Lang.RichToSimple as S
+import HipSpec.Lang.CoreToRich
+import HipSpec.Lang.SimplifyRich
+import HipSpec.Lang.RichToSimple hiding (Var)
+import qualified HipSpec.Lang.RichToSimple as S
 
-import Lang.Simple as S
-import qualified Lang.FunctionalFO as FO
+import HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.FunctionalFO as FO
 
-import Lang.SimpleToFO as FO
-import Lang.Deappify
+import HipSpec.Lang.SimpleToFO as FO
+import HipSpec.Lang.Deappify
 
-import qualified Lang.ToPolyFOL as P
-import qualified Lang.PolyFOL as P
+import qualified HipSpec.Lang.ToPolyFOL as P
+import qualified HipSpec.Lang.PolyFOL as P
 
 import Name
 import CoreSyn (CoreExpr)

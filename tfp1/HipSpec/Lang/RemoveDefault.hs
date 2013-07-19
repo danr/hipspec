@@ -55,7 +55,7 @@
     with data constructors, we could unroll it.
 
 -}
-module Lang.RemoveDefault where
+module HipSpec.Lang.RemoveDefault where
 
 import CoreSyn
 import CoreUtils hiding (findAlt)
@@ -66,7 +66,7 @@ import Type
 import Unique
 import UniqSupply
 import Id
-import Lang.DataConPattern
+import HipSpec.Lang.DataConPattern
 
 import HipSpec.GHC.Utils
 

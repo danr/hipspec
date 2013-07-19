@@ -10,14 +10,14 @@
 --
 -- In the expression (g x) in this context, only x is free.
 --
-module Lang.RichToSimple where
+module HipSpec.Lang.RichToSimple where
 
-import Lang.Rich as R
-import Lang.Simple as S
+import HipSpec.Lang.Rich as R
+import HipSpec.Lang.Simple as S
 
-import Lang.SimplifyRich (removeScrutinee)
+import HipSpec.Lang.SimplifyRich (removeScrutinee)
 
-import Lang.Scope
+import HipSpec.Lang.Scope
 
 import Control.Monad.RWS
 import Control.Applicative

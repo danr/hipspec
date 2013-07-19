@@ -2,12 +2,12 @@
 -- | The Functional First Order language. Explicitly typed.
 --
 --   ArrTy in the Type really means defunctionalised Type
-module Lang.FunctionalFO where
+module HipSpec.Lang.FunctionalFO where
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
-import Lang.Type
+import HipSpec.Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 

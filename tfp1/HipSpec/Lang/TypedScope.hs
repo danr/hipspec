@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 -- | Some common utilites for a MonadReader that keeps track of typed variables in scope
-module Lang.TypedScope where
+module HipSpec.Lang.TypedScope where
 
 import Control.Monad.Reader
 
