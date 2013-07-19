@@ -5,7 +5,7 @@ module HipSpec.Heuristics.CallGraph where
 import Test.QuickSpec.Term
 
 import HipSpec.GHC.Calls
-import HipSpec.GHC.SigMap
+import HipSpec.Sig.Map
 
 import HipSpec.GHC.Utils
 

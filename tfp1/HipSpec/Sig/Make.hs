@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module HipSpec.GHC.MakeSig (makeSignature) where
+module HipSpec.Sig.Make (makeSignature) where
 
 import Data.List.Split (splitOn)
 

@@ -2,7 +2,7 @@
 -- | Translating from QuickSpec -> Core
 --
 --   There are no type variables here, properties could be generalised with a later pass...
-module HipSpec.QSTerm (typeRepToType,eqToProp) where
+module HipSpec.Sig.QSTerm (typeRepToType,eqToProp) where
 
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Utils.Typed
@@ -20,8 +20,7 @@ import qualified Test.QuickSpec.Utils.Typeable as Ty
 -- import Halo.Names
 import HipSpec.GHC.Utils
 
-import HipSpec.GHC.Types
-import HipSpec.GHC.SigMap
+import HipSpec.Sig.Map
 import HipSpec.Property as P
 
 import qualified Data.Map as M

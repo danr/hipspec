@@ -5,8 +5,9 @@
     bindings, data constructors or type constructors.
 
 -}
-module HipSpec.GHC.SigMap
+module HipSpec.Sig.Map
     ( SigMap(..)
+    , SigInfo(..)
     , lookupSym
     , lookupTyCon
     , maybeLookupSym
@@ -23,7 +24,6 @@ import GHC hiding (Sig)
 import CoreMonad
 
 import HipSpec.Params
-import HipSpec.GHC.Types
 
 import Data.Either
 import Data.Maybe
@@ -33,6 +33,18 @@ import qualified Data.Map as M
 import qualified Data.Typeable as Typeable
 
 import HipSpec.GHC.Utils
+
+-- | Signature from QuickSpec
+data SigInfo = SigInfo
+    { sig     :: Sig
+    , sig_map :: SigMap
+    }
+
+-- | Mappings for QuickSpec symbols and Typeable Tycons to GHC Core structures
+data SigMap = SigMap
+    { sym_map   :: Map Symbol Id
+    , tycon_map :: Map Typeable.TyCon TyCon
+    }
 
 maybeLookupSym :: SigMap -> Symbol -> Maybe Id
 maybeLookupSym sm s = M.lookup s (sym_map sm)

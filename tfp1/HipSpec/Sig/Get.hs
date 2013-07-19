@@ -1,4 +1,4 @@
-module HipSpec.GHC.GetSig (getSignature) where
+module HipSpec.Sig.Get (getSignature) where
 
 import Test.QuickSpec.Signature
 

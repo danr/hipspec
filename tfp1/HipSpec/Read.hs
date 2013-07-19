@@ -7,10 +7,9 @@ import HipSpec.ParseDSL
 
 import Data.List.Split (splitOn)
 
-import HipSpec.GHC.Types
-import HipSpec.GHC.SigMap
-import HipSpec.GHC.MakeSig
-import HipSpec.GHC.GetSig
+import HipSpec.Sig.Map
+import HipSpec.Sig.Make
+import HipSpec.Sig.Get
 
 import HipSpec.Params
 
@@ -33,6 +32,12 @@ import Data.Maybe
 import Data.List
 
 import Control.Monad
+
+-- | The result from calling GHC
+data EntryResult = EntryResult
+    { sig_info :: Maybe SigInfo
+    , prop_ids :: [Var]
+    }
 
 execute :: Params  -> IO EntryResult
 execute params@Params{..} = do

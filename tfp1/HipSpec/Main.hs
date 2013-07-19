@@ -20,7 +20,7 @@ import Data.Void
 
 import HipSpec.ThmLib
 import HipSpec.Property hiding (Literal(..))
-import HipSpec.QSTerm
+import HipSpec.Sig.QSTerm
 import HipSpec.Init
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
@@ -31,8 +31,8 @@ import HipSpec.Utils
 
 
 -- import HipSpec.Trans.DefinitionalEquations
--- import HipSpec.GHC.SigMap (maybeLookupSym)
--- import HipSpec.GHC.Types
+-- import HipSpec.Sig.Map (maybeLookupSym)
+-- import HipSpec.Sig.Types
 
 import Prelude hiding (read)
 
