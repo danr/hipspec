@@ -62,7 +62,7 @@ False ? _ = id
 filename :: InvokeEnv -> Obligation eq a -> (FilePath,FilePath)
 filename InvokeEnv{z_encode} (Obligation Property{prop_name} info _) = case info of
     ObInduction coords ix _ ->
-        ((z_encode ? escape) prop_name
+        ((z_encode ? zencode) prop_name
         ,usv coords ++ "__" ++ show ix)
   where
     usv = intercalate "_" . map show

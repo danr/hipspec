@@ -43,8 +43,8 @@ data SigInfo = SigInfo
 
 -- | Mappings for QuickSpec symbols and Typeable Tycons to GHC Core structures
 data SigMap = SigMap
-    { sym_map   :: Map Symbol Id
-    , tycon_map :: Map Typeable.TyCon TyCon
+    { sym_map   :: Map Symbol Id            -- Would like to have it to Name + Type {- ^ orig type -} + [Type] {- ^ applied tys -}
+    , tycon_map :: Map Typeable.TyCon TyCon -- TyCon is fine (but do we need this if we have the previous?
     }
 
 maybeLookupSym :: SigMap -> Symbol -> Maybe Id

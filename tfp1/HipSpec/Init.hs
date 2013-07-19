@@ -15,6 +15,7 @@ import HipSpec.Read
 import HipSpec.Theory
 import HipSpec.Translate
 import HipSpec.Params
+import HipSpec.Lint
 
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
@@ -93,6 +94,9 @@ processFile cont = do
         debugWhen PrintProps $
             "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
             "\nProperties:\n" ++ unlines (map show tr_props)
+
+        checkLint (lintSimple simp_fns)
+        mapM_ (checkLint . lintProperty) tr_props
 
         when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 

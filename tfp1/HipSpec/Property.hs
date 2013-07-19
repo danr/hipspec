@@ -15,6 +15,7 @@ module HipSpec.Property
     , tvSkolemProp
     , etaExpandProp
     , varsFromCoords
+    , lintProperty
     ) where
 
 import Control.Monad.Error
@@ -24,6 +25,7 @@ import Name
 import HipSpec.Lang.Simple as S
 import HipSpec.Lang.RichToSimple as S
 import HipSpec.Lang.PrettyRich as R
+import HipSpec.Lint
 
 import Text.PrettyPrint hiding (comma)
 
@@ -34,6 +36,7 @@ import TysWiredIn (trueDataCon,boolTyConName)
 import DataCon (dataConName)
 
 import Data.List (intercalate)
+import Data.Maybe (mapMaybe)
 
 import Data.Void
 
@@ -59,21 +62,6 @@ data Origin eq
     -- ^ User-stated properties
   deriving (Eq,Ord,Functor)
 
-isUserStated :: Property eq -> Bool
-isUserStated p = case prop_origin p of
-    UserStated -> True
-    _          -> False
-
-isFromQS :: Property eq -> Bool
-isFromQS p = case prop_origin p of
-    Equation{} -> True
-    _          -> False
-
-instance Show (Origin eq) where
-    show o = case o of
-        Equation{} -> "equation from QuickSpec"
-        UserStated -> "user stated"
-
 -- | Properties
 data Property eq = Property
     { prop_name     :: String
@@ -94,6 +82,21 @@ data Property eq = Property
     -- ^ Representation of variables (e.g ["xs"])
     }
   deriving Functor
+
+isUserStated :: Property eq -> Bool
+isUserStated p = case prop_origin p of
+    UserStated -> True
+    _          -> False
+
+isFromQS :: Property eq -> Bool
+isFromQS p = case prop_origin p of
+    Equation{} -> True
+    _          -> False
+
+instance Show (Origin eq) where
+    show o = case o of
+        Equation{} -> "equation from QuickSpec"
+        UserStated -> "user stated"
 
 instance Show (Property eq) where
     show Property{..} = concatMap (++ "\n    ")
@@ -226,4 +229,29 @@ propEquation :: Property eq -> Maybe eq
 propEquation p = case prop_origin p of
     Equation eq -> Just eq
     _           -> Nothing
+
+lintProperty :: Property eq -> Maybe String
+lintProperty prop@Property{..} =
+    case concatMap (lintLiteral prop_vars) (prop_goal:prop_assums) of
+        []   -> Nothing
+        errs -> Just (unlines (show prop:"Linting failed:":errs))
+
+lintLiteral :: [TypedName'] -> Literal -> [String]
+lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
+  where
+    t1 = exprType e1
+    t2 = exprType e2
+
+    ty_err :: [String]
+    ty_err
+        | t1 /= t2 = return $
+            "Mismatching types in literal" ++
+            "\n\t" ++ show lit ++
+            ":\n\tlhs: " ++ showType t1 ++
+            "\n\trhs: " ++ showType t2
+        | otherwise = []
+
+    lint_errs = map lint_err $ mapMaybe (lintSimpleExpr sc) [e1,e2]
+
+    lint_err e = "Lint error in literal\n\t" ++ show lit ++ ":\n" ++ e
 

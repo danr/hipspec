@@ -14,6 +14,7 @@ module HipSpec.Monad
     , Msg(..)
     , Params(..)
     , DebugFlag(..)
+    , checkLint
     ) where
 
 import Control.Applicative
@@ -94,4 +95,10 @@ debugWhen :: DebugFlag -> String -> HS ()
 debugWhen flg s = do
     p <- getParams
     whenFlag p flg $ liftIO $ putStrLn s
+
+checkLint :: Maybe String -> HS ()
+checkLint (Just s) = error $
+    "Internal error, a lint pass failed:\n" ++ s ++
+    "\nPlease report this as a bug."
+checkLint Nothing  = return ()
 

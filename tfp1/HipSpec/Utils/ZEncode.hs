@@ -1,44 +1,50 @@
--- | Some kind of z-encoding escaping
-module HipSpec.Utils.ZEncode (escape) where
+-- | Z-encoding
+module HipSpec.Utils.ZEncode (zencode) where
 
 import Data.Char
 import qualified Data.Map as M
 import Data.Maybe
 
--- | Escaping
-escape :: String -> String
-escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
+-- | Escaping via z-encoding
+--
+--   GHC's encoder in Encoding could be used, but it escapes underscores which
+--   is a bit annoying
+zencode :: String -> String
+zencode = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
   where
     escapes = M.fromList $ map (uncurry (flip (,)))
-        [ ("za",'@')
-        , ("z_",'\'')
-        , ("z1",'(')
-        , ("z2",')')
-        , ("zb",'!')
+        [ ("ZL",'(')
+        , ("ZR",')')
+        , ("ZC",':')
+        , ("ZM",'[')
+        , ("ZN",']')
+        , ("ZC",',')
+        , ("ZZ",'Z')
+
         , ("zB",'}')
-        , ("zc",':')
-        , ("zC",'%')
+        , ("zR",'{')
+
+        , ("z_",'\'')
+        , ("za",'@')
+        , ("zb",'!')
+        , ("zc",'%')
         , ("zd",'$')
-        , ("zE",'=')
-        , ("zG",'>')
-        , ("zh",'-')
-        , ("zH",'#')
+        , ("ze",'=')
+        , ("zf",' ')
+        , ("zg",'>')
+        , ("zh",'#')
         , ("zi",'|')
-        , ("zl",']')
-        , ("zL",'<')
-        , ("zm",',')
+        , ("zk",'^')
+        , ("zm",'-')
         , ("zn",'&')
         , ("zo",'.')
         , ("zp",'+')
         , ("zq",'?')
-        , ("zr",'[')
-        , ("zR",'{')
         , ("zs",'*')
-        , ("zS",' ')
         , ("zt",'~')
-        , ("zT",'^')
         , ("zv",'/')
-        , ("zV",'\\')
+        , ("zx",'\\')
+        , ("zz",'<')
         , ("zz",'z')
         ]
 

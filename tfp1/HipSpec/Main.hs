@@ -88,7 +88,9 @@ main = processFile $ \ m_sig_info user_props -> do
             let qsconjs = map (eqToProp sig_info)
                               (map (some eraseEquation) eqs)
 
-                ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
+            mapM_ (checkLint . lintProperty) qsconjs
+
+            let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
 {-
             ctx_with_def <- pruneWithDefEqs sig_info ctx_init

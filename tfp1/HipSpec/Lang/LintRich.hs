@@ -18,7 +18,11 @@ import HipSpec.Lang.PrettyRich
 type LintM v a = WriterT [Err v] (Reader (Map v (Type v))) a
 
 lint :: Ord v => LintM v a -> [Err v]
-lint m = runReader (execWriterT m) M.empty
+lint = lintWithScope []
+
+lintWithScope :: Ord v => [Typed v] -> LintM v a -> [Err v]
+lintWithScope sc m = runReader (execWriterT m') M.empty
+  where m' = insertVars sc m
 
 type TypedExpr v = Expr (Typed v)
 

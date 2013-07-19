@@ -28,14 +28,23 @@ type LogicId = Poly Name'
 simpKit :: P.Kit TypedName'
 simpKit = let k = text . ppRename . S.forget_type in (k,k)
 
+typeKit :: P.Kit TypedName'
+typeKit = let k = parens . R.ppTyped (text . ppRename) in (k,k)
+
 showSimp :: S.Function TypedName' -> String
 showSimp = render . R.ppFun simpKit . S.injectFn
 
 showExpr :: S.Expr TypedName' -> String
 showExpr = render . R.ppExpr 0 simpKit . S.injectExpr
 
+showTypedExpr :: S.Expr TypedName' -> String
+showTypedExpr = render . R.ppExpr 0 typeKit . S.injectExpr
+
 showBody :: S.Body TypedName' -> String
 showBody = render . R.ppExpr 0 simpKit . S.injectBody
+
+showType :: S.Type Name' -> String
+showType = render . R.ppType 0 (text . ppRename)
 
 -- | Printing names
 polyname :: Poly (Name') -> String
@@ -61,5 +70,5 @@ ppRename (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
         LetLoc nm -> ppRename nm
 
 ppAltErgo :: [Clause LogicId] -> String
-ppAltErgo = render . vcat . map (ppClause (text . escape . polyname))
+ppAltErgo = render . vcat . map (ppClause (text . zencode . polyname))
 
