@@ -59,6 +59,7 @@ executable hipspec
         void                 >= 0.5.3,
         transformers         >= 0.3,
         split                >= 0.1,
+        pretty-show          >= 1.5,
 
         -- QuickSpec
         quickspec            == 0.9.1,

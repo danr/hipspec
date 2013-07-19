@@ -29,10 +29,14 @@ import UniqSupply
 
 import System.Exit
 
+import Text.Show.Pretty
+
 processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
 processFile cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
+
+    whenFlag params PrintParams $ putStrLn (ppShow params)
 
     EntryResult{..} <- execute params
 
