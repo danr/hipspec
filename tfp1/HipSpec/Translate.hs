@@ -93,9 +93,6 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
         ty_env :: TyEnv'
         ty_env t0 = do
             TyCon tc tc_args <- return t0
-            let same_ty_con t = case t of
-                    TyCon tc' _ -> tc' == tc
-                    _           -> False
             Datatype{..} <- M.lookup tc m_tcs
             return
                 [ ( ( con_name :::
@@ -104,7 +101,7 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
                     , con_args'
                     )
                   , [ case collectArrTy t of
-                        (ts,r) | same_ty_con r -> case ts of
+                        (ts,r) | r == t0 -> case ts of
                             [] -> Rec r
                             _  -> Exp t ts
                         _                      -> NonRec t

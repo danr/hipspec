@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module List where
 
-import Prelude hiding ((++),length,(+))
+import Prelude hiding ((++),length,(+),map)
 import qualified Prelude
 import HipSpec
 
@@ -13,9 +13,19 @@ length (_:xs) = S (length xs)
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
+join :: [[a]] -> [a]
+join (xs:xss) = xs ++ join xss
+join []       = []
+
+map :: (a -> b) -> [a] -> [b]
+map f xs = [ f x | x <- xs ]
+
 sig = [ vars ["m", "n", "o"]    (undefined :: Nat)
       , vars ["x", "y", "z"]    (undefined :: A)
       , vars ["xs", "ys", "zs"] (undefined :: [A])
+      , vars ["xss", "yss", "zss"] (undefined :: [[A]])
+      , vars ["xsss", "ysss", "zsss"] (undefined :: [[[A]]])
+
       , fun0 "Z"                Z
       , fun1 "S"                S
       , fun2 "+"                (+)
@@ -25,11 +35,22 @@ sig = [ vars ["m", "n", "o"]    (undefined :: Nat)
       , fun2 "++"               ((++) :: [A] -> [A] -> [A])
       , fun1 "length"           (length :: [A] -> Nat)
 
--- One more time!!
       , fun0 "[]"               ([] :: [[A]])
       , fun2 ":"                ((:) :: [A] -> [[A]] -> [[A]])
       , fun2 "++"               ((++) :: [[A]] -> [[A]] -> [[A]])
       , fun1 "length"           (length :: [[A]] -> Nat)
+
+      , fun0 "[]"               ([] :: [[[A]]])
+      , fun2 ":"                ((:) :: [[A]] -> [[[A]]] -> [[[A]]])
+      , fun2 "++"               ((++) :: [[[A]]] -> [[[A]]] -> [[[A]]])
+      , fun1 "length"           (length :: [[[A]]] -> Nat)
+
+      , fun2 "map"              (map :: ([[A]] -> [A]) -> [[[A]]] -> [[A]])
+      , fun2 "map"              (map :: ([A] -> A) -> [[A]] -> [A])
+      , blind0 "join"           (join :: [[A]] -> [A])
+      , blind0 "join"           (join :: [[[A]]] -> [[A]])
+      , fun1 "join"             (join :: [[A]] -> [A])
+      , fun1 "join"             (join :: [[[A]]] -> [[A]])
 
       , fun2 "(,)"              ((,) :: A -> A -> (A,A))
       , fun0 "True" True
