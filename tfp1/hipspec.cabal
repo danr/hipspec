@@ -61,6 +61,8 @@ executable hipspec
         split                >= 0.1,
         pretty-show          >= 1.5,
 
+        ghc-prim,
+
         -- QuickSpec
         quickspec            == 0.9.1,
         unification-fd       >= 0.8,
