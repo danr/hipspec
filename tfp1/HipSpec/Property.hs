@@ -16,7 +16,7 @@ module HipSpec.Property
     , etaExpandProp
     , varsFromCoords
     , lintProperty
-    , generaliseProperty
+    , generaliseProp
     ) where
 
 import Control.Monad.Error
@@ -27,7 +27,9 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.RichToSimple as S
 import HipSpec.Lang.PrettyRich as R
 import HipSpec.Lint
+
 import HipSpec.Unify
+import Control.Unification
 
 import Text.PrettyPrint hiding (comma)
 
@@ -60,9 +62,9 @@ instance Show Literal where
 -- | Origins of properties
 data Origin eq
     = Equation eq
-    -- ^ A Quick-Spec equation
+    -- ^ A QuickSpec equation
     | UserStated
-    -- ^ User-stated properties
+    -- ^ User-stated property
   deriving (Eq,Ord,Functor)
 
 -- | Properties
@@ -159,12 +161,14 @@ trProperty (S.Function (p ::: t) args b) = case b of
             , prop_var_repr = err
             }
 
+-- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
 initFields p@Property{..} = p
-    { prop_repr     = intercalate " => " (map show (prop_assums ++ [prop_goal]))
-    , prop_var_repr = map (ppRename . S.forget_type) prop_vars
+    { prop_var_repr = map (ppRename . S.forget_type) prop_vars
+    , prop_repr = intercalate " => " (map show (prop_assums ++ [prop_goal]))
     }
 
+-- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr (S.Var Name) -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
     (Var (Old x ::: _) _,args)
@@ -225,20 +229,24 @@ etaExpandProp p@Property{..}
                 }
 etaExpandProp p = p
 
+-- | String representation of the variables at these coordinates
 varsFromCoords :: Property eq -> [Int] -> [String]
 varsFromCoords p cs = [ prop_var_repr p !! c | c <- cs ]
 
+-- | Maybe the QuickSpec equation this originated from
 propEquation :: Property eq -> Maybe eq
 propEquation p = case prop_origin p of
     Equation eq -> Just eq
     _           -> Nothing
 
+-- | Lint pass on a property
 lintProperty :: Property eq -> Maybe String
 lintProperty prop@Property{..} =
     case concatMap (lintLiteral prop_vars) (prop_goal:prop_assums) of
         []   -> Nothing
         errs -> Just (unlines (show prop:"Linting failed:":errs))
 
+-- | Lint pass on a literal
 lintLiteral :: [TypedName'] -> Literal -> [String]
 lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
   where
@@ -247,7 +255,7 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
     ty_err :: [String]
     ty_err
-        | t1 /= t2 = return $
+        | not (eqType t1 t2) = return $
             "Mismatching types in literal" ++
             "\n\t" ++ show lit ++
             ":\n\tlhs: " ++ showType t1 ++
@@ -258,31 +266,36 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
     lint_err e = "Lint error in literal\n\t" ++ show lit ++ ":\n" ++ e
 
-generaliseProperty :: Property eq -> Property eq
-generaliseProperty prop@Property{..}
-    | null prop_tvs
-    , Right vars <- m_vars =
-        let lkup (U x)     = x
-            lkup (Fresh i) = New [] (fromIntegral i)
-
-            fix_ty t = fmap lkup (toType t)
-
-            vars'    = [ v ::: fix_ty t | (v,t) <- vars ]
-
-            fix_lit  = mapLiteral (substMany (zip vars' (map (`Var` []) vars')))
-                                -- NOTE: Typed's Eq ignores the type so this
-                                --       actually performs something
-                                --
-        in  initFields prop
-                { prop_tvs    = nubSorted (concatMap (freeTyVars . typed_type) vars')
-                , prop_vars   = vars'
-                , prop_goal   = fix_lit prop_goal
-                , prop_assums = map fix_lit prop_assums
+-- | Generalise a property
+generaliseProp :: Property eq -> Property eq
+generaliseProp prop@Property{..} = case res of
+    Right (vs,goal:assums) ->
+        let vars        = [ v ::: fmap un_u t | (v,t) <- vs ]
+            tvs         = nubSorted (concatMap (freeTyVars . typed_type) vars)
+        in  prop
+                { prop_tvs    = tvs
+                , prop_vars   = vars
+                , prop_goal   = goal
+                , prop_assums = assums
                 }
+    _ -> prop
   where
-    genLit (e1 :=: e2) = void (genExpr e1) >> void (genExpr e2)
+    res = runGen $ do
+        insertVars (map forget_type prop_vars)
+        mk_ga <- mapM gen_lit (prop_goal:prop_assums)
+        ga <- sequence mk_ga
+        vs <- readVars
+        return (vs,ga)
 
-    m_vars = runGen
-        $ withScope (map forget_type prop_vars)
-        $ mapM_ genLit (prop_goal:prop_assums)
-generaliseProperty prop = prop
+    gen_lit (e1 :=: e2) = do
+        (t1,i1) <- genExpr e1
+        (t2,i2) <- genExpr e2
+        void (lift (unify t1 t2))
+        return $ do
+            e1' <- extExpr i1
+            e2' <- extExpr i2
+            return (fmap (fmap un_u) e1' :=: fmap (fmap un_u) e2')
+
+    un_u (Fresh i) = New [] (toInteger i - toInteger (minBound :: Int))
+    un_u (U a) = a
+

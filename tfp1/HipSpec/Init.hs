@@ -81,7 +81,9 @@ processFile cont = do
 
         cls = sortClauses (concatMap clauses thy)
 
-        tr_props = either (error . show) (map etaExpandProp) (trProperties props)
+        tr_props = either (error . show)
+                          (map (etaExpandProp . generaliseProp))
+                          (trProperties props)
 
         env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 

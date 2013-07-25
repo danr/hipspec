@@ -52,7 +52,7 @@ executable hipspec
     build-depends:
         base                 >= 4 && < 5,
         ghc-paths            == 0.1.*,
-        containers           == 0.5.*,
+        containers           >= 0.4,
         mtl                  == 2.1.*,
         pretty               >= 1.1,
         geniplate            >= 0.6,
@@ -70,7 +70,7 @@ executable hipspec
         -- Printing messages
         time                 >= 1.4,
         aeson                >= 0.6,
-        bytestring           >= 0.10,
+        bytestring,
 
         -- Command-line arguments
         cmdargs              >= 0.9,

@@ -20,10 +20,12 @@ join []       = []
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
 
-sig = [ vars ["m", "n", "o"]    (undefined :: Nat)
-      , vars ["x", "y", "z"]    (undefined :: A)
-      , vars ["xs", "ys", "zs"] (undefined :: [A])
-      , vars ["xss", "yss", "zss"] (undefined :: [[A]])
+-- mj xs = map join xs =:= map join xs
+
+sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
+      , vars ["x", "y", "z"]          (undefined :: A)
+      , vars ["xs", "ys", "zs"]       (undefined :: [A])
+      , vars ["xss", "yss", "zss"]    (undefined :: [[A]])
       , vars ["xsss", "ysss", "zsss"] (undefined :: [[[A]]])
 
       , fun0 "Z"                Z
@@ -51,11 +53,6 @@ sig = [ vars ["m", "n", "o"]    (undefined :: Nat)
       , blind0 "join"           (join :: [[[A]]] -> [[A]])
       , fun1 "join"             (join :: [[A]] -> [A])
       , fun1 "join"             (join :: [[[A]]] -> [[A]])
-
-      , fun2 "(,)"              ((,) :: A -> A -> (A,A))
-      , fun0 "True" True
-      , fun0 "LT" LT
-      , fun0 "()" ()
       ]
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
