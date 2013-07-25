@@ -60,7 +60,7 @@ altErgo = Prover
     , prover_desc           = "Alt-Ergo"
     , prover_name           = AltErgo
     , prover_cannot_stdin   = True
-    , prover_args           = \ f t -> [f,"-timelimit",showCeil t,"-triggers-var"]
+    , prover_args           = \ f _t -> [f,{- "-timelimit",showCeil t, -} "-triggers-var"]
     , prover_process_output = searchOutput
         [("Valid",proven),("I don't know",failure) ]
     , prover_suppress_errs  = False
