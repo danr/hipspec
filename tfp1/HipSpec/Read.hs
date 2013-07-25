@@ -28,16 +28,12 @@ import Var
 import HipSpec.GHC.Unfoldings
 import HipSpec.GHC.Utils
 
+import HipSpec.Sig.Scope
+
 import qualified Data.Map as M
-import Data.Map (Map)
 
 import Data.Maybe
 import Data.List
-
-import TysWiredIn
-import DataCon (dataConName)
-import TyCon (TyCon,tyConName)
-import BasicTypes (TupleSort(BoxedTuple))
 
 import Control.Monad
 
@@ -159,35 +155,4 @@ execute params@Params{..} = do
 
 qualifiedImportDecl :: ModuleName -> ImportDecl name
 qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }
-
--- | Getting the names in scope
---
---   Context for evaluation needs to be set before
-getNamedThings :: (Id -> Id) -> Ghc (Map Name TyThing)
-getNamedThings fix_id = do
-
-    -- Looks up a name and tries to associate it with a typed thing
-    let lookup_name :: Name -> Ghc (Maybe (Name,TyThing))
-        lookup_name n = fmap (fmap (\ (tyth,_,_) -> (n,tyth))) (getInfo n)
-
-    -- Get the types of all names in scope
-    ns <- getNamesInScope
-
-    maybe_named_things <- mapM lookup_name ns
-
-    return $ M.fromList $
-        [ (n,mapTyThingId fix_id tyth)
-        | Just (n,tyth) <- maybe_named_things
-        ] ++
-        -- These built in constructors are not in scope by default (!?), so we add them here
-        -- Note that tuples up to size 8 are only supported...
-        concat
-            [ (tyConName tc,ATyCon tc) :
-              [ (dataConName dc,ADataCon dc) | dc <- tyConDataCons tc ]
-            | tc <- [listTyCon,unitTyCon,pairTyCon] ++ map (tupleTyCon BoxedTuple) [3..8]
-            ]
-
-mapTyThingId :: (Id -> Id) -> TyThing -> TyThing
-mapTyThingId k (AnId i) = AnId (k i)
-mapTyThingId _ tyth     = tyth
 
