@@ -24,7 +24,7 @@ proversFromNames = map proverFromName
 allProverNames :: [ProverName]
 allProverNames = [minBound..maxBound]
 
--- | A record of information concerting a theorem prover
+-- | A record of information concerning a theorem prover
 data Prover = Prover
     { prover_cmd            :: String
     -- ^ System command to createProcess
