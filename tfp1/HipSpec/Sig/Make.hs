@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards,PatternGuards #-}
 module HipSpec.Sig.Make (makeSignature) where
 
 import Data.List.Split (splitOn)
@@ -36,8 +36,59 @@ makeSignature p@Params{..} named_things prop_ids = do
 
     ids <- filterM in_scope ids0
 
+    let a_id = "Test.QuickSpec.Prelude.A"
+
+    xs <- parseName a_id
+
+    let mono = monomorphise a_ty
+
+        a_cands = [ mkTyConTy tc
+                  | a <- xs
+                  , Just (ATyCon tc) <- [M.lookup a named_things]
+                  ]
+
+        a_ty = case a_cands of
+            x:_ -> x
+            _   -> error $ a_id ++ " not in scope!"
+
+    let entries =
+            [ unwords
+                [ "Test.QuickSpec.Signature.fun" ++ show (varArity i)
+                , show (varToString i)
+                , "("
+                , "(" ++ rmGHCTypes (showOutputable i) ++ ")"
+                , "::"
+                , showOutputable (mono (varType i))
+                , ")"
+                ]
+            | i <- ids
+            ] ++
+            [ unwords
+                [ {- if pvars then "pvars" else -} "vars"
+                , show ["x","y","z"]
+                , "("
+                , "Prelude.undefined"
+                , "::"
+                , showOutputable (mono t)
+                , ")"
+                ]
+            | t <- types
+            ] ++
+            [ "Test.QuickSpec.Signature.withTests " ++ show tests
+            , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
+            , "Test.QuickSpec.Signature.withSize " ++ show size
+            ]
+
+        types = nubBy eqType $ concat
+            [ ty : tys
+            | i <- ids
+            , let (tys,ty) = splitFunTys (mono (varType i))
+            ]
+
+        expr_str x = "signature [" ++ intercalate x (map rm_newlines entries) ++ "]"
+
     liftIO $ do
-        whenFlag p PrintAutoSig $ putStrLn (expr_str ids "\n\t,")
+        whenFlag p PrintAutoSig $ putStrLn (expr_str "\n\t,")
         whenFlag p DebugAutoSig $ do
             putStrLn $ "--extra=" ++ show extra' ++ ":" ++ showOutputable extra_ids
             putStrLn $ "--extra-trans=" ++ show extra_trans' ++ ":" ++ showOutputable extra_trans_ids
@@ -46,9 +97,9 @@ makeSignature p@Params{..} named_things prop_ids = do
             putStrLn $ "Init ids: " ++ showOutputable ids0
             putStrLn $ "Final ids: " ++ showOutputable ids
 
-    if length (entries ids) < 3
+    if length entries < 3
         then return Nothing
-        else fromDynamic `fmap` dynCompileExpr (expr_str ids ",")
+        else fromDynamic `fmap` dynCompileExpr (expr_str ",")
   where
     rm_newlines = unwords . lines
 
@@ -88,36 +139,16 @@ makeSignature p@Params{..} named_things prop_ids = do
     ids0 = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || varWithPropType x || junk x)) $
             interesting_ids `unionVarSet` mkVarSet extra_ids
 
-    expr_str ids x = "signature [" ++ intercalate x (map rm_newlines (entries ids)) ++ "]"
-
-    entries ids =
-        [ unwords
-            [ "Test.QuickSpec.Signature.fun" ++ show (varArity i)
-            , show (varToString i)
-            , "(" ++ showOutputable i ++ ")"
-            -- TODO: enter type and monomorphise it
-            ]
-        | i <- ids
-        ] ++
-        [ unwords
-            [ {- if pvars then "pvars" else -} "vars"
-            , show ["x","y","z"]
-            , "(Prelude.undefined :: " ++ showOutputable t ++ ")"
-            -- TODO: enter type and monomorphise it
-            ]
-        | t <- types ids
-        ] ++
-        [ "Test.QuickSpec.Signature.withTests " ++ show tests
-        , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
-        , "Test.QuickSpec.Signature.withSize " ++ show size
-        ]
-
-    types ids = nubBy eqType $ concat
-        [ ty : tys
-        | i <- ids
-        , let (tys,ty) = splitFunTys (varType i)
-        ]
-
 varArity :: Var -> Int
-varArity = length . fst . splitFunTys . varType
+varArity = length . fst . splitFunTys . snd . splitForAllTys . varType
+
+monomorphise :: Type -> Type -> Type
+monomorphise mono_ty orig_ty = applyTys orig_ty (zipWith const (repeat mono_ty) tvs)
+  where
+    (tvs, _rho_ty) = splitForAllTys orig_ty
+
+-- | Cons, nil etc curiously start with GHC.Types., so we drop it
+rmGHCTypes :: String -> String
+rmGHCTypes ('G':'H':'C':'.':'T':'y':'p':'e':'s':'.':s) = s
+rmGHCTypes s                                           = s
 
