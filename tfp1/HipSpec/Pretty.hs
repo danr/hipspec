@@ -50,7 +50,7 @@ showTyped :: Typed Name' -> String
 showTyped = render . R.ppTyped (text . ppRename)
 
 -- | Printing names
-polyname :: Poly (Name') -> String
+polyname :: Poly Name' -> String
 polyname x0 = case x0 of
     Id x     -> ppRename x
     Ptr x    -> ppRename x ++ "_ptr"

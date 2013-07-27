@@ -29,10 +29,7 @@ import HipSpec.Heuristics.Associativity
 import HipSpec.Heuristics.CallGraph
 import HipSpec.Utils
 
-
--- import HipSpec.Trans.DefinitionalEquations
--- import HipSpec.Sig.Resolve (maybeLookupSym)
--- import HipSpec.Sig.Types
+import HipSpec.Sig.Definitions
 
 import Prelude hiding (read)
 
@@ -90,16 +87,21 @@ main = processFile $ \ m_sig_info user_props -> do
 
             mapM_ (checkLint . lintProperty) qsconjs
 
-            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++ unlines (map show qsconjs)
-
+            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
+                unlines (map show qsconjs)
 
             let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
-{-
-            ctx_with_def <- pruneWithDefEqs sig_info ctx_init
--}
+            Env{theory} <- getEnv
 
-            ctx_final <- runMainLoop ctx_init {- ctx_with_def -}
+            let def_eqs = definitions theory symbol_map
+
+                ctx_with_def = execEQR ctx_init (mapM_ unify def_eqs)
+
+            debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
+                unlines (map show def_eqs)
+
+            ctx_final <- runMainLoop ctx_with_def
                                      (qsconjs ~+ map vacuous user_props)
                                      []
 
@@ -107,7 +109,7 @@ main = processFile $ \ m_sig_info user_props -> do
                 let pruner   = prune ctx_init (map erase reps) id
                     provable = evalEQR ctx_final . equal
                     explored_theory
-                        = filter (not . evalEQR ctx_init {- ctx_with_def -} . equal)
+                        = filter (not . evalEQR ctx_with_def . equal)
                         $ pruner $ filter provable
                         $ map (some eraseEquation) (equations classes)
                 writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory

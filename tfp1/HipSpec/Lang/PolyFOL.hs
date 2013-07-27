@@ -181,6 +181,20 @@ fmSubst x = tr_fm . tmSubst x
     tr_fm :: (Term a -> Term a) -> Formula a -> Formula a
     tr_fm = $(genTransformBi 'tr_fm)
 
+fmInst :: forall a . Eq a => a -> Type a -> Formula a -> Formula a
+fmInst a ty = go
+  where
+    tr_ty :: (Type a -> Type a) -> Formula a -> Formula a
+    tr_ty = $(genTransformBi 'tr_ty)
+
+    go :: Formula a -> Formula a
+    go = tr_ty $ \ ty0 -> case ty0 of
+        TyVar b | a == b -> ty
+        _                -> ty0
+
+fmInsts :: Eq a => [(a,Type a)] -> Formula a -> Formula a
+fmInsts xs phi = foldr (uncurry fmInst) phi xs
+
 clsDeps :: forall a . Ord a => [Clause a] -> (Set a,Set a)
 clsDeps cls =
     (S.fromList [ tc | TyCon tc _ <- univ_ty cls ]

@@ -34,6 +34,7 @@ data DebugFlag
 --    | PrintFunFO
     | PrintPolyFOL
     | PrintProps
+    | PrintDefinitions
     | PrintCallGraph
     | PrintAutoSig
     | DebugAutoSig
@@ -46,25 +47,26 @@ data DebugFlag
 
 defStr :: Eq a => a -> [a] -> String
 defStr x xs | x `elem` xs = " (default)"
-             | otherwise   = ""
+            | otherwise   = ""
 
--- | Descrptions of debug flags
+-- | Descriptions of debug flags
 debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
-    PrintParams    -> "Print the passed parameters"
---    PrintRich      -> "Print Rich IR"
-    PrintSimple    -> "Print Simple IR"
---    PrintFunFO     -> "Print First-Order Functional IR"
-    PrintPolyFOL   -> "Print Polymorphic FOL"
-    PrintProps     -> "Print properties"
-    PrintCallGraph -> "Print the call graph"
-    PrintAutoSig   -> "Print generated signature"
-    DebugAutoSig   -> "Print information about generated signature"
-    DebugScope     -> "Print names in scope"
-    DebugStrConv   -> "Print string conversions in signature"
-    PrintEqClasses -> "Print initial equivalence classes from QuickSpec"
-    TranslateOnly  -> "Stop after translating"
-    QuickSpecOnly  -> "Stop after QuickSpec"
+    PrintParams      -> "Print the passed parameters"
+--    PrintRich        -> "Print Rich IR"
+    PrintSimple      -> "Print Simple IR"
+--    PrintFunFO       -> "Print First-Order Functional IR"
+    PrintPolyFOL     -> "Print Polymorphic FOL"
+    PrintProps       -> "Print properties"
+    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
+    PrintCallGraph   -> "Print the call graph"
+    PrintAutoSig     -> "Print generated signature"
+    DebugAutoSig     -> "Print information about generated signature"
+    DebugScope       -> "Print names in scope"
+    DebugStrConv     -> "Print string conversions in signature"
+    PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
+    TranslateOnly    -> "Stop after translating"
+    QuickSpecOnly    -> "Stop after QuickSpec"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol

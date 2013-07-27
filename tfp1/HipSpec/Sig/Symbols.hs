@@ -6,7 +6,7 @@
 {-# LANGUAGE ViewPatterns,ScopedTypeVariables,PatternGuards,RecordWildCards #-}
 module HipSpec.Sig.Symbols
     ( makeSymbolMap
-    , SymbolMap
+    , SymbolMap(..)
     , lookupCon
     , lookupVar
     ) where
