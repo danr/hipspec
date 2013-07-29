@@ -131,7 +131,7 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
 
-    let showProperties = map prop_name
+    let showProperties ps = [ (prop_name p,maybePropRepr p) | p <- ps ]
         theorems' = map thm_prop
                   . filter (\ t -> not (definitionalTheorem t) || isUserStated (thm_prop t))
                   $ theorems

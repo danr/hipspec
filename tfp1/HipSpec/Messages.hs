@@ -56,10 +56,10 @@ data Msg
 
     | ExploredTheory [String]
     | Finished
-        { proved :: [String]
-        , unproved :: [String]
-        , qs_proved :: [String]
-        , qs_unproved :: [String]
+        { proved      :: [(String,Maybe String)]
+        , unproved    :: [(String,Maybe String)]
+        , qs_proved   :: [(String,Maybe String)]
+        , qs_unproved :: [(String,Maybe String)]
         }
   deriving (Eq,Ord,Show,Generic)
 
@@ -110,11 +110,14 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
 
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->
-        "Proved:\n" ++ indent (qs_proved ++ proved) ++
+        "Proved:\n" ++ indent (map repr_prop (qs_proved ++ proved)) ++
         if null unproved' then "" else "Unproved:\n" ++ indent unproved'
-      where unproved' = qs_unproved ++ unproved
+      where unproved' = map repr_prop (qs_unproved ++ unproved)
 
   where
+    repr_prop :: (String,Maybe String) -> String
+    repr_prop (s,ms) = s ++ pmif ms
+
     pmif :: Maybe String -> String
     pmif Nothing  = ""
     pmif (Just s) = " (" ++ s ++ ")"
