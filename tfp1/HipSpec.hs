@@ -11,7 +11,10 @@ module HipSpec
     , givenBool
     , total
     , (==>)
-    , oops) where
+    , oops
+    , Names
+    , names
+    ) where
 
 import Test.QuickCheck hiding (Prop, (==>))
 import Test.QuickSpec.Approximate
@@ -58,4 +61,31 @@ instance Eq a => Testable (Prop a) where
   property (lhs :=: rhs) = property (lhs == rhs)
   property (Oops p)      = expectFailure (property p)
   property _             = error "Cannot test"
+
+class Names a where
+    names :: a -> [String]
+
+instance Names a => Names [a] where
+    names ~[x] = map (++ "s") (names x)
+
+instance (Names a,Names b) => Names (a,b) where
+    names ~(x,y) = [ n ++ "_" ++ m | (n,m) <- zip (names x) (names y) ]
+
+instance (Names a,Names b) => Names (Either a b) where
+    names u = [ n ++ "__" ++ m | (n,m) <- zip (names x) (names y) ]
+      where
+        ~(Left x) = u
+        ~(Right y) = u
+
+instance Names a => Names (Maybe a) where
+    names ~(Just x) = map ("m_" ++) (names x)
+
+instance Names A where
+    names _ = ["x","y","z"]
+
+instance Names B where
+    names _ = ["u","v","w"]
+
+instance Names C where
+    names _ = ["r","s","t"]
 

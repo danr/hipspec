@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,PatternGuards #-}
+{-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns #-}
 module HipSpec.Sig.Make (makeSignature) where
 
 import Data.List.Split (splitOn)
@@ -38,18 +38,51 @@ makeSignature p@Params{..} named_things prop_ids = do
 
     let a_id = "Test.QuickSpec.Prelude.A"
 
-    xs <- parseName a_id
+    a_names <- parseName a_id
 
     let mono = monomorphise a_ty
 
         a_cands = [ mkTyConTy tc
-                  | a <- xs
+                  | a <- a_names
                   , Just (ATyCon tc) <- [M.lookup a named_things]
                   ]
 
         a_ty = case a_cands of
             x:_ -> x
             _   -> error $ a_id ++ " not in scope!"
+
+    let types = nubBy eqType $ concat
+            [ ty : tys
+            | i <- ids
+            , let (tys,ty) = splitFunTys (mono (varType i))
+            ]
+
+        backup_names = ["x","y","z"]
+
+        name_type :: Type -> Ghc (Type,[String])
+        name_type (mono -> t) = handleSourceError handle $ do
+            let t_str     = showOutputable t
+                names_str = "HipSpec.names (Prelude.undefined :: " ++ t_str ++ ")"
+            m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
+            names <- case m_names of
+                    Just xs -> do
+                        let res = take 3 (xs ++ backup_names)
+                        when (length xs /= 3) $ liftIO $ putStrLn $
+                            "Warning: Names instance for " ++ t_str ++
+                            " does not have three elements, defaulting to " ++ show res
+                        return res
+                    Nothing -> return backup_names
+            return (t,names)
+          where
+            handle e = do
+                let flat_str = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ') . unwords . words
+                    e_str = case splitOn "arising from" (show e) of
+                        x:_ -> flat_str x
+                        []  -> ""
+                liftIO $ putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backup_names
+                return (t,backup_names)
+
+    named_mono_types <- mapM name_type types
 
     let entries =
             [ unwords
@@ -65,24 +98,18 @@ makeSignature p@Params{..} named_things prop_ids = do
             ] ++
             [ unwords
                 [ if pvars then "pvars" else "vars"
-                , show ["x","y","z"]
+                , show names
                 , "("
                 , "Prelude.undefined"
                 , "::"
-                , showOutputable (mono t)
+                , showOutputable t
                 , ")"
                 ]
-            | t <- types
+            | (t,names) <- named_mono_types
             ] ++
             [ "Test.QuickSpec.Signature.withTests " ++ show tests
             , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
             , "Test.QuickSpec.Signature.withSize " ++ show size
-            ]
-
-        types = nubBy eqType $ concat
-            [ ty : tys
-            | i <- ids
-            , let (tys,ty) = splitFunTys (mono (varType i))
             ]
 
         expr_str x = "signature [" ++ intercalate x (map rm_newlines entries) ++ "]"
