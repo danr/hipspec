@@ -10,7 +10,7 @@ type Id a = a -> Doc
 
 ppClause :: Id a -> Clause a -> Doc
 ppClause p cls = case cls of
-    SortSig x n            -> tff [p x,"type",ppTySig p x [] (replicate n Type) Type]
+    SortSig x n            -> tff [p x,"type",ppTySig p x [] (replicate n TType) TType]
     TypeSig x tvs args res -> tff [p x,"type",ppTySig p x tvs args res]
     Clause _ cl tvs phi    -> tff ["_",ppClType cl,ppTyQuant p tvs (ppForm p phi)]
     Comment s              -> vcat (map (\ l -> "%" <+> text l) (lines s))
@@ -19,14 +19,14 @@ ppClause p cls = case cls of
 
 ppClType :: ClType -> Doc
 ppClType cl = case cl of
-    Axiom      -> "axiom"
-    Conjecture -> "conjecture"
+    Axiom -> "axiom"
+    Goal  -> "conjecture"
 
 ppTySig :: Id a -> a -> [a] -> [Type a] -> Type a -> Doc
 ppTySig p x tvs args res = hang (p x <+> ":") 2 (ppTopType p tvs args res)
 
 ppTyQuant :: Id a -> [a] -> Doc -> Doc
-ppTyQuant p xs = ppQuant p "!>" (zip xs (repeat Type))
+ppTyQuant p xs = ppQuant p "!>" (zip xs (repeat TType))
 
 ppQuant :: Id a -> Doc -> [(a,Type a)] -> Doc -> Doc
 ppQuant p q xs d = case xs of
@@ -49,7 +49,7 @@ ppType p = go
     go t0 = case t0 of
         TyCon tc ts -> p tc <> csv (map go ts)
         TyVar x     -> p x
-        Type        -> "$tType"
+        TType       -> "$tType"
 
 ppForm :: Id a -> Formula a -> Doc
 ppForm p f0 = case f0 of

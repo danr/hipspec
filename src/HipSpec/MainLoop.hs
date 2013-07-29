@@ -1,15 +1,12 @@
-{-# LANGUAGE ViewPatterns,NamedFieldPuns,ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns,NamedFieldPuns,ScopedTypeVariables,RecordWildCards #-}
 module HipSpec.MainLoop (mainLoop) where
 
 import HipSpec.Reasoning
-
 import HipSpec.Monad
-
-import HipSpec.Trans.Property
-import HipSpec.Trans.Obligation
+import HipSpec.Property
+import HipSpec.ThmLib
 import HipSpec.MakeInvocations
-
-import Halo.Util
+import HipSpec.Utils
 
 import Data.List
 import Data.Ord
@@ -24,9 +21,9 @@ mainLoop :: forall eq ctx cc .
      -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
      -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
-mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
+mainLoop ctxt conjs lemmas = loop False ctxt conjs [] (reverse lemmas)
   where
-    show_eqs = map propRepr
+    show_eqs = map prop_repr
 
     loop :: Bool                                -- ^ Managed to prove something this round
          -> ctx                                 -- ^ Prune state, to handle the congurece closure
@@ -34,12 +31,12 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
          -> [Property eq]                       -- ^ Equations to process
          -> [Theorem eq]                        -- ^ Proved equations
          -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
-    loop False ctx []  failed thms = return (thms,failed,ctx)
+    loop False ctx []  failed thms = return (reverse thms,reverse failed,ctx)
     loop True  ctx []  failed thms = do writeMsg Loop
                                         loop False ctx (reverse failed) [] thms
     loop retry ctx eqs failed thms = do
 
-        Params{interesting_cands,batchsize,only_user_stated} <- getParams
+        Params{..} <- getParams
 
         let discard :: Property eq -> [Property eq] -> Bool
             discard prop failedacc = case propEquation prop of
@@ -48,53 +45,52 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
                     || evalEQR ctx (equal eq)
                 _ -> False
 
-            (renamings,try,next_eqs_without_offsprings)
-                = getUpTo batchsize discard eqs failed
+            (renamings,m_try,next_eqs) = getOne discard eqs failed
 
         unless (null renamings) $ writeMsg $ Discarded (show_eqs renamings)
 
-        (new_thms,new_failures) <- tryProve try thms
+        case m_try of
+            Nothing  -> loop retry ctx next_eqs failed thms
+            Just try -> do
+                r <- tryProve try thms
+                case r of
+                    Nothing  -> loop retry ctx next_eqs (try:failed) thms
+                    Just thm -> do
+                        let ctx' = case propEquation (thm_prop thm) of
+                                Just eq -> execEQR ctx (unify eq)
+                                Nothing -> ctx
+                            thms' = thm:thms
+                        case () of
+                            () | only_user_stated && not (any isUserStated (next_eqs ++ failed))
+                                    -> return (thms',next_eqs ++ failed,ctx')
+                               | not interesting_cands
+                                    -> loop True ctx' next_eqs failed thms'
+                               | otherwise -> do
+                                    -- Interesting candidates
+                                    let (cand,failed_wo_cand)
+                                            = first (sortBy (comparing prop_origin))
+                                            $ partition p failed
+                                          where
+                                            p = instanceOf ctx (thm_prop thm)
 
-        offspring_eqs <- liftIO $ concatMapM (propOffsprings . thm_prop) new_thms
+                                    unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 
-        let ctx' = execEQR ctx (mapM_ unify (mapMaybe (propEquation . thm_prop) new_thms))
-
-            eqs' = offspring_eqs ++ next_eqs_without_offsprings
-
-            failed' = new_failures ++ failed
-
-            thms' = thms ++ new_thms
-
-        case () of
-            () | only_user_stated && not (any isUserStated (eqs' ++ failed'))
-                    -> return (thms',eqs' ++ failed',ctx')
-               | not interesting_cands || null new_thms
-                    -> loop (retry || not (null new_thms)) ctx' eqs' failed' thms'
-               | otherwise -> do
-                    -- Interesting candidates
-                    let (cand,failed_wo_cand)
-                            = first (sortBy (comparing propOrigin))
-                            $ partition p failed'
-                          where
-                            p fail' = or
-                                [ instanceOf ctx (thm_prop thm) fail'
-                                | thm <- new_thms ]
-
-                    unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
-
-                    loop True ctx' (cand ++ eqs') failed_wo_cand thms'
+                                    loop True ctx' (cand ++ next_eqs) failed_wo_cand thms'
 
     instanceOf :: ctx -> Property eq -> Property eq -> Bool
     instanceOf ctx (propEquation -> Just new) (propEquation -> Just cand) =
         evalEQR ctx (unify cand >> equal new)
     instanceOf _ _ _ = False
 
--- | Get up to n elements satisfying the predicate, those skipped, and the rest
---   (satisfies p,does not satisfy p (at most n),the rest)
-getUpTo :: Int -> (a -> [a] -> Bool) -> [a] -> [a] -> ([a],[a],[a])
-getUpTo 0 _ xs     _  = ([],[],xs)
-getUpTo _ _ []     _  = ([],[],[])
-getUpTo n p (x:xs) ys
-   | p x ys    = let (s,u,r) = getUpTo n     p xs (x:ys) in (x:s,  u,r)
-   | otherwise = let (s,u,r) = getUpTo (n-1) p xs (x:ys) in (  s,x:u,r)
+getOne
+    :: (a -> [a] -> Bool)  -- ^ Can we discard this property?
+    -> [a]                 -- ^ Properties to visit
+    -> [a]                 -- ^ Failed properties
+    -> ([a],Maybe a,[a])   -- ^ Properties to discard, maybe a property to visit, and remaining properties to visit
+getOne _ []     _ys = ([],Nothing,[])
+getOne p (x:xs) ys
+    -- Discard a property
+    | p x ys    = let (d,m_p,r) = getOne p xs (x:ys) in (x:d,m_p,r)
+    -- Pick this one
+    | otherwise = ([],Just x,xs)
 

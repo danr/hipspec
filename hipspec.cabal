@@ -1,15 +1,20 @@
-name:               hipspec
-category:           Theorem Provers
-version:            0.8
-license:            GPL-3
-author:             Dan Rosén
-maintainer:         Dan Rosén <danr@chalmers.se>
-homepage:           http://www.github.com/danr/hipspec
-bug-reports:        http://www.github.com/danr/hipspec/issues
-build-type:         Simple
-cabal-version:      >= 1.6
-tested-with:        GHC == 7.4.1, GHC == 7.6.1
-synopsis:           HipSpec: prove properties of Haskell programs, with theory exploration from QuickSpec
+name:                hipspec
+category:            Theorem Provers
+version:             3.0
+synopsis:            HipSpec
+homepage:            http://github.com/danr/hipspec
+license:             GPL-3
+license-file:        LICENSE
+author:              Dan Rosén
+maintainer:          danr@chalmers.se
+homepage:            http://www.github.com/danr/hipspec
+bug-reports:         http://www.github.com/danr/hipspec/issues
+category:            Language
+build-type:          Simple
+cabal-version:       >=1.6
+tested-with:         GHC == 7.4.1, GHC == 7.6.3
+synopsis:            HipSpec: prove properties of Haskell programs, with theory exploration from QuickSpec
+description:         Upp till bevis!
 
 source-repository head
     type: git
@@ -20,63 +25,63 @@ flag Werror
     manual: True
 
 library
+    hs-source-dirs: src
+
     ghc-options:    -Wall
+
     if flag(Werror)
         ghc-options: -Werror
-    hs-source-dirs: src
+
     exposed-modules:
-        HipSpec.Prelude
+        HipSpec
 
     build-depends:
-        base                          >= 4    && < 5,
-        QuickCheck                    >= 2.4,
-        quickspec                     == 0.9.1
-
+        base                 >= 4    && < 5,
+        QuickCheck           >= 2.4,
+        quickspec            == 0.9.1
 
 executable hipspec
-    ghc-options:    -threaded -Wall -rtsopts -package ghc
-    if flag(Werror)
-        ghc-options: -Werror
     hs-source-dirs: src
 
-    main-is: HipSpec.hs
+    main-is:         HipSpec/Main.hs
+
+    if flag(Werror)
+        ghc-options: -Werror
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
 
     build-depends:
-        -- Shared
-        base                          >= 4    && < 5,
-        mtl                           >= 2.1.2,
-        transformers                  >= 0.3,
-        containers                    >= 0.3,
-        geniplate                     >= 0.6,
-        time,
-        aeson,
-        bytestring,
-        logict,
-        void                          >= 0.5.3,
+        base                 >= 4 && < 5,
+        ghc-paths            == 0.1.*,
+        containers           >= 0.4,
+        mtl                  == 2.1.*,
+        pretty               >= 1.1,
+        geniplate            >= 0.6,
+        void                 >= 0.5.3,
+        transformers         >= 0.3,
+        split                >= 0.1,
+        pretty-show          >= 1.5,
 
-        -- Command-line arguments
-        cmdargs                       >= 0.9,
-
-        -- Messages
         ghc-prim,
 
-        -- Halo
-        bimap                         >= 0.2,
-        ghc-paths                     >= 0.1,
-        filepath                      >= 1.0,
-        dlist                         >= 0.5,
+        -- QuickSpec
+        quickspec            == 0.9.1,
+        unification-fd       >= 0.8,
 
-        -- Structural Induction
-        structural-induction          >= 0.1 && < 0.2,
-        pretty                        >= 1.0,
+        -- Printing messages
+        time                 >= 1.4,
+        aeson                >= 0.6,
+        bytestring,
+
+        -- Command-line arguments
+        cmdargs              >= 0.9,
+
+        -- Structural induction
+        structural-induction == 0.1,
 
         -- Running Theorem Provers
-        stm-promise                   == 0.0.2,
-        process                       >= 1.0.1.1,
-        stm                           >= 2.0,
-        directory                     >= 1.0,
-        split                         >= 0.1,
-
-        -- QuickSpec
-        quickspec                     == 0.9.1
+        stm-promise          == 0.0.2,
+        process              >= 1.0.1.1,
+        stm                  >= 2.0,
+        directory            >= 1.0,
+        filepath             >= 1.0
 

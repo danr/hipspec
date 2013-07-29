@@ -1,190 +1,151 @@
-{-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, ScopedTypeVariables, NamedFieldPuns #-}
 module HipSpec.MakeInvocations (tryProve) where
 
-
-import HipSpec.Monad
 import HipSpec.ATP.Invoke
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
-import HipSpec.Trans.MakeProofs
-import HipSpec.Trans.Obligation
-import HipSpec.Trans.Theory
-import HipSpec.Trans.Property
-import HipSpec.Trans.Lemma
-import HipSpec.Trans.MakerMonad
-import HipSpec.Complement
+
+import HipSpec.Monad
+import HipSpec.MakeProofs
+import HipSpec.ThmLib
+import HipSpec.Theory
+import HipSpec.Property
+import HipSpec.Lemma
+import HipSpec.Trim
+import HipSpec.Utils
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
-import Halo.Monad
-import Halo.Trim
-import Halo.Util
-
-import Halo.FOL.LineariseSMT
-
 import Data.List
-import Data.Either
 import Data.Maybe
-import Data.Foldable (toList)
 
 import Control.Monad
 
-import UniqSupply
+-- | Try to prove a property, given some lemmas
+tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
+tryProve prop lemmas0 = do
 
--- | Filters away definitional theorems (those that didn't need induction to be
---   proved)
-interestingLemmas :: [Theorem eq] -> [Property eq]
-interestingLemmas = map thm_prop . filter (\t -> not (definitionalTheorem t) || isUserStated (thm_prop t))
+    Params{..} <- getParams
 
--- | Try to prove some properties in a theory, given some lemmas
-tryProve :: forall eq . [Property eq] -> [Theorem eq]
-         -> HS ([Theorem eq],[Property eq])
-tryProve props (interestingLemmas -> lemmas0) = do
+    obligss <- makeProofs prop
 
-    us <- liftIO $ mkSplitUniqSupply 'c'
+    if null obligss || any null obligss then return Nothing else do
 
-    params@Params{..} <- getParams
-    halo_env <- getHaloEnv
+        Env{theory,arity_map} <- getEnv
 
-    case fst $ runMakerM halo_env us (catMaybes <$> mapM (makeProofs params) props) of
+        let isolation
+                | isolate   = not . isUserStated
+                | otherwise = const True
 
-        ([],msgs)        -> do
-            liftIO $ mapM_ putStrLn msgs
-            return ([],props)
-        (proof_trees,_msgs) -> do
+            lemmas
+                = filter isolation
+                . map thm_prop
+                . filter (not . definitionalTheorem)
+                $ lemmas0
 
-            let lemmas
-                    | isolate = filter (not . isUserStated) lemmas0
-                    | otherwise = lemmas0
+            enum_lemmas = zip [0..] lemmas
 
-                enum_lemmas = zip [0..] lemmas
+            lemma_theories = map (uncurry (trLemma arity_map)) enum_lemmas
 
-                (lemma_theories,_) = runHaloM halo_env $
-                    mapM (uncurry $ flip translateLemma) enum_lemmas
+            proof_tree = requireAny (map (requireAll . map Leaf) obligss)
 
-                proof_tree = tryAll proof_trees
+            linTheory :: Theory -> LinTheory
+            linTheory sthys = LinTheory $ \ t -> case t of
+                AltErgoFmt -> ppAltErgo (sortClauses (concatMap clauses sthys))
 
-                all_depends
-                    = nubSorted (concatMap depends
-                         (map ob_content (toList proof_tree) ++ lemma_theories))
+            calc_dependencies :: Subtheory -> [Content]
+            calc_dependencies s = concatMap dependencies (s:lemma_theories)
 
-            complement all_depends
+            fetcher :: [Content] -> [Subtheory]
+            fetcher = trim (theory ++ lemma_theories)
 
-            theory <- getTheory
+            fetch_and_linearise :: Subtheory -> LinTheory
+            fetch_and_linearise conj = linTheory $
+                conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-            let linTheory :: [HipSpecSubtheory] -> LinTheory
-                linTheory sthys = LinTheory $ \ t -> case t of
-                    TPTP         -> "no tptp!"
-                    SMT          -> smt_str
-                    SMTUnsatCore -> addUnsatCores smt_str
-                  where
-                    (without_data,with_data) = partition (null . datadecls) sthys
-                    data_types = concatMap datadecls with_data
+            proof_tree_lin :: Tree (Obligation eq LinTheory)
+            proof_tree_lin = fmap (fmap fetch_and_linearise) proof_tree
 
-                    smt_str
-                        | smt_data_types
-                            = linSMT data_types (concatMap clauses without_data)
-                        | otherwise
-                            = linSMT [] (concatMap clauses sthys)
+            invoke_env = InvokeEnv
+                { timeout         = timeout
+                , store           = output
+                , provers         = proversFromNames provers
+                , processes       = processes
+                , z_encode        = z_encode_filenames
+                }
 
-                calc_dependencies :: HipSpecSubtheory -> [HipSpecContent]
-                calc_dependencies s = concatMap depends (s:lemma_theories)
+        results :: [Obligation eq Result] <- invokeATPs proof_tree_lin invoke_env
 
-                fetcher :: [HipSpecContent] -> [HipSpecSubtheory]
-                fetcher = trim (theory ++ lemma_theories)
+        forM_ results $ \ Obligation{..} -> do
+            let (prover,res) = ob_content
+            case res of
+                Unknown ProcessResult{..} ->
+                    writeMsg UnknownResult
+                        { property_name = prop_name ob_prop
+                        , prop_ob_info  = ob_info
+                        , used_prover   = show prover
+                        , m_stdout      = stdout
+                        , m_stderr      = stderr
+                        , m_excode      = show excode
+                        }
+                _ -> return ()
 
-                fetch_and_linearise :: HipSpecSubtheory -> LinTheory
-                fetch_and_linearise conj = linTheory $
-                    conj : lemma_theories ++ fetcher (calc_dependencies conj)
+        let lemma_lkup :: Int -> Property eq
+            lemma_lkup = fromJust . flip lookup enum_lemmas
 
-                proof_tree_lin :: Tree (Obligation eq LinTheory)
-                proof_tree_lin = fmap (fmap fetch_and_linearise) proof_tree
+            res = resultsForProp lemma_lkup results prop
 
-                env = Env
-                    { timeout         = timeout
-                    , store           = output
-                    , provers         = proversFromString provers
-                    , processes       = processes
-                    , z_encode        = z_encode_filenames
+        case res of
+            Just Theorem{..} ->
+                case thm_proof of
+                    ByInduction{..} -> writeMsg InductiveProof
+                        { property_name = prop_name thm_prop
+                        , property_repr = maybePropRepr thm_prop
+                        , used_lemmas   = fmap (map prop_name) thm_lemmas
+                        , used_provers  = map show thm_provers
+                        , vars          = ind_vars
+                        }
+            Nothing ->
+                writeMsg FailedProof
+                    { property_name = prop_name prop
+                    , property_repr = maybePropRepr prop
                     }
 
-            result :: [Obligation eq Result] <- invokeATPs proof_tree_lin env
-
-            let lemma_lkup :: Int -> Property eq
-                lemma_lkup = fromJust . flip lookup enum_lemmas
-
-                results :: ([Theorem eq],[Property eq])
-                results@(thms,conjs)
-                    = partitionEithers $ map (resultsForProp lemma_lkup result) props
-
-            forM_ result $ \ Obligation{..} -> do
-                let (prover,res) = ob_content
-                case res of
-                    Unknown ProcessResult{..} ->
-                        writeMsg $ UnknownResult
-                            { prop_name    = propName ob_prop
-                            , prop_ob_info = ob_info
-                            , used_prover  = show prover
-                            , m_stdout     = stdout
-                            , m_stderr     = stderr
-                            , m_excode     = show excode
-                            }
-                    _ -> return ()
-
-            forM_ thms $ \ Theorem{..} -> case thm_proof of
-                ByInduction{..} -> writeMsg $ InductiveProof
-                    { prop_name    = propName thm_prop
-                    , used_lemmas  = fmap (map propName) thm_lemmas
-                    , used_provers = map show thm_provers
-                    , vars         = ind_vars
-                    }
-                ByApproxLemma -> writeMsg $ ApproxProof
-                    { prop_name    = propName thm_prop
-                    , used_lemmas  = fmap (map propName) thm_lemmas
-                    , used_provers = map show thm_provers
-                    }
-
-
-            mapM_ (writeMsg . FailedProof . propName) conjs
-
-            return results
+        return res
 
 resultsForProp :: forall eq . (Int -> Property eq)
                -> [Obligation eq Result] -> Property eq
-               -> Either (Theorem eq) (Property eq)
+               -> Maybe (Theorem eq)
 resultsForProp lemma_lkup results prop = case proofs of
-    [] -> Right prop
+    []    -> Nothing
     grp:_ -> case grp of
         [] -> error "MakeInvocations: results (impossible)"
-        Obligation _ ApproxLemma _:_ -> mkProof ByApproxLemma
-        Obligation _ (Induction cs _ _) _:_ -> mkProof (ByInduction (varsFromCoords prop cs))
+        Obligation _ (ObInduction cs _ _) _:_ ->
+            mkProof (ByInduction (varsFromCoords prop cs))
       where
-        mkProof pf = Left $ Theorem
+        mkProof pf = Just Theorem
             { thm_prop = prop
             , thm_proof = pf
             , thm_provers = nub $ map (fst . ob_content) grp
             , thm_lemmas
-                = fmap ( map lemma_lkup . nub . concat)
-                $ sequence
-                $ map (successLemmas . snd . ob_content) grp
+                = fmap (map lemma_lkup . nub . concat)
+                $ mapM (successLemmas . snd . ob_content) grp
             }
   where
 
-    resType (Induction{..}) = Right ind_coords
-    resType ApproxLemma     = Left ()
+    resType ObInduction{..} = ind_coords
 
     results' = [ ob | ob@Obligation{..} <- results
-                    , prop == ob_prop
-                    , success (snd $ ob_content)
+                    , prop_name prop == prop_name ob_prop
+                    , success (snd ob_content)
                ]
 
     proofs :: [[Obligation eq Result]]
     proofs = filter check $ groupSortedOn (resType . ob_info) results'
 
     check :: [Obligation eq Result] -> Bool
-    check [Obligation _ ApproxLemma _] = True
-    check grp@(Obligation _ (Induction _ _ nums) _:_) =
+    check grp@(Obligation _ (ObInduction _ _ nums) _:_) =
         all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
     check _ = False
 
