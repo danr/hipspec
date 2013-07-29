@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE DeriveGeneric,RecordWildCards,NamedFieldPuns #-}
 module HipSpec.Messages where
 
 import Data.Aeson
@@ -9,38 +9,44 @@ import Data.Time.Clock
 import Numeric
 import Text.Printf
 import Data.List
-import HipSpec.Trans.Obligation
+import HipSpec.ThmLib
 import HipSpec.Params
-import Halo.Util
+
+import HipSpec.Utils
+import HipSpec.Utils.Colour
+
+{-# ANN module "HLint: ignore Use camelCase" #-}
 
 data Msg
     = Started
 
-    -- MainLoop
-
     | Discarded      [String]
     | Candidates     [String]
-    | InductiveProof { prop_name :: String, used_lemmas :: Maybe [String], used_provers :: [String], vars :: [String] }
-    | ApproxProof    { prop_name :: String, used_lemmas :: Maybe [String], used_provers :: [String] }
-    | FailedProof    { prop_name :: String }
+    | InductiveProof
+        { property_name :: String
+        , property_repr :: Maybe String
+        , used_lemmas   :: Maybe [String]
+        , used_provers  :: [String]
+        , vars          :: [String]
+        }
+    | FailedProof
+        { property_name :: String
+        , property_repr :: Maybe String
+        }
     | Loop
 
-    -- Invoke
-
-    | Spawning            { prop_name :: String, prop_ob_info :: ObInfo }
-    | SpawningWithTheory  { prop_name :: String, prop_ob_info :: ObInfo, theory_string :: String }
-    | Cancelling          { prop_name :: String, prop_ob_info :: ObInfo }
-    | ProverResult        { prop_name :: String, prop_ob_info :: ObInfo, std_out :: String }
+    | Spawning            { property_name :: String, prop_ob_info :: ObInfo }
+    | SpawningWithTheory  { property_name :: String, prop_ob_info :: ObInfo, theory_string :: String }
+    | Cancelling          { property_name :: String, prop_ob_info :: ObInfo }
+    | ProverResult        { property_name :: String, prop_ob_info :: ObInfo, std_out :: String }
     | UnknownResult
-        { prop_name :: String
+        { property_name :: String
         , prop_ob_info :: ObInfo
         , used_prover :: String
         , m_stdout :: String
         , m_stderr :: String
         , m_excode :: String
         }
-
-    -- HipSpec
 
     | FileProcessed
     | DefinitionalEquations [String]
@@ -50,21 +56,20 @@ data Msg
 
     | ExploredTheory [String]
     | Finished
-        { proved :: [String]
-        , unproved :: [String]
-        , qs_proved :: [String]
-        , qs_unproved :: [String]
+        { proved      :: [(String,Maybe String)]
+        , unproved    :: [(String,Maybe String)]
+        , qs_proved   :: [(String,Maybe String)]
+        , qs_unproved :: [(String,Maybe String)]
         }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq,Ord,Show,Generic)
 
 csv :: [String] -> String
 csv = intercalate ","
 
 showObInfo :: ObInfo -> String
-showObInfo (Induction{..}) =
+showObInfo (ObInduction{..}) =
     "coords: " ++ csv (map show ind_coords) ++ " " ++
     show ind_num ++ "/" ++ show ind_nums
-showObInfo ApproxLemma = "approximation lemma"
 
 showMsg :: Params -> Msg -> String
 showMsg Params{no_colour,reverse_video} msg = case msg of
@@ -75,29 +80,25 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
         | otherwise      -> "Discarded: " ++ csv eqs
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
-    ApproxProof{..} -> green (bold
-        ("Proved " ++ prop_name ++ " by approximation lemma"))
-            ++ view_provers used_provers
-            ++ view_lemmas used_lemmas
     InductiveProof{..} -> green ((not (null vars) ? bold)
-        ("Proved " ++ prop_name ++ (case vars of
+        ("Proved " ++ property_name ++ pmif property_repr ++ (case vars of
                 [] -> " without induction"
                 _  -> " by induction on " ++ csv vars)))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
 
-    FailedProof{..} -> "Failed to prove " ++ prop_name
+    FailedProof{..} -> "Failed to prove " ++ property_name ++ pmif property_repr
 
-    Spawning{..}           -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info
-    SpawningWithTheory{..} -> "Spawning "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
-    Cancelling{..}         -> "Cancelling " ++ prop_name ++ " " ++ showObInfo prop_ob_info
-    ProverResult{..}       -> "Finished "   ++ prop_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
+    Spawning{..}           -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info
+    SpawningWithTheory{..} -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
+    Cancelling{..}         -> "Cancelling " ++ property_name ++ " " ++ showObInfo prop_ob_info
+    ProverResult{..}       -> "Finished "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
     UnknownResult{..}      ->
         "Unknown result from " ++ used_prover ++ " on " ++
-        prop_name ++ " " ++ showObInfo prop_ob_info ++
+        property_name ++ " " ++ showObInfo prop_ob_info ++
         ", exit code: " ++ m_excode ++
-        (non_null m_stdout $ "\n    stdout:\n" ++ reindent (reindent m_stdout)) ++
-        (non_null m_stderr $ "\n    stderr:\n" ++ reindent (reindent m_stderr))
+        non_null m_stdout ("\n    stdout:\n" ++ reindent (reindent m_stdout)) ++
+        non_null m_stderr ("\n    stderr:\n" ++ reindent (reindent m_stderr))
 
     Loop                   -> "Loop!"
 
@@ -109,11 +110,18 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
 
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->
-        "Proved:\n" ++ indent (qs_proved ++ proved) ++
+        "Proved:\n" ++ indent (map repr_prop (qs_proved ++ proved)) ++
         if null unproved' then "" else "Unproved:\n" ++ indent unproved'
-      where unproved' = qs_unproved ++ unproved
+      where unproved' = map repr_prop (qs_unproved ++ unproved)
 
   where
+    repr_prop :: (String,Maybe String) -> String
+    repr_prop (s,ms) = s ++ pmif ms
+
+    pmif :: Maybe String -> String
+    pmif Nothing  = ""
+    pmif (Just s) = " (" ++ s ++ ")"
+
     non_null :: String -> String -> String
     non_null s m | null s    = ""
                  | otherwise = m
@@ -142,7 +150,6 @@ msgVerbosity m = case m of
     ExploredTheory{}         -> 0  -- enabled by a flag
     Finished{}               -> 1  -- most interesting
     UnknownResult{}          -> 10 -- a warning, really
-    ApproxProof{}            -> 20
     InductiveProof{vars=_:_} -> 20
     InductiveProof{vars=[]}  -> 30
     FailedProof{}            -> 40

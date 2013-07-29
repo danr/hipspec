@@ -1,69 +1,109 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
-module HipSpec.Init (processFile) where
-
-import HipSpec.Monad
-
-import HipSpec.GHC.Entry
-
-import HipSpec.Trans.Property
-import HipSpec.Complement
-import HipSpec.PrepareVar
-
-import qualified Data.Map as M
-
-import Halo.Subtheory (idToContent)
-
-import Halo.Conf
-import Halo.Monad
-import Halo.Util
-import Halo.Shared
-
-import Data.Maybe
+module HipSpec.Init (processFile,SigInfo(..)) where
 
 import Control.Monad
 
+
+import Data.List (partition,union)
 import Data.Void
 
-import CoreSyn
+import HipSpec.GHC.Calls
+import HipSpec.Monad
+import HipSpec.ParseDSL
+import HipSpec.Property
+import HipSpec.Read
+import HipSpec.Theory
+import HipSpec.Translate
+import HipSpec.Params
+import HipSpec.Lint
+import HipSpec.Utils
 
-processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> HS a
+import HipSpec.GHC.FreeTyCons
+import HipSpec.Lang.RemoveDefault
+import HipSpec.GHC.Unfoldings
+import HipSpec.Lang.Uniquify
+
+import qualified HipSpec.Lang.RichToSimple as S
+import qualified HipSpec.Lang.Simple as S
+
+import TyCon (isAlgTyCon)
+import UniqSupply
+
+import System.Exit
+
+import Text.Show.Pretty
+
+processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
 processFile cont = do
 
-    params@Params{..} <- getParams
+    params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
 
-    EntryResult{sig_info,prop_ids} <- liftIO (execute params)
+    whenFlag params PrintParams $ putStrLn (ppShow params)
 
-    liftIO $ when dump_sig $ putStr (maybe "" (show . sig) sig_info)
+    EntryResult{..} <- execute params
 
-    liftIO $ when dump_props $ do
-        putStrLn "== PROP IDS =="
-        putStrLn $ showOutputable prop_ids
+    us0 <- mkSplitUniqSupply 'h'
 
-    prop_bs <- concatMapM prepareVar prop_ids
+    let not_dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
 
-    liftIO $ when dump_props $ do
-        putStrLn "== PROP BINDS =="
-        putStrLn $ showOutputable prop_bs
+        vars = filterVarSet not_dsl $
+               unionVarSets (map (transCalls Without) prop_ids)
 
-    let halo_env = mkEnv HaloConf
-            { use_bottom         = bottoms
-            , var_scrut_constr   = var_scrut_constr
-            }
+        (binds,_us1) = initUs us0 $ sequence
+            [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
+            | v <- varSetElems vars
+            , Just e <- [maybeUnfolding v]
+            ]
 
-        core_props = filter ((`elem` prop_ids) . fst) (flattenBinds prop_bs)
+        tcs = filter (\ x -> isAlgTyCon x && not (typeIsProp x))
+                     (bindsTyCons' binds `union` extra_tcs)
 
-        props = (consistency ? (inconsistentProperty:))
-              $ mapMaybe (uncurry trProperty) core_props
+        (am_tcs,data_thy,ty_env') = trTyCons tcs
 
-    initialize halo_env $ do
+        -- Now, split these into properties and non-properties
 
-        let ids = maybe [] (map snd . M.toList . sym_map . sig_map) sig_info
+        simp_fns = toSimp binds
 
-            qs_theory = nubSorted $ map idToContent ids
+        is_prop (S.Function (_ S.::: t) _ _) =
+            case res of
+                S.TyCon (S.Old p) _ -> typeIsProp p
+                _                   -> False
 
-        -- Generate theory for the QuickSpec functions and constructors, so
-        -- it can be used in definitional equations
-        complement qs_theory
+          where
+            (_tvs,t')   = S.collectForalls t
+            (_args,res) = S.collectArrTy t'
 
-        cont sig_info props
+        (props,fns) = partition is_prop simp_fns
+
+        am_fin = am_fns `combineArityMap` am_tcs
+        (am_fns,binds_thy) = trSimpFuns am_fin fns
+
+        thy = appThy : data_thy ++ binds_thy
+
+        cls = sortClauses (concatMap clauses thy)
+
+        tr_props
+            = sortOn prop_name
+            $ either (error . show)
+                     (map (etaExpandProp . generaliseProp))
+                     (trProperties props)
+
+        env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
+
+    runHS params env $ do
+
+        debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
+
+        debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
+
+        debugWhen PrintProps $
+            "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
+            "\nProperties:\n" ++ unlines (map show tr_props)
+
+        checkLint (lintSimple simp_fns)
+        mapM_ (checkLint . lintProperty) tr_props
+
+        when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
+
+        cont sig_info tr_props
 

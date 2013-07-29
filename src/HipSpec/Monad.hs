@@ -2,83 +2,70 @@
 module HipSpec.Monad
     ( HS()
     , runHS
-    , haloHS
     , writeMsg
-    , debugMsg
+    , debugWhen
+    , whenFlag
     , getParams
-    , getHaloEnv
-    , getTheory
-    , enlargeTheory
+    , getEnv
+    , Env(..)
     , getMsgs
     , getWriteMsgFun
     , liftIO
     , Msg(..)
     , Params(..)
-    , initialize
-    , withUniqSupply
+    , DebugFlag(..)
+    , checkLint
     ) where
 
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Reader
-import Control.Monad.State
-
-import System.Console.CmdArgs hiding (summary,verbosity)
-
-import Halo.Monad
 
 import HipSpec.Messages
 import HipSpec.Params
-import HipSpec.Trans.Theory
+import HipSpec.Theory
+import HipSpec.Translate (TyEnv')
 
 import Control.Concurrent.MVar
 
-import Control.Arrow (first,second)
+{-# ANN module "HLint: ignore Use camelCase" #-}
 
-import UniqSupply
-
--- Immutable state
+-- | Immutable state
 data HSEnv = HSEnv
     { params      :: Params
-    , halo_env    :: HaloEnv
+    , env         :: Env
     , write_fun   :: Msg -> IO ()
     , get_msg_fun :: IO [(Double,Msg)]
     , write_mutex :: MVar ()
     }
 
--- Mutable state
-type HSSt = (Theory,UniqSupply)
+-- | Public environment
+data Env = Env
+    { theory    :: Theory
+    , arity_map :: ArityMap
+    , ty_env    :: TyEnv'
+    }
 
-newtype HS a = HS (StateT HSSt (ReaderT HSEnv IO) a)
+newtype HS a = HS (ReaderT HSEnv IO a)
   deriving (Functor,Applicative,Monad,MonadIO)
 
-haloHS :: HaloM a -> HS a
-haloHS m = HS $ do
-    HSEnv{halo_env} <- ask
-    let (a,_) = runHaloM halo_env m
-    return a
-
-runHS :: HS a -> IO a
-runHS (HS m) = do
-    params_ <- sanitizeParams <$> cmdArgs defParams
-    (write_fn, get_msg_fn) <- case json params_ of
+-- | Runs the HipSpec monad, but with theory and arity map uninitialized
+runHS :: Params -> Env -> HS a -> IO a
+runHS p e (HS m) = do
+    (write_fn, get_msg_fn) <- case json p of
         Nothing -> return (\ _ -> return (), return [])
         _ -> mkWriter
     mtx <- newMVar ()
-    us0 <- liftIO $ mkSplitUniqSupply 'h'
-    runReaderT (evalStateT m ([],us0)) HSEnv
-        { params      = params_
-        , halo_env    = error "halo_env uninitialized"
+    runReaderT m HSEnv
+        { params      = p
+        , env         = e
         , write_fun   = write_fn
         , get_msg_fun = get_msg_fn
         , write_mutex = mtx
         }
 
-getTheory :: HS Theory
-getTheory = HS $ gets fst
-
-enlargeTheory :: [HipSpecSubtheory] -> HS ()
-enlargeTheory hs = HS $ modify (first (hs ++))
+getEnv :: HS Env
+getEnv = HS $ asks env
 
 getWriteMsgFun :: HS (Msg -> IO ())
 getWriteMsgFun = HS $ do
@@ -104,21 +91,14 @@ getMsgs = HS $ do
 getParams :: HS Params
 getParams = HS $ asks params
 
-getHaloEnv :: HS HaloEnv
-getHaloEnv = HS $ asks halo_env
+debugWhen :: DebugFlag -> String -> HS ()
+debugWhen flg s = do
+    p <- getParams
+    whenFlag p flg $ liftIO $ putStrLn s
 
-initialize :: HaloEnv -> HS a -> HS a
-initialize new_env (HS m) = HS $ local (\ hse -> hse { halo_env = new_env }) m
-
-withUniqSupply :: UniqSM a -> HS a
-withUniqSupply m = HS $ do
-    u <- gets snd
-    let (a,u') = initUs u m
-    modify (second (const u'))
-    return a
-
-debugMsg :: String -> HS ()
-debugMsg m = do
-    Params{debug} <- getParams
-    when debug $ liftIO $ putStrLn m
+checkLint :: Maybe String -> HS ()
+checkLint (Just s) = error $
+    "Internal error, a lint pass failed:\n" ++ s ++
+    "\nPlease report this as a bug."
+checkLint Nothing  = return ()
 

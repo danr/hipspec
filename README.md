@@ -3,12 +3,56 @@ HipSpec - the Haskell Inductive Prover meets QuickSpec
 
 [![Build Status](https://travis-ci.org/danr/hipspec.png?branch=master)](https://travis-ci.org/danr/hipspec)
 
-HipSpec is only supported on GHC 7.4.1 and GHC 7.6.1. Patches
-for other versions are more than welcome.
+HipSpec is an inductive theorem prover for Haskell programs.  It will (try to)
+conjecture essential lemmas to prove tricky properties.  It supports all
+algebraic Haskell 98 data types and polymorphism.  We assume that functions
+terminate on finite input and produce finite output.  All quantification is
+only over total and finite values.
+
+## Example
+
+In the `examples/Rotate.hs` file we see the following definitions:
+
+    rotate :: Nat -> [a] -> [a]
+    rotate Z     xs     = xs
+    rotate _     []     = []
+    rotate (S n) (x:xs) = rotate n (xs ++ [x])
+
+    prop_rotate :: [a] -> Prop [a]
+    prop_rotate xs = rotate (length xs) xs =:= xs
+
+The second definition defines a property in the HipSpec property language that
+we would like to prove. The =:= operator simply means equals. Let's run HipSpec
+on this file. We use `--auto` to automatically pick function to conjecture lemmas
+from based on the properties in the program, and --cg to order equations in the
+call graph of the program:
+
+    $ hipspec Rotate.hs --auto --cg --verbosity=30
+    Depth 1: 11 terms, 5 tests, 30 evaluations, 11 classes, 0 raw equations.
+    Depth 2: 63 terms, 100 tests, 2164 evaluations, 48 classes, 15 raw equations.
+    Depth 3: 1688 terms, 100 tests, 65050 evaluations, 1303 classes, 385 raw equations.
+    Proved xs++[] == xs by induction on xs using AltErgo
+    Proved (xs++ys)++zs == xs++(ys++zs) by induction on zs using AltErgo
+    Proved length (xs++ys) == length (ys++xs) by induction on ys,xs using AltErgo
+    Proved rotate m [] == [] by induction on m using AltErgo
+    Proved rotate m (x:[]) == x:[] by induction on x using AltErgo
+    Proved rotate (length xs) (xs++ys) == ys++xs by induction on ys using AltErgo
+    Proved prop_rotate (rotate (length xs) xs == xs) by induction on xs using AltErgo
+    Proved:
+        xs++[] == xs
+        (xs++ys)++zs == xs++(ys++zs)
+        length (xs++ys) == length (ys++xs)
+        rotate m [] == []
+        rotate m (x:[]) == x:[]
+        rotate (length xs) (xs++ys) == ys++xs
+        prop_rotate (rotate (length xs) xs == xs)
+
+The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 ## Installation instructions
 
-    cabal install
+HipSpec is only maintained for GHC 7.4.1 and GHC 7.6.3. Patches for other
+versions are more than welcome.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:
@@ -30,9 +74,10 @@ one go, which makes the dependency analysis better:
 
 ### Supported theorem provers
 
-You will need to install at least a theorem prover. Currently, we only support z3:
-
-  * [z3](http://research.microsoft.com/en-us/um/redmond/projects/z3/),
+Currently, we only support [Alt Ergo](http://alt-ergo.lri.fr/), in particular versions 0.94 and 0.95.
+It exists in the
+[ubuntu repositories](https://launchpad.net/ubuntu/precise/+source/alt-ergo/0.94-1),
+and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
 
 ## Tutorial
 
@@ -41,9 +86,7 @@ then Hip will try to prove as much as possible from.
 This little tutorial will try to explain how to use HipSpec
 as a theory exploration system.
 
-An example is given in [`testsuite/examples/Nat.hs`](https://github.com/danr/hipspec/blob/master/testsuite/examples/Nat.hs).
-
-You need to import `HipSpec.Prelude`. The data types you will put in the
+You need to import `HipSpec`. The data types you will put in the
 signature needs to be an instance of `Eq`, `Ord`, `Data.Typeable`, and
 `Test.QuickCheck.Arbitrary`. Example:
 
@@ -87,9 +130,14 @@ Now, we are good to go!
 
     $ hipspec Nat
 
-### Bottoms (domain theoretic ones, that is)
+### Automatically Generated Signatures
 
-If you wish to prove properties with bottoms, add the `--bottoms` flag. Voila!
+HipSpec can generate a signature for you with the `--auto` flag. If you want to
+see what signature it generated for you, use the `--print-auto-sig` flag.
+Unfortunately, the monomorphiser is not very clever yet: say you have lists
+in your program, then `(:)` will only get the type `A -> [A] -> [A]` and not
+other presumably desireable instances such as `[A] -> [[A]] -> [[A]]` and
+`Nat -> [Nat] -> [Nat]`.
 
 ### Theory Exploration mode
 
@@ -104,6 +152,8 @@ Quick information about available flags can be accessed anytime by the
 
 ### QuickSpec flags
 
+  * `--call-graph` (`--cg`): Order equations according to the call graph in the
+    program.
   * `--swap-repr` (`-s`): Swap equations with their representative
   * `--prepend-pruned` (`-r`): Prepend nice, pruned, equations from QuickSpec
     before attacking all equations.
@@ -113,7 +163,6 @@ Quick information about available flags can be accessed anytime by the
     found theorems.
   * `--assoc-important` (`-a`): Consider associativity as most important
     and try to prove it first.
-
 
 ### Induction flags
 
@@ -127,18 +176,6 @@ Quick information about available flags can be accessed anytime by the
   * `--indobligs=INT` (`-O`): If the number of parts (bases and steps) gets
     over this threshold, this combination of variables and depths is
     skipped. Default is 25.
-
-
-### Specifying theorem prover
-
-The `--provers` flag, or `-p` for short, takes a one character
-description for the theorem prover:
-
-   * **`z`**: z3
-   * **`Z`**: z3 with unsatisfiable cores, solver prints used lemmas
-
-You can specify many at the same time, i.e. `--provers=zZ`, which indeed looks
-a bit silly.
 
 ### Processors and parallel proving
 
@@ -161,12 +198,6 @@ long. The timeout can be issued as a double, so -t=0.1 can be used to get
 Should you wish to inspect the generated theory, you can use `--output` (or
 `-o`) and make a `proving/` directory. Then all relevant files will be put
 there for you to view.
-
-### Consistency
-
-HipSpec will try to prove `True =:= False` if given the `--consistency` flag,
-or `-c` for short. It will add any proven lemmas to the theory, and the
-definitions of functions used in those lemmas.
 
 ## Authors and contact
 
