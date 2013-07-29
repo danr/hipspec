@@ -1,11 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Sanity where
 
-import HipSpec.Prelude
-import Prelude(Bool(..), undefined, return, fmap, Eq, Ord)
-
-data MaybeBool = Just Bool | Nothing
-  deriving (Eq,Ord,Typeable)
+import HipSpec
+import Prelude(Bool(..), Maybe(..), undefined, return, fmap, Eq, Ord)
 
 tt :: Bool -> Bool -> Prop Bool
 tt x y = x =:= True ==> y =:= True ==> x =:= y
@@ -19,13 +16,13 @@ bool_sym x y = x =:= y ==> y =:= x
 bool_trans :: Bool -> Bool -> Bool -> Prop Bool
 bool_trans x y z = x =:= y ==> y =:= z ==> x =:= z
 
-maybe_refl :: MaybeBool -> Prop MaybeBool
+maybe_refl :: Maybe Bool -> Prop (Maybe Bool)
 maybe_refl x = x =:= x
 
-maybe_sym :: MaybeBool -> MaybeBool -> Prop MaybeBool
+maybe_sym :: Maybe Bool -> Maybe Bool -> Prop (Maybe Bool)
 maybe_sym x y = x =:= y ==> y =:= x
 
-maybe_trans :: MaybeBool -> MaybeBool -> MaybeBool -> Prop MaybeBool
+maybe_trans :: Maybe Bool -> Maybe Bool -> Maybe Bool -> Prop (Maybe Bool)
 maybe_trans x y z = x =:= y ==> y =:= z ==> x =:= z
 
 test_and :: Bool -> Bool -> Prop Bool
@@ -37,7 +34,7 @@ consistency_0 = (True =:= False)
 consistency_1 :: Bool -> Prop Bool
 consistency_1 x =  (x =:= False)
 
-consistency_2 :: MaybeBool -> Prop MaybeBool
+consistency_2 :: Maybe Bool -> Prop (Maybe Bool)
 consistency_2 x =  (x =:= Nothing)
 
 True  && a = a
@@ -61,8 +58,8 @@ mnot = liftM not
 
 sig :: Sig
 sig = signature
-    [ pvars ["a","b","c"]       (undefined :: Bool)
-    , pvars ["ma","mb","mc"]    (undefined :: MaybeBool)
+    [ vars ["a","b","c"]       (undefined :: Bool)
+    , vars ["ma","mb","mc"]    (undefined :: Maybe Bool)
 
     , fun0 "True" True
     , fun0 "False" False
@@ -77,11 +74,4 @@ sig = signature
 
 --    , withTests 10
     ]
-
-instance Arbitrary MaybeBool where
-    arbitrary = elements [Nothing,Just True,Just False]
-
-instance Partial MaybeBool where
-    unlifted Nothing  = return Nothing
-    unlifted (Just x) = fmap Just (lifted x)
 

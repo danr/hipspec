@@ -24,7 +24,7 @@ import Prelude
         Maybe(Nothing, Just))
 import qualified Prelude
 import GHC.Classes
-import HipSpec.Prelude
+import HipSpec
 import Data.Typeable
 import Test.Feat
 

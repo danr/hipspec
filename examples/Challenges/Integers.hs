@@ -4,7 +4,7 @@
 module Challenges.Integers where
 
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),return,undefined)
-import HipSpec.Prelude
+import HipSpec
 import Data.Typeable
 
 import Nat hiding (sig)
@@ -13,6 +13,9 @@ data Z = P Nat | N Nat deriving (Show,Eq,Typeable,Ord)
 
 instance Arbitrary Z where
   arbitrary = oneof [P `fmap` arbitrary,N `fmap` arbitrary]
+
+instance Names Z where
+    names _ = ["i","j","k"]
 
 -- Natural subtraction
 (-) :: Nat -> Nat -> Z
@@ -69,6 +72,9 @@ abs (P n) = n
 abs (N n) = S n
 
 data Sign = Pos | Neg deriving (Eq,Show,Ord,Typeable)
+
+instance Names Sign where
+    names _ = ["s","t","u"]
 
 instance Arbitrary Sign where
   arbitrary = elements [Pos,Neg]

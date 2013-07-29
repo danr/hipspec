@@ -2,16 +2,16 @@ module Rotate where
 
 import Prelude hiding ((++),length)
 
-import HipSpec.Prelude
+import HipSpec
 
 import Nat (Nat(..))
-import List (List(..),(++),length)
+import List ((++),length)
 
-rotate :: Nat -> List -> List
-rotate Z     xs          = xs
-rotate (S _) Nil         = Nil
-rotate (S n) (Cons x xs) = rotate n (xs ++ Cons x Nil)
+rotate :: Nat -> [a] -> [a]
+rotate Z     xs     = xs
+rotate _     []     = []
+rotate (S n) (x:xs) = rotate n (xs ++ [x])
 
-prop_rotate :: List -> Prop List
+prop_rotate :: [a] -> Prop [a]
 prop_rotate xs = rotate (length xs) xs =:= xs
 

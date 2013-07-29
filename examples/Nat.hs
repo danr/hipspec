@@ -2,7 +2,7 @@
 module Nat where
 
 import Prelude hiding ((+),(*))
-import HipSpec.Prelude
+import HipSpec
 import Data.Typeable
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
@@ -29,3 +29,5 @@ instance Arbitrary Nat where
     x <- choose (0,round (sqrt (toEnum s)))
     return (toEnum x)
 
+instance Names Nat where
+  names _ = ["m","n","o"]
