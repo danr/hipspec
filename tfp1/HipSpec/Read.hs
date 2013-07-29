@@ -1,5 +1,5 @@
--- | Gets the GHC Core information we need, also sets up the system for later
---   QuickSpec execution
+-- | Gets the GHC Core information we need, also obtains or creates the
+--   QuickSpec signature
 {-# LANGUAGE RecordWildCards #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
@@ -84,13 +84,7 @@ execute params@Params{..} = do
         when (failed r) $ error "Compilation failed!"
 
         mod_graph <- getModuleGraph
-        let mod_sum = fromMaybe (error $ "Cannot find module " ++ file')
-                    $ find (\m -> ms_mod_name m == mkModuleName file'
-                               || ms_mod_name m == mkModuleName (replace '/' '.' file')
-                               || ms_mod_name m == mkModuleName "Main"
-                               || ml_hs_file (ms_location m) == Just file')
-                           mod_graph
-              where replace a b = map (\ x -> if x == a then b else x)
+        let mod_sum = getModuleSum mod_graph file'
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum
@@ -107,10 +101,10 @@ execute params@Params{..} = do
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
-            , IIDecl (qualifiedImportDecl (mkModuleName "Test.QuickSpec.Signature"))
-            , IIDecl (qualifiedImportDecl (mkModuleName "Test.QuickSpec.Prelude"))
-            , IIDecl (qualifiedImportDecl (mkModuleName "GHC.Types"))
-            , IIDecl (qualifiedImportDecl (mkModuleName "Prelude"))
+            , IIDecl (qualifiedImport "Test.QuickSpec.Signature")
+            , IIDecl (qualifiedImport "Test.QuickSpec.Prelude")
+            , IIDecl (qualifiedImport "GHC.Types")
+            , IIDecl (qualifiedImport "Prelude")
             ]
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
@@ -154,6 +148,19 @@ execute params@Params{..} = do
             , prop_ids  = props ++ extra_ids
             , extra_tcs = extra_tcs
             }
+
+getModuleSum :: [ModSummary] -> [Char] -> ModSummary
+getModuleSum mod_graph file
+    = fromMaybe (error $ "Cannot find module " ++ file)
+    $ find (\m -> ms_mod_name m == mkModuleName file
+               || ms_mod_name m == mkModuleName (replace '/' '.' file)
+               || ms_mod_name m == mkModuleName "Main"
+               || ml_hs_file (ms_location m) == Just file)
+           mod_graph
+  where replace a b = map (\ x -> if x == a then b else x)
+
+qualifiedImport :: String -> ImportDecl name
+qualifiedImport = qualifiedImportDecl . mkModuleName
 
 qualifiedImportDecl :: ModuleName -> ImportDecl name
 qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }

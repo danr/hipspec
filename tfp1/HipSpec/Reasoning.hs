@@ -46,8 +46,6 @@ class
 
     isoDiscard :: eq -> eq -> Bool
 
---    fromEquation :: Equation -> eq
-
 data NoCC eq = NoCC
 
 instance EQR Void (NoCC Void) Identity where
@@ -61,8 +59,6 @@ instance EQR Void (NoCC Void) Identity where
 
     showEquation _ = show
 
-  --  fromEquation _ = ()
-
 instance EQR PEquation PER.Context PER.PEQ where
     runEQR = PER.runPEQ
 
@@ -74,8 +70,6 @@ instance EQR PEquation PER.Context PER.PEQ where
 
     isoDiscard = partialIsomorphicTo
 
-  --  fromEquation eq = [] :\/: eq
-
 instance EQR Equation NER.Context NER.EQ where
     runEQR = NER.runEQ
 
@@ -86,8 +80,6 @@ instance EQR Equation NER.Context NER.EQ where
     showEquation = Equation.showEquation
 
     isoDiscard = isomorphicTo
-
---     fromEquation = id
 
 -- Renaming
 isomorphicTo :: Equation -> Equation -> Bool
@@ -117,7 +109,7 @@ matchSkeleton (T.App t u) (T.App t' u') =
   liftM2 (++) (matchSkeleton t t') (matchSkeleton u u')
 matchSkeleton _ _ = Nothing
 
--- Relation is a function
+-- | Relation is a function
 function :: (Ord a, Eq b) => [(a, b)] -> Bool
 function
     = all singleton
