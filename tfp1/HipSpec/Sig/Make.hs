@@ -64,7 +64,7 @@ makeSignature p@Params{..} named_things prop_ids = do
             | i <- ids
             ] ++
             [ unwords
-                [ {- if pvars then "pvars" else -} "vars"
+                [ if pvars then "pvars" else "vars"
                 , show ["x","y","z"]
                 , "("
                 , "Prelude.undefined"

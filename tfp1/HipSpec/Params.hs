@@ -111,7 +111,7 @@ data Params = Params
     , auto                :: Bool
     , extra_trans         :: [String]
     , extra               :: [String]
---    , pvars               :: Bool
+    , pvars               :: Bool
     , quick_check_size    :: Int
     , tests               :: Int
     , size                :: Int
@@ -186,7 +186,7 @@ defParams = Params
                                     &= name "a" &= help "Make signature with functions in user properties"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
---    , pvars               = False               &= help "Use pvars instead of vars in the --auto signature"
+    , pvars               = False               &= help "Use pvars instead of vars in the --auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"
     , tests               = 100                 &= help "Set the withTests          (default 100)"
     , size                = 1000                &= help "Set the withSize           (default \"unlimited\")"
