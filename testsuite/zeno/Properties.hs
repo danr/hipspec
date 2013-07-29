@@ -2,23 +2,23 @@ module Properties where
 
 import Prelude (Bool(..),error,toEnum,fromEnum,pred,succ,sqrt,round
                ,Enum,Eq,Ord,Show,return,(.),undefined)
-import HipSpec.Prelude
+import HipSpec
 import Definitions
 
 prop_01 n xs
   = (take n xs ++ drop n xs =:= xs)
 
 prop_02 n xs ys
-  = (count n xs + count n ys =:= count n (xs +++ ys))
+  = (count n xs + count n ys =:= count n (xs ++ ys))
 
 prop_03 n xs ys
-  = proveBool (count n xs <= count n (xs +++ ys))
+  = proveBool (count n xs <= count n (xs ++ ys))
 
 prop_04 n xs
-  = (S (count n xs) =:= count n (NCons n xs))
+  = (S (count n xs) =:= count n (n : xs))
 
 prop_05 n x xs
-  = n =:= x ==> S (count n xs) =:= count n (NCons x xs)
+  = n =:= x ==> S (count n xs) =:= count n (x : xs)
 
 prop_06 n m
   = (n - (n + m) =:= Z)
@@ -42,16 +42,16 @@ prop_12 n f xs
   = (drop n (map f xs) =:= map f (drop n xs))
 
 prop_13 n x xs
-  = (drop (S n) (Cons x xs) =:= drop n xs)
+  = (drop (S n) (x : xs) =:= drop n xs)
 
 prop_14 p xs ys
   = (filter p (xs ++ ys) =:= (filter p xs) ++ (filter p ys))
 
 prop_15 x xs
-  = (nlen (ins x xs) =:= S (nlen xs))
+  = (len (ins x xs) =:= S (len xs))
 
 prop_16 x xs
-  = xs =:= NNil ==> last (NCons x xs) =:= x
+  = xs =:= [] ==> last (x:xs) =:= x
 
 prop_17 n
   = (n <= Z =:= n == Z)
@@ -63,7 +63,7 @@ prop_19 n xs
   = (len (drop n xs) =:= len xs - n)
 
 prop_20 xs
-  = (nlen (sort xs) =:= nlen xs)
+  = (len (sort xs) =:= len xs)
 
 prop_21 n m
   = proveBool (n <= (n + m))
@@ -82,14 +82,14 @@ prop_25 a b
 
 prop_26 x xs ys
   = givenBool (x `elem` xs)
-  ( proveBool (x `elem` (xs +++ ys)) )
+  ( proveBool (x `elem` (xs ++ ys)) )
 
 prop_27 x xs ys
   = givenBool (x `elem` ys)
-  ( proveBool (x `elem` (xs +++ ys)) )
+  ( proveBool (x `elem` (xs ++ ys)) )
 
 prop_28 x xs
-  = proveBool (x `elem` (xs +++ NCons x NNil))
+  = proveBool (x `elem` (xs ++ [x]))
 
 prop_29 x xs
   = proveBool (x `elem` ins1 x xs)
@@ -119,50 +119,50 @@ prop_37 x xs
   = proveBool (not (x `elem` delete x xs))
 
 prop_38 n xs
-  = (count n (xs +++ (NCons n NNil)) =:= S (count n xs))
+  = (count n (xs ++ [n]) =:= S (count n xs))
 
 prop_39 n x xs
-  = (count n (NCons x NNil) + count n xs =:= count n (NCons x xs))
+  = (count n [x] + count n xs =:= count n (x:xs))
 
 prop_40 xs
-  = (take Z xs =:= Nil)
+  = (take Z xs =:= [])
 
 prop_41 n f xs
   = (take n (map f xs) =:= map f (take n xs))
 
 prop_42 n x xs
-  = (take (S n) (Cons x xs) =:= Cons x (take n xs))
+  = (take (S n) (x:xs) =:= x : (take n xs))
 
 prop_43 p xs
   = (takeWhile p xs ++ dropWhile p xs =:= xs)
 
 prop_44 x xs ys
-  = (zip (Cons x xs) ys =:= zipConcat x xs ys)
+  = (zip (x:xs) ys =:= zipConcat x xs ys)
 
 prop_45 x y xs ys
-  = zip (Cons x xs) (Cons y ys) =:= PCons (Pair x y) (zip xs ys)
+  = (zip (x:xs) (y:ys) =:= (x, y) : zip xs ys)
 
 prop_46 xs
-  = (zip Nil xs =:= PNil)
+  = (zip [] xs =:= [])
 
 prop_47 a
   = (height (mirror a) =:= height a)
 
 prop_48 xs
-  = givenBool (not (nnull xs))
-  ( (butlast xs +++ NCons (last xs) NNil =:= xs) )
+  = givenBool (not (null xs))
+  ( (butlast xs ++ [last xs] =:= xs) )
 
 prop_49 xs ys
-  = (butlast (xs +++ ys) =:= butlastConcat xs ys)
+  = (butlast (xs ++ ys) =:= butlastConcat xs ys)
 
 prop_50 xs
-  = (butlast xs =:= ntake (nlen xs - S Z) xs)
+  = (butlast xs =:= take (len xs - S Z) xs)
 
 prop_51 xs x
-  = (butlast (xs +++ (NCons x NNil)) =:= xs)
+  = (butlast (xs ++ [x]) =:= xs)
 
 prop_52 n xs
-  = (count n xs =:= count n (nrev xs))
+  = (count n xs =:= count n (rev xs))
 
 prop_53 n xs
   = (count n xs =:= count n (sort xs))
@@ -180,28 +180,28 @@ prop_57 n m xs
   = (drop n (take m xs) =:= take (m - n) (drop n xs))
 
 prop_58 n xs ys
-  = (pdrop n (zip xs ys) =:= zip (drop n xs) (drop n ys))
+  = (drop n (zip xs ys) =:= zip (drop n xs) (drop n ys))
 
 prop_59 xs ys
-  = ys =:= NNil ==> last (xs +++ ys) =:= last xs
+  = ys =:= [] ==> last (xs ++ ys) =:= last xs
 
 prop_60 xs ys
-  = givenBool (not (nnull ys))
-  ( (last (xs +++ ys) =:= last ys) )
+  = givenBool (not (null ys))
+  ( (last (xs ++ ys) =:= last ys) )
 
 prop_61 xs ys
-  = (last (xs +++ ys) =:= lastOfTwo xs ys)
+  = (last (xs ++ ys) =:= lastOfTwo xs ys)
 
 prop_62 xs x
-  = givenBool (not (nnull xs))
-  ( (last (NCons x xs) =:= last xs) )
+  = givenBool (not (null xs))
+  ( (last (x:xs) =:= last xs) )
 
 prop_63 n xs
-  = givenBool (n < nlen xs)
-  ( (last (ndrop n xs) =:= last xs) )
+  = givenBool (n < len xs)
+  ( (last (drop n xs) =:= last xs) )
 
 prop_64 x xs
-  = (last (xs +++ NCons x NNil) =:= x)
+  = (last (xs ++ [x]) =:= x)
 
 prop_65 i m =
   proveBool (i < S (m + i))
@@ -210,10 +210,10 @@ prop_66 p xs
   = proveBool (len (filter p xs) <= len xs)
 
 prop_67 xs
-  = (nlen (butlast xs) =:= nlen xs - S Z)
+  = (len (butlast xs) =:= len xs - S Z)
 
 prop_68 n xs
-  = proveBool (nlen (delete n xs) <= nlen xs)
+  = proveBool (len (delete n xs) <= len xs)
 
 prop_69 n m
   = proveBool (n <= (m + n))
@@ -236,11 +236,11 @@ prop_74 i xs
   = (rev (take i xs) =:= drop (len xs - i) (rev xs))
 
 prop_75 n m xs
-  = (count n xs + count n (NCons m NNil) =:= count n (NCons m xs))
+  = (count n xs + count n [m] =:= count n (m : xs))
 
 prop_76 n m xs
   = given (n == m =:= False)
-  ( (count n (xs +++ NCons m NNil) =:= count n xs) )
+  ( (count n (xs ++ [m]) =:= count n xs) )
 
 prop_77 x xs
   = givenBool (sorted xs)
@@ -259,16 +259,88 @@ prop_81 n m xs {- ys -}
   = (take n (drop m xs) =:= drop m (take (n + m) xs))
 
 prop_82 n xs ys
-  = (ptake n (zip xs ys) =:= zip (take n xs) (take n ys))
+  = (take n (zip xs ys) =:= zip (take n xs) (take n ys))
 
 prop_83 xs ys zs
   = (zip (xs ++ ys) zs =:=
-           zip xs (take (len xs) zs) ++++ zip ys (drop (len xs) zs))
+           zip xs (take (len xs) zs) ++ zip ys (drop (len xs) zs))
 
 prop_84 xs ys zs
   = (zip xs (ys ++ zs) =:=
-           zip (take (len ys) xs) ys ++++ zip (drop (len ys) xs) zs)
+           zip (take (len ys) xs) ys ++ zip (drop (len ys) xs) zs)
 
 prop_85 xs ys
-  = (len xs =:= len ys) ==> (zip (rev xs) (rev ys) =:= prev (zip xs ys))
+  = (len xs =:= len ys) ==>
+    (zip (rev xs) (rev ys) =:= rev (zip xs ys))
 
+prop_01 :: Nat -> [a] -> Prop [a]
+prop_02 :: Nat -> [Nat] -> [Nat] -> Prop Nat
+prop_03 :: Nat -> [Nat] -> [Nat] -> Prop Bool
+prop_04 :: Nat -> [Nat] -> Prop Nat
+prop_06 :: Nat -> Nat -> Prop Nat
+prop_07 :: Nat -> Nat -> Prop Nat
+prop_08 :: Nat -> Nat -> Nat -> Prop Nat
+prop_09 :: Nat -> Nat -> Nat -> Prop Nat
+prop_10 :: Nat -> Prop Nat
+prop_11 :: [a] -> Prop [a]
+prop_12 :: Nat -> (a1 -> a) -> [a1] -> Prop [a]
+prop_13 :: Nat -> a -> [a] -> Prop [a]
+prop_14 :: (a -> Bool) -> [a] -> [a] -> Prop [a]
+prop_15 :: Nat -> [Nat] -> Prop Nat
+prop_17 :: Nat -> Prop Bool
+prop_18 :: Nat -> Nat -> Prop Bool
+prop_19 :: Nat -> [a] -> Prop Nat
+prop_20 :: [Nat] -> Prop Nat
+prop_21 :: Nat -> Nat -> Prop Bool
+prop_22 :: Nat -> Nat -> Nat -> Prop Nat
+prop_23 :: Nat -> Nat -> Prop Nat
+prop_24 :: Nat -> Nat -> Prop Bool
+prop_25 :: Nat -> Nat -> Prop Bool
+prop_28 :: Nat -> [Nat] -> Prop Bool
+prop_29 :: Nat -> [Nat] -> Prop Bool
+prop_30 :: Nat -> [Nat] -> Prop Bool
+prop_31 :: Nat -> Nat -> Nat -> Prop Nat
+prop_32 :: Nat -> Nat -> Prop Nat
+prop_33 :: Nat -> Nat -> Prop Bool
+prop_34 :: Nat -> Nat -> Prop Bool
+prop_35 :: [a] -> Prop [a]
+prop_36 :: [a] -> Prop [a]
+prop_37 :: Nat -> [Nat] -> Prop Bool
+prop_38 :: Nat -> [Nat] -> Prop Nat
+prop_39 :: Nat -> Nat -> [Nat] -> Prop Nat
+prop_40 :: [a] -> Prop [a]
+prop_41 :: Nat -> (a1 -> a) -> [a1] -> Prop [a]
+prop_42 :: Nat -> a -> [a] -> Prop [a]
+prop_43 :: (a -> Bool) -> [a] -> Prop [a]
+prop_44 :: a -> [a] -> [b] -> Prop [(a, b)]
+prop_45 :: a -> b -> [a] -> [b] -> Prop [(a, b)]
+prop_46 :: [b] -> Prop [(a, b)]
+prop_47 :: Tree a -> Prop Nat
+prop_49 :: [a] -> [a] -> Prop [a]
+prop_50 :: [a] -> Prop [a]
+prop_51 :: [a] -> a -> Prop [a]
+prop_52 :: Nat -> [Nat] -> Prop Nat
+prop_53 :: Nat -> [Nat] -> Prop Nat
+prop_54 :: Nat -> Nat -> Prop Nat
+prop_55 :: Nat -> [a] -> [a] -> Prop [a]
+prop_56 :: Nat -> Nat -> [a] -> Prop [a]
+prop_57 :: Nat -> Nat -> [a] -> Prop [a]
+prop_58 :: Nat -> [a] -> [b] -> Prop [(a, b)]
+prop_64 :: Nat -> [Nat] -> Prop Nat
+prop_65 :: Nat -> Nat -> Prop Bool
+prop_66 :: (a -> Bool) -> [a] -> Prop Bool
+prop_67 :: [a] -> Prop Nat
+prop_68 :: Nat -> [Nat] -> Prop Bool
+prop_69 :: Nat -> Nat -> Prop Bool
+prop_72 :: Nat -> [a] -> Prop [a]
+prop_73 :: (a -> Bool) -> [a] -> Prop [a]
+prop_74 :: Nat -> [a] -> Prop [a]
+prop_75 :: Nat -> Nat -> [Nat] -> Prop Nat
+prop_78 :: [Nat] -> Prop Bool
+prop_79 :: Nat -> Nat -> Nat -> Prop Nat
+prop_80 :: Nat -> [a] -> [a] -> Prop [a]
+prop_81 :: Nat -> Nat -> [a] -> Prop [a]
+prop_82 :: Nat -> [a] -> [b] -> Prop [(a, b)]
+prop_83 :: [a] -> [a] -> [b] -> Prop [(a, b)]
+prop_84 :: [a] -> [a1] -> [a1] -> Prop [(a, a1)]
+prop_85 :: [a] -> [b] -> Prop [(a, b)]

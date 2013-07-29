@@ -1,5 +1,5 @@
 ifndef HIPSPEC_BASE_FLAGS
-HIPSPEC_BASE_FLAGS = --smt-data-types --verbosity=85
+HIPSPEC_BASE_FLAGS = --verbosity=85
 endif
 
 ifndef HIPSPEC_FLAGS
@@ -36,6 +36,7 @@ clean:
 	rm -rf $(targets)
 	rm result.json
 	rm -rf *.hi *.o
+	rmdir results
 
 .PHONY: all clean
 

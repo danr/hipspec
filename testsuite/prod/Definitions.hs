@@ -6,64 +6,68 @@
 -}
 module Definitions where
 
-import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),return)
-import HipSpec.Prelude
+import Prelude (Eq,Ord,Show,iterate,(!!),fmap,return,Bool(..))
+import HipSpec
 
 -- Booleans
 
-otherwise :: Bool
 otherwise = True
 
-(&&) :: Bool -> Bool -> Bool
 True && x = x
 _    && _ = False
 
-(||) :: Bool -> Bool -> Bool
 False || x = x
 _     || _ = True
 
-not :: Bool -> Bool
-not True  = False
+not True = False
 not False = True
 
 -- Nats
 
 data Nat = S Nat | Z deriving (Eq,Show,Typeable,Ord)
 
-instance CoArbitrary Nat where
-    coarbitrary = coarbitraryShow
-
 instance Arbitrary Nat where
-  arbitrary =
-    let nats = iterate S Z
-    in (nats !!) `fmap` choose (0,5)
+    arbitrary =
+        let nats = iterate S Z
+        in  (nats !!) `fmap` choose (0,5)
 
 instance Partial Nat where
-  unlifted Z = return Z
-  unlifted (S x) = fmap S (lifted x)
+    unlifted Z     = return Z
+    unlifted (S x) = fmap S (lifted x)
+
+instance Names Nat where
+    names _ = ["m","n","o"]
+
+instance Names (A -> A) where
+    names _ = ["f","g","h"]
+
+instance Names (A -> Bool) where
+    names _ = ["p","q","r"]
 
 (+) :: Nat -> Nat -> Nat
-Z   + y = y
-S x + y = S (x + y)
+Z + y = y
+(S x) + y = S (x + y)
 
 (*) :: Nat -> Nat -> Nat
-Z   * _ = Z
-S x * y = y + (x * y)
+Z * _ = Z
+(S x) * y = y + (x * y)
 
-(==) :: Nat -> Nat -> Bool
+(==),(/=) :: Nat -> Nat -> Bool
 Z   == Z   = True
-Z   == S _ = False
+Z   == _   = False
 S _ == Z   = False
 S x == S y = x == y
 
-(/=) :: Nat -> Nat -> Bool
 x /= y = not (x == y)
 
 (<=) :: Nat -> Nat -> Bool
-Z   <= Z   = True
-Z   <= S _ = True
-S _ <= Z   = False
+Z   <= _   = True
+_   <= Z   = False
 S x <= S y = x <= y
+
+one, zero :: Nat
+zero = Z
+one  = S Z
 
 double :: Nat -> Nat
 double Z     = Z
@@ -99,146 +103,78 @@ qexp :: Nat -> Nat -> Nat -> Nat
 qexp x Z     acc = acc
 qexp x (S n) acc = qexp x n (x * acc)
 
--- Abstract Lists
+-- Lists
 
-data List = Cons A List | Nil
-  deriving (Eq,Typeable,Ord)
+length :: [a] -> Nat
+length []     = Z
+length (_:xs) = S (length xs)
 
-instance Arbitrary List where
-    arbitrary = toList `fmap` arbitrary
+(++) :: [a] -> [a] -> [a]
+[]     ++ ys = ys
+(x:xs) ++ ys = x : (xs ++ ys)
 
-fromList :: List -> [A]
-fromList (Cons x xs) = x : fromList xs
-fromList Nil         = []
+drop :: Nat -> [a] -> [a]
+drop Z     xs     = xs
+drop _     []     = []
+drop (S x) (_:xs) = drop x xs
 
-toList :: [A] -> List
-toList (x:xs) = Cons x (toList xs)
-toList []     = Nil
+rev :: [a] -> [a]
+rev []     = []
+rev (x:xs) = rev xs ++ [x]
 
-length :: List -> Nat
-length Nil         = Z
-length (Cons _ xs) = S (length xs)
+qrev :: [a] -> [a] -> [a]
+qrev []     acc = acc
+qrev (x:xs) acc = qrev xs (x:acc)
 
-(++) :: List -> List -> List
-Cons x xs ++ ys = Cons x (xs ++ ys)
-Nil       ++ ys = ys
+revflat :: [[a]] -> [a]
+revflat []           = []
+revflat (xs:xss)     = revflat xss ++ xs
 
-drop :: Nat -> List -> List
-drop Z     xs          = xs
-drop (S _) Nil         = Nil
-drop (S x) (Cons _ xs) = drop x xs
+qrevflat :: [[a]] -> [a] -> [a]
+qrevflat []           acc = acc
+qrevflat (xs:xss)     acc = qrevflat xss (rev xs ++ acc)
 
-rev :: List -> List
-rev (Cons x xs) = rev xs ++ Cons x Nil
-rev Nil         = Nil
+rotate :: Nat -> [a] -> [a]
+rotate Z     xs     = xs
+rotate _     []     = []
+rotate (S n) (x:xs) = rotate n (xs ++ [x])
 
-qrev :: List -> List -> List
-qrev Nil         ys = ys
-qrev (Cons x xs) ys = qrev xs (Cons x ys)
+elem :: Nat -> [Nat] -> Bool
+elem _ []     = False
+elem n (x:xs) = n == x || elem n xs
 
-rotate :: Nat -> List -> List
-rotate Z     xs          = xs
-rotate (S _) Nil         = Nil
-rotate (S n) (Cons x xs) = rotate n (xs ++ Cons x Nil)
+subset :: [Nat] -> [Nat] -> Bool
+subset []     ys = True
+subset (x:xs) ys = x `elem` ys && subset xs ys
 
--- Lists of Lists
 
-data LList = LCons List LList | LNil
-  deriving (Eq,Typeable,Ord)
+intersect :: [Nat] -> [Nat] -> [Nat]
+(x:xs) `intersect` ys | x `elem` ys = x:(xs `intersect` ys)
+                      | otherwise = xs `intersect` ys
+[] `intersect` ys = []
 
-instance Arbitrary LList where
-    arbitrary = toLList `fmap` arbitrary
+union :: [Nat] -> [Nat] -> [Nat]
+union (x:xs) ys | x `elem` ys = union xs ys
+                | otherwise = x:(union xs ys)
+union [] ys = ys
 
-fromLList :: LList -> [List]
-fromLList (LCons x xs) = x : fromLList xs
-fromLList LNil         = []
+isort :: [Nat] -> [Nat]
+isort [] = []
+isort (x:xs) = insert x (isort xs)
 
-toLList :: [List] -> LList
-toLList (x:xs) = LCons x (toLList xs)
-toLList []     = LNil
+insert :: Nat -> [Nat] -> [Nat]
+insert n [] = [n]
+insert n (x:xs) =
+  case n <= x of
+    True -> n : x : xs
+    False -> x : (insert n xs)
 
-revflat :: LList -> List
-revflat LNil = Nil
-revflat (LCons x xs) = revflat xs ++ rev x
+count :: Nat -> [Nat] -> Nat
+count n (x:xs) | n == x = S (count n xs)
+               | otherwise = count n xs
+count n [] = Z
 
-qrevflat :: LList -> List -> List
-qrevflat LNil         acc = acc
-qrevflat (LCons x xs) acc = qrevflat xs (rev x ++ acc)
-
--- Alternative (more complicated) definitions
-revflat' :: LList -> List
-revflat' LNil                    = Nil
-revflat' (LCons Nil xss)         = revflat xss
-revflat' (LCons (Cons x xs) xss) = revflat (LCons xs xss) ++ Cons x Nil
-
-qrevflat' :: LList -> List -> List
-qrevflat' LNil                    acc = acc
-qrevflat' (LCons Nil xss)         acc = qrevflat xss acc
-qrevflat' (LCons (Cons x xs) xss) acc = qrevflat (LCons xs xss) (Cons x acc)
-
--- Nat lists
-
-data NList = NCons Nat NList | NNil
-  deriving (Eq,Typeable,Ord,Show)
-
-instance Arbitrary NList where
-    arbitrary = toNList `fmap` arbitrary
-
-fromNList :: NList -> [Nat]
-fromNList (NCons x xs) = x : fromNList xs
-fromNList NNil         = []
-
-toNList :: [Nat] -> NList
-toNList (x:xs) = NCons x (toNList xs)
-toNList []     = NNil
-
-elem :: Nat -> NList -> Bool
-elem _ NNil         = False
-elem n (NCons x xs) = n == x || elem n xs
-
-subset :: NList -> NList -> Bool
-subset NNil ys         = True
-subset (NCons x xs) ys = x `elem` ys && subset xs ys
-
-intersect :: NList -> NList -> NList
-NCons x xs `intersect` ys | x `elem` ys = NCons x (xs `intersect` ys)
-                          | otherwise   = xs `intersect` ys
-NNil       `intersect` ys = NNil
-
-union :: NList -> NList -> NList
-union (NCons x xs) ys | x `elem` ys = union xs ys
-                      | otherwise   = NCons x (union xs ys)
-union NNil         ys = ys
-
-isort :: NList -> NList
-isort NNil         = NNil
-isort (NCons x xs) = insert x (isort xs)
-
-insert :: Nat -> NList -> NList
-insert n NNil = NCons n NNil
-insert n (NCons x xs)
-    | n <= x    = NCons n (NCons x xs)
-    | otherwise = NCons x (insert n xs)
-
-count :: Nat -> NList -> Nat
-count n (NCons x xs) | n == x    = S (count n xs)
-                     | otherwise = count n xs
-count n NNil = Z
-
-sorted :: NList -> Bool
-sorted (NCons x (NCons y xs)) = x <= y && sorted (NCons y xs)
-sorted _ = True
-
-(+++) :: NList -> NList -> NList
-NCons x xs +++ ys = NCons x (xs +++ ys)
-NNil       +++ ys = ys
-
-ndrop :: Nat -> NList -> NList
-ndrop Z     xs           = xs
-ndrop (S _) NNil         = NNil
-ndrop (S x) (NCons _ xs) = ndrop x xs
-
-nlength :: NList -> Nat
-nlength NNil         = Z
-nlength (NCons _ xs) = S (nlength xs)
+sorted :: [Nat] -> Bool
+sorted (x:y:xs) = x <= y && sorted (y:xs)
+sorted _        = True
 
