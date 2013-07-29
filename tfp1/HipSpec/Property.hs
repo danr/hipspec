@@ -176,7 +176,7 @@ initFields p@Property{..} = runReprM $ do
     show_lit (e1 :=: e2) = do
             t1 <- exprRepr <$> repr (fmap forget_type e1)
             t2 <- exprRepr <$> repr (fmap forget_type e2)
-            return (t1 ++ " = " ++ t2)
+            return (t1 ++ " == " ++ t2)
 
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr (S.Var Name) -> Either Err ([Literal],Literal)

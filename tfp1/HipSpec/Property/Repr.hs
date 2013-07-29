@@ -61,6 +61,7 @@ suggest' (LetLoc nm) = suggest nm
 repr :: Traversable t => t Name' -> ReprM (t String)
 repr = T.mapM lkup
 
+-- TODO: Print lists (x:[]) => [x], and tuples (,) x y => (x,y) properly
 exprRepr' :: Int -> Expr String -> Doc
 exprRepr' i e0 = case e0 of
     Var x _ -> text x
@@ -71,9 +72,9 @@ exprRepr' i e0 = case e0 of
             pp_fun     = exprRepr' 0 fun
         in  case (oper (render pp_fun),pp_args') of
                 (True,[])    -> parens pp_fun
-                (True,[x])   -> parens (x <+> pp_fun)
-                (True,[x,y]) -> parensIf (i >= 1) $ x <+> pp_fun <+> y
-                (True,x:y:_) -> parensIf (i >= 2) $ parens (x <+> pp_fun <+> y) <+> hsep (drop 2 pp_args)
+                (True,[x])   -> parens (x <> pp_fun)
+                (True,[x,y]) -> parensIf (i >= 1) $ x <> pp_fun <> y
+                (True,x:y:_) -> parensIf (i >= 2) $ parens (x <> pp_fun <> y) <+> hsep (drop 2 pp_args)
                 _            -> parensIf (i >= 2) $ pp_fun <+> hsep pp_args
     Lit x _ -> integer x
 
@@ -89,5 +90,5 @@ oper s = not (null s') && all (`elem` opSyms) s'
   where s' = filter (`notElem` ('_':['0'..'9'])) s
 
 opSyms :: String
-opSyms = "!#$%&*+./<=>?@|^-~\\"
+opSyms = ":!#$%&*+./<=>?@|^-~\\"
 
