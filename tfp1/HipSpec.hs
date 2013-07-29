@@ -63,22 +63,11 @@ instance Eq a => Testable (Prop a) where
   property _             = error "Cannot test"
 
 class Names a where
+    -- | Suggest three names for variables of this type in generated signatures
     names :: a -> [String]
 
 instance Names a => Names [a] where
     names ~[x] = map (++ "s") (names x)
-
-instance (Names a,Names b) => Names (a,b) where
-    names ~(x,y) = [ n ++ "_" ++ m | (n,m) <- zip (names x) (names y) ]
-
-instance (Names a,Names b) => Names (Either a b) where
-    names u = [ n ++ "__" ++ m | (n,m) <- zip (names x) (names y) ]
-      where
-        ~(Left x) = u
-        ~(Right y) = u
-
-instance Names a => Names (Maybe a) where
-    names ~(Just x) = map ("m_" ++) (names x)
 
 instance Names A where
     names _ = ["x","y","z"]
@@ -88,4 +77,19 @@ instance Names B where
 
 instance Names C where
     names _ = ["r","s","t"]
+
+instance Names Bool where
+    names _ = ["a","b","c"]
+
+instance (Names a,Names b) => Names (a,b) where
+    names ~(x,y) = [ n ++ m | (n,m) <- zip (names x) (names y) ]
+
+instance (Names a,Names b) => Names (Either a b) where
+    names u = [ n ++ "_" ++ m | (n,m) <- zip (names x) (names y) ]
+      where
+        ~(Left x) = u
+        ~(Right y) = u
+
+instance Names a => Names (Maybe a) where
+    names ~(Just x) = map ("m_" ++) (names x)
 
