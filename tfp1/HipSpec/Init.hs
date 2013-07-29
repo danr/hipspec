@@ -16,6 +16,7 @@ import HipSpec.Theory
 import HipSpec.Translate
 import HipSpec.Params
 import HipSpec.Lint
+import HipSpec.Utils
 
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
@@ -81,9 +82,11 @@ processFile cont = do
 
         cls = sortClauses (concatMap clauses thy)
 
-        tr_props = either (error . show)
-                          (map (etaExpandProp . generaliseProp))
-                          (trProperties props)
+        tr_props
+            = sortOn prop_name
+            $ either (error . show)
+                     (map (etaExpandProp . generaliseProp))
+                     (trProperties props)
 
         env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 

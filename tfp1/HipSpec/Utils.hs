@@ -25,6 +25,7 @@ module HipSpec.Utils
     , nubSorted
     , groupSortedOn
     , nubSortedOn
+    , sortOn
 
     -- * Intersection
     , intersects
@@ -96,6 +97,9 @@ withPrevious xs = zip xs (inits xs)
 -- > uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
 uniqueCartesian :: [a] -> [(a,a)]
 uniqueCartesian as = concat [ zip (repeat x) xs | (x:xs) <- inits as ]
+
+sortOn :: Ord b => (a -> b) -> [a] -> [a]
+sortOn = sortBy . comparing
 
 -- | /O(n log n)/ nub, but destroys ordering
 nubSorted :: Ord a => [a] -> [a]

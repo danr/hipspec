@@ -14,8 +14,6 @@ import Data.Maybe
 
 import Control.Monad
 
-{-# ANN mainLoop "HLint: ignore Eta reduce" #-}
-
 -- | The main loop
 mainLoop :: forall eq ctx cc .
         EQR eq ctx cc                       -- The equality reasoner
@@ -23,7 +21,7 @@ mainLoop :: forall eq ctx cc .
      -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
      -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
-mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
+mainLoop ctxt conjs lemmas = loop False ctxt conjs [] (reverse lemmas)
   where
     show_eqs = map prop_repr
 
@@ -33,7 +31,7 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
          -> [Property eq]                       -- ^ Equations to process
          -> [Theorem eq]                        -- ^ Proved equations
          -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
-    loop False ctx []  failed thms = return (thms,failed,ctx)
+    loop False ctx []  failed thms = return (reverse thms,reverse failed,ctx)
     loop True  ctx []  failed thms = do writeMsg Loop
                                         loop False ctx (reverse failed) [] thms
     loop retry ctx eqs failed thms = do
