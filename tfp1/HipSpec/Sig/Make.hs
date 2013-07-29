@@ -175,7 +175,9 @@ monomorphise mono_ty orig_ty = applyTys orig_ty (zipWith const (repeat mono_ty) 
     (tvs, _rho_ty) = splitForAllTys orig_ty
 
 -- | Cons, nil etc curiously start with GHC.Types., so we drop it
+--   Same goes for tuples, they start with GHC.Tuple.
 rmGHCTypes :: String -> String
 rmGHCTypes ('G':'H':'C':'.':'T':'y':'p':'e':'s':'.':s) = s
+rmGHCTypes ('G':'H':'C':'.':'T':'u':'p':'l':'e':'.':s) = s
 rmGHCTypes s                                           = s
 
