@@ -22,8 +22,17 @@ data Msg
 
     | Discarded      [String]
     | Candidates     [String]
-    | InductiveProof { property_name :: String, used_lemmas :: Maybe [String], used_provers :: [String], vars :: [String] }
-    | FailedProof    { property_name :: String }
+    | InductiveProof
+        { property_name :: String
+        , property_repr :: Maybe String
+        , used_lemmas   :: Maybe [String]
+        , used_provers  :: [String]
+        , vars          :: [String]
+        }
+    | FailedProof
+        { property_name :: String
+        , property_repr :: Maybe String
+        }
     | Loop
 
     | Spawning            { property_name :: String, prop_ob_info :: ObInfo }
@@ -72,13 +81,13 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
     InductiveProof{..} -> green ((not (null vars) ? bold)
-        ("Proved " ++ property_name ++ (case vars of
+        ("Proved " ++ property_name ++ pmif property_repr ++ (case vars of
                 [] -> " without induction"
                 _  -> " by induction on " ++ csv vars)))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
 
-    FailedProof{..} -> "Failed to prove " ++ property_name
+    FailedProof{..} -> "Failed to prove " ++ property_name ++ pmif property_repr
 
     Spawning{..}           -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info
     SpawningWithTheory{..} -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
@@ -106,6 +115,10 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
       where unproved' = qs_unproved ++ unproved
 
   where
+    pmif :: Maybe String -> String
+    pmif Nothing  = ""
+    pmif (Just s) = " (" ++ s ++ ")"
+
     non_null :: String -> String -> String
     non_null s m | null s    = ""
                  | otherwise = m

@@ -17,6 +17,7 @@ module HipSpec.Property
     , varsFromCoords
     , lintProperty
     , generaliseProp
+    , maybePropRepr
     ) where
 
 import Control.Monad.Error
@@ -36,6 +37,7 @@ import Text.PrettyPrint hiding (comma)
 import HipSpec.ParseDSL
 import HipSpec.Theory
 import HipSpec.Utils
+import HipSpec.Property.Repr
 
 import TysWiredIn (trueDataCon,boolTyConName)
 import DataCon (dataConName)
@@ -151,7 +153,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
         let err = error "trProperty: initalize fields with initFields"
 
         return $ initFields Property
-            { prop_name     = ppRename p
+            { prop_name     = suggest p
             , prop_origin   = UserStated
             , prop_tvs      = tvs
             , prop_vars     = args
@@ -163,10 +165,18 @@ trProperty (S.Function (p ::: t) args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = p
-    { prop_var_repr = map (ppRename . S.forget_type) prop_vars
-    , prop_repr = intercalate " => " (map show (prop_assums ++ [prop_goal]))
-    }
+initFields p@Property{..} = runReprM $ do
+    vars' <- insertMany (map S.forget_type prop_vars)
+    goal:assums <- mapM show_lit (prop_goal:prop_assums)
+    return p
+        { prop_var_repr = vars'
+        , prop_repr     = intercalate " => " (assums ++ [goal])
+        }
+  where
+    show_lit (e1 :=: e2) = do
+            t1 <- exprRepr <$> repr (fmap forget_type e1)
+            t2 <- exprRepr <$> repr (fmap forget_type e2)
+            return (t1 ++ " = " ++ t2)
 
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr (S.Var Name) -> Either Err ([Literal],Literal)
@@ -298,4 +308,9 @@ generaliseProp prop@Property{..} = case res of
 
     un_u (Fresh i) = New [] (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
+
+maybePropRepr :: Property eq -> Maybe String
+maybePropRepr prop
+    | isUserStated prop = Just (prop_repr prop)
+    | otherwise         = Nothing
 

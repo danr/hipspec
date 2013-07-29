@@ -101,12 +101,16 @@ tryProve prop lemmas0 = do
                 case thm_proof of
                     ByInduction{..} -> writeMsg InductiveProof
                         { property_name = prop_name thm_prop
+                        , property_repr = maybePropRepr thm_prop
                         , used_lemmas   = fmap (map prop_name) thm_lemmas
                         , used_provers  = map show thm_provers
                         , vars          = ind_vars
                         }
             Nothing ->
-                writeMsg . FailedProof . prop_name $ prop
+                writeMsg FailedProof
+                    { property_name = prop_name prop
+                    , property_repr = maybePropRepr prop
+                    }
 
         return res
 
