@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
@@ -133,12 +133,12 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     let showProperties = map prop_name
         theorems' = map thm_prop
-                  $ filter (\ t -> not (definitionalTheorem t) || isUserStated (thm_prop t))
+                  . filter (\ t -> not (definitionalTheorem t) || isUserStated (thm_prop t))
                   $ theorems
         notQS  = filter (not . isFromQS)
         fromQS = filter isFromQS
 
-    writeMsg $ Finished
+    writeMsg Finished
         { proved      = showProperties $ notQS theorems'
         , unproved    = showProperties $ notQS conjectures
         , qs_proved   = showProperties $ fromQS theorems'
@@ -225,7 +225,7 @@ runQuickSpec SigInfo{..} = do
         eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
 
     debugWhen PrintEqClasses $ "\nEquivalence classes:\n" ++ unlines
-        (map show (map (several (map term)) classes))
+        (map (show . several (map term)) classes)
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 

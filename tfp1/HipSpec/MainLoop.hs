@@ -21,7 +21,7 @@ mainLoop :: forall eq ctx cc .
      -> [Property eq]                       -- ^ Initial conjectures
      -> [Theorem eq]                        -- ^ Initial lemmas
      -> HS ([Theorem eq],[Property eq],ctx) -- ^ Resulting theorems and conjectures
-mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
+mainLoop ctxt conjs = loop False ctxt conjs []
   where
     show_eqs = map prop_repr
 
@@ -71,7 +71,7 @@ mainLoop ctxt conjs lemmas = loop False ctxt conjs [] lemmas
                                             = first (sortBy (comparing prop_origin))
                                             $ partition p failed
                                           where
-                                            p fail' = instanceOf ctx (thm_prop thm) fail'
+                                            p = instanceOf ctx (thm_prop thm)
 
                                     unless (null cand) $ writeMsg $ Candidates $ show_eqs cand
 

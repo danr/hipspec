@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternGuards, ViewPatterns, ScopedTypeVariables, NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards, ScopedTypeVariables, NamedFieldPuns #-}
 module HipSpec.MakeInvocations (tryProve) where
 
 import HipSpec.ATP.Invoke
@@ -81,7 +81,7 @@ tryProve prop lemmas0 = do
             let (prover,res) = ob_content
             case res of
                 Unknown ProcessResult{..} ->
-                    writeMsg $ UnknownResult
+                    writeMsg UnknownResult
                         { property_name = prop_name ob_prop
                         , prop_ob_info  = ob_info
                         , used_prover   = show prover
@@ -99,7 +99,7 @@ tryProve prop lemmas0 = do
         case res of
             Just Theorem{..} ->
                 case thm_proof of
-                    ByInduction{..} -> writeMsg $ InductiveProof
+                    ByInduction{..} -> writeMsg InductiveProof
                         { property_name = prop_name thm_prop
                         , used_lemmas   = fmap (map prop_name) thm_lemmas
                         , used_provers  = map show thm_provers
@@ -120,14 +120,13 @@ resultsForProp lemma_lkup results prop = case proofs of
         Obligation _ (ObInduction cs _ _) _:_ ->
             mkProof (ByInduction (varsFromCoords prop cs))
       where
-        mkProof pf = Just $ Theorem
+        mkProof pf = Just Theorem
             { thm_prop = prop
             , thm_proof = pf
             , thm_provers = nub $ map (fst . ob_content) grp
             , thm_lemmas
-                = fmap ( map lemma_lkup . nub . concat)
-                $ sequence
-                $ map (successLemmas . snd . ob_content) grp
+                = fmap (map lemma_lkup . nub . concat)
+                $ mapM (successLemmas . snd . ob_content) grp
             }
   where
 
@@ -135,7 +134,7 @@ resultsForProp lemma_lkup results prop = case proofs of
 
     results' = [ ob | ob@Obligation{..} <- results
                     , prop_name prop == prop_name ob_prop
-                    , success (snd $ ob_content)
+                    , success (snd ob_content)
                ]
 
     proofs :: [[Obligation eq Result]]

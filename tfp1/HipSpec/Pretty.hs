@@ -66,7 +66,7 @@ ppRename :: Name' -> String
 ppRename (Old nm)   = ppName nm
 ppRename (New ls x) = concatMap ((++ "_") . loc) ls ++ show x
   where
-    loc :: Loc (Name') -> String
+    loc :: Loc Name' -> String
     loc lc = case lc of
         CaseLoc   -> "case"
         LamLoc    -> "lambda"

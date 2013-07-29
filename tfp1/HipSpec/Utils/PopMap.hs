@@ -1,10 +1,11 @@
+-- | Multi-maps which supports popping elements
 module HipSpec.Utils.PopMap (PopMap,insert,pop,empty,fromList,reverseMap) where
 
 import Data.Map (Map)
 import qualified Data.Map as M
 
 -- | A multi-map which supports popping elements
-newtype PopMap k v = PopMap { toMap :: Map k [v] }
+newtype PopMap k v = PopMap (Map k [v])
   deriving (Eq,Ord,Show)
 
 -- | Not exported

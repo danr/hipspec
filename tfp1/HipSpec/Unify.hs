@@ -61,8 +61,7 @@ type UnifyM a =
         )
 
 uAppTys :: UType a -> [UType a] -> UType a
-uAppTys t []     = t
-uAppTys t (x:xs) = uAppTys (UTerm (UAppTy t x)) xs
+uAppTys = foldl (\ t x -> UTerm (UAppTy t x))
 
 freshInst :: forall a . Eq a => Type a -> UnifyM a (UType a,[IntVar])
 freshInst (collectForalls -> (tvs,t0)) = do
@@ -113,11 +112,7 @@ genExpr e0 = case e0 of
     Var xt@(x ::: t) _ts -> do
         r <- gets (lookup x)
         case r of
-            Just i  -> do
-                -- j <- lift (lift freeVar)
-                -- _ <- lift (unify (UVar i) (UVar j))
-                -- return (UVar j,IVar x j)
-                return (UVar i,IVar x i)
+            Just i  -> return (UVar i,IVar x i)
             Nothing -> do
                 (rt,new) <- freshInst t
                 return (rt,IFun xt new)

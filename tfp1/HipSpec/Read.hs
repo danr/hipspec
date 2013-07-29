@@ -37,6 +37,8 @@ import Data.List
 
 import Control.Monad
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
 -- | The result from calling GHC
 data EntryResult = EntryResult
     { sig_info  :: Maybe SigInfo
@@ -88,7 +90,7 @@ execute params@Params{..} = do
                                || ms_mod_name m == mkModuleName "Main"
                                || ml_hs_file (ms_location m) == Just file')
                            mod_graph
-              where replace a b xs = map (\ x -> if x == a then b else x) xs
+              where replace a b = map (\ x -> if x == a then b else x)
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum

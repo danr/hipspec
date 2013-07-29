@@ -59,7 +59,7 @@ instance EQR Void (NoCC Void) Identity where
 
     isoDiscard _ _ = False
 
-    showEquation _ eq = show eq
+    showEquation _ = show
 
   --  fromEquation _ = ()
 
