@@ -1,0 +1,7 @@
+language: haskell
+
+install:
+    - cabal install
+
+script:
+    - tests/run_tests.sh
