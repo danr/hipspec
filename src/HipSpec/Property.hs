@@ -27,6 +27,7 @@ import Name
 import HipSpec.Lang.Simple as S
 import HipSpec.Lang.RichToSimple as S
 import HipSpec.Lang.PrettyRich as R
+import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
 import HipSpec.Unify
@@ -165,7 +166,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = runReprM $ do
+initFields p@Property{..} = runRenameM suggest [] $ do
     vars' <- insertMany (map S.forget_type prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
     return p
@@ -174,8 +175,8 @@ initFields p@Property{..} = runReprM $ do
         }
   where
     show_lit (e1 :=: e2) = do
-            t1 <- exprRepr <$> repr (fmap forget_type e1)
-            t2 <- exprRepr <$> repr (fmap forget_type e2)
+            t1 <- exprRepr <$> rename (fmap forget_type e1)
+            t2 <- exprRepr <$> rename (fmap forget_type e2)
             return (t1 ++ " == " ++ t2)
 
 -- | Tries to "parse" a property in the simple expression format

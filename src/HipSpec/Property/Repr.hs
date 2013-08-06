@@ -7,59 +7,9 @@ import HipSpec.GHC.Utils
 
 import HipSpec.Pretty
 
-import Control.Monad.State
-
 import Data.List (intercalate)
 
-import Data.Map (Map)
-import qualified Data.Map as M
-
-import Data.Traversable (Traversable)
-import qualified Data.Traversable as T
-
 import Text.PrettyPrint
-
-type ReprM = State (Map Name' String)
-
-runReprM :: ReprM a -> a
-runReprM m = evalState m M.empty
-
-insert :: Name' -> ReprM String
-insert n =
-    let s  = suggest n
-        ss = s : [ s ++ show i | i <- [(2 :: Int)..] ]
-    in  go ss
-  where
-    go (s:ss) = do
-        ss' <- gets M.elems
-        if s `elem` ss' then go ss else do
-            modify (M.insert n s)
-            return s
-    go [] = error "ran out of names!?"
-
-insertMany :: [Name'] -> ReprM [String]
-insertMany = mapM insert
-
-lkup :: Name' -> ReprM String
-lkup n = do
-    m_s <- gets (M.lookup n)
-    case m_s of
-        Just s  -> return s
-        Nothing -> insert n
-
-suggest :: Name' -> String
-suggest nm = case nm of
-    Old x          -> nameToString x
-    New [LamLoc] _ -> "eta"
-    New xs _       -> intercalate "_" (map suggest' xs)
-
-suggest' :: Loc Name' -> String
-suggest' CaseLoc     = "case"
-suggest' LamLoc      = "lambda"
-suggest' (LetLoc nm) = suggest nm
-
-repr :: Traversable t => t Name' -> ReprM (t String)
-repr = T.mapM lkup
 
 -- TODO: Print lists (x:[]) => [x], and tuples (,) x y => (x,y) properly
 exprRepr' :: Int -> Expr String -> Doc
@@ -91,4 +41,15 @@ oper s = not (null s') && all (`elem` opSyms) s'
 
 opSyms :: String
 opSyms = ":!#$%&*+./<=>?@|^-~\\"
+
+suggest :: Name' -> String
+suggest nm = case nm of
+    Old x          -> nameToString x
+    New [LamLoc] _ -> "eta"
+    New xs _       -> intercalate "_" (map suggest' xs)
+
+suggest' :: Loc Name' -> String
+suggest' CaseLoc     = "case"
+suggest' LamLoc      = "lambda"
+suggest' (LetLoc nm) = suggest nm
 
