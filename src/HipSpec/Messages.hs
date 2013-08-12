@@ -120,7 +120,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
 
     pmif :: Maybe String -> String
     pmif Nothing  = ""
-    pmif (Just s) = " (" ++ s ++ ")"
+    pmif (Just s) = " {- " ++ s ++ " -}"
 
     non_null :: String -> String -> String
     non_null s m | null s    = ""
