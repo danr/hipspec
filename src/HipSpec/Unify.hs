@@ -91,18 +91,15 @@ occur = runGen $ do
     lift $ unifyOccurs v (UTerm (UArrTy v v))
 
 
-insertVar :: Eq a => a -> UnifyM a ()
+insertVar :: Eq a => a -> UnifyM a (a,IntVar)
 insertVar x = do
     t :: IntVar <- lift (lift freeVar)
-    modify ((x,t):)
+    let p = (x,t)
+    modify (p:)
+    return p
 
-insertVars :: Eq a => [a] -> UnifyM a ()
-insertVars = mapM_ insertVar
-
-readVars :: forall a . Eq a => UnifyM a [(a,Type (U a))]
-readVars = do
-    vs :: [(a,IntVar)] <- get
-    lookupVars vs
+insertVars :: Eq a => [a] -> UnifyM a [(a,IntVar)]
+insertVars = mapM insertVar
 
 lookupVars :: Eq a => [(a,IntVar)] -> UnifyM a [(a,Type (U a))]
 lookupVars vs = forM vs $ \ (x,v) -> (,) x <$> varType v

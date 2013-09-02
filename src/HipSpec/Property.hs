@@ -292,10 +292,10 @@ generaliseProp prop@Property{..} = case res of
     _ -> prop
   where
     res = runGen $ do
-        insertVars (map forget_type prop_vars)
+        vi <- insertVars (map forget_type prop_vars)
         mk_ga <- mapM gen_lit (prop_goal:prop_assums)
         ga <- sequence mk_ga
-        vs <- readVars
+        vs <- lookupVars vi
         return (vs,ga)
 
     gen_lit (e1 :=: e2) = do
