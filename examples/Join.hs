@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module List where
+module Join where
 
 import Prelude hiding ((++),length,(+),map)
 import qualified Prelude

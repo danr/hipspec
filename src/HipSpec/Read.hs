@@ -109,8 +109,8 @@ execute params@Params{..} = do
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
 
-        -- Get everything in scope
-        named_things <- getNamedThings fix_id
+        -- Get ids in scope to find the properties (fix their unfoldings, too)
+        ids_in_scope <- getIdsInScope fix_id
 
         let only' :: [String]
             only' = concatMap (splitOn ",") only
@@ -118,21 +118,24 @@ execute params@Params{..} = do
             props :: [Var]
             props =
                 [ i
-                | (_,AnId i) <- M.toList named_things
+                | i <- ids_in_scope
                 , varWithPropType i
-                , null only' || varToString i `elem` only'
+                , null only || varToString i `elem` only'
                 ]
 
         -- Make or get signature
         m_sig <- if auto
-            then makeSignature params named_things props
-            else getSignature (map fst $ M.toList named_things)
+            then makeSignature params props
+            else getSignature
 
         -- Make signature map
+        --
+        -- The extra_ids comes from --extra and --extra-trans fields from
+        -- the auto signature generation
         (sig_info,extra_ids,extra_tcs) <- case m_sig of
             Nothing -> return (Nothing,[],[])
             Just sig -> do
-                resolve_map <- makeResolveMap params sig named_things
+                resolve_map <- makeResolveMap params sig
                 let symbol_map = makeSymbolMap resolve_map sig
                     (ids,tcs) = case resolve_map of
                         ResolveMap m n -> (M.elems m,M.elems n)

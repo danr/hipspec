@@ -57,11 +57,11 @@ data SymbolMap = SymbolMap
 instance Show SymbolMap where
     show SymbolMap{..} = unlines $
         [ "Variable symbols" ] ++
-        [ show s ++ " -> " ++ showTyped v
+        [ "  " ++ show s ++ " -> " ++ showTyped v
         | (s,v) <- M.toList var_mapping
         ] ++
         [ "Constant symbols" ] ++
-        [ show s ++ " -> (" ++ showTyped f ++ ") "
+        [ "  " ++ show s ++ " -> (" ++ showTyped f ++ ") "
                             ++ intercalate "," [ "@ " ++ showType t | t <- ts ]
         | (s,(f,ts)) <- M.toList con_mapping
         ]

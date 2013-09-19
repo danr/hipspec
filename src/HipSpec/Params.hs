@@ -38,7 +38,6 @@ data DebugFlag
     | PrintCallGraph
     | PrintAutoSig
     | DebugAutoSig
-    | DebugScope
     | DebugStrConv
     | PrintEqClasses
     | TranslateOnly
@@ -62,7 +61,6 @@ debugDesc flg = case flg of
     PrintCallGraph   -> "Print the call graph"
     PrintAutoSig     -> "Print generated signature"
     DebugAutoSig     -> "Print information about generated signature"
-    DebugScope       -> "Print names in scope"
     DebugStrConv     -> "Print string conversions in signature"
     PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
     TranslateOnly    -> "Stop after translating"

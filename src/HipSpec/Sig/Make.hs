@@ -1,10 +1,9 @@
-{-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns #-}
+{-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns,CPP #-}
 module HipSpec.Sig.Make (makeSignature) where
 
 import Data.List.Split (splitOn)
 
 import CoreMonad
-import DataCon
 import GHC hiding (Sig)
 import Type
 import Var
@@ -13,45 +12,91 @@ import Data.Dynamic
 import Data.List
 import Data.Maybe
 
-import Data.Map (Map)
-import qualified Data.Map as M
-
 import HipSpec.GHC.Utils
 import HipSpec.Sig.Scope
 import HipSpec.ParseDSL
 import HipSpec.GHC.Calls
 import HipSpec.Params
+import HipSpec.Utils
 
 import Test.QuickSpec.Signature
 
 import Control.Monad
+import Outputable
 
-makeSignature :: Params -> Map Name TyThing -> [Var] -> Ghc (Maybe Sig)
-makeSignature p@Params{..} named_things prop_ids = do
+{-
 
-    let in_scope x = do
-            a <- inScope (showOutputable x)
-            b <- inScope (varToString x)
-            return (a || b)
+    [Note unqualified identifiers]
 
-    ids <- filterM in_scope ids0
+    Identifiers to be put as function in the signature needs to be in scope
+    unqualified, i.e. length works, but not List.length.
 
-    let a_id = "Test.QuickSpec.Prelude.A"
+    makeResolveMap in Resolve wants to parse these strings in the signature
 
-    a_names <- parseName a_id
+-}
 
-    let mono = monomorphise a_ty
+makeSignature :: Params -> [Var] -> Ghc (Maybe Sig)
+makeSignature p@Params{..} prop_ids = do
 
-        a_cands = [ mkTyConTy tc
-                  | a <- a_names
-                  , Just (ATyCon tc) <- [M.lookup a named_things]
-                  ]
+    let extra' = concatMap (splitOn ",") extra
+        extra_trans' = concatMap (splitOn ",") extra_trans
 
-        a_ty = case a_cands of
-            x:_ -> x
-            _   -> error $ a_id ++ " not in scope!"
+    extra_trans_things <- concatMapM lookupString extra_trans'
 
-    let types = nubBy eqType $ concat
+    let extra_trans_ids = mapMaybe thingToId extra_trans_things
+
+        trans_ids :: VarSet
+        trans_ids = unionVarSets $
+            map (transCalls With) (prop_ids ++ extra_trans_ids)
+
+    extra_things <- concatMapM lookupString extra'
+
+    let extra_ids = mapMaybe thingToId extra_things
+
+        ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || varWithPropType x))
+            trans_ids `unionVarSet` mkVarSet extra_ids
+
+    -- Filters out silly things like
+    -- Control.Exception.Base.patError and GHC.Prim.realWorld#
+    let in_scope = inScope . varToString -- see Note unqualified identifiers
+
+    ids_in_scope <- filterM in_scope ids
+
+    liftIO $ whenFlag p DebugAutoSig $ do
+        let out :: Outputable a => String -> a -> IO ()
+            out lbl o = putStrLn $ lbl ++ " =\n " ++ showOutputable o
+#define OUT(i) out "i" (i)
+        OUT(extra_trans_things)
+        OUT(extra_trans_ids)
+        OUT(trans_ids)
+        OUT(extra_things)
+        OUT(extra_ids)
+        OUT(ids)
+        OUT(ids_in_scope)
+#undef OUT
+
+    makeSigFrom p ids_in_scope =<< getA
+
+getA :: Ghc (Maybe Type)
+getA = do
+
+    a_things <- lookupString "Test.QuickSpec.Prelude.A"
+
+    return $ listToMaybe
+        [ mkTyConTy tc
+        | ATyCon tc <- a_things
+        ]
+
+makeSigFrom :: Params -> [Var] -> Maybe Type -> Ghc (Maybe Sig)
+makeSigFrom p@Params{..} ids m_a_ty = do
+
+    let a_ty = case m_a_ty of
+            Just ty -> ty
+            Nothing -> error "Test.QuickSpec.Prelude.A not in scope!"
+
+        mono = monomorphise a_ty
+
+        types = nubBy eqType $ concat
             [ ty : tys
             | i <- ids
             , let (tys,ty) = splitFunTys (mono (varType i))
@@ -62,7 +107,7 @@ makeSignature p@Params{..} named_things prop_ids = do
         name_type :: Type -> Ghc (Type,[String])
         name_type (mono -> t) = handleSourceError handle $ do
             let t_str     = showOutputable t
-                names_str = "HipSpec.names (Prelude.undefined :: " ++ t_str ++ ")"
+                names_str = "HipSpec.names ((let _x = _x in _x) :: " ++ t_str ++ ")"
             m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
             names <- case m_names of
                     Just xs -> do
@@ -87,9 +132,9 @@ makeSignature p@Params{..} named_things prop_ids = do
     let entries =
             [ unwords
                 [ "Test.QuickSpec.Signature.fun" ++ show (varArity i)
-                , show (varToString i)
+                , show (varToString i)  -- see Note unqualified identifiers
                 , "("
-                , "(" ++ rmGHCTypes (showOutputable i) ++ ")"
+                , "(" ++ varToString i ++ ")"
                 , "::"
                 , showOutputable (mono (varType i))
                 , ")"
@@ -100,7 +145,7 @@ makeSignature p@Params{..} named_things prop_ids = do
                 [ if pvars then "pvars" else "vars"
                 , show names
                 , "("
-                , "Prelude.undefined"
+                , "(let _x = _x in _x)"
                 , "::"
                 , showOutputable t
                 , ")"
@@ -114,15 +159,7 @@ makeSignature p@Params{..} named_things prop_ids = do
 
         expr_str x = "signature [" ++ intercalate x (map rm_newlines entries) ++ "]"
 
-    liftIO $ do
-        whenFlag p PrintAutoSig $ putStrLn (expr_str "\n\t,")
-        whenFlag p DebugAutoSig $ do
-            putStrLn $ "--extra=" ++ show extra' ++ ":" ++ showOutputable extra_ids
-            putStrLn $ "--extra-trans=" ++ show extra_trans' ++ ":" ++ showOutputable extra_trans_ids
-            putStrLn $ "Prop ids: " ++ showOutputable prop_ids ++ " (only=" ++ show only ++ ")"
-            putStrLn $ "Transitive ids: " ++ showOutputable interesting_ids
-            putStrLn $ "Init ids: " ++ showOutputable ids0
-            putStrLn $ "Final ids: " ++ showOutputable ids
+    liftIO $ whenFlag p PrintAutoSig $ putStrLn (expr_str "\n    ,")
 
     if length entries < 3
         then return Nothing
@@ -130,41 +167,6 @@ makeSignature p@Params{..} named_things prop_ids = do
   where
     rm_newlines = unwords . lines
 
-    extra' = concatMap (splitOn ",") extra
-    extra_trans' = concatMap (splitOn ",") extra_trans
-
-    -- TODO: Make this a multi-set or filter out things that are not in scope
-    -- Currently, it prefers GHC.Num.+ instead of + that is in scope
-    --            and GHC.List.length instead of length that is in scope
-    named_things' :: Map String Id
-    named_things' = M.fromList . mapMaybe (uncurry t) . M.toList $ named_things
-      where
-        t :: Name -> TyThing -> Maybe (String,Id)
-        t n (AnId i)      | not (junk i) = Just (nameToString n,i)
-        t n (ADataCon dc) = Just (nameToString n,dataConWorkId dc)
-        t _ _             = Nothing
-
-    extra_trans_ids :: [Id]
-    extra_trans_ids = mapMaybe (`M.lookup` named_things') extra_trans'
-
-    interesting_ids :: VarSet
-    interesting_ids = unionVarSets $
-        map (transCalls With) (prop_ids ++ extra_trans_ids)
-
-    extra_ids :: [Id]
-    extra_ids = mapMaybe (`M.lookup` named_things') extra'
-
-    -- TODO: This could be removed if named_things' was fixed
-    junk :: Id -> Bool
-    junk x = or [ m `isInfixOf` s
-                | m <- ["Control.Exception","GHC.Prim","GHC.Types.Int","GHC.List","GHC.Num"]
-                , s <- [showOutputable x,showOutputable (varType x)]
-                ]
-
-    -- Ids, but not necessarily in scope
-    ids0 :: [Id]
-    ids0 = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || varWithPropType x || junk x)) $
-            interesting_ids `unionVarSet` mkVarSet extra_ids
 
 varArity :: Var -> Int
 varArity = length . fst . splitFunTys . snd . splitForAllTys . varType
@@ -173,11 +175,4 @@ monomorphise :: Type -> Type -> Type
 monomorphise mono_ty orig_ty = applyTys orig_ty (zipWith const (repeat mono_ty) tvs)
   where
     (tvs, _rho_ty) = splitForAllTys orig_ty
-
--- | Cons, nil etc curiously start with GHC.Types., so we drop it
---   Same goes for tuples, they start with GHC.Tuple.
-rmGHCTypes :: String -> String
-rmGHCTypes ('G':'H':'C':'.':'T':'y':'p':'e':'s':'.':s) = s
-rmGHCTypes ('G':'H':'C':'.':'T':'u':'p':'l':'e':'.':s) = s
-rmGHCTypes s                                           = s
 
