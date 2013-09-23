@@ -4,7 +4,7 @@ install:
     - git clone https://github.com/nick8325/quickcheck
     - git clone https://github.com/nick8325/quickspec
     - cabal update
-    - cabal install quickcheck quickspec .
+    - cabal install quickcheck/ quickspec/ .
 
 script:
     - cabal test
