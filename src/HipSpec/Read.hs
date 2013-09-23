@@ -22,6 +22,7 @@ import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
 import StaticFlags
+import System.FilePath
 
 import Var
 
@@ -74,17 +75,16 @@ execute params@Params{..} = do
                 `dopt_set` Opt_ExposeAllUnfoldings
         _ <- setSessionDynFlags dflags
 
-        -- Try to get the target
-        let file' | ".hs" `isSuffixOf` file = take (length file - 3) file
-                  | otherwise               = file
+            -- add .hs if it is not present (apparently not supporting lhs)
+        let file_with_ext = replaceExtension file ".hs"
 
-        target <- guessTarget (file' ++ ".hs") Nothing
-        _ <- addTarget target
+        target <- guessTarget file_with_ext Nothing
+        addTarget target
         r <- load LoadAllTargets
         when (failed r) $ error "Compilation failed!"
 
         mod_graph <- getModuleGraph
-        let mod_sum = getModuleSum mod_graph file'
+        let mod_sum = findModuleSum file_with_ext mod_graph
 
         -- Parse, typecheck and desugar the module
         p <- parseModule mod_sum
@@ -152,15 +152,13 @@ execute params@Params{..} = do
             , extra_tcs = extra_tcs
             }
 
-getModuleSum :: [ModSummary] -> [Char] -> ModSummary
-getModuleSum mod_graph file
+findModuleSum :: FilePath -> [ModSummary] -> ModSummary
+findModuleSum file
     = fromMaybe (error $ "Cannot find module " ++ file)
-    $ find (\m -> ms_mod_name m == mkModuleName file
-               || ms_mod_name m == mkModuleName (replace '/' '.' file)
-               || ms_mod_name m == mkModuleName "Main"
-               || ml_hs_file (ms_location m) == Just file)
-           mod_graph
-  where replace a b = map (\ x -> if x == a then b else x)
+    . find (maybe False (== file) . summaryHsFile)
+
+summaryHsFile :: ModSummary -> Maybe FilePath
+summaryHsFile = ml_hs_file . ms_location
 
 qualifiedImport :: String -> ImportDecl name
 qualifiedImport = qualifiedImportDecl . mkModuleName
