@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, CPP #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
@@ -43,8 +43,10 @@ import Data.Ord
 
 import Control.Monad
 
+#ifdef SUPPORT_JSON
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
+#endif
 
 import System.Exit (exitSuccess,exitFailure)
 
@@ -116,6 +118,7 @@ main = processFile $ \ m_sig_info user_props -> do
 
             return exit_act
 
+#ifdef SUPPORT_JSON
     Params{json} <- getParams
 
     case json of
@@ -123,6 +126,7 @@ main = processFile $ \ m_sig_info user_props -> do
             msgs <- getMsgs
             liftIO $ B.writeFile json_file (encode msgs)
         Nothing -> return ()
+#endif
 
     vacuous exit_act
 

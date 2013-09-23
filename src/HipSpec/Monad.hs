@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, NamedFieldPuns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, NamedFieldPuns, CPP #-}
 module HipSpec.Monad
     ( HS()
     , runHS
@@ -52,9 +52,14 @@ newtype HS a = HS (ReaderT HSEnv IO a)
 -- | Runs the HipSpec monad, but with theory and arity map uninitialized
 runHS :: Params -> Env -> HS a -> IO a
 runHS p e (HS m) = do
-    (write_fn, get_msg_fn) <- case json p of
-        Nothing -> return (\ _ -> return (), return [])
-        _ -> mkWriter
+    (write_fn, get_msg_fn) <-
+#ifdef SUPPORT_JSON
+        case json p of
+            Nothing -> return (\ _ -> return (), return [])
+            _ -> mkWriter
+#else
+        mkWriter
+#endif
     mtx <- newMVar ()
     runReaderT m HSEnv
         { params      = p

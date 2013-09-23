@@ -1,11 +1,13 @@
-{-# LANGUAGE DeriveGeneric,RecordWildCards,DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric,RecordWildCards,DeriveFunctor,CPP #-}
 module HipSpec.ThmLib where
 
 import HipSpec.Property
 import HipSpec.Theory
 import HipSpec.ATP.Provers
 
+#ifdef SUPPORT_JSON
 import Data.Aeson
+#endif
 import GHC.Generics
 
 import Control.Concurrent.STM.Promise.Tree
@@ -48,7 +50,9 @@ data ObInfo
         }
   deriving (Eq,Ord,Show,Generic)
 
+#ifdef SUPPORT_JSON
 instance ToJSON ObInfo
+#endif
 
 obInfoFileName :: ObInfo -> String
 obInfoFileName (ObInduction cs n _)

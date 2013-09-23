@@ -50,7 +50,7 @@ executable hipspec
     main-is:         HipSpec/Main.hs
 
     if flag(JSON)
-        cpp-options -DSUPPORT_JSON
+        cpp-options: -DSUPPORT_JSON
         build-depends:
             aeson >= 0.6, bytestring
 

@@ -1,7 +1,9 @@
-{-# LANGUAGE DeriveGeneric,RecordWildCards,NamedFieldPuns #-}
+{-# LANGUAGE DeriveGeneric,RecordWildCards,NamedFieldPuns,CPP #-}
 module HipSpec.Messages where
 
+#ifdef SUPPORT_JSON
 import Data.Aeson
+#endif
 import GHC.Generics
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
@@ -169,7 +171,9 @@ msgVerbosity m = case m of
     Cancelling{}             -> 140
     SpawningWithTheory{}     -> 200
 
+#ifdef SUPPORT_JSON
 instance ToJSON Msg
+#endif
 
 mkWriter :: IO (Msg -> IO (), IO [(Double,Msg)])
 mkWriter = do

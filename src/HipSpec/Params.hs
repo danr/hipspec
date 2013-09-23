@@ -5,7 +5,7 @@
 
    In this file it is OK to have lines with >80 characters
 -}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable,CPP #-}
 module HipSpec.Params
     ( Params(..)
     , defParams
@@ -94,7 +94,9 @@ data Params = Params
     , reverse_video       :: Bool
     , no_colour           :: Bool
     , z_encode_filenames  :: Bool
+#ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
+#endif
 
     , processes           :: Int
     , timeout             :: Double
@@ -183,7 +185,9 @@ defParams = Params
     , no_colour           = False                &= help "Do not print in colour"
     , reverse_video       = False   &= name "rv" &= help "Reverse video (assume black terminal background)"
     , z_encode_filenames  = False   &= name "z"  &= help "Z-encode filenames (necessary for windows)"
+#ifdef SUPPORT_JSON
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
+#endif
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
