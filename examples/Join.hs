@@ -20,11 +20,10 @@ join []       = []
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
 
-mj xs = map join xs =:= map join xs
-
 instance Names (a -> b) where
     names _ = ["f","g","h"]
 
+sig :: [Sig]
 sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
       , vars ["x", "y", "z"]          (undefined :: A)
       , vars ["xs", "ys", "zs"]       (undefined :: [A])

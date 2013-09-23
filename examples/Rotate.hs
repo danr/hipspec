@@ -4,7 +4,7 @@ import Prelude hiding ((++),length)
 
 import HipSpec
 
-import Nat (Nat(..))
+import Nat (Nat(..),(+))
 import List ((++),length)
 
 rotate :: Nat -> [a] -> [a]

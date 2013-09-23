@@ -5,12 +5,14 @@ import Prelude hiding ((+), (*), (++), (&&),(||),not)
 
 import HipSpec
 
-import Data.Typeable
 import Control.Applicative
 
 data Bin = One | ZeroAnd Bin | OneAnd Bin deriving (Show, Eq, Ord, Typeable)
 
 data Nat = Z | S Nat deriving (Show,Eq,Ord,Typeable)
+
+instance Names Bin where names _ = ["a","b","c"]
+instance Names Nat where names _ = ["x","y","z"]
 
 {-
 
@@ -37,7 +39,7 @@ Z   + m = m
 S n + m = S (n + m)
 
 (*) :: Nat -> Nat -> Nat
-Z * m = Z
+Z * _ = Z
 S n * m = m + (n * m)
 
 s :: Bin -> Bin
@@ -83,10 +85,10 @@ main = hipSpec $(fileName)
 instance Arbitrary Bin where
   arbitrary = sized arbBin
     where
-      arbBin s = frequency
+      arbBin sz = frequency
         [ (1, return One)
-        , (s, ZeroAnd <$> arbBin (s `div` 2))
-        , (s, OneAnd <$> arbBin (s `div` 2))
+        , (sz, ZeroAnd <$> arbBin (sz `div` 2))
+        , (sz, OneAnd <$> arbBin (sz `div` 2))
         ]
 
 instance Enum Nat where
@@ -96,7 +98,7 @@ instance Enum Nat where
   fromEnum (S n) = succ (fromEnum n)
 
 instance Arbitrary Nat where
-  arbitrary = sized $ \s -> do
-    x <- choose (0,round (sqrt (toEnum s)))
+  arbitrary = sized $ \sz -> do
+    x <- choose (0,round (sqrt (toEnum sz :: Double)))
     return (toEnum x)
 

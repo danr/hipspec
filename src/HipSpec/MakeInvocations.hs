@@ -138,7 +138,7 @@ resultsForProp lemma_lkup results prop = case proofs of
 
     results' = [ ob | ob@Obligation{..} <- results
                     , prop_name prop == prop_name ob_prop
-                    , success (snd ob_content)
+                    , isSuccess (snd ob_content)
                ]
 
     proofs :: [[Obligation eq Result]]

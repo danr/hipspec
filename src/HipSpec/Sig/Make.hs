@@ -106,8 +106,9 @@ makeSigFrom p@Params{..} ids m_a_ty = do
 
         name_type :: Type -> Ghc (Type,[String])
         name_type (mono -> t) = handleSourceError handle $ do
-            let t_str     = showOutputable t
-                names_str = "HipSpec.names ((let _x = _x in _x) :: " ++ t_str ++ ")"
+            let t_str     = "(" ++ showOutputable t ++ ")"
+                names_str = "HipSpec.names ((let _x = _x in _x) :: " ++ rmNewlines t_str ++ ")"
+            liftIO $ whenFlag p DebugAutoSig $ putStrLn $ "names_str:" ++ names_str
             m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
             names <- case m_names of
                     Just xs -> do
@@ -157,7 +158,7 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             , "Test.QuickSpec.Signature.withSize " ++ show size
             ]
 
-        expr_str x = "signature [" ++ intercalate x (map rm_newlines entries) ++ "]"
+        expr_str x = "signature [" ++ intercalate x (map rmNewlines entries) ++ "]"
 
     liftIO $ whenFlag p PrintAutoSig $ putStrLn (expr_str "\n    ,")
 
@@ -165,8 +166,9 @@ makeSigFrom p@Params{..} ids m_a_ty = do
         then return Nothing
         else fromDynamic `fmap` dynCompileExpr (expr_str ",")
   where
-    rm_newlines = unwords . lines
 
+rmNewlines :: String -> String
+rmNewlines = unwords . lines
 
 varArity :: Var -> Int
 varArity = length . fst . splitFunTys . snd . splitForAllTys . varType

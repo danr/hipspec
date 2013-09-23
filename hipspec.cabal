@@ -24,6 +24,10 @@ flag Werror
     default: False
     manual: True
 
+flag JSON
+    default: False
+    manual: True
+
 library
     hs-source-dirs: src
 
@@ -45,6 +49,11 @@ executable hipspec
 
     main-is:         HipSpec/Main.hs
 
+    if flag(JSON)
+        cpp-options -DSUPPORT_JSON
+        build-depends:
+            aeson >= 0.6, bytestring
+
     if flag(Werror)
         ghc-options: -Werror
     ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
@@ -53,8 +62,7 @@ executable hipspec
         base                 >= 4 && < 5,
         ghc-paths            == 0.1.*,
         containers           >= 0.4,
-        -- mtl-2.1 contains a severe bug
-        mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.2,
+        mtl,
         pretty               >= 1.1,
         geniplate            >= 0.6,
         void                 >= 0.5.3,
@@ -70,8 +78,6 @@ executable hipspec
 
         -- Printing messages
         time                 >= 1.4,
-        aeson                >= 0.6,
-        bytestring,
 
         -- Command-line arguments
         cmdargs              >= 0.9,

@@ -13,6 +13,7 @@ module HipSpec.Params
     , cmdArgs
     , DebugFlag(..)
     , Technique(..)
+    , SuccessOpt(..)
     , whenFlag
     ) where
 
@@ -82,6 +83,9 @@ data Technique = Induction | Plain
 defaultTechs :: [Technique]
 defaultTechs = [Induction,Plain]
 
+data SuccessOpt = CleanRun | NothingUnproved | ProvesUserStated
+  deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
+
 -- | Parameters
 data Params = Params
     { file                :: FilePath
@@ -98,6 +102,7 @@ data Params = Params
     , isolate             :: Bool
     , only_user_stated    :: Bool
     , only                :: [String]
+    , success             :: SuccessOpt
 
     , techniques          :: [Technique]
 
@@ -124,6 +129,7 @@ data Params = Params
     , indvars             :: Int
     , indhyps             :: Int
     , indobligs           :: Int
+
 
     , debug_flags         :: [DebugFlag]
     }
@@ -179,6 +185,7 @@ defParams = Params
     , z_encode_filenames  = False   &= name "z"  &= help "Z-encode filenames (necessary for windows)"
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
+    , success             = CleanRun             &= help "Specify what to give exit code 0"
 
     , auto                = False   &= groupname "\nSignature generation settings"
                                     &= name "a" &= help "Make signature with functions in user properties"

@@ -2,7 +2,7 @@ module Reverse where
 
 import Prelude hiding (rev,(++))
 import HipSpec
-import List ((++),length)
+import List ((++))
 
 rev (x:xs) = rev xs ++ [x]
 rev []     = []

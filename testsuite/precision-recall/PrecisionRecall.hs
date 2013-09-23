@@ -1,13 +1,20 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable,FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module PrecisionRecall where
 
-import Prelude (fmap,return,round,sqrt,toEnum,fromEnum,Bool(..),Eq,Ord,Enum,otherwise,succ,pred)
+import Prelude (fmap,return,round,sqrt,toEnum,fromEnum,Bool(..),Eq,Ord,Enum,otherwise,succ,pred,Double,($))
 
 import Data.Typeable
 
-import HipSpec.Prelude
+import HipSpec
 
 data Nat = Z | S Nat deriving (Eq,Ord,Typeable)
+
+instance Names (A -> A -> A) where
+    names _ = ["<>","<+>","<*>"]
+
+instance Names (A -> A) where
+    names _ = ["f","g","h"]
 
 infixl 6 +
 infixl 7 *
@@ -18,39 +25,36 @@ Z   + m = m
 
 (*) :: Nat -> Nat -> Nat
 S n * m = m + (n * m)
-Z   * m = Z
+Z   * _ = Z
 
-data List = Cons A List | Nil
-  deriving (Eq,Typeable,Ord)
+foldl :: (a -> a -> a) -> a -> [a] -> a
+foldl _  e []      = e
+foldl op e (x: xs) = foldl op (op e x) xs
 
-(++) :: List -> List -> List
-Cons x xs ++ ys = Cons x (xs ++ ys)
-Nil       ++ ys = ys
+foldr :: (a -> a -> a) -> a -> [a] -> a
+foldr _  e []     = e
+foldr op e (x:xs) = op x (foldr op e xs)
 
-foldl :: (A -> A -> A) -> A -> List -> A
-foldl op e Nil         = e
-foldl op e (Cons x xs) = foldl op (op e x) xs
+length :: [a] -> Nat
+length []     = Z
+length (_:xs) = S (length xs)
 
-foldr :: (A -> A -> A) -> A -> List -> A
-foldr op e Nil         = e
-foldr op e (Cons x xs) = op x (foldr op e xs)
+(++) :: [a] -> [a] -> [a]
+(x:xs) ++ ys = x:(xs ++ ys)
+[]     ++ ys = ys
 
-length :: List -> Nat
-length Nil         = Z
-length (Cons _ xs) = S (length xs)
+map :: (a -> a) -> [a] -> [a]
+map f (x:xs) = f x:map f xs
+map _ []     = []
 
-map :: (A -> A) -> List -> List
-map f (Cons x xs) = Cons (f x) (map f xs)
-map f Nil         = Nil
+filter :: (a -> Bool) -> [a] -> [a]
+filter p (x:xs) | p x       = x:filter p xs
+                | otherwise = filter p xs
+filter _ [] = []
 
-filter :: (A -> Bool) -> List -> List
-filter p (Cons x xs) | p x = Cons x (filter p xs)
-                     | otherwise = filter p xs
-filter p Nil = Nil
-
-reverse :: List -> List
-reverse (Cons x xs) = reverse xs ++ Cons x Nil
-reverse Nil         = Nil
+reverse :: [a] -> [a]
+reverse (x:xs) = reverse xs ++ [x]
+reverse []     = []
 
 instance Enum Nat where
   toEnum 0 = Z
@@ -59,20 +63,7 @@ instance Enum Nat where
   fromEnum (S n) = succ (fromEnum n)
 
 instance Arbitrary Nat where
-  arbitrary = sized arbSized
-
-arbSized s = do
-  x <- choose (0,round (sqrt (toEnum s)))
-  return (toEnum x)
-
-instance Arbitrary List where
-    arbitrary = toList `fmap` arbitrary
-
-fromList :: List -> [A]
-fromList (Cons x xs) = x : fromList xs
-fromList Nil         = []
-
-toList :: [A] -> List
-toList (x:xs) = Cons x (toList xs)
-toList []     = Nil
+  arbitrary = sized $ \ s -> do
+      x <- choose (0,round (sqrt (toEnum s :: Double)))
+      return (toEnum x)
 

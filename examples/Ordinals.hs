@@ -1,9 +1,10 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Ordinals where
 
 import HipSpec
 import qualified Prelude as P
 
-data Nat = Z | S Nat deriving (P.Show)
+data Nat = Z | S Nat deriving (P.Show,Typeable)
 
 Z   `plus` y = y
 S x `plus` y = S (x `plus` y)
@@ -12,6 +13,7 @@ Z   `mul` y = Z
 S x `mul` y = y `plus` (x `mul` y)
 
 data Ord = Zero | Suc Ord | Lim (Nat -> Ord)
+ deriving (Typeable)
 
 Zero  `oplus` y = y
 Suc x `oplus` y = Suc (x `oplus` y)

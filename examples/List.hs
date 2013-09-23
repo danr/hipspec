@@ -4,7 +4,7 @@ module List where
 import Prelude hiding (reverse,(++),length,map,filter,(.),(+),const)
 import qualified Prelude
 import HipSpec
-import Nat hiding (sig)
+import Nat
 
 length :: [a] -> Nat
 length []     = Z

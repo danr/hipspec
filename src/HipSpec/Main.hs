@@ -18,6 +18,8 @@ import HipSpec.Reasoning
 
 import Data.Void
 
+import HipSpec.Params (SuccessOpt(..))
+
 import HipSpec.ThmLib
 import HipSpec.Property hiding (Literal(..))
 import HipSpec.Sig.QSTerm
@@ -44,17 +46,15 @@ import Control.Monad
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as B
 
-import System.Exit (exitSuccess)
+import System.Exit (exitSuccess,exitFailure)
 
 main :: IO ()
 main = processFile $ \ m_sig_info user_props -> do
     writeMsg FileProcessed
 
-    -- void (runMainLoop NoCC user_props [])
+    exit_act <- case m_sig_info of
 
-    case m_sig_info of
-
-        Nothing -> void (runMainLoop NoCC user_props [])
+        Nothing -> snd <$> runMainLoop NoCC user_props []
 
         Just (sig_info@SigInfo{..}) -> do
 
@@ -101,7 +101,7 @@ main = processFile $ \ m_sig_info user_props -> do
             debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
                 unlines (map show def_eqs)
 
-            ctx_final <- runMainLoop ctx_with_def
+            (ctx_final,exit_act) <- runMainLoop ctx_with_def
                                      (qsconjs ~+ map vacuous user_props)
                                      []
 
@@ -114,6 +114,8 @@ main = processFile $ \ m_sig_info user_props -> do
                         $ map (some eraseEquation) (equations classes)
                 writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory
 
+            return exit_act
+
     Params{json} <- getParams
 
     case json of
@@ -122,10 +124,12 @@ main = processFile $ \ m_sig_info user_props -> do
             liftIO $ B.writeFile json_file (encode msgs)
         Nothing -> return ()
 
-runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS ctx
+    vacuous exit_act
+
+runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS (ctx,HS Void)
 runMainLoop ctx_init initial_props initial_thms = do
 
-    params@Params{only_user_stated} <- getParams
+    params@Params{only_user_stated,success,file} <- getParams
 
     whenFlag params QuickSpecOnly (liftIO exitSuccess)
 
@@ -146,7 +150,20 @@ runMainLoop ctx_init initial_props initial_thms = do
             if only_user_stated then [] else showProperties $ fromQS conjectures
         }
 
-    return ctx_final
+    let exit_act = liftIO $ case success of
+            NothingUnproved -> do
+                putStr (file ++ ", " ++ show success ++ ":")
+                if null conjectures
+                    then putStrLn "ok" >> exitSuccess
+                    else putStrLn "fail" >> exitFailure
+            ProvesUserStated -> do
+                putStr (show success ++ ":")
+                if null (notQS conjectures)
+                    then putStrLn "ok" >> exitSuccess
+                    else putStrLn "fail" >> exitFailure
+            CleanRun -> exitSuccess
+
+    return (ctx_final,exit_act)
 
 runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
 runQuickSpec SigInfo{..} = do

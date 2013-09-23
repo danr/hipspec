@@ -18,16 +18,16 @@ data ProverResult
 mkSuccess :: ProverResult
 mkSuccess = Success Nothing
 
-success :: ProverResult -> Bool
-success Success{} = True
-success _         = False
+isSuccess :: ProverResult -> Bool
+isSuccess Success{} = True
+isSuccess _         = False
 
 unknown :: ProverResult -> Bool
 unknown Unknown{} = True
 unknown _         = False
 
 instance Eq ProverResult where
-  (==) = (==) `on` success
+  (==) = (==) `on` isSuccess
 
 instance Show ProverResult where
   show (Success{..}) = "Success"
