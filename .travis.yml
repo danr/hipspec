@@ -2,13 +2,9 @@ language: haskell
 
 install:
     - git clone https://github.com/nick8325/quickcheck
-    - (cd quickcheck; cabal install)
     - git clone https://github.com/nick8325/quickspec
     - cabal update
-    - cabal install mtl-2.1.2
-    - cabal install stm-2.3
-    - (cd quickspec; cabal install)
-    - cabal install
+    - cabal install quickcheck quickspec .
 
 script:
     - cabal test
