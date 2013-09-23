@@ -2,9 +2,10 @@ language: haskell
 
 install:
     - git submodule update --init
+    - git clone https://github.com/nick8325/quickcheck
+    - (cd quickcheck; cabal install)
     - git clone https://github.com/nick8325/quickspec
     - cabal update
-    - cabal install QuickCheck-2.5
     - cabal install mtl-2.1.2
     - cabal install stm-2.3
     - (cd quickspec; cabal install)
