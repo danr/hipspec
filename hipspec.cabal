@@ -62,7 +62,8 @@ executable hipspec
         base                 >= 4 && < 5,
         ghc-paths            == 0.1.*,
         containers           >= 0.4,
-        mtl,
+        -- mtl-2.1 contains a severe bug
+        mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.2,
         pretty               >= 1.1,
         geniplate            >= 0.6,
         void                 >= 0.5.3,

@@ -10,7 +10,8 @@ hipspec $PR         --auto --extra-trans=++,map,reverse --success=NothingUnprove
 hipspec Nat.hs      --auto --extra-trans=*              --success=NothingUnproved  $COMMON &&
 hipspec List.hs                                         --success=NothingUnproved  $COMMON &&
 hipspec Reverse.hs  --auto --only-user-stated           --success=ProvesUserStated $COMMON &&
-hipspec Rotate.hs   --auto --only-user-stated           --success=ProvesUserStated $COMMON &&
 hipspec Join.hs                                         --success=NothingUnproved  $COMMON &&
 hipspec BinLists.hs --auto                              --success=NothingUnproved  $COMMON
+# hipspec Rotate.hs   --auto --only-user-stated           --success=ProvesUserStated $COMMON &&
+# does not work on travis
 

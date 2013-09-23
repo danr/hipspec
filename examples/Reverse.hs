@@ -1,6 +1,6 @@
 module Reverse where
 
-import Prelude hiding (rev,(++))
+import Prelude hiding ((++))
 import HipSpec
 import List ((++))
 

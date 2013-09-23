@@ -5,6 +5,7 @@ before_install:
     - sudo apt-get install alt-ergo
     - git clone https://github.com/nick8325/quickcheck
     - git clone https://github.com/nick8325/quickspec
+    - cabal install --only-dependencies quickcheck/ quickspec/ .
     - cabal install quickcheck/ quickspec/
 
 install:
