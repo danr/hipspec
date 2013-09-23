@@ -34,6 +34,7 @@ data DebugFlag
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
+    | LintPolyFOL
     | PrintProps
     | PrintDefinitions
     | PrintCallGraph
@@ -57,6 +58,7 @@ debugDesc flg = case flg of
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"
+    LintPolyFOL      -> "Use alt-ergo to lint Polymorphic FOL"
     PrintProps       -> "Print properties"
     PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
     PrintCallGraph   -> "Print the call graph"
@@ -104,6 +106,7 @@ data Params = Params
     , isolate             :: Bool
     , only_user_stated    :: Bool
     , only                :: [String]
+    , tr_mod              :: Bool
     , success             :: SuccessOpt
 
     , techniques          :: [Technique]
@@ -189,13 +192,14 @@ defParams = Params
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
     , only                = []                   &= help "Only try these user properties (affects --auto)"
+    , tr_mod              = False                &= help "Unconditonally translate all module bindings"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
     , auto                = False   &= groupname "\nSignature generation settings"
                                     &= name "a" &= help "Make signature with functions in user properties"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
-    , pvars               = False               &= help "Use pvars instead of vars in the --auto signature"
+    , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"
     , tests               = 100                 &= help "Set the withTests          (default 100)"
     , size                = 1000                &= help "Set the withSize           (default \"unlimited\")"

@@ -16,6 +16,7 @@ import HipSpec.Sig.Symbols
 
 import HipSpec.Params
 
+import CoreSyn (flattenBinds)
 import CoreMonad (liftIO)
 import DynFlags
 import GHC hiding (Sig)
@@ -144,11 +145,14 @@ execute params@Params{..} = do
 
                 return (Just SigInfo{..},ids,tcs)
 
+        let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
+                         | otherwise = []
+
 
         -- Wrapping up
         return EntryResult
             { sig_info  = sig_info
-            , prop_ids  = props ++ extra_ids
+            , prop_ids  = props ++ extra_ids ++ toplvl_binds
             , extra_tcs = extra_tcs
             }
 

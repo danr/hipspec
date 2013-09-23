@@ -30,6 +30,8 @@ import TyCon (isAlgTyCon)
 import UniqSupply
 
 import System.Exit
+import System.Process
+import System.FilePath
 
 import Text.Show.Pretty
 
@@ -102,6 +104,14 @@ processFile cont = do
 
         checkLint (lintSimple simp_fns)
         mapM_ (checkLint . lintProperty) tr_props
+
+        whenFlag params LintPolyFOL $ liftIO $ do
+            let mlw = replaceExtension file ".mlw"
+            writeFile mlw (ppAltErgo cls)
+            exc <- system $ "alt-ergo -type-only " ++ mlw
+            case exc of
+                ExitSuccess -> return ()
+                ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
 
         when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 

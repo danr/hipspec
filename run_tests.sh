@@ -1,7 +1,12 @@
 #!/bin/sh
 
 PR=../testsuite/precision-recall/PrecisionRecall.hs
-COMMON='--cg --verbosity=40 +RTS -N2 -RTS'
+COMMON='--cg --verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
+
+for i in $(ls tfp1/tests/*.hs); do
+    echo $i
+    hipspec --tr-mod --translate-only --lint-poly-fol $i || exit $?
+done
 
 cd examples
 hipspec Properties.hs                                   --success=NothingUnproved  $COMMON &&
