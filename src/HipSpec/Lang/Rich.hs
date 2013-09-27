@@ -53,7 +53,7 @@ data Expr a
     | Lit Integer a
     -- ^ Integer literals
     --   The a is the type constructor
-    | String a
+    | String String a
     -- ^ String literals
     --   We semi-support them here to allow calls to error
     --   (pattern match failure also creates a string literal)
@@ -66,6 +66,8 @@ data Expr a
     --   It does not exist in the simple language, and
     --   it is sometimes inlined and then replaced with Nothing.
     | Let [Function a] (Expr a)
+    | Bottom (Type a)
+    -- ^ Bottom, and the type of the expression here
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 exprType :: Eq a => Expr (Typed a) -> Type a
@@ -73,10 +75,11 @@ exprType e0 = case e0 of
     Var v ts           -> appliedVarType v ts
     App e _            -> arrowResult "Rich.exprType" (exprType e)
     Lit _ (t ::: _)    -> TyCon t []
-    String (t ::: _)   -> TyCon t []
+    String _ (t ::: _) -> TyCon t []
     Lam (_ ::: t) e    -> ArrTy t (exprType e)
     Case _ _ alts      -> exprType (anyRhs "Rich.exprType" alts)
     Let _ e            -> exprType e
+    Bottom t           -> forget t
 
 type Alt a = (Pattern a,Expr a)
 
@@ -109,6 +112,7 @@ freeVars = go
         Lam u e       -> rm u (go e)
         Case e u alts -> go e `union` maybe id rm u (concatMap go' alts)
         Let fns e     -> rms (map bf fns) (concatMap (go . fb) fns `union` go e)
+        Bottom{}      -> []
 
     go' (ConPat _ _ bs,rhs) = rms bs (go rhs)
     go' (Default,rhs)       = go rhs
@@ -124,6 +128,7 @@ letFree = go
         Var{}     -> True
         Lit{}     -> True
         String{}  -> True
+        Bottom{}  -> False
         App e1 e2 -> go e1 && go e2
         Lam _ e   -> go e
         Let{}     -> False
@@ -142,6 +147,7 @@ occurrences x = go
         Let fns e           -> go e + sum (map (go . fn_body) fns)
         Lit{}               -> 0
         String{}            -> 0
+        Bottom{}            -> 0
 
 -- | Does this variable occur in this expression?
 --   Used to see if a function is recursive

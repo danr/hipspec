@@ -77,10 +77,10 @@ processFile cont = do
 
         (props,fns) = partition is_prop simp_fns
 
-        am_fin = am_fns `combineArityMap` am_tcs
+        am_fin = initArityMap `combineArityMap` am_fns `combineArityMap` am_tcs
         (am_fns,binds_thy) = trSimpFuns am_fin fns
 
-        thy = appThy : data_thy ++ binds_thy
+        thy = bottomThy : appThy : data_thy ++ binds_thy
 
         cls = sortClauses (concatMap clauses thy)
 

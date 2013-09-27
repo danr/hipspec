@@ -47,6 +47,7 @@ suggest nm = case nm of
     Old x          -> nameToString x
     New [LamLoc] _ -> "eta"
     New xs _       -> intercalate "_" (map suggest' xs)
+    Bottom         -> "_|_"
 
 suggest' :: Loc Name' -> String
 suggest' CaseLoc     = "case"

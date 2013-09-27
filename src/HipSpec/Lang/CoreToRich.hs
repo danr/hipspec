@@ -15,7 +15,8 @@ import CoreSyn as C
 import DataCon
 import Literal
 import Var
-import Name(Name)
+import Name(Name,nameModule_maybe,nameOccName,occNameString)
+import Module
 import TyCon hiding (data_cons)
 import Type as C
 import GHC (dataConType)
@@ -23,6 +24,9 @@ import GHC (dataConType)
 import HipSpec.Lang.DataConPattern
 
 import IdInfo
+import FastString
+import UniqSet
+import PrelNames
 
 import HipSpec.GHC.Utils (showOutputable)
 
@@ -145,6 +149,34 @@ trVar x = do
         DataConWrapId dc -> dataConName dc
         _                -> varName x
 
+bottomKeys :: UniqSet Unique
+bottomKeys = mkUniqSet
+    [ undefinedKey
+    , absentErrorIdKey
+    , errorIdKey
+    , recSelErrorIdKey
+    , irrefutPatErrorIdKey
+    , noMethodBindingErrorIdKey
+    , nonExhaustiveGuardsErrorIdKey
+    , runtimeErrorIdKey
+    , patErrorIdKey
+    , recConErrorIdKey
+    , assertErrorIdKey
+    ]
+
+-- | Check if a variable is undefined
+--
+-- For some reason it does not necessarily get the undefinedKey
+isUndefined :: Var -> Bool
+isUndefined v = case nameModule_maybe nm of
+    Just m  ->
+        packageIdString (modulePackageId m) == "base" &&
+        moduleNameString (moduleName m) == "GHC.Err" &&
+        occNameString (nameOccName nm) == "undefined"
+    Nothing -> False
+  where
+    nm = varName v
+
 -- | Translating expressions
 --
 -- GHC Core allows application of types to arbitrary expressions,
@@ -154,8 +186,12 @@ trVar x = do
 -- not immediately available in GHC Core, so this has to be reconstructed.
 trExpr :: CoreExpr -> TM (R.Expr Binder)
 trExpr e0 = case e0 of
+    _   | (C.Var x,_) <- C.collectArgs e0
+        , varUnique x `elemUniqSet_Directly` bottomKeys || isUndefined x -> do
+            t <- star <$> trType (C.exprType e0)
+            return (R.Bottom t)
     C.Var x -> (`R.Var` []) <$> trVar x
-    C.Lit MachStr{} -> String <$> star e0_ty_con
+    C.Lit (MachStr fs) -> String (unpackFS fs) <$> star e0_ty_con
     C.Lit l -> R.Lit <$> trLit l <*> star e0_ty_con
 
     C.App e (Type t) -> do

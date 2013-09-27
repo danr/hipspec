@@ -107,8 +107,9 @@ lintExpr e0 = chk_ret $ case e0 of
             _ -> do
                 report (NotFunctionType e1 t1)
                 return Star
-    Lit _ (t ::: _) -> return (TyCon t [])
-    String (t ::: _) -> return (TyCon t [])
+    Bottom   t         -> return (forget t)
+    Lit _    (t ::: _) -> return (TyCon t [])
+    String _ (t ::: _) -> return (TyCon t [])
     Lam x@(_ ::: t) e -> insertVar x (ArrTy t <$> lintExpr e)
     Case e mx {- @(_ ::: tx) -} alts -> do
         ts <- lintExpr e

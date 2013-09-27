@@ -26,7 +26,8 @@ ppExpr i k@(p,q) e0 = case e0 of
             pp_fun     = ppExpr 1 k fun
         in  hang pp_fun 2 (sep pp_args)
     Lit x _  -> integer x
-    String{} -> "\"\""
+    String s _ -> text (show s)
+    Bottom t  -> text "_|_" <+> "@" <+> ppType 1 p t
     Lam{} -> parensIf (i > 0) $
         let (args,body) = collectBinders e0
             pp_body     = ppExpr 0 k body

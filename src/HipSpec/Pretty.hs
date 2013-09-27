@@ -108,7 +108,7 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
         "$"   -> "apply"
         "!!"  -> "index"
         "\\\\" -> "difference"
-        s     -> s
+        s     -> s -- ++ '_': showOutputable (getUnique nm)
   where
     k = getUnique nm
 
@@ -125,6 +125,7 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
 
 ppRename :: Name' -> String
 ppRename (Old nm)    = ppName nm
+ppRename Bottom      = "bottom"
 ppRename (New [LamLoc] _) = "eta"
 ppRename (New [] _)       = "x"
 ppRename (New ls _x) = intercalate "_" (map loc ls)

@@ -12,7 +12,8 @@
 --
 module HipSpec.Lang.RichToSimple where
 
-import HipSpec.Lang.Rich as R
+import HipSpec.Lang.Rich as R hiding (Bottom)
+import qualified HipSpec.Lang.Rich as R
 import HipSpec.Lang.Simple as S
 
 import HipSpec.Lang.SimplifyRich (removeScrutinee)
@@ -29,6 +30,7 @@ type Var a = Typed (Rename a)
 data Rename a
     = Old a                    -- an old name
     | New [Loc (Rename a)] Int -- a fresh name
+    | Bottom                   -- bottom
   deriving (Eq,Ord,Show,Functor)
 
 data Loc a = CaseLoc | LamLoc | LetLoc a
@@ -90,10 +92,11 @@ rtsBody e0 = case e0 of
 
 rtsExpr :: forall v . Ord v => R.Expr (Var v) -> RTS v (S.Expr (Var v))
 rtsExpr e0 = case e0 of
-    R.Var x ts  -> return (S.Var x ts)
-    R.App e1 e2 -> S.App <$> rtsExpr e1 <*> rtsExpr e2
-    R.Lit l t   -> return (S.Lit l t)
-    R.String{}  -> error "rtsExpr: Strings are not supported!"
+    R.Bottom t   -> return (S.Var (Bottom ::: forget t) [])
+    R.Var x ts   -> return (S.Var x ts)
+    R.App e1 e2  -> S.App <$> rtsExpr e1 <*> rtsExpr e2
+    R.Lit l t    -> return (S.Lit l t)
+    R.String s _ -> error $ "rtsExpr: Strings are not supported!\n" ++ show s
 
     -- Lambda-lifting of lambda as case
     -- Emits a new function, and replaces the body with this new function

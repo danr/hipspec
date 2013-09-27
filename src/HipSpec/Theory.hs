@@ -2,6 +2,7 @@
 module HipSpec.Theory
     ( module HipSpec.Pretty
     , ArityMap
+    , initArityMap
     , combineArityMap
     , Content(..)
     , Theory
@@ -11,6 +12,7 @@ module HipSpec.Theory
     , calcDeps
     , calcDepsIgnoring
     , sortClauses
+    , bottomThy
     ) where
 
 import HipSpec.Pretty
@@ -35,6 +37,9 @@ type ArityMap = Map (Rename Name) Int
 combineArityMap :: ArityMap -> ArityMap -> ArityMap
 combineArityMap = M.union
 
+initArityMap :: ArityMap
+initArityMap = M.singleton Bottom 0
+
 data Content
     = Definition (Rename Name)
     -- ^ Function definition, or a constructor,
@@ -49,6 +54,8 @@ data Content
     -- ^ The conjecture
     | AppThy
     -- ^ Defines app and fn
+    | BottomThy
+    -- ^ Defines the type of bottom
   deriving (Eq,Ord)
 
 instance Show Content where
@@ -59,6 +66,7 @@ instance Show Content where
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
         AppThy        -> "AppThy"
+        BottomThy     -> "BottomThy"
 
 type Theory = [Subtheory]
 
@@ -93,7 +101,7 @@ calcDeps = calcDepsIgnoring []
 -- | Calculate depedencies, ignoring some content
 calcDepsIgnoring :: [Content] -> Subtheory -> Subtheory
 calcDepsIgnoring ctnt s = s
-    { deps = S.unions [types,app,ptrs,defs] S.\\ S.fromList ctnt }
+    { deps = add_bot (S.unions [types,app,ptrs,defs] S.\\ S.fromList ctnt) }
   where
     (S.toList -> ty_cons,S.toList -> fns) = clsDeps (clauses s)
 
@@ -104,7 +112,11 @@ calcDepsIgnoring ctnt s = s
     ptrs = S.fromList [ Pointer x | Ptr x <- fns ]
 
     defs = S.fromList . map Definition $
-        [ x | Id x <- fns ] ++ [ x | Proj x _ <- fns ]
+        [ x | Id x <- fns, x /= Bottom ] ++ [ x | Proj x _ <- fns ]
+
+    add_bot
+        | and [ True | Id Bottom <- fns ] = S.insert BottomThy
+        | otherwise                       = id
 
 -- | Sort clauses: first sort signatures, then type signatures, then axioms and
 --   at last the goal.
@@ -116,4 +128,12 @@ sortClauses = sortBy (comparing rank)
     rank TypeSig{}                        = 1
     rank cl@Clause{} | Goal <- cl_type cl = 3
     rank _                                = 2
+
+
+bottomThy :: Subtheory
+bottomThy = Subtheory
+    { defines = BottomThy
+    , clauses = [TypeSig (Id Bottom) [QVar 0] [] (TyVar (QVar 0))]
+    , deps    = S.empty
+    }
 
