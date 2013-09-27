@@ -114,10 +114,12 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
 
     Left err -> error $ "trTyCons: " ++ show err
 
-
 -- | Translates Var/Expr-pairs to simple functions
-toSimp :: [(Var,CoreExpr)] -> [S.Function (S.Var Name)]
-toSimp = concatMap (uncurry to_simp)
+toSimp :: [(Var,CoreExpr)] -> ([S.Function TypedName],[R.Function TypedName])
+toSimp = first concat . unzip . toSimp'
+
+toSimp' :: [(Var,CoreExpr)] -> [([S.Function TypedName],R.Function TypedName)]
+toSimp' = map (uncurry to_simp)
   where
     to_simp v e = case trDefn v e of
         Right fn -> uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ simpFun fn

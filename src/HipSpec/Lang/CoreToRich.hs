@@ -103,13 +103,27 @@ trTyCon tc = do
             , con_args = ts
             }
 
+tyEtaExpand :: Var -> [TyVar] -> CoreExpr -> TM CoreExpr
+tyEtaExpand v tvs e0 = go tvs tvs'
+  where
+    (tvs',e) = collectTyBinders e0
+
+    go xs     []              = return (foldr C.Lam e xs)
+    go (x:xs) (y:ys) | x == y = C.Lam x <$> go xs ys
+    go _ _ = fail $
+        "Type variables do not match in type and lambda!" ++
+        "\n" ++ showOutputable tvs ++
+        "\n" ++ showOutputable tvs' ++
+        "\n" ++ "body: " ++ showOutputable e0 ++
+        "\n" ++ "in function: " ++ showOutputable v
+
 -- | Translate a definition
 trDefn :: Var -> CoreExpr -> TM (Function Binder)
-trDefn v e = do
-    let (tvs,ty) = splitForAllTys (C.exprType e)
+trDefn v e0 = do
+    let (tvs,ty) = splitForAllTys (C.exprType e0)
     ty' <- trType ty
-    let (tvs',body) = collectTyBinders e
-    when (tvs /= tvs') (fail "Type variables do not match in type and lambda!")
+    e <- tyEtaExpand v tvs e0
+    let (_,body) = collectTyBinders e
     body' <- trExpr (tyAppBeta body)
     let tvs_named = map tyVarName tvs
     return Function

@@ -196,12 +196,14 @@ module DataList
    -- | The prefix \`@generic@\' indicates an overloaded function that
    -- is a generalized version of a "Prelude" function.
 
+{-
    , genericLength     -- :: (Integral a) => [b] -> a
    , genericTake       -- :: (Integral a) => a -> [b] -> [b]
    , genericDrop       -- :: (Integral a) => a -> [b] -> [b]
    , genericSplitAt    -- :: (Integral a) => a -> [b] -> ([b], [b])
    , genericIndex      -- :: (Integral a) => [b] -> a -> b
    , genericReplicate  -- :: (Integral a) => a -> b -> [b]
+   -}
 
    ) where
 
@@ -574,6 +576,7 @@ minimumBy cmp xs        =  foldl1 minBy xs
                                        GT -> y
                                        _  -> x
 
+{-
 -- | The 'genericLength' function is an overloaded version of 'length'.  In
 -- particular, instead of returning an 'Int', it returns any type which is
 -- an instance of 'Num'.  It is, however, less efficient than 'length'.
@@ -628,6 +631,7 @@ genericIndex _ _      = undefined
 -- which accepts any 'Integral' value as the number of repetitions to make.
 genericReplicate        :: (Integral i) => i -> a -> [a]
 genericReplicate n x    =  genericTake n (repeat x)
+-}
 
 -- | The 'zip4' function takes four lists and returns a list of
 -- quadruples, analogous to 'zip'.

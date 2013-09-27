@@ -27,8 +27,8 @@ import Data.List (nub,(\\))
 type Var a = Typed (Rename a)
 
 data Rename a
-    = Old a                        -- an old name
-    | New [Loc (Rename a)] Integer -- a fresh name
+    = Old a                    -- an old name
+    | New [Loc (Rename a)] Int -- a fresh name
   deriving (Eq,Ord,Show,Functor)
 
 data Loc a = CaseLoc | LamLoc | LetLoc a
@@ -43,7 +43,7 @@ instance HasScope v (Env v) where
 type RTS v = RWS
     (Env (Var v))        -- variables in scope
     [S.Function (Var v)] -- emitted lifted functions
-    Integer              -- name supply
+    Int                  -- name supply
 
 emit :: S.Function (Var v) -> RTS v ()
 emit = tell . (:[])

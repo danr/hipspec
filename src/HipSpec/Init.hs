@@ -3,11 +3,11 @@ module HipSpec.Init (processFile,SigInfo(..)) where
 
 import Control.Monad
 
-
 import Data.List (partition,union)
 import Data.Void
 
 import HipSpec.GHC.Calls
+import HipSpec.GHC.Utils
 import HipSpec.Monad
 import HipSpec.ParseDSL
 import HipSpec.Property
@@ -64,7 +64,7 @@ processFile cont = do
 
         -- Now, split these into properties and non-properties
 
-        simp_fns = toSimp binds
+        (simp_fns,rich_fns) = toSimp binds
 
         is_prop (S.Function (_ S.::: t) _ _) =
             case res of
@@ -93,6 +93,10 @@ processFile cont = do
         env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
     runHS params env $ do
+
+        debugWhen PrintCore $ "\nGHC Core Definitions\n" ++ unlines (map showOutputable binds)
+
+        debugWhen PrintRich $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 

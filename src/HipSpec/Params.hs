@@ -15,6 +15,7 @@ module HipSpec.Params
     , Technique(..)
     , SuccessOpt(..)
     , whenFlag
+    , flagifyString
     ) where
 
 import System.Console.CmdArgs hiding (verbosity,auto)
@@ -30,7 +31,8 @@ import Control.Monad(when)
 -- | Debugging flags
 data DebugFlag
     = PrintParams
---    | PrintRich
+    | PrintCore
+    | PrintRich
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
@@ -54,7 +56,8 @@ defStr x xs | x `elem` xs = " (default)"
 debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
     PrintParams      -> "Print the passed parameters"
---    PrintRich        -> "Print Rich IR"
+    PrintCore     -> "Print GHC Core"
+    PrintRich        -> "Print Rich IR"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"
