@@ -16,6 +16,7 @@ import qualified HipSpec.Lang.FunctionalFO as FO
 
 import HipSpec.Lang.SimpleToFO as FO
 import HipSpec.Lang.Deappify
+import HipSpec.Utils
 
 import qualified HipSpec.Lang.ToPolyFOL as P
 import qualified HipSpec.Lang.PolyFOL as P
@@ -115,14 +116,14 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
     Left err -> error $ "trTyCons: " ++ show err
 
 -- | Translates Var/Expr-pairs to simple functions
-toSimp :: [(Var,CoreExpr)] -> ([S.Function TypedName],[R.Function TypedName])
+toSimp :: [(Var,CoreExpr)] -> ([S.Function (S.Var Name)],[R.Function (S.Typed Name)])
 toSimp = first concat . unzip . toSimp'
 
-toSimp' :: [(Var,CoreExpr)] -> [([S.Function TypedName],R.Function TypedName)]
+toSimp' :: [(Var,CoreExpr)] -> [([S.Function (S.Var Name)],R.Function (S.Typed Name))]
 toSimp' = map (uncurry to_simp)
   where
     to_simp v e = case trDefn v e of
-        Right fn -> uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ simpFun fn
+        Right fn -> (uncurry (:) . runRTS . rtsFun . fmap (fmap Old) $ simpFun fn,fn)
         Left err -> error $ "toSimp: " ++ show err
 
 -- | Translates a bunch of simple functions into subtheories

@@ -46,7 +46,7 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
 
     -- Localise all names
     let obligs' :: [IS.Obligation Con Name' (Type Name')]
-        obligs' = unTag (\ (v :~ i) -> New [LetLoc v] i) obligs
+        obligs' = unTag (\ (v :~ i) -> New [LetLoc v] (fromInteger i)) obligs
 
     return
         [ Obligation

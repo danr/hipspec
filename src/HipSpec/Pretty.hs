@@ -8,6 +8,7 @@ import HipSpec.Utils.ZEncode
 
 import HipSpec.Lang.Renamer
 
+import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
 import qualified HipSpec.Lang.PrettyUtils as P
@@ -32,11 +33,17 @@ type TypedName' = Typed Name'
 
 type LogicId = Poly Name'
 
+richKit :: P.Kit (Typed Name)
+richKit = let k = text . ppName . S.forget_type in (k,k)
+
 simpKit :: P.Kit TypedName'
 simpKit = let k = text . ppRename . S.forget_type in (k,k)
 
 typeKit :: P.Kit TypedName'
 typeKit = let k = parens . R.ppTyped (text . ppRename) in (k,k)
+
+showRich :: R.Function (Typed Name) -> String
+showRich = render . R.ppFun richKit
 
 showSimp :: S.Function TypedName' -> String
 showSimp = render . R.ppFun simpKit . S.injectFn

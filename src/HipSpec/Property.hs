@@ -307,7 +307,7 @@ generaliseProp prop@Property{..} = case res of
             e2' <- extExpr i2
             return (fmap (fmap un_u) e1' :=: fmap (fmap un_u) e2')
 
-    un_u (Fresh i) = New [] (toInteger i - toInteger (minBound :: Int))
+    un_u (Fresh i) = New [] (i - (minBound :: Int))
     un_u (U a) = a
 
 maybePropRepr :: Property eq -> Maybe String
