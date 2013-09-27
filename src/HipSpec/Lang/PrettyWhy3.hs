@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings,PatternGuards #-}
-module HipSpec.Lang.PrettyAltErgo where
+-- Almost the same as PrettyAltErgo
+module HipSpec.Lang.PrettyWhy3 where
 
 import Text.PrettyPrint
 
@@ -7,14 +8,23 @@ import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.PrettyUtils
 
 import Control.Monad
+import Data.List
 
 type Id a = a -> Doc
 
 prime :: Doc -> Doc
 prime d = "\'" <> d
 
+why3Keywords :: [String]
+why3Keywords = words $ unwords $
+    [ "not"
+    , "if then else let in match with end as true false forall exists"
+    , "theory type constant function predicate inductive coinductive"
+    , "axiom lemma goal use clone namespace import"
+    ]
+
 alphabet :: [String]
-alphabet = do
+alphabet = (\\ why3Keywords) $ do
     n <- [1..]
     replicateM n ['a'..'z']
 
@@ -24,14 +34,18 @@ commasep = sep . punctuate ","
 commasepP xs | length xs >= 2 = parens (commasep xs)
              | otherwise      = commasep xs
 
-ppClause :: Id a -> Clause a -> Doc
-ppClause p cls = case cls of
-    SortSig x n
-        -> "type" <+> commasepP (map (prime . text) (take n alphabet)) <+> p x
+ppClauses :: Id a -> [Clause a] -> Doc
+ppClauses p = theory . vcat . zipWith (ppClause p) alphabet
+  where
+    theory d = hang ("theory" <+> "Why") 2 d $$ "end"
 
-    TypeSig x _tvs args res -> hang "logic" 2 (ppTySig p x args res)
+ppClause :: Id a -> String -> Clause a -> Doc
+ppClause p name cls = case cls of
+    SortSig x n -> "type" <+> p x <+> sep (map (prime . text) (take n alphabet))
 
-    Clause _ cl _tvs phi -> hang (ppClType cl <+> "_" <+> ":") 2 (ppForm p phi)
+    TypeSig x _tvs args res -> hang "function" 2 (ppTySig p x args res)
+
+    Clause _ cl _tvs phi -> hang (ppClType cl <+> text name <+> ":") 2 (ppForm p phi)
 
     Comment s            -> hang "(*" 2 (vcat (map text (lines s)) <+> "*)")
 
@@ -42,17 +56,16 @@ ppClType cl = case cl of
 
 ppTySig :: Id a -> a -> [Type a] -> Type a -> Doc
 ppTySig p x args res
-    = hang (p x <+> ":") 2 (pp_args (ppType p res))
-  where
-    pp_args = case args of
-        [] -> id
-        _  -> hang (commasep (map (ppType p) args) <+> "->") 2
+    = hang (p x) 2
+    $ hang (sep (map (ppType p) args)) 2
+    $ ":" <+> ppType p res
 
 ppType :: Id a -> Type a -> Doc
 ppType p = go
   where
     go t0 = case t0 of
-        TyCon tc ts -> commasepP (map go ts) <+> p tc
+        TyCon tc [] -> p tc
+        TyCon tc ts -> parens (hang (p tc) 2 (sep (map go ts)))
         TyVar x     -> prime (p x)
         TType       -> error "PrettyAltErgo.ppType: TType"
 
@@ -72,8 +85,8 @@ ppQ q = case q of
 
 ppFOp :: FOp -> Doc
 ppFOp op = case op of
-    And     -> " and "
-    Or      -> " or "
+    And     -> " /\\ "
+    Or      -> " \\/ "
     Implies -> " -> "
     Equiv   -> " <-> "
 
@@ -86,8 +99,13 @@ ppTerm :: Id a -> Term a -> Doc
 ppTerm p = go
   where
     go tm0 = case tm0 of
-        Apply f _ts as -> p f <> csv (map go as)
-        Var v          -> p v
-        Lit x          -> integer x
-        Sig tm _       -> go tm
+        Apply f ts [] -> p f <+> commentTys ts
+        Apply f ts as -> parens (hang (p f <+> commentTys ts) 2 (sep (map go as)))
+        Var v         -> p v
+        Lit x         -> integer x
+        Sig tm ty     -> parens (hang (go tm <+> ":") 2 (ppType p ty))
+
+    commentTys = comment' . sep . punctuate comma . map (ppType p)
+
+    comment' d = "(*" <+> d <+> "*)"
 

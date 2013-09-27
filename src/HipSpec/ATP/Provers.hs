@@ -8,7 +8,7 @@ import Data.Data
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo
+data ProverName = AltErgo | Z3Why3 | EproverWhy3
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -17,6 +17,8 @@ defaultProverNames = [AltErgo]
 proverFromName :: ProverName -> Prover
 proverFromName p = case p of
     AltErgo -> altErgo
+    Z3Why3       -> mkWhy3 Z3Why3      "z3"
+    EproverWhy3  -> mkWhy3 EproverWhy3 "Eprover"
 
 proversFromNames :: [ProverName] -> [Prover]
 proversFromNames = map proverFromName
@@ -47,12 +49,13 @@ data Prover = Prover
     }
 
 -- | Input formats
-data InputFormat = AltErgoFmt
+data InputFormat = AltErgoFmt | Why3Fmt
   deriving (Eq,Ord,Show)
 
 extension :: InputFormat -> String
 extension fmt = case fmt of
     AltErgoFmt -> "mlw"
+    Why3Fmt    -> "why"
 
 altErgo :: Prover
 altErgo = Prover
@@ -66,6 +69,20 @@ altErgo = Prover
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
     , prover_input_format   = AltErgoFmt
+    }
+
+mkWhy3 :: ProverName -> String -> Prover
+mkWhy3 pn pr = Prover
+    { prover_cmd            = "why3"
+    , prover_desc           = pr ++ " via Why3"
+    , prover_name           = pn
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f t -> ["-F","why","-t",showCeil t,"-P",pr,"-"]
+    , prover_process_output = searchOutput
+        [("Valid",proven),("Unknown",failure)]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_input_format   = Why3Fmt
     }
 
 proven,failure :: Maybe Bool

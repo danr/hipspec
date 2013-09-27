@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
-module HipSpec.Init (processFile,SigInfo(..)) where
+module HipSpec.Init (processFile,SigInfo(..),printProps) where
 
 import Control.Monad
 
@@ -102,9 +102,9 @@ processFile cont = do
 
         debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
 
-        debugWhen PrintProps $
-            "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
-            "\nProperties:\n" ++ unlines (map show tr_props)
+        debugWhen PrintProps $ "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props)
+
+        printProps "User-stated"  tr_props
 
         checkLint (lintSimple simp_fns)
         mapM_ (checkLint . lintProperty) tr_props
@@ -121,3 +121,10 @@ processFile cont = do
 
         cont sig_info tr_props
 
+printProps :: String -> [Property eq] -> HS ()
+printProps origin props = debugWhen PrintProps $
+    "\n" ++ origin ++ " properties:\n" ++ unlines
+        [ "original:\n" ++ show p ++ "\nskolemised:\n" ++ show p'
+        | p <- props
+        , let (p',_,_) = tvSkolemProp p
+        ]

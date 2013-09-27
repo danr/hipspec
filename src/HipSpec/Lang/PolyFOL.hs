@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables, PatternGuards #-}
 {-
 
 Type signatures and formulae have a list of top-level quantified
@@ -27,6 +27,9 @@ import Data.Traversable (Traversable)
 
 import Data.Set (Set)
 import qualified Data.Set as S
+
+import Data.Map (Map)
+import qualified Data.Map as M
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -84,6 +87,14 @@ data Type a
     | TType
     -- ^ The type of types
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+substManyTys :: Eq a => [(a,Type a)] -> Type a -> Type a
+substManyTys xs = tr $ \ ty -> case ty of
+    TyVar a | Just t <- lookup a xs -> t
+    _                               -> ty
+  where
+    tr :: (Type a -> Type a) -> Type a -> Type a
+    tr = $(genTransformBi 'tr)
 
 -- | Term operations
 data TOp = Equal | Unequal
@@ -162,6 +173,8 @@ data Term a
     -- ^ Quantified variable
     | Lit Integer
     -- ^ An integer
+    | Sig (Term a) (Type a)
+    -- ^ Type signature (for why3)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 tmSubst :: forall a . Eq a => a -> Term a -> Term a -> Term a
@@ -206,6 +219,32 @@ clsDeps cls =
 
     univ_ty :: [Clause a] -> [Type a]
     univ_ty = $(genUniverseBi 'univ_ty)
+
+-- | Decorates constants with their type signature (for why3)
+--
+--   In particular, it transforms
+--
+--      length(nil) = zero
+--
+--   to
+--
+--      length(nil : list a) = zero
+--
+--   It can do this since the nil is internally stored as
+--   nil @ a, and we can get the types of functions in the TypeSigs.
+decorate :: forall a . Ord a => [Clause a] -> [Clause a]
+decorate cls = (`tr` cls) $ \ tm -> case tm of
+    Apply f tys [] | Just inst <- M.lookup f sig_map -> Sig tm (inst tys)
+    _                                                -> tm
+  where
+    tr :: (Term a -> Term a) -> [Clause a] -> [Clause a]
+    tr = $(genTransformBi 'tr)
+
+    sig_map :: Map a ([Type a] -> Type a)
+    sig_map = M.fromList
+        [ (f,\ tys -> substManyTys (zip tvs tys) res_ty)
+        | TypeSig f tvs [] res_ty <- cls
+        ]
 
 {-
 

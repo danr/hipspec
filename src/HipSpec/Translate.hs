@@ -99,7 +99,7 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ]of
                 [ ( ( con_name :::
                         makeForalls data_tvs
                             (makeArrows con_args (TyCon data_ty_con (map TyVar data_tvs)))
-                    , con_args'
+                    , tc_args -- con_args'
                     )
                   , [ case collectArrTy t of
                         (ts,r) | r == t0 -> case ts of

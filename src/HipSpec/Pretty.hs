@@ -2,7 +2,8 @@
 module HipSpec.Pretty where
 
 import Text.PrettyPrint
-import HipSpec.Lang.PrettyAltErgo
+import HipSpec.Lang.PrettyAltErgo (ppClause)
+import HipSpec.Lang.PrettyWhy3 (ppClauses,why3Keywords)
 
 import HipSpec.Utils.ZEncode
 
@@ -14,7 +15,7 @@ import qualified HipSpec.Lang.PrettyRich as R
 import qualified HipSpec.Lang.PrettyUtils as P
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
-import HipSpec.Lang.PolyFOL (Clause(..))
+import HipSpec.Lang.PolyFOL (Clause(..),decorate)
 
 import HipSpec.Lang.RichToSimple (Rename(..),Loc(..))
 import HipSpec.Lang.Type (Typed(..))
@@ -22,6 +23,8 @@ import HipSpec.Lang.Type (Typed(..))
 import Data.List (intercalate)
 
 import HipSpec.GHC.Utils
+
+import Data.Char
 
 import BasicTypes (TupleSort(..))
 import Name
@@ -126,9 +129,9 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
 ppRename :: Name' -> String
 ppRename (Old nm)    = ppName nm
 ppRename Bottom      = "bottom"
-ppRename (New [LamLoc] _) = "eta"
-ppRename (New [] _)       = "x"
-ppRename (New ls _x) = intercalate "_" (map loc ls)
+ppRename (New [LamLoc] i) = "eta" ++ show i
+ppRename (New [] i)       = "x" ++ show i
+ppRename (New ls i)       = intercalate "_" (map loc ls) ++ show i
   where
     loc :: Loc Name' -> String
     loc lc = case lc of
@@ -137,11 +140,17 @@ ppRename (New ls _x) = intercalate "_" (map loc ls)
         LetLoc nm -> ppRename nm
 
 ppAltErgo :: [Clause LogicId] -> String
-ppAltErgo
-    = render . vcat . map (ppClause text) . renameCls
+ppAltErgo = render . vcat . map (ppClause text) . renameCls id altErgoKeywords
 
-renameCls :: [Clause LogicId] -> [Clause String]
-renameCls = runRenameM (zencode . polyname) altErgoKeywords . mapM rename
+ppWhy3 :: [Clause LogicId] -> String
+ppWhy3 = render . ppClauses text . renameCls lowerFirst why3Keywords . decorate
+
+lowerFirst :: String -> String
+lowerFirst (x:xs) = toLower x : xs
+lowerFirst []     = []
+
+renameCls :: (String -> String) -> [String] -> [Clause LogicId] -> [Clause String]
+renameCls f kws = runRenameM (f . zencode . polyname) kws . mapM rename
 
 altErgoKeywords :: [String]
 altErgoKeywords =

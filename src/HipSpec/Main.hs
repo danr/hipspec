@@ -89,8 +89,7 @@ main = processFile $ \ m_sig_info user_props -> do
 
             mapM_ (checkLint . lintProperty) qsconjs
 
-            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
-                unlines (map show qsconjs)
+            printProps "QuickSpec"  qsconjs
 
             let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 

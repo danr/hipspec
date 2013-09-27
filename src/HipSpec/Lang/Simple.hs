@@ -81,12 +81,17 @@ exprType :: Eq a => Expr (Typed a) -> Type a
 exprType = R.exprType . injectExpr
 
 exprTySubst :: forall a . Eq a => a -> Type a -> Expr (Typed a) -> Expr (Typed a)
-exprTySubst x t = ex_ty $ \ t0 -> case t0 of
-    TyVar y | x == y -> t
-    _                -> t0
+exprTySubst x t = go
   where
-    ex_ty :: (Type a -> Type a) -> Expr (Typed a) -> Expr (Typed a)
-    ex_ty = $(genTransformBi 'ex_ty)
+    go e0 = case e0 of
+        Var a ts  -> Var a (map (star . k . forget) ts)
+        App e1 e2 -> App (go e1) (go e2)
+        Lit{}     -> e0
+
+    k t0 = case t0 of
+        TyVar y | x == y -> t
+        _                -> t0
+
 
 (//) :: Eq a => Expr a -> a -> Expr a -> Expr a
 e // x = tr_expr $ \ e0 -> case e0 of
