@@ -110,12 +110,13 @@ logWarnings w = Hsc $ \_ w0 -> return ((), w0 `unionBags` w)
 getHscEnv :: Hsc HscEnv
 getHscEnv = Hsc $ \e w -> return (e, w)
 
-instance HasDynFlags Hsc where
-    getDynFlags = Hsc $ \e w -> return (hsc_dflags e, w)
+-- GHC 7.4 does not have class HasDynFlags
+getDynFlags' :: Hsc DynFlags
+getDynFlags' = Hsc $ \e w -> return (hsc_dflags e, w)
 
 handleWarnings :: Hsc ()
 handleWarnings = do
-    dflags <- getDynFlags
+    dflags <- getDynFlags'
     w <- getWarnings
     liftIO $ printOrThrowWarnings dflags w
     clearWarnings
@@ -164,7 +165,7 @@ hscParseThingWithLocation :: Outputable thing => String -> Int
                           -> Lexer.P thing -> String -> Hsc thing
 hscParseThingWithLocation source linenumber parser str
   = do
-    dflags <- getDynFlags
+    dflags <- getDynFlags'
     liftIO $ showPass dflags "Parser"
 
     let buf = stringToStringBuffer str
