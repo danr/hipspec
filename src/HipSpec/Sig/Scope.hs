@@ -7,14 +7,14 @@ import Data.Maybe
 
 import DataCon
 
-getIdsInScope :: (Id -> Id) -> Ghc [Id]
-getIdsInScope fix_id = do
+getIdsInScope :: Ghc [Id]
+getIdsInScope = do
 
     ns <- getNamesInScope
 
     things <- catMaybes <$> mapM lookupName ns
 
-    return [ fix_id i | AnId i <- things ]
+    return [ i | AnId i <- things ]
 
 parseName' :: String -> Ghc [Name]
 parseName' = handleSourceError (\ _ -> return []) . parseName

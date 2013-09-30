@@ -154,7 +154,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
         let err = error "trProperty: initalize fields with initFields"
 
         return $ initFields Property
-            { prop_name     = suggest p
+            { prop_name     = let sug = suggest p in if sug == "__" then "" else sug
             , prop_origin   = UserStated
             , prop_tvs      = tvs
             , prop_vars     = args

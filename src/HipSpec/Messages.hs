@@ -68,37 +68,42 @@ data Msg
 csv :: [String] -> String
 csv = intercalate ","
 
+infixr 5 <+>
+
+(<+>) :: String -> String -> String
+s <+> t = dropWhileEnd (== ' ') s ++ " " ++ dropWhile (== ' ') t
+
 showObInfo :: ObInfo -> String
 showObInfo (ObInduction{..}) =
-    "coords: " ++ csv (map show ind_coords) ++ " " ++
+    "coords:" <+> csv (map show ind_coords) <+>
     show ind_num ++ "/" ++ show ind_nums
 
 showMsg :: Params -> Msg -> String
 showMsg Params{no_colour,reverse_video} msg = case msg of
     Started        -> "HipSpec started."
     Discarded eqs
-        | length eqs > 4 -> "Discarded " ++ show (length eqs) ++
-                            " renamings and subsumptions."
-        | otherwise      -> "Discarded: " ++ csv eqs
-    Candidates eqs -> "Interesting candidates: " ++ csv eqs
+        | length eqs > 4 -> "Discarded" <+> show (length eqs) <+>
+                            "renamings and subsumptions."
+        | otherwise      -> "Discarded:" <+> csv eqs
+    Candidates eqs -> "Interesting candidates:" <+> csv eqs
 
     InductiveProof{..} -> green ((not (null vars) ? bold)
-        ("Proved " ++ property_name ++ pmif property_repr ++ (case vars of
-                [] -> " without induction"
-                _  -> " by induction on " ++ csv vars)))
-            ++ view_provers used_provers
-            ++ view_lemmas used_lemmas
+        ("Proved" <+> repr_prop property_name property_repr <+> (case vars of
+                [] -> "without induction"
+                _  -> "by induction on" <+> csv vars)))
+            <+> view_provers used_provers
+            <+> view_lemmas used_lemmas
 
-    FailedProof{..} -> "Failed to prove " ++ property_name ++ pmif property_repr
+    FailedProof{..} -> "Failed to prove" <+> repr_prop property_name property_repr
 
-    Spawning{..}           -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info
-    SpawningWithTheory{..} -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
-    Cancelling{..}         -> "Cancelling " ++ property_name ++ " " ++ showObInfo prop_ob_info
-    ProverResult{..}       -> "Finished "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
+    Spawning{..}           -> "Spawning"   <+> property_name <+> showObInfo prop_ob_info
+    SpawningWithTheory{..} -> "Spawning"   <+> property_name <+> showObInfo prop_ob_info <+> "on:\n" ++ reindent theory_string
+    Cancelling{..}         -> "Cancelling" <+> property_name <+> showObInfo prop_ob_info
+    ProverResult{..}       -> "Finished"   <+> property_name <+> showObInfo prop_ob_info ++ ":\n" ++ reindent std_out
     UnknownResult{..}      ->
-        "Unknown result from " ++ used_prover ++ " on " ++
-        property_name ++ " " ++ showObInfo prop_ob_info ++
-        ", exit code: " ++ m_excode ++
+        "Unknown result from" <+> used_prover <+> "on" <+>
+        property_name ++ "" <+> showObInfo prop_ob_info ++
+        ", exit code:" <+> m_excode ++
         non_null m_stdout ("\n    stdout:\n" ++ reindent (reindent m_stdout)) ++
         non_null m_stderr ("\n    stderr:\n" ++ reindent (reindent m_stderr))
 
@@ -106,23 +111,21 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
 
     FileProcessed             -> "File processed."
     DefinitionalEquations eqs -> "Definitional equations:\n" ++ numberedEqs eqs
-    QuickSpecDone classes eqs -> "QuickSpec done, " ++ show classes ++ " classes, " ++ show eqs ++ " equations."
+    QuickSpecDone classes eqs -> "QuickSpec done," <+> show classes <+> "classes," <+> show eqs <+> "equations."
     StartingUserLemmas        -> "Starting to prove user lemmas."
-    Generated c t             -> "Generated theory for " ++ c ++ ":\n" ++ reindent t
+    Generated c t             -> "Generated theory for" <+> c ++ ":\n" ++ reindent t
 
     ExploredTheory eqs -> "Explored theory (proven correct):\n" ++ numberedEqs eqs
     Finished{..} ->
-        "Proved:\n" ++ indent (map repr_prop (qs_proved ++ proved)) ++
+        "Proved:\n" ++ indent (map (uncurry repr_prop) (qs_proved ++ proved)) ++
         if null unproved' then "" else "Unproved:\n" ++ indent unproved'
-      where unproved' = map repr_prop (qs_unproved ++ unproved)
+      where unproved' = map (uncurry repr_prop) (qs_unproved ++ unproved)
 
   where
-    repr_prop :: (String,Maybe String) -> String
-    repr_prop (s,ms) = s ++ pmif ms
-
-    pmif :: Maybe String -> String
-    pmif Nothing  = ""
-    pmif (Just s) = " {- " ++ s ++ " -}"
+    repr_prop :: String -> Maybe String -> String
+    repr_prop "" (Just r) = r
+    repr_prop s  (Just r) = r <+> "{-" <+> s <+> "-}"
+    repr_prop s  Nothing  = s
 
     non_null :: String -> String -> String
     non_null s m | null s    = ""
@@ -134,18 +137,18 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     numberedEqs  = unlines . zipWith (printf "%4d: %s") [(1 :: Int)..]
 
     indent :: [String] -> String
-    indent = concatMap (("    "++) . (++"\n"))
+    indent = concatMap (("    " ++) . (++"\n"))
 
     reindent :: String -> String
     reindent = indent . lines
 
-    view_provers ps = " using " ++ csv ps
+    view_provers ps = "using" <+> csv ps
 
     view_lemmas mx = case mx of
         Nothing  -> ""
         Just []  -> ", using no lemmas"
-        Just [x] -> ", using " ++ x
-        Just xs  -> ", using: " ++ concatMap ("\n\t" ++) xs ++ "\n"
+        Just [x] -> ", using" <+> x
+        Just xs  -> ", using:" <+> concatMap ("\n\t" ++) xs ++ "\n"
 
 msgVerbosity :: Msg -> Int
 msgVerbosity m = case m of

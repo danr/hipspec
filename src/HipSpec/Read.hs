@@ -14,6 +14,8 @@ import HipSpec.Sig.Make
 import HipSpec.Sig.Get
 import HipSpec.Sig.Symbols
 
+import HipSpec.GHC.DsString
+
 import HipSpec.Params
 
 import CoreSyn (flattenBinds)
@@ -22,7 +24,6 @@ import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
-import HscMain
 import StaticFlags
 import System.FilePath
 
@@ -93,13 +94,6 @@ execute params@Params{..} = do
         t <- typecheckModule p
         d <- desugarModule t
 
-        let modguts = dm_core_module d
-
-            binds = fixUnfoldings (mg_binds modguts)
-
-            fix_id :: Id -> Id
-            fix_id = fixId binds
-
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
@@ -111,24 +105,18 @@ execute params@Params{..} = do
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
 
-        extra_prop_ids <- case extra_prop of
-            Just pstr -> do
-                ty  <- exprType (unwords (lines pstr))
-                liftIO $ (putStrLn . showOutputable) ty
-                -- the following does not return anything:
-                ids <- myRunDeclsWithLocation "argument" 1
-                                    ("prop_argument = " ++ unwords (lines pstr))
-                -- another solution might to just desugar it...
-                -- but at some point we would like to make instances, too.
-                -- needs to test if that works
-                liftIO $ mapM_ (putStrLn . showOutputable) ids
-                let troci_cpacu (AnId i) = Just (fix_id i)
-                    troci_cpacu _        = Nothing
-                return (mapMaybe troci_cpacu ids)
-            Nothing   -> return []
+        extra_binds <- catMaybes `fmap`
+            mapM (\ pstr -> dsExpr ("let __ = " ++ unwords (lines pstr))) extra_prop
+
+        let modguts = dm_core_module d
+
+            binds = fixUnfoldings (mg_binds modguts ++ extra_binds)
+
+            fix_id :: Id -> Id
+            fix_id = fixId binds
 
         -- Get ids in scope to find the properties (fix their unfoldings, too)
-        ids_in_scope <- (extra_prop_ids ++) `fmap` getIdsInScope fix_id
+        ids_in_scope <- (map fix_id . (++ map fst (flattenBinds binds))) `fmap` getIdsInScope
 
         let only' :: [String]
             only' = concatMap (splitOn ",") only
@@ -187,10 +175,3 @@ qualifiedImport = qualifiedImportDecl . mkModuleName
 qualifiedImportDecl :: ModuleName -> ImportDecl name
 qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }
 
-myRunDeclsWithLocation :: GhcMonad m => String -> Int -> String -> m [TyThing]
-myRunDeclsWithLocation source linenumber expr =
-  do
-    hsc_env <- getSession
-    (ty_things, _ic) <- liftIO $ hscDeclsWithLocation hsc_env expr source linenumber
-    -- maybe dangerous: _ic is ignored
-    return ty_things
