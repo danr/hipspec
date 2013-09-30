@@ -2,6 +2,7 @@
 -- is that runStmt does not return ds_expr, which is what we need.
 --
 -- THE LICENCE OF GHC IS BSD SO THIS APPLIES TO THIS FILE TOO
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 module HipSpec.GHC.DsString (dsExpr) where
 
 import Bag
@@ -34,6 +35,15 @@ dsExpr s = do
     hsc_env <- getSession
     liftIO $ hscExpr hsc_env s "<interactive>" 1
 
+class GenSnd a b | a -> b where
+    gensnd :: a -> b
+
+instance GenSnd (a,b) b where
+    gensnd = snd
+
+instance GenSnd (a,b,c) b where
+    gensnd (_,b,_) = b
+
 hscExpr :: HscEnv -> String -> String -> Int -> IO (Maybe CoreBind)
 hscExpr hsc_env0 stmt source linenumber =
  runInteractiveHsc hsc_env0 $ do
@@ -51,7 +61,7 @@ hscExpr hsc_env0 stmt source linenumber =
             -- Rename and typecheck it
             -- Here we lift the stmt into the IO monad, see Note
             -- [Interactively-bound Ids in GHCi] in TcRnDriver
-            (_ids, tc_expr, _fix_env) <- ioMsgMaybe $ tcRnStmt hsc_env icntxt parsed_stmt
+            tc_expr <- fmap gensnd $ ioMsgMaybe (tcRnStmt hsc_env icntxt parsed_stmt)
 
             -- Desugar it
             ds_expr <- ioMsgMaybe $
