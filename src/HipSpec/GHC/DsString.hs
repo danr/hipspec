@@ -94,8 +94,7 @@ runHsc hsc_env (Hsc hsc) = do
     return a
 
 runInteractiveHsc :: HscEnv -> Hsc a -> IO a
-runInteractiveHsc hsc_env =
-  runHsc (hsc_env { hsc_dflags = ic_dflags (hsc_IC hsc_env) })
+runInteractiveHsc hsc_env = runHsc hsc_env
 
 
 getWarnings :: Hsc WarningMessages
