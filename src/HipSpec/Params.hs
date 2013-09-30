@@ -117,6 +117,7 @@ data Params = Params
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
     , auto                :: Bool
+    , extra_prop          :: Maybe String
     , extra_trans         :: [String]
     , extra               :: [String]
     , pvars               :: Bool
@@ -197,6 +198,7 @@ defParams = Params
 
     , auto                = False   &= groupname "\nSignature generation settings"
                                     &= name "a" &= help "Make signature with functions in user properties"
+    , extra_prop          = Nothing &= name "prop" &= help "An additional property to prove"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
