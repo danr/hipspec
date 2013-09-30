@@ -37,3 +37,9 @@ thingToId _            = Nothing
 mapJust :: (a -> Maybe b) -> [a] -> Maybe b
 mapJust k = listToMaybe . mapMaybe k
 
+qualifiedImport :: String -> ImportDecl name
+qualifiedImport = qualifiedImportDecl . mkModuleName
+
+qualifiedImportDecl :: ModuleName -> ImportDecl name
+qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }
+

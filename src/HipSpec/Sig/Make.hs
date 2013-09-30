@@ -23,6 +23,7 @@ import Test.QuickSpec.Signature
 
 import Control.Monad
 import Outputable
+import PrelNames
 
 {-
 
@@ -75,7 +76,7 @@ makeSignature p@Params{..} prop_ids = do
         OUT(ids_in_scope)
 #undef OUT
 
-    makeSigFrom p ids_in_scope =<< getA
+    makeSigFrom p ids_in_scope
 
 getA :: Ghc (Maybe Type)
 getA = do
@@ -87,8 +88,55 @@ getA = do
         | ATyCon tc <- a_things
         ]
 
-makeSigFrom :: Params -> [Var] -> Maybe Type -> Ghc (Maybe Sig)
-makeSigFrom p@Params{..} ids m_a_ty = do
+mkArbitraryInst :: Params -> Type -> Ghc ()
+mkArbitraryInst p t
+    | ' ' `elem` t_str_unpar = return () -- can only make instances for type constructors
+    | otherwise = importDerivingModules $ handleSourceError mk_inst $ void $ exprType arb_str
+  where
+    t_str_unpar = rmNewlines $ showOutputable t
+    t_str   = "(" ++ t_str_unpar ++ ")"
+    arb_str = "Test.QuickCheck.arbitrary :: Gen " ++ t_str
+    mk_inst e = do
+
+        liftIO $ whenFlag p DebugAutoSig $ do
+            putStrLn $ "Exception: " ++ show e
+            putStrLn $ "Trying to make arbitrary instance for " ++ t_str
+
+        nms <- runDecls $ unlines
+            [ "Data.DeriveTH.derive Data.DeriveTH.makeArbitrary ''" ++ t_str_unpar
+            ]
+
+        liftIO $ whenFlag p DebugAutoSig $ putStrLn $
+            "Made arbitrary instance for " ++ t_str ++
+            " (with names " ++ showOutputable nms ++ ")"
+
+    {-
+        mact :: Maybe (IO ()) <- fromDynamic `fmap` dynCompileExpr
+            ("Test.QuickCheck.sample (Test.QuickCheck.arbitrary :: Gen " ++ t_str ++ ")")
+
+        case mact of
+            Just act -> liftIO $ act
+            Nothing  -> liftIO $ putStrLn "couldn't sample"
+    -}
+
+-- | Locally import deriving modules
+importDerivingModules :: Ghc a -> Ghc a
+importDerivingModules m = do
+    ctx <- getContext
+    setContext
+        ( IIDecl (simpleImportDecl pRELUDE_NAME)
+        : IIDecl (qualifiedImport "Data.DeriveTH")
+        : IIDecl (qualifiedImport "Test.QuickCheck")
+        : ctx
+        )
+    r <- m
+    setContext ctx
+    return r
+
+makeSigFrom :: Params -> [Var] -> Ghc (Maybe Sig)
+makeSigFrom p@Params{..} ids = do
+
+    m_a_ty <- getA
 
     let a_ty = case m_a_ty of
             Just ty -> ty
@@ -127,6 +175,8 @@ makeSigFrom p@Params{..} ids m_a_ty = do
                         []  -> ""
                 liftIO $ putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backup_names
                 return (t,backup_names)
+
+    mapM_ (mkArbitraryInst p) types
 
     named_mono_types <- mapM name_type types
 

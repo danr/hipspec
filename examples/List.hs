@@ -42,3 +42,5 @@ sig = [ vars ["m","n","o"]    (undefined :: Nat)
       , blind2 "."    ((.) :: (A -> A) -> (A -> A) -> (A -> A))
       ]
 
+instance Arbitrary Nat where
+    arbitrary = elements (take 10 $ iterate S Z)

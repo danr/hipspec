@@ -76,6 +76,9 @@ execute params@Params{..} = do
                 `dopt_unset` Opt_IgnoreInterfacePragmas
                 `dopt_unset` Opt_OmitInterfacePragmas
                 `dopt_set` Opt_ExposeAllUnfoldings
+--                `dopt_set` Opt_D_dump_splices
+--                `dopt_set` Opt_D_dump_simpl
+                `xopt_set` Opt_TemplateHaskell -- for deriving enumerable
         _ <- setSessionDynFlags dflags
 
             -- add .hs if it is not present (apparently not supporting lhs)
@@ -99,7 +102,6 @@ execute params@Params{..} = do
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
             , IIDecl (qualifiedImport "Test.QuickSpec.Signature")
             , IIDecl (qualifiedImport "Test.QuickSpec.Prelude")
-            , IIDecl (qualifiedImport "GHC.Types")
             , IIDecl (qualifiedImport "Prelude")
             ]
             -- Also include the imports the module is importing
@@ -128,6 +130,7 @@ execute params@Params{..} = do
                 , varWithPropType i
                 , null only || varToString i `elem` only'
                 ]
+
 
         -- Make or get signature
         m_sig <- if auto
@@ -168,10 +171,4 @@ findModuleSum file
 
 summaryHsFile :: ModSummary -> Maybe FilePath
 summaryHsFile = ml_hs_file . ms_location
-
-qualifiedImport :: String -> ImportDecl name
-qualifiedImport = qualifiedImportDecl . mkModuleName
-
-qualifiedImportDecl :: ModuleName -> ImportDecl name
-qualifiedImportDecl m = (simpleImportDecl m) { ideclQualified = True }
 

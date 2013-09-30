@@ -16,6 +16,7 @@ cubes (S n) = cubes n + (S n * S n * S n)
 prop_Nichomachus :: Nat -> Prop Nat
 prop_Nichomachus n = cubes n =:= sum n * sum n
 
+{-
 sig = [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
       , fun0 "Z" Z
       , fun1 "S" S
@@ -26,4 +27,4 @@ sig = [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
       , withTests 100
       , withQuickCheckSize 20
       ]
-
+-}

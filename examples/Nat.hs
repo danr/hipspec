@@ -3,7 +3,6 @@ module Nat where
 
 import Prelude hiding ((+),(*))
 import HipSpec
-import Data.Typeable
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
 
@@ -16,18 +15,7 @@ Z   + m = m
 
 (*) :: Nat -> Nat -> Nat
 S n * m = m + (n * m)
-Z   * m = Z
-
-instance Enum Nat where
-  toEnum 0 = Z
-  toEnum n = S (toEnum (pred n))
-  fromEnum Z = 0
-  fromEnum (S n) = succ (fromEnum n)
-
-instance Arbitrary Nat where
-  arbitrary = sized $ \ s -> do
-    x <- choose (0,round (sqrt (toEnum s)))
-    return (toEnum x)
+Z   * _ = Z
 
 instance Names Nat where
   names _ = ["m","n","o"]
