@@ -2,7 +2,7 @@
 -- is that runStmt does not return ds_expr, which is what we need.
 --
 -- THE LICENCE OF GHC IS BSD SO THIS APPLIES TO THIS FILE TOO
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP #-}
 module HipSpec.GHC.DsString (dsExpr) where
 
 import Bag
@@ -182,7 +182,11 @@ hscParseThingWithLocation source linenumber parser str
 
     case unP parser (mkPState dflags buf loc) of
         PFailed span' err -> do
+#if __GLASGOW_HASKELL__ >= 706
             let msg = mkPlainErrMsg dflags span' err
+#else
+            let msg = mkPlainErrMsg span' err
+#endif
             throwErrors $ unitBag msg
 
         POk pst thing -> do
