@@ -13,7 +13,7 @@ ppProg :: Kit a -> Program a -> Doc
 ppProg k (Program _ds fs) = vcat (map (ppFun k) fs)
 
 ppFun :: Kit a -> Function a -> Doc
-ppFun k@(_,q) (Function nm e) = hang (q nm <+> "=") 2 (ppExpr 0 k e)
+ppFun k@(_,q) (Function nm tvs e) = hang (q nm <+> sep (map q tvs) <+> "=") 2 (ppExpr 0 k e)
 
 ppExpr :: Int -> Kit a -> Expr a -> Doc
 ppExpr i k@(p,q) e0 = case e0 of

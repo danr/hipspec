@@ -71,10 +71,10 @@ fresh t = do
     state $ \ s -> (New ls s ::: t,succ s)
 
 rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
-rtsFun (R.Function f e) = do
+rtsFun (R.Function f tvs e) = do
     let (args,body) = collectBinders e
     withNewLoc (LetLoc (forget_type f)) $ clearScope $ extendScope args $
-        S.Function f args <$> rtsBody body
+        S.Function f tvs args <$> rtsBody body
 
 rtsBody :: Ord v => R.Expr (Var v) -> RTS v (S.Body (Var v))
 rtsBody e0 = case e0 of
@@ -110,7 +110,7 @@ rtsExpr e0 = case e0 of
 
         free_vars <- freeVarsOf free_vars_overapprox
 
-        let handle_fun (R.Function fn@(f ::: ft) body) = withNewLoc (LetLoc f) $ do
+        let handle_fun (R.Function fn@(f ::: ft) _ body) = withNewLoc (LetLoc f) $ do
 
                 f' <- fresh new_type
 
@@ -119,7 +119,7 @@ rtsExpr e0 = case e0 of
                         `R.apply`
                         map (`R.Var` []) free_vars
 
-                    fn' = R.Function f' new_lambda
+                    fn' = R.Function f' (star (new_ty_vars ++ tvs)) new_lambda
 
                 return (subst,fn')
               where
@@ -186,7 +186,7 @@ emitFun l body = do
 
         f <- fresh (makeForalls ty_vars new_type)
 
-        emit =<< rtsFun (R.Function f new_lambda)
+        emit =<< rtsFun (R.Function f (star ty_vars) new_lambda)
 
         return (S.apply (S.Var f (map (star . S.TyVar) ty_vars))
                         (map (`S.Var` []) args))

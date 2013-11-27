@@ -23,7 +23,7 @@ runSTFWithScope :: Ord v => [v] -> STF v a -> a
 runSTFWithScope s m = runReader m (makeScope s)
 
 stfFun :: Ord v => S.Function (Typed v) -> FO.Function v
-stfFun (S.Function (f ::: ty) as b) =
+stfFun (S.Function (f ::: ty) _ as b) =
     FO.Function f tvs as' res_ty $ runSTF $
     extendScope (map fst as') (stfBody b)
   where

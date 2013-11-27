@@ -19,14 +19,13 @@ import HipSpec.Lang.Rich
 import HipSpec.Lang.Type
 
 simpFun :: Eq a => Function (Typed a) -> Function (Typed a)
-simpFun (Function f b) = Function f $ simpExpr $ case b of
+simpFun (Function f tvs b) = Function f tvs $ simpExpr $ case b of
     -- Sometimes functions look like this
     -- f = \ xs -> let g = K[g] in g,
     -- then we simply replace it to f = \ xs -> K[f xs]
     -- TODO: Polymorphic functions (find examples!)
-    (collectBinders -> (xs,Let [Function g e] (Var g' [])))
-        | not (isForallTy (typed_type g))
-        , g == g' -> makeLambda xs ((Var f ts `apply` map (`Var` []) xs // g) e)
+    (collectBinders -> (xs,Let [Function g [] e] (Var g' [])))
+        | g == g' -> makeLambda xs ((Var f ts `apply` map (`Var` []) xs // g) e)
       where ts = map (star . TyVar) . fst . collectForalls . typed_type $ f
     _ -> b
 
@@ -52,9 +51,8 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
     -- Cannot inline this to several occasions if e contains a let
-    Let [Function f b] e
-        | not (isForallTy (typed_type f))
-        , not (f `occursIn` b)
+    Let [Function f [] b] e
+        | not (f `occursIn` b)
         , letFree b || occurrences f e <= 1 -> simpExpr ((b // f) e)
 
 

@@ -66,7 +66,7 @@ processFile cont = do
 
         simp_fns = toSimp binds
 
-        is_prop (S.Function (_ S.::: t) _ _) =
+        is_prop (S.Function (_ S.::: t) _ _ _) =
             case res of
                 S.TyCon (S.Old p) _ -> typeIsProp p
                 _                   -> False

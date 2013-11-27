@@ -41,6 +41,7 @@ import HipSpec.Lang.Type
 --   declared here.
 data Function a = Function
     { fn_name    :: a
+    , fn_tvs     :: [a]
     , fn_args    :: [a]
     , fn_body    :: Body a
     }
@@ -102,7 +103,7 @@ substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 -- * Injectors to the Rich language (for pretty-printing, linting)
 
 injectFn :: Function a -> R.Function a
-injectFn (Function f as b) = R.Function f (R.makeLambda as (injectBody b))
+injectFn (Function f tvs as b) = R.Function f tvs (R.makeLambda as (injectBody b))
 
 injectBody :: Body a -> R.Expr a
 injectBody b0 = case b0 of

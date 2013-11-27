@@ -143,11 +143,9 @@ trProperties = mapM trProperty
 
 -- | Translates a property that has been translated to a simple function earlier
 trProperty :: S.Function (S.Var Name) -> Either Err (Property Void)
-trProperty (S.Function (p ::: t) args b) = case b of
+trProperty (S.Function (p ::: _) tvs args b) = case b of
     Case{} -> throwError (PropertyWithCase b)
     Body e -> do
-
-        let (tvs,_) = collectForalls t
 
         (assums,goal) <- parseProperty e
 
@@ -156,7 +154,7 @@ trProperty (S.Function (p ::: t) args b) = case b of
         return $ initFields Property
             { prop_name     = suggest p
             , prop_origin   = UserStated
-            , prop_tvs      = tvs
+            , prop_tvs      = forget tvs
             , prop_vars     = args
             , prop_goal     = goal
             , prop_assums   = assums

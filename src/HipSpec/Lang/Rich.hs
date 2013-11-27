@@ -38,6 +38,7 @@ data Constructor a = Constructor
 -- | Function definition
 data Function a = Function
     { fn_name    :: a
+    , fn_tvs     :: [a]
     , fn_body    :: Expr a
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
@@ -114,8 +115,8 @@ freeVars = go
     go' (Default,rhs)       = go rhs
     go' (LitPat{},rhs)      = go rhs
 
-    bf (Function u _) = u
-    fb (Function _ b) = b
+    bf (Function u _ _) = u
+    fb (Function _ _ b) = b
 
 letFree :: Expr a -> Bool
 letFree = go

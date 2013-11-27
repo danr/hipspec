@@ -114,6 +114,7 @@ trDefn v e = do
     let tvs_named = map tyVarName tvs
     return Function
         { fn_name    = varName v ::: makeForalls tvs_named ty'
+        , fn_tvs     = star tvs_named
         , fn_body    = body'
         }
 
