@@ -23,6 +23,12 @@ module HipSpec.Lang.Simple
     , injectExpr
     , (//)
     , substMany
+    , fnIds
+    , fnTys
+    , fnTyCons
+    , tcIds
+    , tcTys
+    , tcTyCons
     ) where
 
 import Data.Foldable (Foldable)
@@ -30,7 +36,7 @@ import Data.Traversable (Traversable)
 import Data.Generics.Geniplate
 
 -- Patterns are resued from the rich language
-import HipSpec.Lang.Rich (Pattern(..),anyRhs)
+import HipSpec.Lang.Rich (Pattern(..),anyRhs,Datatype(..),Constructor(..))
 import qualified HipSpec.Lang.Rich as R
 import HipSpec.Lang.Type
 
@@ -116,4 +122,22 @@ injectExpr e0 = case e0 of
     Var x ts  -> R.Var x ts
     App e1 e2 -> R.App (injectExpr e1) (injectExpr e2)
     Lit l tc  -> R.Lit l tc
+
+fnIds :: Function a -> [a]
+fnIds = $(genUniverseBi 'fnIds)
+
+fnTys :: Function a -> [Type a]
+fnTys = $(genUniverseBi 'fnTys)
+
+fnTyCons :: Function a -> [(a,[Type a])]
+fnTyCons fn = [ (tc,ts) | TyCon tc ts <- fnTys fn ]
+
+tcIds :: Datatype a -> [a]
+tcIds = $(genUniverseBi 'tcIds)
+
+tcTys :: Datatype a -> [Type a]
+tcTys = $(genUniverseBi 'tcTys)
+
+tcTyCons :: Datatype a -> [(a,[Type a])]
+tcTyCons tc0 = [ (tc,ts) | TyCon tc ts <- tcTys tc0 ]
 
