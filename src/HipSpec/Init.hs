@@ -33,7 +33,12 @@ import System.Exit
 import System.Process
 import System.FilePath
 
-import Text.Show.Pretty
+import Name(Name)
+import Data.Set (Set)
+import Text.Show.Pretty hiding (Name)
+import HipSpec.Lang.Monomorphise hiding (Inst)
+import HipSpec.Lang.CoreToRich (trTyCon)
+
 
 processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
 processFile cont = do
@@ -64,6 +69,7 @@ processFile cont = do
 
         -- Now, split these into properties and non-properties
 
+        simp_fns :: [S.Function TypedName']
         simp_fns = toSimp binds
 
         is_prop (S.Function (_ S.::: t) _ _ _) =
@@ -92,6 +98,43 @@ processFile cont = do
 
         env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
+        -- *** TESTING ***
+
+        data_types1 :: [S.Datatype Name]
+        Right data_types1 = mapM trTyCon tcs
+
+        bla :: Name -> S.Typed (Inst (S.Rename Name))
+        bla = (S.::: S.Star) . inst . S.Old
+
+        data_types :: [S.Datatype (S.Typed (Inst (S.Rename Name)))]
+        data_types = map (fmap bla) data_types1
+
+        bli :: S.Var Name -> S.Typed (Inst (S.Rename Name))
+        bli = fmap inst
+
+        mono_types = [ dt | dt@(S.Datatype _ [] _) <- data_types ]
+
+        simp_fns' = map (fmap bli) simp_fns
+
+    forM_ mono_types $ \ (S.Datatype mono_type _ _) ->
+        forM_ simp_fns' $ \ (S.Function f ts _ _) -> unless (null ts) $ do
+            let iv :: [(V,S.Type V)] -> [S.Type V] -> V -> V
+                iv su [] y@(Inst _ _ S.::: _) = y
+                iv su ts (Org x S.::: t) = (Inst x (map S.forget ts)
+                                            S.::: S.substManyTys su ti
+                                           )
+                  where (vs,ti) = S.collectForalls t
+
+                hr :: V -> [(V,[S.Type V])]
+                hr (Inst _ ts S.::: t) = S.tyTyCons t
+                hr (Org _ S.::: t)     = S.tyTyCons t
+
+                prg_act :: (Prog V,Set (Record V))
+                prg_act = instProg iv hr (data_types,simp_fns')
+                            [(f,map (\ _ -> S.TyCon mono_type []) ts)]
+
+            putStrLn $ ppShow prg_act
+
     runHS params env $ do
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
@@ -117,3 +160,8 @@ processFile cont = do
 
         cont sig_info tr_props
 
+data Inst a = Org a | Inst a [S.Type (Inst a)] deriving (Eq,Ord,Show)
+
+inst x = Org x
+
+type V = S.Typed (Inst (S.Rename Name))

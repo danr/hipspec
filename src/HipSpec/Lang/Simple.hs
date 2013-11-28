@@ -29,6 +29,7 @@ module HipSpec.Lang.Simple
     , tcIds
     , tcTys
     , tcTyCons
+    , tyTyCons
     ) where
 
 import Data.Foldable (Foldable)
@@ -129,15 +130,21 @@ fnIds = $(genUniverseBi 'fnIds)
 fnTys :: Function a -> [Type a]
 fnTys = $(genUniverseBi 'fnTys)
 
-fnTyCons :: Function a -> [(a,[Type a])]
-fnTyCons fn = [ (tc,ts) | TyCon tc ts <- fnTys fn ]
-
 tcIds :: Datatype a -> [a]
 tcIds = $(genUniverseBi 'tcIds)
 
 tcTys :: Datatype a -> [Type a]
 tcTys = $(genUniverseBi 'tcTys)
 
+tyTys :: Type a -> [Type a]
+tyTys = $(genUniverseBi 'tyTys)
+
+tyTyCons :: Type a -> [(a,[Type a])]
+tyTyCons t0 = [ (tc,ts) | TyCon tc ts <- tyTys t0 ]
+
+fnTyCons :: Function a -> [(a,[Type a])]
+fnTyCons = concatMap tyTyCons . fnTys
+
 tcTyCons :: Datatype a -> [(a,[Type a])]
-tcTyCons tc0 = [ (tc,ts) | TyCon tc ts <- tcTys tc0 ]
+tcTyCons = concatMap tyTyCons . tcTys
 
