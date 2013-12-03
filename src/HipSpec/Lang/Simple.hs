@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables, ViewPatterns #-}
 -- | The Simple expression language, a subset of GHC Core
 --
 -- It is Simple because it lacks lambdas, let and only allows a cascade of
@@ -48,7 +48,7 @@ import HipSpec.Lang.Type
 --   declared here.
 data Function a = Function
     { fn_name    :: a
-    , fn_tvs     :: [a]
+    , fn_type    :: PolyType a
     , fn_args    :: [a]
     , fn_body    :: Body a
     }
@@ -65,12 +65,12 @@ type Alt a = (Pattern a,Body a)
 
 -- | The simple expressions allowed here
 data Expr a
-    = Var a [Type a]
-    -- ^ Variables applied to their type arguments
+    = Lcl a (Type a)
+    -- ^ Local variables
+    | Gbl a (PolyType a) [Type a]
+    -- ^ Global variables applied to their type arguments
     | App (Expr a) (Expr a)
-    | Lit Integer a
-    -- ^ The integer and its type constructor
-    --   (to be able to infer the type)
+    | Lit Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
@@ -82,24 +82,24 @@ collectArgs e           = (e,[])
 apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
 
-bodyType :: Eq a => Body (Typed a) -> Type a
+bodyType :: Eq a => Body a -> Type a
 bodyType = R.exprType . injectBody
 
-exprType :: Eq a => Expr (Typed a) -> Type a
+exprType :: Eq a => Expr a -> Type a
 exprType = R.exprType . injectExpr
 
-exprTySubst :: forall a . Eq a => a -> Type a -> Expr (Typed a) -> Expr (Typed a)
+exprTySubst :: forall a . Eq a => a -> Type a -> Expr a -> Expr a
 exprTySubst x t = ex_ty $ \ t0 -> case t0 of
     TyVar y | x == y -> t
     _                -> t0
   where
-    ex_ty :: (Type a -> Type a) -> Expr (Typed a) -> Expr (Typed a)
+    ex_ty :: (Type a -> Type a) -> Expr a -> Expr a
     ex_ty = $(genTransformBi 'ex_ty)
 
 (//) :: Eq a => Expr a -> a -> Expr a -> Expr a
 e // x = tr_expr $ \ e0 -> case e0 of
-    Var y [] | x == y -> e
-    _                 -> e0
+    Lcl y _ | x == y -> e
+    _                -> e0
   where
     tr_expr :: (Expr a -> Expr a) -> Expr a -> Expr a
     tr_expr = $(genTransformBi 'tr_expr)
@@ -110,7 +110,10 @@ substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 -- * Injectors to the Rich language (for pretty-printing, linting)
 
 injectFn :: Function a -> R.Function a
-injectFn (Function f tvs as b) = R.Function f tvs (R.makeLambda as (injectBody b))
+injectFn (Function f ty as b)
+    = R.Function f ty (R.makeLambda (zip as as_ty) (injectBody b))
+  where
+    Forall _ (collectArrTy -> (as_ty,_)) = ty
 
 injectBody :: Body a -> R.Expr a
 injectBody b0 = case b0 of
@@ -120,9 +123,10 @@ injectBody b0 = case b0 of
 
 injectExpr :: Expr a -> R.Expr a
 injectExpr e0 = case e0 of
-    Var x ts  -> R.Var x ts
-    App e1 e2 -> R.App (injectExpr e1) (injectExpr e2)
-    Lit l tc  -> R.Lit l tc
+    Lcl x t    -> R.Lcl x t
+    Gbl x t ts -> R.Gbl x t ts
+    App e1 e2  -> R.App (injectExpr e1) (injectExpr e2)
+    Lit l      -> R.Lit l
 
 fnIds :: Function a -> [a]
 fnIds = $(genUniverseBi 'fnIds)
