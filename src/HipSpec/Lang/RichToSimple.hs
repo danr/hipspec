@@ -24,59 +24,49 @@ import Control.Applicative
 
 import Data.List (nub,(\\))
 
-type Var a = Typed (Rename a)
-
-data Rename a
-    = Old a                        -- an old name
-    | New [Loc (Rename a)] Integer -- a fresh name
-  deriving (Eq,Ord,Show,Functor)
-
-data Loc a = CaseLoc | LamLoc | LetLoc a
-  deriving (Eq,Ord,Show,Functor)
-
 newtype Env v = Env (Scope v,[Loc v])
 
 instance HasScope v (Env v) where
     get_scope (Env (s,_))   = get_scope s
     mod_scope f (Env (s,a)) = Env (mod_scope f s,a)
 
-type RTS v = RWS
-    (Env (Var v))        -- variables in scope
-    [S.Function (Var v)] -- emitted lifted functions
+type RTS = RWS
+    (Env Id)        -- variables in scope
+    [S.Function Id] -- emitted lifted functions
     Integer              -- name supply
 
-emit :: S.Function (Var v) -> RTS v ()
+emit :: S.Function Id -> RTS ()
 emit = tell . (:[])
 
-runRTS :: Ord v => RTS v a -> (a,[S.Function (Var v)])
+runRTS :: Ord v => RTS a -> (a,[S.Function Id])
 runRTS = runRTSWithScope [] []
 
 runRTSWithScope :: Ord v =>
-    [Loc (Rename v)] -> [Var v] -> RTS v a -> (a,[S.Function (Var v)])
+    [Loc (Rename v)] -> [Id] -> RTS a -> (a,[S.Function Id])
 runRTSWithScope loc sc m = evalRWS m (Env (makeScope sc,map star loc)) 0
 
-getLocs :: forall v . RTS v [Loc (Rename v)]
+getLocs :: RTS [Loc (Rename v)]
 getLocs = do
     Env (_,ls) <- ask
     let ls' :: [Loc (Rename v)]
         ls' = [ forget l | l <- ls ]
     return ls'
 
-withNewLoc :: Loc (Rename v) -> RTS v a -> RTS v a
+withNewLoc :: Loc (Rename v) -> RTS a -> RTS a
 withNewLoc l = local $ \ (Env (sc,ls)) -> Env (sc,ls ++ [star l])
 
-fresh :: Type (Rename v) -> RTS v (Var v)
+fresh :: Type (Rename v) -> RTS Id
 fresh t = do
     ls <- getLocs
     state $ \ s -> (New ls s ::: t,succ s)
 
-rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
+rtsFun :: Ord v => R.Function Id -> RTS (S.Function Id)
 rtsFun (R.Function f tvs e) = do
     let (args,body) = collectBinders e
     withNewLoc (LetLoc (forget_type f)) $ clearScope $ extendScope args $
         S.Function f tvs args <$> rtsBody body
 
-rtsBody :: Ord v => R.Expr (Var v) -> RTS v (S.Body (Var v))
+rtsBody :: Ord v => R.Expr Id -> RTS (S.Body Id)
 rtsBody e0 = case e0 of
     R.Case e x alts -> S.Case <$> rtsExpr e <*> sequence
         [ (,) p <$> bindPattern p (rtsBody (removeScrutinee e x alt))
@@ -88,7 +78,7 @@ rtsBody e0 = case e0 of
         ConPat _ _ bs -> extendScope bs
         _             -> id
 
-rtsExpr :: forall v . Ord v => R.Expr (Var v) -> RTS v (S.Expr (Var v))
+rtsExpr :: R.Expr Id -> RTS (S.Expr Id)
 rtsExpr e0 = case e0 of
     R.Var x ts  -> return (S.Var x ts)
     R.App e1 e2 -> S.App <$> rtsExpr e1 <*> rtsExpr e2
@@ -136,7 +126,7 @@ rtsExpr e0 = case e0 of
         (substs,fns') <- mapAndUnzipM handle_fun fns
 
         -- Substitutions of the functions applied to their new arguments
-        let subst :: R.Expr (Var v) -> R.Expr (Var v)
+        let subst :: R.Expr Id -> R.Expr Id
             subst = foldr (.) id substs
 
         tell =<< mapM (rtsFun . mapFnBody subst) fns'
@@ -171,7 +161,7 @@ This should be lifted to:
 
 -}
 
-emitFun :: forall v . Ord v => Loc (Rename v) -> R.Expr (Var v) -> RTS v (S.Expr (Var v))
+emitFun :: Loc (Rename v) -> R.Expr Id -> RTS (S.Expr Id)
 emitFun l body = do
 
     args <- exprFreeVars body
@@ -192,13 +182,13 @@ emitFun l body = do
                         (map (`S.Var` []) args))
 
 -- | Gets the free vars of an expression
-exprFreeVars :: Ord v => R.Expr (Var v) -> RTS v [Var v]
+exprFreeVars :: Ord v => R.Expr Id -> RTS [Id]
 exprFreeVars = freeVarsOf . R.freeVars
 
 -- | Given a list of variables, gets the free variables and their types
-freeVarsOf :: Ord v => [Var v] -> RTS v [Var v]
+freeVarsOf :: Ord v => [Id] -> RTS [Id]
 freeVarsOf = pluckScoped
 
-typeVarsOf :: Ord v => Type v -> [v]
+typeVarsOf :: Ord v => Type Id -> [Id]
 typeVarsOf = nub . freeTyVars
 
