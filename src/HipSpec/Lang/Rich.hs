@@ -50,6 +50,7 @@ mapFnBody f fn = fn { fn_body = f (fn_body fn) }
 data Expr a
     = Lcl a (Type a)
     -- ^ Local variables
+    --   For now, we don't support polymorphic lets. :(
     | Gbl a (PolyType a) [Type a]
     -- ^ Global variables applied to their type arguments
     | App (Expr a) (Expr a)
@@ -68,6 +69,10 @@ data Expr a
     --   It does not exist in the simple language, and
     --   it is sometimes inlined and then replaced with Nothing.
     | Let [Function a] (Expr a)
+    --   Local lets should be non-polymorphic for now, though it is not
+    --   the type it gets here is too expressible. It does simplify,
+    --   and if it is ever needed it could be added without too much of
+    --   a hassle.
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 univExpr :: Expr a -> [Expr a]

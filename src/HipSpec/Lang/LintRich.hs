@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor,OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor,OverloadedStrings,RecordWildCards #-}
 module HipSpec.Lang.LintRich where
 
 import HipSpec.Lang.Rich
@@ -119,11 +119,23 @@ lintGbl v t = do
         _ -> return ()
 
 lintFns :: Ord v => [Function v] -> LintM v ()
-lintFns fns = lintFnsAnd fns (return ())
+lintFns fns = insertGbls (map ((,) <$> fn_name <*> fn_type) fns)
+                              (mapM_ (lintExpr . fn_body) fns)
 
-lintFnsAnd :: Ord v => [Function v] -> LintM v a -> LintM v a
-lintFnsAnd fns m = insertGbls (map ((,) <$> fn_name <*> fn_type) fns)
-                              (mapM_ (lintExpr . fn_body) fns >> m)
+lintLclFnsAnd :: Ord v => [Function v] -> LintM v a -> LintM v a
+lintLclFnsAnd fns m = do
+    fts <- sequence
+        [ case fn_type of
+            Forall [] ty -> return (fn_name,ty)
+            Forall __ ty -> do
+                report $ \ p ->
+                    ppFun Don'tShow p fn <+>
+                    "is bound locally and has a polymorphic type." <+>
+                    "This is not currently supported."
+                return (fn_name,ty)
+        | fn@Function{..} <- fns
+        ]
+    insertLcls fts (mapM_ (lintExpr . fn_body) fns >> m)
 
 lintExpr :: Ord v => Expr v -> LintM v (Type v)
 lintExpr e0 = chk_ret $ case e0 of
@@ -156,7 +168,7 @@ lintExpr e0 = chk_ret $ case e0 of
             t:tys' -> do
                 unless (all (eqType t) tys') (report (msgAltsRHSIllTyped e0 tys))
                 return t
-    Let fns e -> lintFnsAnd fns (lintExpr e)
+    Let fns e -> lintLclFnsAnd fns (lintExpr e)
   where
     chk_ret m = do
         t <- m
