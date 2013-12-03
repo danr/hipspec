@@ -3,7 +3,7 @@
 module HipSpec.Lang.Type where
 
 import Data.Generics.Geniplate
-import Data.List (nub,union,elemIndex,(\\))
+import Data.List (nub,elemIndex,(\\))
 import Data.Foldable (Foldable,toList)
 import Data.Traversable (Traversable)
 import Data.Function (on)

@@ -3,11 +3,19 @@ module HipSpec.Lang.PrettyUtils where
 
 import Text.PrettyPrint
 
+infix 1 $\
+
+($\) :: Doc -> Doc -> Doc
+d1 $\ d2 = hang d1 2 d2
+
+data Types = Show | Don'tShow
+
+ppTyped :: Types -> Doc -> Doc -> Doc
+ppTyped Show e t = e <+> "::" $\ t
+ppTyped _    e _ = e
+
 -- | Pretty printing kit.
---   First component for variable bindings,
---   second for binding variables
---   (to be able to say where to print types and where to ignore it)
-type Kit a = (a -> Doc,a -> Doc)
+type P a = a -> Doc
 
 parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens

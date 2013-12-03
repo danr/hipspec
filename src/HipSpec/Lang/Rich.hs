@@ -5,7 +5,7 @@
 module HipSpec.Lang.Rich where
 
 import Data.Generics.Geniplate
-import Data.List (union,nub,(\\))
+import Data.List (nub,(\\))
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
@@ -95,6 +95,7 @@ data Pattern a
     = Default
     | ConPat
         { pat_con     :: a
+        , pat_type    :: PolyType a
         , pat_ty_args :: [Type a]
         , pat_args    :: [(a,Type a)]
         }
@@ -107,7 +108,7 @@ freeVars e = nub
     $ ([ a | Lcl a _ <- univ ] \\)
     $ [ a | Lam a _ _  <- univ ] ++
       [ a | Case _ (Just (a,_)) _ <- univ ] ++
-      [ a | Case _ _ alts <- univ, (ConPat _ _ as,_) <- alts, (a,_) <- as ] ++
+      [ a | Case _ _ alts <- univ, (ConPat _ _ _ as,_) <- alts, (a,_) <- as ] ++
       [ fn_name fn | Let fns _ <- univ, fn <- fns ]
   where
     univ = univExpr e
@@ -166,7 +167,7 @@ collectBinders e         = ([],e)
 findAlt :: Eq a => a -> [Type a] -> [Alt a] -> Maybe (Alt a)
 findAlt x ts = go
   where
-    go (alt@(ConPat x' ts' _,_):_)
+    go (alt@(ConPat x' _ ts' _,_):_)
         | x == x' && ts == ts' = Just alt
     go (_:xs) = go xs
     go []     = Nothing

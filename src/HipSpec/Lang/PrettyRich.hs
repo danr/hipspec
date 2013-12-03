@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Pretty-printing the rich language, parameterised on how to
---   pretty-print variables.
+-- | Pretty-printing the rich language, parameterised on whether to print
+--   types of variables.
 module HipSpec.Lang.PrettyRich where
 
 import Text.PrettyPrint
@@ -9,55 +9,64 @@ import HipSpec.Lang.Rich
 import HipSpec.Lang.PrettyUtils
 import HipSpec.Lang.Type
 
-ppProg :: Kit a -> Program a -> Doc
-ppProg k (Program _ds fs) = vcat (map (ppFun k) fs)
+ppProg :: Types -> P a -> Program a -> Doc
+ppProg t p (Program _ds fs) = vcat (map (ppFun t p) fs)
 
-ppFun :: Kit a -> Function a -> Doc
-ppFun k@(_,q) (Function nm tvs e) = hang (q nm <+> sep (map q tvs) <+> "=") 2 (ppExpr 0 k e)
+ppFun :: Types -> P a -> Function a -> Doc
+ppFun t p (Function f ty e) = ppId f ty <+> "=" $\ ppExpr 0 t p e
+  where
+    ppId x t' = ppTyped t (p x) (ppPolyType p t')
 
-ppExpr :: Int -> Kit a -> Expr a -> Doc
-ppExpr i k@(p,q) e0 = case e0 of
-    Var x ts -> parensIf (not (null ts) && i > 1) $
-        p x <> cat [ " @" <+> ppType 1 p t | t <- ts ]
-
+ppExpr :: Int -> Types -> P a -> Expr a -> Doc
+ppExpr i t p e0 = case e0 of
+    Lcl x ty    -> ppId x ty
+    Gbl x ty ts -> parensIf (not (null ts) && i > 1) $
+        ppPolyId x ty $\ sep [ "@" <+> ppType 1 p t' | t' <- ts ]
     App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0
-            pp_args    = map (ppExpr 2 k) args
-            pp_fun     = ppExpr 1 k fun
-        in  hang pp_fun 2 (sep pp_args)
-    Lit x _  -> integer x
-    String{} -> "\"\""
+            pp_args    = map (ppExpr 2 t p) args
+            pp_fun     = ppExpr 1 t p fun
+        in  pp_fun $\ (sep pp_args)
+    Lit x    -> integer x
+    String s -> text (show s)
     Lam{} -> parensIf (i > 0) $
         let (args,body) = collectBinders e0
-            pp_body     = ppExpr 0 k body
-            pp_args     = map q args
-        in  hang ("\\" <+> sep pp_args <+> "->") 2 pp_body
-    Case e x alts -> parensIf (i > 0) $
-        hang ("case" <+> ppExpr 0 k e <+> "of" <+> maybe empty q x) 2
-             (inside "{ " "; " "}" (map (ppAlt k) alts))
+            pp_body     = ppExpr 0 t p body
+            pp_args     = map (uncurry ppId) args
+        in  "\\" <+> sep pp_args <+> "->" $\ pp_body
+    Case e s alts -> parensIf (i > 0) $
+        "case" <+> ppExpr 0 t p e <+> "of" <+> maybe empty (uncurry ppId) s $\
+        inside "{ " "; " "}" (map (ppAlt t p) alts)
     Let fns e -> parensIf (i > 0) $
-        hang ("let" <+> "{") 2 (vcat (map (ppFun k) fns) <+> "}" <+> "in") $$
-        ppExpr 0 k e
+        ("let" <+> "{" $\ vcat (map (ppFun t p) fns) <+> "}" <+> "in") $$
+        ppExpr 0 t p e
+  where
+    ppId     x ty = ppTyped t (p x) (ppType 0 p ty)
+    ppPolyId x ty = ppTyped t (p x) (ppPolyType p ty)
 
-ppAlt :: Kit a -> Alt a -> Doc
-ppAlt k (pat,rhs) = hang (ppPat k pat <+> "->") 2 (ppExpr 0 k rhs)
+ppAlt :: Types -> P a -> Alt a -> Doc
+ppAlt t p (pat,rhs) = ppPat t p pat <+> "->" $\ ppExpr 0 t p rhs
 
-ppPat :: Kit a -> Pattern a -> Doc
-ppPat (p,q) pat = case pat of
-    Default        -> "_"
-    ConPat c ts bs -> hang (p c) 2 (sep ([ "@" <+> ppType 1 p t | t <- ts ] ++ map q bs))
-    LitPat i _     -> integer i
+ppPat :: Types -> P a -> Pattern a -> Doc
+ppPat t p pat = case pat of
+    Default           -> "_"
+    ConPat c ty ts bs ->
+        ppPolyId c ty $\
+        sep ([ "@" <+> ppType 1 p t' | t' <- ts ] ++
+        map (uncurry ppId) bs)
+    LitPat i          -> integer i
+  where
+    ppId     x ty = ppTyped t (p x) (ppType 0 p ty)
+    ppPolyId x ty = ppTyped t (p x) (ppPolyType p ty)
 
-ppType :: Int -> (a -> Doc) -> Type a -> Doc
+ppPolyType :: P a -> PolyType a -> Doc
+ppPolyType p (Forall [] ty) = ppType 0 p ty
+ppPolyType p (Forall xs ty) = "forall" <+> sep (map p xs) <+> "." $\ ppType 0 p ty
+
+ppType :: Int -> P a -> Type a -> Doc
 ppType i p t0 = case t0 of
     TyVar x     -> p x
-    ArrTy t1 t2 -> parensIf (i > 0) $ hang (ppType 1 p t1 <+> "->") 2 (ppType 0 p t2)
-    TyCon tc ts -> hang (p tc) 2 (sep (map (ppType 1 p) ts))
-    Star        -> "*"
-    Forall{}    -> parensIf (i > 0) $
-        let (tvs,t) = collectForalls t0
-        in  hang ("forall" <+> sep (map p tvs) <+> ".") 2 (ppType 0 p t)
-
-ppTyped :: (a -> Doc) -> Typed a -> Doc
-ppTyped p (x ::: t) = hang (p x <+> "::") 2 (ppType 0 p t)
+    ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 p t1 <+> "->" $\ ppType 0 p t2
+    TyCon tc ts -> p tc $\ sep (map (ppType 1 p) ts)
+    Integer     -> "Integer"
 
