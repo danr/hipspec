@@ -15,70 +15,52 @@ import qualified Data.Map as M
 import Text.PrettyPrint
 import HipSpec.Lang.PrettyRich
 
-type LintM v a = WriterT [Err v] (Reader (Map v (Type v))) a
+type LintM v a = WriterT [Err v] (Reader (v -> Doc,Map v (Type v))) a
 
 lint :: Ord v => LintM v a -> [Err v]
 lint = lintWithScope []
 
-lintWithScope :: Ord v => [Typed v] -> LintM v a -> [Err v]
+lintWithScope :: Ord v => [(v,Type v)] -> LintM v a -> [Err v]
 lintWithScope sc m = runReader (execWriterT m') M.empty
   where m' = insertVars sc m
 
-type TypedExpr v = Expr (Typed v)
+msgAlreadyBound v t1 t2 p = sep
+       [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
+msgBoundAsOtherType v t1 t2 p = sep
+       [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
+msgExprTypeDisagrees e t1 t2 p = sep
+       [ppExpr 0 p e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
+msgVarIncorrectlyApplied e p = "Variable incorrectly applied: " <+> ppExpr 0 p e
+msgNotFunctionType e t p = sep
+       [ppExpr 0 p e,"should be of function type, but is:",ppType 0 p t]
+msgIncorrectApplication e t1 t2 p = sep
+       [ppExpr 0 p e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+msgScrutineeVarIllTyped e t1 t2 p = sep
+       [ppExpr 0 p e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+msgCaseWithoutAlts e p = "Case without alternatives: " <+> ppExpr 0 p e
+msgAltsRHSIllTyped e ts p = sep $
+       "Alternatives in case differ in type:":ppExpr 0 p e:map (ppType 0 p) ts
+msgConstructorIncorrectlyApplied pat p = "Constructor incorrectly applied:" <+> ppPat p pat
+msgIllTypedPattern t pat p = ppPat p pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
 
-data Err v
-    = AlreadyBound v (Type v) (Type v)
-    | BoundAsOtherType v (Type v) (Type v)
-    | ExprTypeDisagrees (TypedExpr v) (Type v) (Type v)
-    | VarIncorrectlyApplied (TypedExpr v)
-    | NotFunctionType (TypedExpr v) (Type v)
-    | IncorrectApplication (TypedExpr v) (Type v) (Type v)
-    | ScrutineeVarIllTyped (TypedExpr v) (Type v) (Type v)
-    | CaseWithoutAlts (TypedExpr v)
-    | AltsRHSIllTyped (TypedExpr v) [Type v]
-    | ConstructorIncorrectlyApplied (Pattern (Typed v))
-    | IllTypedPattern (Type v) (Pattern (Typed v))
-  deriving (Show,Functor)
+report :: ((v -> Doc) -> Doc) -> LintM v ()
+report k = do
+    p <- asks fst
+    tell [k p]
 
-ppErr :: (v -> Doc) -> Err v -> Doc
-ppErr p err = case err of
-    AlreadyBound v t1 t2 -> sep
-        [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
-    BoundAsOtherType v t1 t2 -> sep
-        [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
-    ExprTypeDisagrees e t1 t2 -> sep
-        [ppExpr 0 k e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
-    VarIncorrectlyApplied e -> "Variable incorrectly applied: " <+> ppExpr 0 k e
-    NotFunctionType e t -> sep
-        [ppExpr 0 k e,"should be of function type, but is:",ppType 0 p t]
-    IncorrectApplication e t1 t2 -> sep
-        [ppExpr 0 k e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-    ScrutineeVarIllTyped e t1 t2 -> sep
-        [ppExpr 0 k e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-    CaseWithoutAlts e -> "Case without alternatives: " <+> ppExpr 0 k e
-    AltsRHSIllTyped e ts -> sep $
-        "Alternatives in case differ in type:":ppExpr 0 k e:map (ppType 0 p) ts
-    ConstructorIncorrectlyApplied pat -> "Constructor incorrectly applied:" <+> ppPat k pat
-    IllTypedPattern t pat -> ppPat k pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
-  where
-    k = (p . forget_type,ppTyped p)
-
-report :: Err v -> LintM v ()
-report = tell . (:[])
-
-insertVar :: Ord v => Typed v -> LintM v a -> LintM v a
-insertVar (v ::: t) m = do
-    mt <- asks (M.lookup v)
+insertVar :: Ord v => (v,Type v) -> LintM v a -> LintM v a
+insertVar (v,t) m = do
+    mt <- asks (M.lookup v . snd)
     case mt of
         Just t' -> report (AlreadyBound v t t') >> m
         Nothing -> local (M.insert v t) m
 
-insertVars :: Ord v => [Typed v] -> LintM v a -> LintM v a
+insertVars :: Ord v => [(v,Type v)] -> LintM v a -> LintM v a
 insertVars xs m = foldr insertVar m xs
 
-lintVar :: Ord v => Typed v -> LintM v ()
-lintVar (v ::: t) = do
-    mt <- asks (M.lookup v)
+lintVar :: Ord v => v -> Type v -> LintM v ()
+lintVar v t = do
+    mt <- asks (M.lookup v . snd)
     case mt of
         Just t' | not (t `eqType` t') -> report (BoundAsOtherType v t t')
         _ -> return ()
@@ -90,8 +72,10 @@ lintFnsAnd :: Ord v => [Function (Typed v)] -> LintM v a -> LintM v a
 lintFnsAnd fns m = insertVars (map fn_name fns)
                               (mapM_ (lintExpr . fn_body) fns >> m)
 
-lintExpr :: Ord v => TypedExpr v -> LintM v (Type v)
+lintExpr :: Ord v => Expr v -> LintM v (Type v)
 lintExpr e0 = chk_ret $ case e0 of
+    Lcl v ty -> do
+        lintVar v ty
     Var v@(_ ::: ty) ts -> do
         lintVar v
         let (tvs,ty') = collectForalls ty
