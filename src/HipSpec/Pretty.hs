@@ -10,63 +10,80 @@ import HipSpec.Lang.Renamer
 
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
-import qualified HipSpec.Lang.PrettyUtils as P
+import HipSpec.Lang.PrettyUtils (Types(..))
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
 
-import HipSpec.Lang.RichToSimple (Rename(..),Loc(..))
-import HipSpec.Lang.Type (Typed(..))
+import HipSpec.Id
 
-import Data.List (intercalate)
+type LogicId = Poly Id
 
-import HipSpec.GHC.Utils
+docId :: Id -> Doc
+docId = text . ppId
 
-import BasicTypes (TupleSort(..))
-import Name
-import PrelNames
+showSimp :: S.Function Id -> String
+showSimp = render . R.ppFun Don'tShow docId . S.injectFn
 
-type Name' = Rename Name
+showExpr :: S.Expr Id -> String
+showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr
 
-type TypedName' = Typed Name'
+showBody :: S.Body Id -> String
+showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
 
-type LogicId = Poly Name'
-
-simpKit :: P.Kit TypedName'
-simpKit = let k = text . ppRename . S.forget_type in (k,k)
-
-typeKit :: P.Kit TypedName'
-typeKit = let k = parens . R.ppTyped (text . ppRename) in (k,k)
-
-showSimp :: S.Function TypedName' -> String
-showSimp = render . R.ppFun simpKit . S.injectFn
-
-showExpr :: S.Expr TypedName' -> String
-showExpr = render . R.ppExpr 0 simpKit . S.injectExpr
-
-showTypedExpr :: S.Expr TypedName' -> String
-showTypedExpr = render . R.ppExpr 0 typeKit . S.injectExpr
-
-showBody :: S.Body TypedName' -> String
-showBody = render . R.ppExpr 0 simpKit . S.injectBody
-
-showType :: S.Type Name' -> String
-showType = render . R.ppType 0 (text . ppRename)
-
-showTyped :: Typed Name' -> String
-showTyped = render . R.ppTyped (text . ppRename)
+showType :: S.Type Id -> String
+showType = render . R.ppType 0 docId
 
 -- | Printing names
 polyname :: LogicId -> String
 polyname x0 = case x0 of
-    Id x     -> ppRename x
-    Ptr x    -> ppRename x ++ "_ptr"
+    Id x     -> ppId x
+    Ptr x    -> ppId x ++ "_ptr"
     App      -> "app"
     TyFn     -> "Fn"
-    Proj x i -> "proj_" ++ show i ++ "_" ++ ppRename x
+    Proj x i -> "proj_" ++ show i ++ "_" ++ ppId x
     QVar i   -> 'x':show i
 
 ppAltErgo :: [Clause LogicId] -> String
-ppAltErgo
-    = render . vcat . map (ppClause text) . renameCls
+ppAltErgo = render . vcat . map (ppClause text) . renameCls
+
+renameCls :: [Clause LogicId] -> [Clause String]
+renameCls = runRenameM (zencode . polyname) altErgoKeywords . mapM rename
+
+altErgoKeywords :: [String]
+altErgoKeywords =
+    [ "ac"
+    , "and"
+    , "axiom"
+    , "inversion"
+    , "bitv"
+    , "bool"
+    , "check"
+    , "cut"
+    , "distinct"
+    , "else"
+    , "exists"
+    , "false"
+    , "forall"
+    , "function"
+    , "goal"
+    , "if"
+    , "in"
+    , "include"
+    , "int"
+    , "let"
+    , "logic"
+    , "not"
+    , "or"
+    , "predicate"
+    , "prop"
+    , "real"
+    , "rewriting"
+    , "then"
+    , "true"
+    , "type"
+    , "unit"
+    , "void"
+    , "with"
+    ]
 

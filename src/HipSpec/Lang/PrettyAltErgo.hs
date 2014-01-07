@@ -8,8 +8,6 @@ import HipSpec.Lang.PrettyUtils
 
 import Control.Monad
 
-type Id a = a -> Doc
-
 prime :: Doc -> Doc
 prime d = "\'" <> d
 
@@ -24,7 +22,7 @@ commasep = sep . punctuate ","
 commasepP xs | length xs >= 2 = parens (commasep xs)
              | otherwise      = commasep xs
 
-ppClause :: Id a -> Clause a -> Doc
+ppClause :: P a -> Clause a -> Doc
 ppClause p cls = case cls of
     SortSig x n
         -> "type" <+> commasepP (map (prime . text) (take n alphabet)) <+> p x
@@ -40,7 +38,7 @@ ppClType cl = case cl of
     Axiom -> "axiom"
     Goal  -> "goal"
 
-ppTySig :: Id a -> a -> [Type a] -> Type a -> Doc
+ppTySig :: P a -> a -> [Type a] -> Type a -> Doc
 ppTySig p x args res
     = hang (p x <+> ":") 2 (pp_args (ppType p res))
   where
@@ -48,15 +46,16 @@ ppTySig p x args res
         [] -> id
         _  -> hang (commasep (map (ppType p) args) <+> "->") 2
 
-ppType :: Id a -> Type a -> Doc
+ppType :: P a -> Type a -> Doc
 ppType p = go
   where
     go t0 = case t0 of
         TyCon tc ts -> commasepP (map go ts) <+> p tc
         TyVar x     -> prime (p x)
         TType       -> error "PrettyAltErgo.ppType: TType"
+        Integer     -> "int"
 
-ppForm :: Id a -> Formula a -> Doc
+ppForm :: P a -> Formula a -> Doc
 ppForm p f0 = case f0 of
     _ | Just (op,fs) <- collectFOp f0 -> inside "(" (ppFOp op) ")" (map (ppForm p) fs)
     Q q x t f         -> hang (ppQ q <+> ppTySig p x [] t <+> ".") 2 (ppForm p f)
@@ -82,7 +81,7 @@ ppTOp op = case op of
     Equal   -> "="
     Unequal -> "<>"
 
-ppTerm :: Id a -> Term a -> Doc
+ppTerm :: P a -> Term a -> Doc
 ppTerm p = go
   where
     go tm0 = case tm0 of

@@ -15,7 +15,6 @@ import CoreSyn as C
 import DataCon
 import Literal
 import Var hiding (Id)
-import Name(Name)
 import TyCon hiding (data_cons)
 import Type as C
 import GHC (dataConType)
@@ -179,8 +178,8 @@ trExpr e0 = case e0 of
                                 bs' <- forM bs $ \ b ->
                                     (,) (idFromVar b) <$> trType (varType b)
                                 rhs' <- trExpr rhs
-                                dct <- trType (dataConType dc)
-                                return (ConPat (idFromDataCon dc {- ,dct -}) tys' bs',rhs')
+                                dct <- trPolyType (dataConType dc)
+                                return (ConPat (idFromDataCon dc {- ,dct -}) dct tys' bs',rhs')
                             Nothing -> throwError (unif_err (Just u))
                         Nothing -> throwError (unif_err Nothing)
 

@@ -83,6 +83,7 @@ data Type a
     | TyVar a
     | TType
     -- ^ The type of types
+    | Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Term operations

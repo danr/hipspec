@@ -235,8 +235,7 @@ trType t0 = case t0 of
     T.ArrTy t1 t2 -> P.TyCon TyFn [trType t1,trType t2]
     T.TyVar x     -> P.TyVar (Id x)
     T.TyCon tc ts -> P.TyCon (Id tc) (map trType ts)
-    T.Forall{}    -> error "ToPolyFOL.trType on Forall"
-    T.Star        -> error "ToPolyFOL.trType on Star"
+    T.Integer     -> P.Integer
 
 trExpr :: Ord v => Expr v -> TrM v (Term (Poly v))
 trExpr = go

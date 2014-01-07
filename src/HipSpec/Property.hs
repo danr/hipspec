@@ -30,8 +30,8 @@ import HipSpec.Lang.PrettyRich as R
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
-import HipSpec.Unify
-import Control.Unification
+-- import HipSpec.Unify
+-- import Control.Unification
 
 import Text.PrettyPrint hiding (comma)
 
@@ -277,7 +277,7 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
 -- | Generalise a property
 generaliseProp :: Property eq -> Property eq
-generaliseProp prop@Property{..} = case res of
+generaliseProp = id {- prop@Property{..} = case res of
     Right (vs,goal:assums) ->
         let vars        = [ v ::: fmap un_u t | (v,t) <- vs ]
             tvs         = nubSorted (concatMap (freeTyVars . typed_type) vars)
@@ -307,6 +307,7 @@ generaliseProp prop@Property{..} = case res of
 
     un_u (Fresh i) = New [] (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
+    -}
 
 maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop

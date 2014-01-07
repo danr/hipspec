@@ -15,7 +15,8 @@ module HipSpec.Theory
 
 import HipSpec.Pretty
 
-import HipSpec.Lang.RichToSimple (Rename(..))
+import HipSpec.Id
+
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 
@@ -30,18 +31,18 @@ import qualified Data.Map as M
 import Data.List (sortBy)
 import Data.Ord (comparing)
 
-type ArityMap = Map (Rename Name) Int
+type ArityMap = Map Id Int
 
 combineArityMap :: ArityMap -> ArityMap -> ArityMap
 combineArityMap = M.union
 
 data Content
-    = Definition (Rename Name)
+    = Definition Id
     -- ^ Function definition, or a constructor,
     --   with no clauses and only depends on its parent data type
     | Type Name
     -- ^ Axioms for a type
-    | Pointer (Rename Name)
+    | Pointer Id
     -- ^ Pointer to some defined name
     | Lemma Int
     -- ^ A lemma
@@ -53,9 +54,9 @@ data Content
 
 instance Show Content where
     show ctnt = case ctnt of
-        Definition rn -> "Definition " ++ ppRename rn
+        Definition rn -> "Definition " ++ ppId rn
         Type nm       -> "Type " ++ ppName nm
-        Pointer rn    -> "Pointer " ++ ppRename rn
+        Pointer rn    -> "Pointer " ++ ppId rn
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
         AppThy        -> "AppThy"
@@ -97,7 +98,7 @@ calcDepsIgnoring ctnt s = s
   where
     (S.toList -> ty_cons,S.toList -> fns) = clsDeps (clauses s)
 
-    types = S.fromList [ Type x | Id (Old x) <- ty_cons ]
+    types = S.fromList [ Type x | Id (GHCOrigin x) <- ty_cons ]
 
     app = S.fromList $ [ AppThy | TyFn <- ty_cons ] ++ [ AppThy | App <- fns ]
 
