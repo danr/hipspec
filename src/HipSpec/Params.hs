@@ -30,6 +30,7 @@ import Control.Monad(when)
 -- | Debugging flags
 data DebugFlag
     = PrintParams
+    | PrintCore
 --    | PrintRich
     | PrintSimple
 --    | PrintFunFO
@@ -54,6 +55,7 @@ defStr x xs | x `elem` xs = " (default)"
 debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
     PrintParams      -> "Print the passed parameters"
+    PrintCore        -> "Print GHC Core"
 --    PrintRich        -> "Print Rich IR"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"

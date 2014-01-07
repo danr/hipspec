@@ -18,6 +18,7 @@ import HipSpec.Params
 import HipSpec.Lint
 import HipSpec.Utils
 
+import HipSpec.GHC.Utils
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
@@ -93,6 +94,8 @@ processFile cont = do
         env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
     runHS params env $ do
+
+        debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
