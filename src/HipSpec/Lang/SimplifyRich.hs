@@ -18,8 +18,13 @@ module HipSpec.Lang.SimplifyRich where
 import HipSpec.Lang.Rich
 import HipSpec.Lang.Type
 
-simpFun :: Eq a => Function a -> Function a
-simpFun (Function f ty b) = Function f ty $ simpExpr $ case b of
+simpFuns :: Eq a => [Function a] -> [Function a]
+simpFuns = map (simpFun Global)
+
+data Where = Global | Local deriving Eq
+
+simpFun :: Eq a => Where -> Function a -> Function a
+simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
     -- Sometimes functions look like this
     -- f = \ xs -> let g = K[g] in g,
     -- then we simply replace it to f = \ xs -> K[f xs]
@@ -27,8 +32,15 @@ simpFun (Function f ty b) = Function f ty $ simpExpr $ case b of
 
     (collectBinders -> (xs,Let [Function g (Forall [] _) e] (Lcl g' _)))
         | g == g'
-        , Forall tvs _ <- ty -> makeLambda xs
-            ((Gbl f ty (map TyVar tvs) `apply` map (uncurry Lcl) xs // g) e)
+        , Forall tvs inner_ty <- ty
+        , null tvs || loc == Global ->
+            let
+                var = case loc of
+                    Global -> Gbl
+                    Local  -> \ a _ _ -> Lcl a inner_ty
+            in
+                makeLambda xs
+                   ((var f ty (map TyVar tvs) `apply` map (uncurry Lcl) xs // g) e)
 
     _ -> b
 
@@ -56,10 +68,10 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
     -- Cannot inline this to several occasions if e contains a let
     Let [Function f (Forall [] _) b] e
         | not (f `occursIn` b)
-        , letFree b || occurrences f e <= 1 -> simpExpr ((b // f) e)
+        , letFree b {- || occurrences f e <= 1 -} -> simpExpr ((b // f) e)
 
 
-    Let fns e -> Let (map simpFun fns) (simpExpr e)
+    Let fns e -> Let (map (simpFun Local) fns) (simpExpr e)
 
     _ -> e0
 

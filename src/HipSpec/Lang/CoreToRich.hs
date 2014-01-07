@@ -121,7 +121,7 @@ trVar x = do
         then case ty of
                 Forall [] ti -> return (Lcl (idFromVar x) ti)
                 _            -> fail ("Local identifier " ++ showOutputable x ++
-                                      "with forall-type: " ++ showOutputable (varType x))
+                                      " with forall-type: " ++ showOutputable (varType x))
         else return $ case idDetails x of
                 DataConWorkId dc -> Gbl (idFromName $ dataConName dc) ty []
                 DataConWrapId dc -> Gbl (idFromName $ dataConName dc) ty []

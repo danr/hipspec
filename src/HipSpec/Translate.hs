@@ -7,9 +7,7 @@ import qualified HipSpec.Lang.Rich as R
 --import HipSpec.Lang.Rich (Datatype(..),Constructor(..))
 
 import HipSpec.Lang.CoreToRich
-import HipSpec.Lang.SimplifyRich
 import HipSpec.Lang.RichToSimple
---import qualified HipSpec.Lang.RichToSimple as S
 
 import HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.FunctionalFO as FO
@@ -117,13 +115,16 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
     Left err -> error $ "trTyCons: " ++ show err
 
 
--- | Translates Var/Expr-pairs to simple functions
-toSimp :: [(Var,CoreExpr)] -> [S.Function Id]
-toSimp = concatMap (uncurry to_simp)
+-- | Translates Var/Expr-pairs to rich functions
+toRich :: [(Var,CoreExpr)] -> [R.Function Id]
+toRich = map (uncurry to_simp)
   where
     to_simp v e = case runTM (trDefn v e) of
-        Right fn -> uncurry (:) . runRTS . rtsFun $ simpFun fn
+        Right fn -> fn
         Left err -> error $ "toSimp: " ++ show err
+
+toSimp :: [R.Function Id] -> [S.Function Id]
+toSimp = uncurry (++) . runRTS . mapM rtsFun
 
 -- | Translates a bunch of simple functions into subtheories
 trSimpFuns :: ArityMap -> [S.Function Id] -> (ArityMap,[Subtheory])

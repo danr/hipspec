@@ -8,6 +8,7 @@ import HipSpec.Utils.ZEncode
 
 import HipSpec.Lang.Renamer
 
+import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
 import HipSpec.Lang.PrettyUtils (Types(..))
@@ -25,6 +26,9 @@ docId = text . ppId
 showSimp :: S.Function Id -> String
 showSimp = render . R.ppFun Show docId . S.injectFn
 
+showRich :: R.Function Id -> String
+showRich = render . R.ppFun Show docId
+
 showExpr :: S.Expr Id -> String
 showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr
 
@@ -34,11 +38,11 @@ showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
 showType :: S.Type Id -> String
 showType = render . R.ppType 0 docId
 
-showTyped :: (Id,S.Type Id) -> String
-showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 docId t))
-
 showPolyType :: S.PolyType Id -> String
 showPolyType = render . R.ppPolyType docId
+
+showTyped :: (Id,S.Type Id) -> String
+showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 docId t))
 
 -- | Printing names
 polyname :: LogicId -> String

@@ -31,7 +31,8 @@ import Control.Monad(when)
 data DebugFlag
     = PrintParams
     | PrintCore
---    | PrintRich
+    | PrintRich
+    | PrintOptRich
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
@@ -56,7 +57,8 @@ debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
     PrintParams      -> "Print the passed parameters"
     PrintCore        -> "Print GHC Core"
---    PrintRich        -> "Print Rich IR"
+    PrintRich        -> "Print Rich IR"
+    PrintOptRich     -> "Print Optimised Rich IR"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"

@@ -67,6 +67,6 @@ ppType :: Int -> P a -> Type a -> Doc
 ppType i p t0 = case t0 of
     TyVar x     -> p x
     ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 p t1 <+> "->" $\ ppType 0 p t2
-    TyCon tc ts -> p tc $\ sep (map (ppType 1 p) ts)
+    TyCon tc ts -> parensIf (i > 1) $ p tc $\ sep (map (ppType 1 p) ts)
     Integer     -> "Integer"
 

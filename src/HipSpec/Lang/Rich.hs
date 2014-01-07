@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, PatternGuards #-}
 -- | The Rich expression language, a subset of GHC Core
 --
 -- It is Rich because it has lambdas, let and cases at any level.
@@ -81,8 +81,8 @@ univExpr = $(genUniverseBi 'univExpr)
 typeUnivExpr :: Expr a -> [Type a]
 typeUnivExpr = $(genUniverseBi 'typeUnivExpr)
 
-exprTyVars :: Expr a -> [a]
-exprTyVars e = [ a | TyVar a <- typeUnivExpr e ]
+exprTyVars :: Eq a => Expr a -> [a]
+exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
 
 exprType :: Eq a => Expr a -> Type a
 exprType e0 = case e0 of
@@ -130,7 +130,7 @@ typedFreeVars e = [ at | at@(a,_) <- lcls, a `notElem` bound ]
         [ fn_name fn | Let fns _ <- univ, fn <- fns ]
 
 letFree :: Expr a -> Bool
-letFree e = or [ True | Let{} <- univExpr e ]
+letFree e = and [ False | Let{} <- univExpr e ]
 
 -- | Number of occurences for a (local) variable
 occurrences :: Eq a => a -> Expr a -> Int
@@ -143,6 +143,9 @@ occursIn x e = x `elem` freeVars e
 
 transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
 transformExpr = $(genTransformBi 'transformExpr)
+
+universeExpr :: Expr a -> [Expr a]
+universeExpr = $(genUniverseBi 'universeExpr)
 
 -- | Substitution, of local variables
 --

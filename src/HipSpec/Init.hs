@@ -3,7 +3,6 @@ module HipSpec.Init (processFile,SigInfo(..)) where
 
 import Control.Monad
 
-
 import Data.List (partition,union)
 import Data.Void
 
@@ -26,9 +25,11 @@ import HipSpec.GHC.Unfoldings
 import HipSpec.Lang.Uniquify
 
 -- import qualified HipSpec.Lang.RichToSimple as S
+import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
 import TyCon (isAlgTyCon)
+-- import Name (isSystemName,isInternalName)
 import UniqSupply
 
 import System.Exit
@@ -70,7 +71,9 @@ processFile cont = do
         -- Now, split these into properties and non-properties
 
         simp_fns :: [S.Function Id]
-        simp_fns = toSimp binds
+        rich_fns = toRich binds
+        rich_fns_opt = S.simpFuns rich_fns
+        simp_fns = toSimp rich_fns_opt
 
         is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
@@ -136,6 +139,10 @@ processFile cont = do
         debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
 
         debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
+
+        debugWhen PrintSimple $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
+
+        debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
