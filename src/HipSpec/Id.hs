@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 module HipSpec.Id where
 
 import Name hiding (varName)
@@ -42,13 +43,19 @@ data Derived
     | Lambda Id
     | Case Id
     | Eta
+    | Unknown
   deriving (Eq,Ord)
+
+mkLetFrom :: Id -> Integer -> Id -> Id
+mkLetFrom x _ (Derived Unknown _) = x
+mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
 instance Show Derived where
     show (f `LetFrom` g) = "let_" ++ show f ++ "_from_" ++ show g ++ "_endlet"
     show (Lambda f)      = "lam_" ++ show f ++ "_endlam"
     show (Case f)        = "case_" ++ show f ++ "_endcase"
     show Eta             = "eta"
+    show Unknown         = "unknown"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -64,6 +71,7 @@ ppDerived d = case d of
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"
+    Unknown       -> "unknown"
 
 ppName :: Name -> String
 ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}

@@ -5,7 +5,7 @@
 module HipSpec.Lang.Rich where
 
 import Data.Generics.Geniplate
-import Data.List (nub,(\\))
+import Data.List (nub)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
@@ -78,6 +78,12 @@ data Expr a
 univExpr :: Expr a -> [Expr a]
 univExpr = $(genUniverseBi 'univExpr)
 
+typeUnivExpr :: Expr a -> [Type a]
+typeUnivExpr = $(genUniverseBi 'typeUnivExpr)
+
+exprTyVars :: Expr a -> [a]
+exprTyVars e = [ a | TyVar a <- typeUnivExpr e ]
+
 exprType :: Eq a => Expr a -> Type a
 exprType e0 = case e0 of
     Lcl _ t                -> t
@@ -109,14 +115,19 @@ data Pattern a
 
 -- | Free (local) variables
 freeVars :: Eq a => Expr a -> [a]
-freeVars e = nub
-    $ ([ a | Lcl a _ <- univ ] \\)
-    $ [ a | Lam a _ _  <- univ ] ++
-      [ a | Case _ (Just (a,_)) _ <- univ ] ++
-      [ a | Case _ _ alts <- univ, (ConPat _ _ _ as,_) <- alts, (a,_) <- as ] ++
-      [ fn_name fn | Let fns _ <- univ, fn <- fns ]
+freeVars = map fst . typedFreeVars
+
+-- | Free, typed, (local) variables
+typedFreeVars :: Eq a => Expr a -> [(a,Type a)]
+typedFreeVars e = [ at | at@(a,_) <- lcls, a `notElem` bound ]
   where
     univ = univExpr e
+    lcls = nub [ (a,t) | Lcl a t <- univ ]
+    bound = nub $
+        [ a | Lam a _ _  <- univ ] ++
+        [ a | Case _ (Just (a,_)) _ <- univ ] ++
+        [ a | Case _ _ alts <- univ, (ConPat _ _ _ as,_) <- alts, (a,_) <- as ] ++
+        [ fn_name fn | Let fns _ <- univ, fn <- fns ]
 
 letFree :: Expr a -> Bool
 letFree e = or [ True | Let{} <- univExpr e ]
