@@ -141,10 +141,12 @@ instAlt (p,b) = case p of
 
 instExpr :: Ord a => Expr a -> InstM a (Expr a)
 instExpr e = case e of
-    Var x ts  -> Var <$> instrecId x ts <*> pure []
+    Lcl x ty     ->
+    Gbl x ty ts  -> Var <$> instrecId x ts <*> pure []
     App e1 e2 -> App <$> instExpr e1 <*> instExpr e2
     Lit{}     -> return e
 
+{-
 _test_map :: Function String
 _test_map = Function "map" ["a","b"] ["f","xs"] $ Case (Var "xs" [])
     [ (ConPat "cons" [TyVar "a"] ["y","ys"],Body $ Var "cons" [TyVar "b"] `App` (Var "f" [] `App` Var "y" []) `App` (Var "map" [TyVar "a",TyVar "b"] `App` Var "f" [] `App` Var "ys" []))
@@ -163,4 +165,5 @@ _test_list = Datatype "List" ["a"] [Constructor "Cons" [TyVar "a",TyCon "List" [
 
 _test2 :: Datatype String
 _test2 = instTyCon _test_inst _test_list [TyCon "A" []]
+-}
 

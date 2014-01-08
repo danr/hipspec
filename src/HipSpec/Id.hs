@@ -31,12 +31,14 @@ idFromTyCon = idFromName . tyConName
 
 data Id
     = GHCOrigin Name
+    | QSOrigin String Integer
     | Derived Derived Integer
   deriving (Eq,Ord)
 
 instance Show Id where
-    show (GHCOrigin nm)  = showOutputable nm ++ "_" ++ showOutputable (getUnique nm)
-    show (Derived d i)   = show i ++ "_" ++ show d
+    show (GHCOrigin nm) = showOutputable nm ++ "_" ++ showOutputable (getUnique nm)
+    show (QSOrigin s i) = s ++ "_" ++ show i
+    show (Derived d i)  = show d ++ "_" ++ show i
 
 data Derived
     = Id `LetFrom` Id
@@ -63,6 +65,7 @@ instance Show Derived where
 ppId :: Id -> String
 ppId i = case i of
     GHCOrigin nm  -> ppName nm
+    QSOrigin s _  -> s
     Derived d _   -> ppDerived d
 
 ppDerived :: Derived -> String

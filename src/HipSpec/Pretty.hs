@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards,OverloadedStrings #-}
 module HipSpec.Pretty where
 
 import Text.PrettyPrint
@@ -33,6 +33,12 @@ showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
 
 showType :: S.Type Id -> String
 showType = render . R.ppType 0 docId
+
+showTyped :: (Id,S.Type Id) -> String
+showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 docId t))
+
+showPolyType :: S.PolyType Id -> String
+showPolyType = render . R.ppPolyType docId
 
 -- | Printing names
 polyname :: LogicId -> String

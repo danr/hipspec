@@ -20,7 +20,7 @@ import HipSpec.Id
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 
-import Name
+-- import Name
 
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -40,7 +40,7 @@ data Content
     = Definition Id
     -- ^ Function definition, or a constructor,
     --   with no clauses and only depends on its parent data type
-    | Type Name
+    | Type Id
     -- ^ Axioms for a type
     | Pointer Id
     -- ^ Pointer to some defined name
@@ -55,7 +55,7 @@ data Content
 instance Show Content where
     show ctnt = case ctnt of
         Definition rn -> "Definition " ++ ppId rn
-        Type nm       -> "Type " ++ ppName nm
+        Type nm       -> "Type " ++ ppId nm
         Pointer rn    -> "Pointer " ++ ppId rn
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
@@ -98,7 +98,7 @@ calcDepsIgnoring ctnt s = s
   where
     (S.toList -> ty_cons,S.toList -> fns) = clsDeps (clauses s)
 
-    types = S.fromList [ Type x | Id (GHCOrigin x) <- ty_cons ]
+    types = S.fromList [ Type x | Id x@GHCOrigin{} <- ty_cons ]
 
     app = S.fromList $ [ AppThy | TyFn <- ty_cons ] ++ [ AppThy | App <- fns ]
 

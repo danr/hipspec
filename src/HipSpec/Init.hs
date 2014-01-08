@@ -36,7 +36,7 @@ import System.FilePath
 import Name(Name)
 import Data.Set (Set)
 import Text.Show.Pretty hiding (Name)
-import HipSpec.Lang.Monomorphise hiding (Inst)
+-- import HipSpec.Lang.Monomorphise hiding (Inst)
 import HipSpec.Lang.CoreToRich (trTyCon)
 
 

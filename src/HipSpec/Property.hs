@@ -22,26 +22,28 @@ module HipSpec.Property
 
 import Control.Monad.Error
 
-import Name
+-- import Name
 
 import HipSpec.Lang.Simple as S
-import HipSpec.Lang.RichToSimple as S
-import HipSpec.Lang.PrettyRich as R
+-- import HipSpec.Lang.RichToSimple as S
+-- import HipSpec.Lang.PrettyRich as R
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
 -- import HipSpec.Unify
 -- import Control.Unification
 
-import Text.PrettyPrint hiding (comma)
+-- import Text.PrettyPrint hiding (comma)
 
 import HipSpec.ParseDSL
 import HipSpec.Theory
 import HipSpec.Utils
 import HipSpec.Property.Repr
 
-import TysWiredIn (trueDataCon,boolTyConName)
-import DataCon (dataConName)
+import HipSpec.Id hiding (Derived(Case))
+
+import TysWiredIn (trueDataCon,boolTyCon)
+-- import DataCon (dataConName)
 
 import Data.List (intercalate)
 import Data.Maybe (mapMaybe)
@@ -54,9 +56,9 @@ import qualified HipSpec.Lang.ToPolyFOL as P
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Literals in propreties
-data Literal = S.Expr TypedName' :=: S.Expr TypedName'
+data Literal = S.Expr Id :=: S.Expr Id
 
-mapLiteral :: (S.Expr TypedName' -> S.Expr TypedName') -> Literal -> Literal
+mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
 
 instance Show Literal where
@@ -74,11 +76,13 @@ data Origin eq
 data Property eq = Property
     { prop_name     :: String
     -- ^ Name (e.g. prop_rotate)
+    , prop_id       :: Id
+    -- ^ Its property id...
     , prop_origin   :: Origin eq
     -- ^ Origin of the property
-    , prop_tvs      :: [Name']
+    , prop_tvs      :: [Id]
     -- ^ Type variables
-    , prop_vars     :: [TypedName']
+    , prop_vars     :: [(Id,Type Id)]
     -- ^ Quantified variables (typed)
     , prop_goal     :: Literal
     -- ^ Goal
@@ -111,8 +115,8 @@ instance Show (Property eq) where
         [ "Property"
         , "{ prop_name = " ++ prop_name
         , ", prop_origin = " ++ show prop_origin
-        , ", prop_tvs = " ++ comma (map ppRename prop_tvs)
-        , ", prop_vars = " ++ comma (map (render . R.ppTyped (text . ppRename)) prop_vars)
+        , ", prop_tvs = " ++ comma (map ppId prop_tvs)
+        , ", prop_vars = " ++ comma (map showTyped prop_vars)
         , ", prop_goal = " ++ show prop_goal
         , ", prop_assums = " ++ comma (map show prop_assums)
         , ", prop_repr = " ++ prop_repr
@@ -122,10 +126,11 @@ instance Show (Property eq) where
      where
        comma = intercalate ","
 
+-- TODO: remove this junk
 data Err
-    = CannotParse (S.Expr (S.Var Name))
-    | NestedAssumptions (S.Expr (S.Var Name))
-    | PropertyWithCase (S.Body (S.Var Name))
+    = CannotParse (S.Expr Id)
+    | NestedAssumptions (S.Expr Id)
+    | PropertyWithCase (S.Body Id)
     | Internal String
 
 instance Error Err where
@@ -138,12 +143,12 @@ instance Show Err where
         PropertyWithCase b  -> "Property with a case: " ++ showBody b
         Internal s          -> s
 
-trProperties :: [S.Function (S.Var Name)] -> Either Err [Property Void]
+trProperties :: [S.Function Id] -> Either Err [Property Void]
 trProperties = mapM trProperty
 
 -- | Translates a property that has been translated to a simple function earlier
-trProperty :: S.Function (S.Var Name) -> Either Err (Property Void)
-trProperty (S.Function (p ::: _) tvs args b) = case b of
+trProperty :: S.Function Id -> Either Err (Property Void)
+trProperty (S.Function p (Forall tvs ty) args b) = case b of
     Case{} -> throwError (PropertyWithCase b)
     Body e -> do
 
@@ -151,11 +156,14 @@ trProperty (S.Function (p ::: _) tvs args b) = case b of
 
         let err = error "trProperty: initalize fields with initFields"
 
+            (arg_tys,_) = collectArrTy ty
+
         return $ initFields Property
-            { prop_name     = suggest p
+            { prop_name     = ppId p
+            , prop_id       = p
             , prop_origin   = UserStated
-            , prop_tvs      = forget tvs
-            , prop_vars     = args
+            , prop_tvs      = tvs
+            , prop_vars     = zip args arg_tys
             , prop_goal     = goal
             , prop_assums   = assums
             , prop_repr     = err
@@ -164,8 +172,8 @@ trProperty (S.Function (p ::: _) tvs args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = runRenameM suggest [] $ do
-    vars' <- insertMany (map S.forget_type prop_vars)
+initFields p@Property{..} = runRenameM ppId [] $ do
+    vars' <- insertMany (map fst prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
     return p
         { prop_var_repr = vars'
@@ -173,14 +181,14 @@ initFields p@Property{..} = runRenameM suggest [] $ do
         }
   where
     show_lit (e1 :=: e2) = do
-            t1 <- exprRepr <$> rename (fmap forget_type e1)
-            t2 <- exprRepr <$> rename (fmap forget_type e2)
+            t1 <- exprRepr <$> rename e1
+            t2 <- exprRepr <$> rename e2
             return (t1 ++ " == " ++ t2)
 
 -- | Tries to "parse" a property in the simple expression format
-parseProperty :: S.Expr (S.Var Name) -> Either Err ([Literal],Literal)
+parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
-    (Var (Old x ::: _) _,args)
+    (Gbl (GHCOrigin x) _ _,args)
         | isEquals x,    [l,r] <- args -> return ([],l :=: r)
         | isProveBool x, [l]   <- args -> return ([],l :=: true)
         | isGivenBool x, [l,q] <- args -> do
@@ -193,7 +201,7 @@ parseProperty e = case collectArgs e of
             return (a:as,gl)
     _ -> throwError (CannotParse e)
   where
-    true = Var (Old (dataConName trueDataCon) ::: TyCon (Old boolTyConName) []) []
+    true = Gbl (idFromDataCon trueDataCon) (Forall [] (TyCon (idFromTyCon boolTyCon) [])) []
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore
@@ -201,7 +209,7 @@ tvSkolemProp :: Property eq -> (Property eq,[P.Clause LogicId],[Content])
 tvSkolemProp p@Property{..} =
     ( p
         { prop_tvs  = []
-        , prop_vars = [ v ::: ty_subst t | v ::: t <- prop_vars ]
+        , prop_vars = [ (v,ty_subst t) | (v,t) <- prop_vars ]
         , prop_goal = sk_lit prop_goal
         , prop_assums = map sk_lit prop_assums
         }
@@ -209,7 +217,7 @@ tvSkolemProp p@Property{..} =
     , ignore
     )
   where
-    tvs = [ (tv,S.New [S.LetLoc tv] i) | (tv,i) <- zip prop_tvs [0..] ]
+    tvs = [ (tv,mkLetFrom tv i prop_id) | (tv,i) <- zip prop_tvs [0..] ]
 
     (expr_substs,ty_substs) = unzip
         [ (exprTySubst tv tc,tc /// tv)
@@ -217,8 +225,8 @@ tvSkolemProp p@Property{..} =
         , let tc = S.TyCon tv' []
         ]
 
-    sorts      = [ P.SortSig (P.Id tv') 0 | (_,tv') <- tvs       ]
-    ignore     = [ Type tv'               | (_,S.Old tv') <- tvs ]
+    sorts      = [ P.SortSig (P.Id tv') 0 | (_,tv') <- tvs ]
+    ignore     = [ Type tv'               | (_,tv') <- tvs ]
 
     expr_subst = foldr (.) id expr_substs
     ty_subst   = foldr (.) id ty_substs
@@ -230,8 +238,8 @@ etaExpandProp p@Property{..}
     | e :=: _ <- prop_goal
     , (ts,_res_ty) <- collectArrTy (S.exprType e)
     , not (null ts) =
-        let new_vars  = [ New [LamLoc] i ::: t | (t,i) <- zip ts [0..] ]
-            new_exprs = [ Var x [] | x <- new_vars ]
+        let new_vars  = [ (Derived Eta i,t) | (t,i) <- zip ts [0..] ]
+            new_exprs = [ Lcl x t | (x,t) <- new_vars ]
         in  initFields p
                 { prop_vars = prop_vars ++ new_vars
                 , prop_goal = mapLiteral (`S.apply` new_exprs) prop_goal
@@ -256,7 +264,7 @@ lintProperty prop@Property{..} =
         errs -> Just (unlines (show prop:"Linting failed:":errs))
 
 -- | Lint pass on a literal
-lintLiteral :: [TypedName'] -> Literal -> [String]
+lintLiteral :: [(Id,Type Id)] -> Literal -> [String]
 lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
   where
     t1 = exprType e1
