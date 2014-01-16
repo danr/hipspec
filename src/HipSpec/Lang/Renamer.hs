@@ -13,6 +13,7 @@ import qualified Data.Set as S
 
 import Control.Arrow
 
+
 type RenameM a = ReaderT (Suggestor a) (State (Map a String,Set String))
 
 type Suggestor a = a -> String

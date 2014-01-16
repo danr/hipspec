@@ -30,6 +30,7 @@ module HipSpec.Lang.Simple
     , tcTys
     , tcTyCons
     , tyTyCons
+    , travExprTypes
     ) where
 
 import Data.Foldable (Foldable)
@@ -151,4 +152,7 @@ fnTyCons = concatMap tyTyCons . fnTys
 
 tcTyCons :: Datatype a -> [(a,[Type a])]
 tcTyCons = concatMap tyTyCons . tcTys
+
+travExprTypes :: (Type a -> Type a) -> Expr a -> Expr a
+travExprTypes = $(genTransformBi 'travExprTypes)
 

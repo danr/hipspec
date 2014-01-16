@@ -159,7 +159,7 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
             (arg_tys,_) = collectArrTy ty
 
         return $ initFields Property
-            { prop_name     = ppId p
+            { prop_name     = originalId p
             , prop_id       = p
             , prop_origin   = UserStated
             , prop_tvs      = tvs
@@ -172,7 +172,7 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = runRenameM ppId [] $ do
+initFields p@Property{..} = runRenameM originalId [] $ do
     vars' <- insertMany (map fst prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
     return p
@@ -181,9 +181,11 @@ initFields p@Property{..} = runRenameM ppId [] $ do
         }
   where
     show_lit (e1 :=: e2) = do
-            t1 <- exprRepr <$> rename e1
-            t2 <- exprRepr <$> rename e2
+            t1 <- exprRepr <$> rename (zap_expr_types e1)
+            t2 <- exprRepr <$> rename (zap_expr_types e2)
             return (t1 ++ " == " ++ t2)
+
+    zap_expr_types = S.travExprTypes (fmap (const (Derived Unknown 0)))
 
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)

@@ -53,11 +53,22 @@ mkLetFrom x _ (Derived Unknown _) = x
 mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
 instance Show Derived where
-    show (f `LetFrom` g) = "let_" ++ show f ++ "_from_" ++ show g ++ "_endlet"
+    show (f `LetFrom` g) = "let_" ++ show g ++ "_from_" ++ show f ++ "_endlet"
     show (Lambda f)      = "lam_" ++ show f ++ "_endlam"
     show (Case f)        = "case_" ++ show f ++ "_endcase"
     show Eta             = "eta"
     show Unknown         = "unknown"
+
+originalId :: Id -> String
+originalId i = case i of
+    GHCOrigin nm -> getOccString nm
+    QSOrigin s _  -> s
+    Derived d _   -> case d of
+        _ `LetFrom` b -> originalId b ++ "_"
+        Lambda a      -> originalId a ++ "_lambda"
+        Case a        -> originalId a ++ "_case"
+        Eta           -> "x"
+        Unknown       -> "u"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -70,7 +81,7 @@ ppId i = case i of
 
 ppDerived :: Derived -> String
 ppDerived d = case d of
-    f `LetFrom` g -> ppId f ++ "_" ++ ppId g
+    f `LetFrom` g -> ppId g ++ "_" ++ ppId f
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"
