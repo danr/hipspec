@@ -121,7 +121,7 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
 toSimp :: [(Var,CoreExpr)] -> [S.Function Id]
 toSimp = concatMap (uncurry to_simp)
   where
-    to_simp v e = case trDefn v e of
+    to_simp v e = case runTM (trDefn v e) of
         Right fn -> uncurry (:) . runRTS . rtsFun $ simpFun fn
         Left err -> error $ "toSimp: " ++ show err
 

@@ -11,7 +11,7 @@ d1 $\ d2 = hang d1 2 d2
 data Types = Show | Don'tShow
 
 ppTyped :: Types -> Doc -> Doc -> Doc
-ppTyped Show e t = e <+> "::" $\ t
+ppTyped Show e t = parens (e <+> "::" $\ t)
 ppTyped _    e _ = e
 
 -- | Pretty printing kit.

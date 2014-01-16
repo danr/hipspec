@@ -23,7 +23,7 @@ docId :: Id -> Doc
 docId = text . ppId
 
 showSimp :: S.Function Id -> String
-showSimp = render . R.ppFun Don'tShow docId . S.injectFn
+showSimp = render . R.ppFun Show docId . S.injectFn
 
 showExpr :: S.Expr Id -> String
 showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr

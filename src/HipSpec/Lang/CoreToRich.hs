@@ -6,6 +6,7 @@ module HipSpec.Lang.CoreToRich where
 
 import Control.Applicative
 import Control.Monad.Error
+import Control.Monad.Reader
 
 import HipSpec.Lang.Rich as R
 import HipSpec.Lang.Type as R
@@ -38,8 +39,13 @@ import HipSpec.Id
 --   'Name's have, just as 'Var'/'Id', a 'Unique' in them.
 --
 --   The types need to be remembered so we used typed
+--
+--   The list of var is the variables in scope
 
-type TM a = Either String a
+type TM a = ReaderT [Var] (Either String) a
+
+runTM :: TM a -> Either String a
+runTM m = runReaderT m []
 
 msgUnsupportedLiteral l    = "Unsupported literal: " ++ showOutputable l
 msgIllegalType t           = "Illegal type: " ++ showOutputable t
@@ -64,7 +70,7 @@ msgNotAlgebraicTyCon tc =
        "Type constructor " ++ showOutputable tc ++ " is not algebraic!"
 msgFail s = "Internal failure: " ++ s
 
-trTyCon :: TyCon -> TM (Datatype Id)
+trTyCon :: TyCon -> Either String (Datatype Id)
 trTyCon tc = do
     unless (isAlgTyCon tc) (throwError (msgNotAlgebraicTyCon tc))
     dcs <- mapM tr_dc (tyConDataCons tc)
@@ -91,7 +97,7 @@ trTyCon tc = do
 trDefn :: Var -> CoreExpr -> TM (Function Id)
 trDefn v e = do
     let (tvs,ty) = splitForAllTys (C.exprType e)
-    ty' <- trType ty
+    ty' <- lift (trType ty)
     let (tvs',body) = collectTyBinders e
     when (tvs /= tvs') (fail "Type variables do not match in type and lambda!")
     body' <- trExpr (tyAppBeta body)
@@ -109,8 +115,9 @@ trDefn v e = do
 -- It is unclear what disasters this might bring.
 trVar :: Var -> TM (R.Expr Id)
 trVar x = do
-    ty <- trPolyType (varType x)
-    if isLocalId x
+    ty <- lift (trPolyType (varType x))
+    lcl <- asks (x `elem`)
+    if lcl
         then case ty of
                 Forall [] ti -> return (Lcl (idFromVar x) ti)
                 _            -> fail ("Local identifier " ++ showOutputable x ++
@@ -137,20 +144,20 @@ trExpr e0 = case e0 of
         e' <- trExpr e
         case e' of
             R.Gbl x tx ts -> do
-                t' <- trType t
+                t' <- lift (trType t)
                 return (R.Gbl x tx (ts ++ [t']))
-            _ -> throwError (msgTypeApplicationToExpr e0)
+            _ -> throw (msgTypeApplicationToExpr e0)
 
     C.App e1 e2 -> R.App <$> trExpr e1 <*> trExpr e2
 
     C.Lam x e -> do
-        t <- trType (varType x)
-        e' <- trExpr e
+        t <- lift (trType (varType x))
+        e' <- local (x:) (trExpr e)
         return (R.Lam (idFromVar x) t e')
     -- TODO:
     --     1) Do we need to make sure x is not a type/coercion?
 
-    C.Let bs e -> do
+    C.Let bs e -> local (++ (map fst (flattenBinds [bs]))) $ do
         bs' <- mapM (uncurry trDefn) (flattenBinds [bs])
         e' <- trExpr e
         return (R.Let bs' e')
@@ -161,7 +168,7 @@ trExpr e0 = case e0 of
 
         let t = C.exprType e
 
-        t' <- trType t
+        t' <- lift (trType t)
 
         let tr_alt :: CoreAlt -> TM (R.Alt Id)
             tr_alt alt = case alt of
@@ -175,14 +182,14 @@ trExpr e0 = case e0 of
                     case mu of
                         Just u -> case mapM (lookupTyVar u) dc_tvs of
                             Just tys -> do
-                                tys' <- mapM trType tys
+                                tys' <- mapM (lift . trType) tys
                                 bs' <- forM bs $ \ b ->
-                                    (,) (idFromVar b) <$> trType (varType b)
-                                rhs' <- trExpr rhs
-                                dct <- trPolyType (dataConType dc)
+                                    (,) (idFromVar b) <$> lift (trType (varType b))
+                                rhs' <- local ((x:) . (bs++)) (trExpr rhs)
+                                dct <- lift (trPolyType (dataConType dc))
                                 return (ConPat (idFromDataCon dc {- ,dct -}) dct tys' bs',rhs')
-                            Nothing -> throwError (unif_err (Just u))
-                        Nothing -> throwError (unif_err Nothing)
+                            Nothing -> throw (unif_err (Just u))
+                        Nothing -> throw (unif_err Nothing)
 
                 (LitAlt lit,[],rhs) -> do
 
@@ -196,9 +203,9 @@ trExpr e0 = case e0 of
         R.Case e' (Just (idFromVar x,t')) <$> mapM tr_alt alts
 
     C.Tick _ e -> trExpr e
-    C.Type{} -> throwError (msgTypeExpr e0)
-    C.Coercion{} -> throwError (msgCoercionExpr e0)
-    C.Cast{} -> throwError (msgCastExpr e0)
+    C.Type{} -> throw (msgTypeExpr e0)
+    C.Coercion{} -> throw (msgCoercionExpr e0)
+    C.Cast{} -> throw (msgCastExpr e0)
     -- TODO:
     --     Do we need to do something about newtype casts?
 
@@ -206,14 +213,17 @@ trExpr e0 = case e0 of
 -- | Translate literals. For now, the only supported literal are integers
 trLit :: Literal -> TM Integer
 trLit (LitInteger x _type) = return x
-trLit l                    = throwError (msgUnsupportedLiteral l)
+trLit l                    = throw (msgUnsupportedLiteral l)
 
-trPolyType :: C.Type -> TM (R.PolyType Id)
+trPolyType :: C.Type -> Either String (R.PolyType Id)
 trPolyType t0 =
     let (tv,t) = splitForAllTys (expandTypeSynonyms t0)
     in  Forall (map idFromTyVar tv) <$> trType t
 
-trType :: C.Type -> TM (R.Type Id)
+throw :: String -> TM a
+throw = lift . throwError
+
+trType :: C.Type -> Either String (R.Type Id)
 trType = go . expandTypeSynonyms
   where
     go t0

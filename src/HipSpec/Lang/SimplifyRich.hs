@@ -26,8 +26,9 @@ simpFun (Function f ty b) = Function f ty $ simpExpr $ case b of
     -- TODO: Polymorphic functions (find examples!)
 
     (collectBinders -> (xs,Let [Function g (Forall [] _) e] (Lcl g' _)))
-        | g == g' -> makeLambda xs
-            ((Gbl f ty [] `apply` map (uncurry Lcl) xs // g) e)
+        | g == g'
+        , Forall tvs _ <- ty -> makeLambda xs
+            ((Gbl f ty (map TyVar tvs) `apply` map (uncurry Lcl) xs // g) e)
 
     _ -> b
 

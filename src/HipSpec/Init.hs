@@ -132,6 +132,9 @@ processFile cont = do
 
     runHS params env $ do
 
+        debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
+        debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
+
         debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)

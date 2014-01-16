@@ -99,6 +99,8 @@ execute params@Params{..} = do
             fix_id :: Id -> Id
             fix_id = fixId binds
 
+        whenFlag params PrintCore (liftIO (putStrLn (showOutputable binds)))
+
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
@@ -120,7 +122,8 @@ execute params@Params{..} = do
             props =
                 [ i
                 | i <- ids_in_scope
-                , varWithPropType i && not (varFromPrelude i)
+                , varWithPropType i
+                , not (varFromPrelude i)
                 , null only || varToString i `elem` only'
                 ]
 
@@ -148,6 +151,7 @@ execute params@Params{..} = do
         let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
                          | otherwise = []
 
+        whenFlag params PrintCore (liftIO (putStrLn (showOutputable toplvl_binds)))
 
         -- Wrapping up
         return EntryResult

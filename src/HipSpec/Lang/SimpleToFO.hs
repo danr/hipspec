@@ -13,7 +13,7 @@ stfFun (S.Function f (Forall tvs ty) as b) =
     FO.Function f tvs (zip as arg_tys) res_ty (stfBody b)
   where
     peel 0 t            = ([],t)
-    peel n (ArrTy ta t) = let (tas,r) = peel (n - 1) t in (tas ++ [ta],r)
+    peel n (ArrTy ta t) = let (tas,r) = peel (n - 1) t in (ta:tas,r)
     peel _ _            = error "SimpleToFO.peel: not an arrow type!"
 
     (arg_tys,res_ty)    = peel (length as) ty
