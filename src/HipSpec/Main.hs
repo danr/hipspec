@@ -84,9 +84,11 @@ main = processFile $ \ m_sig_info user_props -> do
             else do
                         -}
 
-            let qsconjs = map (etaExpandProp . generaliseProp . eqToProp sig_info)
-                              (map (some eraseEquation) eqs)
-
+            let qsconjs =
+                    [ (etaExpandProp . generaliseProp . eqToProp sig_info i) eq
+                    | (eq0,i) <- zip eqs [0..]
+                    , let eq = some eraseEquation eq0
+                    ]
             mapM_ (checkLint . lintProperty) qsconjs
 
             debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++

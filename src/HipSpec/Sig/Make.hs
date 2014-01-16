@@ -53,7 +53,7 @@ makeSignature p@Params{..} prop_ids = do
 
     let extra_ids = mapMaybe thingToId extra_things
 
-        ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || varWithPropType x))
+        ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x))
             trans_ids `unionVarSet` mkVarSet extra_ids
 
     -- Filters out silly things like

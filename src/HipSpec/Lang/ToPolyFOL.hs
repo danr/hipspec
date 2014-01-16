@@ -241,6 +241,7 @@ trExpr :: Ord v => Expr v -> TrM v (Term (Poly v))
 trExpr = go
   where
     go e0 = case e0 of
+
         FO.Fun f ts as -> do
             b <- inScope f
             if b

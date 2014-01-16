@@ -17,13 +17,14 @@ import HipSpec.Translate
 import HipSpec.Params
 import HipSpec.Lint
 import HipSpec.Utils
+import HipSpec.Id
 
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
 import HipSpec.Lang.Uniquify
 
-import qualified HipSpec.Lang.RichToSimple as S
+-- import qualified HipSpec.Lang.RichToSimple as S
 import qualified HipSpec.Lang.Simple as S
 
 import TyCon (isAlgTyCon)
@@ -33,11 +34,11 @@ import System.Exit
 import System.Process
 import System.FilePath
 
-import Name(Name)
-import Data.Set (Set)
+-- import Name(Name)
+-- import Data.Set (Set)
 import Text.Show.Pretty hiding (Name)
 -- import HipSpec.Lang.Monomorphise hiding (Inst)
-import HipSpec.Lang.CoreToRich (trTyCon)
+-- import HipSpec.Lang.CoreToRich (trTyCon)
 
 
 processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
@@ -51,9 +52,7 @@ processFile cont = do
 
     us0 <- mkSplitUniqSupply 'h'
 
-    let not_dsl x = not $ any ($x) [isEquals, isGiven, isGivenBool, isProveBool]
-
-        vars = filterVarSet not_dsl $
+    let vars = filterVarSet (not . varFromPrelude) $
                unionVarSets (map (transCalls Without) prop_ids)
 
         (binds,_us1) = initUs us0 $ sequence
@@ -62,24 +61,17 @@ processFile cont = do
             , Just e <- [maybeUnfolding v]
             ]
 
-        tcs = filter (\ x -> isAlgTyCon x && not (typeIsProp x))
+        tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
                      (bindsTyCons' binds `union` extra_tcs)
 
         (am_tcs,data_thy,ty_env') = trTyCons tcs
 
         -- Now, split these into properties and non-properties
 
-        simp_fns :: [S.Function TypedName']
+        simp_fns :: [S.Function Id]
         simp_fns = toSimp binds
 
-        is_prop (S.Function (_ S.::: t) _ _ _) =
-            case res of
-                S.TyCon (S.Old p) _ -> typeIsProp p
-                _                   -> False
-
-          where
-            (_tvs,t')   = S.collectForalls t
-            (_args,res) = S.collectArrTy t'
+        is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
         (props,fns) = partition is_prop simp_fns
 
@@ -100,6 +92,7 @@ processFile cont = do
 
         -- *** TESTING ***
 
+{-
         data_types1 :: [S.Datatype Name]
         Right data_types1 = mapM trTyCon tcs
 
@@ -134,6 +127,7 @@ processFile cont = do
                             [(f,map (\ _ -> S.TyCon mono_type []) ts)]
 
             putStrLn $ ppShow prg_act
+            -}
 
     runHS params env $ do
 
@@ -160,8 +154,3 @@ processFile cont = do
 
         cont sig_info tr_props
 
-data Inst a = Org a | Inst a [S.Type (Inst a)] deriving (Eq,Ord,Show)
-
-inst x = Org x
-
-type V = S.Typed (Inst (S.Rename Name))

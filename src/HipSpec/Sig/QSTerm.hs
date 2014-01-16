@@ -15,19 +15,21 @@ import HipSpec.Utils
 import HipSpec.Property as P
 import qualified HipSpec.Lang.Simple as S
 
-import HipSpec.Theory
+-- import HipSpec.Theory
+import HipSpec.Id
 
-termToExpr :: SymbolMap -> Term -> S.Expr TypedName'
+termToExpr :: SymbolMap -> Term -> S.Expr Id
 termToExpr sm = go
   where
     go t = case t of
         T.App e1 e2 -> S.App (go e1) (go e2)
-        T.Var s     -> S.Var (lookupVar sm s) []
+        T.Var s     -> uncurry S.Lcl (lookupVar sm s)
         T.Const s   -> lookupCon sm s
 
-eqToProp :: SigInfo -> Equation -> Property Equation
-eqToProp SigInfo{..} eq@(e1 E.:=: e2) = Property
+eqToProp :: SigInfo -> Integer -> Equation -> Property Equation
+eqToProp SigInfo{..} i eq@(e1 E.:=: e2) = Property
     { prop_name      = repr
+    , prop_id        = QSOrigin "" i
     , prop_origin    = Equation eq
     , prop_tvs       = []
     , prop_vars      = map (lookupVar symbol_map) occuring_vars

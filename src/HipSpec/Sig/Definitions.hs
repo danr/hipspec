@@ -12,6 +12,8 @@ import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.ToPolyFOL
 import HipSpec.Theory
 
+import HipSpec.Id
+
 import qualified HipSpec.Utils.PopMap as PM
 import HipSpec.Utils.PopMap (PopMap)
 
@@ -25,7 +27,7 @@ type Id'      = Either Symbol LogicId
 
 type VarMap   = PopMap (Type Id') Symbol
 
-type ConMap = Map (Name',[Type Id']) Symbol
+type ConMap = Map (Id,[Type Id']) Symbol
 
 definitions :: Theory -> SymbolMap -> [QS.Equation]
 definitions thy SymbolMap{..} = catMaybes
@@ -37,7 +39,7 @@ definitions thy SymbolMap{..} = catMaybes
     -- permutations in case quantifiers have become shuffled around
     ]
   where
-    con_clauses :: Map Name' [Clause Id']
+    con_clauses :: Map Id [Clause Id']
     con_clauses = M.fromList
         [ (n,map (fmap Right) cls)
         | Subtheory (Definition n) cls _ <- thy
@@ -46,10 +48,10 @@ definitions thy SymbolMap{..} = catMaybes
     var_mapping' :: Map Symbol (Type Id')
     var_mapping' = M.map k var_mapping
       where
-        k :: T.Typed Name' -> Type Id'
-        k (_ T.::: t) = tr_type t
+        k :: (Id,T.Type Id) -> Type Id'
+        k (_,t) = tr_type t
 
-    tr_type :: T.Type Name' -> Type Id'
+    tr_type :: T.Type Id -> Type Id'
     tr_type = fmap Right . trType
 
     var_map :: VarMap
@@ -58,7 +60,7 @@ definitions thy SymbolMap{..} = catMaybes
     con_map :: ConMap
     con_map = M.fromList
         [ ((c,map tr_type ts),s)
-        | (s,(c T.::: _,ts)) <- M.toList con_mapping
+        | (s,(c,_,ts)) <- M.toList con_mapping
         ]
 
 

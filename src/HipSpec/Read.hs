@@ -120,7 +120,7 @@ execute params@Params{..} = do
             props =
                 [ i
                 | i <- ids_in_scope
-                , varWithPropType i
+                , varWithPropType i && not (varFromPrelude i)
                 , null only || varToString i `elem` only'
                 ]
 

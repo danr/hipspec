@@ -188,7 +188,7 @@ initFields p@Property{..} = runRenameM ppId [] $ do
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
-    (Gbl (GHCOrigin x) _ _,args)
+    (Gbl x _ _,args)
         | isEquals x,    [l,r] <- args -> return ([],l :=: r)
         | isProveBool x, [l]   <- args -> return ([],l :=: true)
         | isGivenBool x, [l,q] <- args -> do
