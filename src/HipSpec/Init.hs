@@ -19,6 +19,7 @@ import HipSpec.Lint
 import HipSpec.Utils
 import HipSpec.Id
 
+import HipSpec.GHC.Utils
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
@@ -130,6 +131,8 @@ processFile cont = do
             -}
 
     runHS params env $ do
+
+        debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
