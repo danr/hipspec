@@ -5,10 +5,13 @@ import Prelude hiding (zipWith,curry,map,zip)
 
 prop_compose f g h = f . (g . h) =:= (f . g) . h
 
+prop_let :: (Bool -> Bool) -> Prop (Bool -> Bool)
 prop_let f =
-    let twice g = f . g in twice (twice f)
+    let twice :: (Bool -> Bool) -> (Bool -> Bool)
+        twice g = f . g in twice (twice f)
     =:= dbl (dbl f)
   where
+    dbl :: (Bool -> Bool) -> (Bool -> Bool)
     dbl g = g . f
 
 prop_case xs =
