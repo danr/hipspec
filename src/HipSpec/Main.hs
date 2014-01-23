@@ -3,6 +3,8 @@ module Main where
 
 import Test.QuickSpec.Main (prune)
 import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol)
+import qualified Test.QuickSpec.Term as Term
+import qualified Test.QuickSpec.Signature as Sig
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -183,7 +185,7 @@ runQuickSpec SigInfo{..} = do
         | (s,ss) <- M.toList callg
         ]
 
-    r <- liftIO $ generate (const totalGen) sig
+    r <- liftIO $ generate isabelle_mode (const totalGen) sig
 
     let classes = concatMap (some2 (map (Some . O) . TestTree.classes)) (TypeMap.toList r)
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
@@ -252,7 +254,16 @@ runQuickSpec SigInfo{..} = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
+    when isabelle_mode $ liftIO $ do
+        mapM_ (putStrLn . isabelleShowEquation sig . some eraseEquation) prunedEqs
+        exitSuccess
+
     return (eqs,reps,classes)
+
+isabelleShowEquation :: Sig -> Equation -> String
+isabelleShowEquation sig (t :=: u) =
+    show (Term.mapVars f t) ++ " = " ++ show (Term.mapVars f u)
+  where f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
 
 {-
 

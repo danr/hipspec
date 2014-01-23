@@ -113,7 +113,7 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             names <- case m_names of
                     Just xs -> do
                         let res = take 3 (xs ++ backup_names)
-                        when (length xs /= 3) $ liftIO $ putStrLn $
+                        when (length xs /= 3 && verbosity > 0) $ liftIO $ putStrLn $
                             "Warning: Names instance for " ++ t_str ++
                             " does not have three elements, defaulting to " ++ show res
                         return res
@@ -125,7 +125,8 @@ makeSigFrom p@Params{..} ids m_a_ty = do
                     e_str = case splitOn "arising from" (show e) of
                         x:_ -> flat_str x
                         []  -> ""
-                liftIO $ putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backup_names
+                when (verbosity > 0 ) $ liftIO $
+                    putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backup_names
                 return (t,backup_names)
 
     named_mono_types <- mapM name_type types
