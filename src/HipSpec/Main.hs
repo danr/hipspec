@@ -260,9 +260,11 @@ runQuickSpec SigInfo{..} = do
         debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
             unlines (map show def_eqs)
         liftIO $ do
-            mapM_ (putStrLn . isabelleShowEquation sig)
+            mapM_ putStrLn
+                $ nub
+                $ map (isabelleShowEquation sig)
                 $ filter (`notElem` def_eqs)
-                $ map (some eraseEquation) prunedEqs
+                $ map (some eraseEquation) eqs -- prunedEqs
             exitSuccess
 
     return (eqs,reps,classes)
