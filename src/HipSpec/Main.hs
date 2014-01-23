@@ -254,9 +254,16 @@ runQuickSpec SigInfo{..} = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
-    when isabelle_mode $ liftIO $ do
-        mapM_ (putStrLn . isabelleShowEquation sig . some eraseEquation) prunedEqs
-        exitSuccess
+    when isabelle_mode $ do
+        Env{theory} <- getEnv
+        let def_eqs = definitions theory symbol_map
+        debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
+            unlines (map show def_eqs)
+        liftIO $ do
+            mapM_ (putStrLn . isabelleShowEquation sig)
+                $ filter (`notElem` def_eqs)
+                $ map (some eraseEquation) prunedEqs
+            exitSuccess
 
     return (eqs,reps,classes)
 
