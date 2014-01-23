@@ -256,14 +256,16 @@ runQuickSpec SigInfo{..} = do
 
     when isabelle_mode $ do
         Env{theory} <- getEnv
-        let def_eqs = definitions theory symbol_map
+        let def_eqs  = definitions theory symbol_map
+            ctx_defs = execEQR ctx_init (mapM_ unify def_eqs)
+--            pruner'  = prune ctx_init (map erase reps) (some eraseEquation)
         debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
             unlines (map show def_eqs)
         liftIO $ do
             mapM_ putStrLn
                 $ nub
                 $ map (isabelleShowEquation sig)
-                $ filter (`notElem` def_eqs)
+                $ filter (not . evalEQR ctx_defs . equal)
                 $ map (some eraseEquation) eqs -- prunedEqs
             exitSuccess
 
