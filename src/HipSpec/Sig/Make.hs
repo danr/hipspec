@@ -111,6 +111,7 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             liftIO $ whenFlag p DebugAutoSig $ putStrLn $ "names_str:" ++ names_str
             m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
             names <- case m_names of
+                    Just xs | isabelle_mode -> return xs
                     Just xs -> do
                         let res = take 3 (xs ++ backup_names)
                         when (length xs /= 3 && verbosity > 0) $ liftIO $ putStrLn $
