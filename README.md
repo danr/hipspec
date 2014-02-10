@@ -190,7 +190,7 @@ give `+RTS -N8` to the executable then.
 
 The default timeout is one second. It can be specified with the `-t` or
 `--timeout` flag. With `-t=5`, each theorem prover invocation will be 5 seconds
-long. The timeout can be issued as a double, so -t=0.1 can be used to get
+long. The timeout can be issued as a double, so `-t=0.1` can be used to get
 100 ms timeout.
 
 ### Output theories
