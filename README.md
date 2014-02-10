@@ -22,9 +22,9 @@ In the `examples/Rotate.hs` file we see the following definitions:
     prop_rotate xs = rotate (length xs) xs =:= xs
 
 The second definition defines a property in the HipSpec property language that
-we would like to prove. The =:= operator simply means equals. Let's run HipSpec
+we would like to prove. The `=:=` operator simply means equals. Let's run HipSpec
 on this file. We use `--auto` to automatically pick function to conjecture lemmas
-from based on the properties in the program, and --cg to order equations in the
+from based on the properties in the program, and `--cg` to order equations in the
 call graph of the program:
 
     $ hipspec Rotate.hs --auto --cg --verbosity=30
@@ -179,12 +179,9 @@ Quick information about available flags can be accessed anytime by the
 
 ### Processors and parallel proving
 
-As you probably have a multi-core machine, you might just as well use
-some more processor core. While theorem provers are still usually
-single-core, you can run many of them in parallel. The `--processes`
-or `-N` flag will let you specify this. The default is 2, but if you
-have, say, 8 cores and you want to use all of them, use `-N=8`. Also
-give `+RTS -N8` to the executable then.
+While theorem provers are still usually single-core, you can run many 
+of them in parallel. The `--processes` or `-N` flag will let you 
+specify this. The default is 2, but if you to use eight cores: `-N=8`.
 
 ### Timeout
 
