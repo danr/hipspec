@@ -43,11 +43,18 @@ makeSignature p@Params{..} prop_ids = do
 
     extra_trans_things <- concatMapM lookupString extra_trans'
 
+    ignore_var_set <- do
+        ids <- lookupString "Default"
+        case ids  of
+            xs | isabelle_mode -> mkVarSet (mapMaybe thingToId xs)
+            _                  -> emptyVarSet
+
     let extra_trans_ids = mapMaybe thingToId extra_trans_things
 
         trans_ids :: VarSet
         trans_ids = unionVarSets $
-            map (transCalls With) (prop_ids ++ extra_trans_ids)
+            map (transCalls CallParams { constructors = With, ignore_set = ignore_var_set })
+                (prop_ids ++ extra_trans_ids)
 
     extra_things <- concatMapM lookupString extra'
 
