@@ -3,6 +3,7 @@ module HipSpec.Theory
     ( module HipSpec.Pretty
     , ArityMap
     , combineArityMap
+    , emptyArityMap
     , Content(..)
     , Theory
     , Subtheory(..)
@@ -35,6 +36,9 @@ type ArityMap = Map Id Int
 
 combineArityMap :: ArityMap -> ArityMap -> ArityMap
 combineArityMap = M.union
+
+emptyArityMap :: ArityMap
+emptyArityMap = M.empty
 
 data Content
     = Definition Id
