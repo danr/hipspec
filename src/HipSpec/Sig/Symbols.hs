@@ -90,6 +90,7 @@ typeRepToType sm = go
 
 translateCon :: ResolveMap -> Symbol -> Var -> (Id,PolyType Id,[Type Id])
 translateCon sm s v = case runTM (trVar v) of
+                        -- NOTE: trVar removes the context!
     Right (R.Gbl x t_orig []) -> case m_unif of
         Just unif -> (x,t_orig,unif)
         Nothing   -> err $ "Cannot unify the two types " ++

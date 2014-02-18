@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module HipSpec.GHC.FreeTyCons (bindsTyCons,bindsTyCons',varTyCons) where
+module HipSpec.GHC.FreeTyCons (bindsTyCons,bindsTyCons',varTyCons,tyTyCons) where
 
 import CoreSyn
 import CoreUtils (exprType)
