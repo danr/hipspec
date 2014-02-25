@@ -273,8 +273,14 @@ runQuickSpec SigInfo{..} = do
 
 isabelleShowEquation :: Sig -> Equation -> String
 isabelleShowEquation sig (t :=: u) =
-    show (Term.mapVars f t) ++ " = " ++ show (Term.mapVars f u)
-  where f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
+    showTerm t ++ " = " ++ showTerm u
+  where
+    showTerm = show . Term.mapVars f . Term.mapConsts (onName g)
+    onName h s = s { Term.name = h (Term.name s) }
+    f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
+    g ":" = "#"
+    g "++" = "@"
+    g x = x
 
 {-
 
