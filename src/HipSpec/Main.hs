@@ -280,6 +280,7 @@ isabelleShowEquation sig (t :=: u) =
     f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
     g ":" = "#"
     g "++" = "@"
+    g "reverse" = "rev"
     g x = x
 
 {-
