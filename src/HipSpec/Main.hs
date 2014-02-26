@@ -278,10 +278,16 @@ isabelleShowEquation sig (t :=: u) =
     showTerm = show . Term.mapVars f . Term.mapConsts (onName g)
     onName h s = s { Term.name = h (Term.name s) }
     f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
-    g ":" = "#"
-    g "++" = "@"
-    g "reverse" = "rev"
-    g x = x
+    g x =
+      case lookup x isabelleFunctionNames of
+        Nothing -> x
+        Just y -> y
+
+isabelleFunctionNames :: [(String, String)]
+isabelleFunctionNames =
+  [(":", "#"),
+   ("++", "@"),
+   ("reverse", "rev")]
 
 {-
 
