@@ -8,13 +8,16 @@ import HipSpec.Utils.ZEncode
 
 import HipSpec.Lang.Renamer
 
+import HipSpec.Lang.Monomorphise
+
 import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
-import HipSpec.Lang.PrettyUtils (Types(..))
+import HipSpec.Lang.PrettyUtils (Types(..),PP(..))
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
+import qualified HipSpec.Lang.PolyFOL as P
 
 import HipSpec.Id
 
@@ -54,11 +57,24 @@ polyname x0 = case x0 of
     Proj x i -> "proj_" ++ show i ++ "_" ++ ppId x
     QVar i   -> 'x':show i
 
-ppAltErgo :: [Clause LogicId] -> String
-ppAltErgo = render . vcat . map (ppClause text) . renameCls
+mononame :: IdInst LogicId LogicId -> String
+mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
+  where
+    ty (P.TyCon i is) = polyname i ++ concatMap (\ u -> '_':ty u) is
+    ty (P.TyVar i)    = polyname i
+    ty P.Integer      = "int"
+    ty P.TType        = "type"
 
-renameCls :: [Clause LogicId] -> [Clause String]
-renameCls = runRenameM (zencode . polyname) altErgoKeywords . mapM rename
+ppAltErgo :: [Clause LogicId LogicId] -> String
+ppAltErgo = render . vcat . map (ppClause (PP text text)) . renameCls polyname
+
+ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppMonoAltErgo
+    = render . vcat . map (ppClause (PP text (text . ("lcl_" ++))))
+    . renameCls mononame . map (fmap (`IdInst` []))
+
+renameCls :: Ord v => (v -> String) -> [Clause v v] -> [Clause String String]
+renameCls f = runRenameM (disambig (zencode . f)) altErgoKeywords . mapM renameBi
 
 altErgoKeywords :: [String]
 altErgoKeywords =

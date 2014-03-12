@@ -65,7 +65,7 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
         , let cls = tr_oblig (dropHyps oblig)
         ]
   where
-    tr_oblig :: IS.Obligation Con Id (Type Id) -> [Clause LogicId]
+    tr_oblig :: IS.Obligation Con Id (Type Id) -> [Clause LogicId LogicId]
     tr_oblig (IS.Obligation skolems hyps concl) =
 
         -- Type signatures for skolemised variables
@@ -73,27 +73,27 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
         ++
 
         -- Hypotheses
-        [ Clause Nothing Axiom []
-            $ forAlls (tr_quant qs) (tr_pred (skolems ++ qs) p)
+        [ Clause Nothing [Source] Axiom []
+            $ forAlls (tr_quant qs) (tr_pred skolems qs p)
         | (qs,p) <- hyps
         ]
         ++
 
         -- Goal
-        [ Clause Nothing Goal [] (tr_pred skolems concl) ]
+        [ Clause Nothing [Source] Goal [] (tr_pred skolems [] concl) ]
 
-    tr_quant :: [(Id,Type Id)] -> [(LogicId,P.Type LogicId)]
+    tr_quant :: [(Id,Type Id)] -> [(LogicId,P.Type LogicId LogicId)]
     tr_quant qs = [ (Id x,trType t) | (x,t) <- qs ]
 
-    tr_pred :: [(Id,Type Id)] -> [Term Con Id] -> Formula LogicId
-    tr_pred scope tms = tr_assums ===> tr_goal
+    tr_pred :: [(Id,Type Id)] -> [(Id,Type Id)] -> [Term Con Id] -> Formula LogicId LogicId
+    tr_pred skolems scope tms = tr_assums ===> tr_goal
       where
         -- Scope for trLiteral
         sc = map fst scope
 
         -- Lookup for trTerm
         lkup :: Id -> (Id,Type Id)
-        lkup x = case lookup x scope of
+        lkup x = case lookup x (skolems ++ scope) of
             Just t  -> (x,t)
             Nothing -> error $ "HipSpec.Induction: Variable " ++ ppId x ++ " lost!"
 

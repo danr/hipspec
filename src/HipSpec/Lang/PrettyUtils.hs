@@ -17,6 +17,13 @@ ppTyped _    e _ = e
 -- | Pretty printing kit.
 type P a = a -> Doc
 
+-- | Pretty printing kit for polymorphic FOL
+--   Here, we want to differentiate between symbols and variables in tff
+data PP a b = PP
+    { pp_symb :: a -> Doc
+    , pp_var  :: b -> Doc
+    }
+
 parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens
 parensIf False = id

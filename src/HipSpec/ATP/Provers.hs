@@ -8,7 +8,7 @@ import Data.Data
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo
+data ProverName = AltErgo | MonoAltErgo
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -17,6 +17,7 @@ defaultProverNames = [AltErgo]
 proverFromName :: ProverName -> Prover
 proverFromName p = case p of
     AltErgo -> altErgo
+    MonoAltErgo -> monoAltErgo
 
 proversFromNames :: [ProverName] -> [Prover]
 proversFromNames = map proverFromName
@@ -47,12 +48,13 @@ data Prover = Prover
     }
 
 -- | Input formats
-data InputFormat = AltErgoFmt
+data InputFormat = AltErgoFmt | AltErgoMonoFmt
   deriving (Eq,Ord,Show)
 
 extension :: InputFormat -> String
 extension fmt = case fmt of
-    AltErgoFmt -> "mlw"
+    AltErgoFmt     -> "mlw"
+    AltErgoMonoFmt -> "mlw"
 
 altErgo :: Prover
 altErgo = Prover
@@ -67,6 +69,9 @@ altErgo = Prover
     , prover_parse_lemmas   = Nothing
     , prover_input_format   = AltErgoFmt
     }
+
+monoAltErgo :: Prover
+monoAltErgo = altErgo { prover_input_format = AltErgoMonoFmt }
 
 proven,failure :: Maybe Bool
 proven  = Just True

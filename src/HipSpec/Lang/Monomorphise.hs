@@ -2,168 +2,264 @@
 --   records. The idea is that these activation records come from
 --   a monomorphised conjecture.
 {-# LANGUAGE RecordWildCards, ScopedTypeVariables, PatternGuards #-}
-module HipSpec.Lang.Monomorphise where
+module HipSpec.Lang.Monomorphise (monoClauses, IdInst(..)) where
 
-import HipSpec.Lang.Type
-import HipSpec.Lang.Simple
+import Prelude hiding (lookup)
+import HipSpec.Lang.PolyFOL
 import qualified Data.Set as S
 import Data.Set (Set)
 import qualified Data.Map as M
 import Data.Map (Map)
 
-import Control.Monad.Writer
-import Control.Monad.Reader
-import Control.Applicative
+import Data.Monoid
+import Data.Maybe
+import Data.List (partition)
+import Control.Arrow
+import Control.Monad
 
-import Data.List (union)
+type Records a b = Map (Trigger a) (Set [Type a b])
 
-type Prog a = ([Datatype a],[Function a])
+empty :: Records a b
+empty = M.empty
 
--- | an activation record
-type Record a = (a,[Type a])
+member :: (Ord a,Ord b) => (Trigger a,[Type a b]) -> Records a b -> Bool
+(t,ts) `member` r = maybe False (ts `S.member`) (M.lookup t r)
 
-type Subst a = [(a,Type a)]
+(\\) :: (Ord a,Ord b) => Records a b -> Records a b -> Records a b
+(\\) = M.differenceWith $ \ s1 s2 -> do
+    let s' = s1 S.\\ s2
+    guard (not (S.null s'))
+    return s'
 
--- | Can make a new identifier of a substitution
-type Inst a
-    =  [(a,Type a)] {- ^ substitution, from the top level function/ty con -}
-    -> [Type a] {- ^ applied variables, to this particula identifier -}
-    -> a {- ^ identifier -}
-    -> a {- ^ result -}
+union :: (Ord a,Ord b) => Records a b -> Records a b -> Records a b
+union = M.unionWith S.union
 
--- monoProg :: Ord a => [Datatype a] -> [Function a] -> [(a,[Type a])]
+unions :: (Ord a,Ord b) => [Records a b] -> Records a b
+unions = M.unionsWith S.union
 
-instTyCon :: Eq a => Inst a -> Datatype a -> [Type a] -> Datatype a
-instTyCon _  dt@(Datatype _ [] _) _  = dt
-instTyCon iv (Datatype tc tvs cs) ts = Datatype (iv [] ts tc) []
-    [ Constructor (iv [] ts c) (map (substManyTys su) as)
-    | Constructor c as <- cs
-    ]
+fromList :: (Ord a,Ord b) => [(Trigger a,[Type a b])] -> Records a b
+fromList = M.fromListWith S.union . map (second S.singleton)
+
+toList :: (Ord a,Ord b) => Records a b -> [(Trigger a,[Type a b])]
+toList r = [ (t,ts) | (t,s) <- M.toList r, ts <- S.toList s ]
+
+minView :: (Ord a,Ord b) => Records a b -> Maybe ((Trigger a,[Type a b]),Records a b)
+minView m = case M.minViewWithKey m of
+    Just ((t,s),m') -> case S.minView s of
+        Just (ts,s') -> Just ((t,ts),M.insert t s' m')
+        Nothing -> minView m'
+    Nothing -> Nothing
+
+insert :: (Ord a,Ord b) => Trigger a -> [Type a b] -> Records a b -> Records a b
+insert i t = M.insertWith S.union i (S.singleton t)
+
+lookup :: (Ord a,Ord b) => Trigger a -> Records a b -> [[Type a b]]
+lookup t r = maybe [] S.toList (M.lookup t r)
+
+-- | Get the records from a clause
+clauseRecs :: (Ord a,Ord b) => Clause a b -> Records a b
+clauseRecs cl = fromList $
+    [ (TySymb tc,ts) | TyCon tc ts  <- clTyUniv cl ] ++
+    [ (Symb f,ts)    | Apply f ts _ <- clTmUniv cl ]
+
+instClauseWith :: forall a b . Eq b => Clause a b -> [(b,Type a b)] -> Clause a b
+instClauseWith cl su = case cl of
+    Clause nm _trg ty _tvs fm -> Clause nm [] ty [] (fmInsts su fm)
+    _ -> cl -- or error!
+
+instClause :: forall a b . Eq b => Clause a b -> [Type a b] -> Clause a b
+instClause cl ts = case cl of
+    Clause{..} -> instClauseWith cl (zip ty_vars ts)
+    _ -> cl
+
+type InstMap a b = Map b (Type a b)
+
+data Lemma a b = Lemma
+    { lm_cl :: Clause a b
+    -- ^ the clause
+    , lm_act :: [(Trigger a,[Type a b])] -- Records a b
+    -- ^ The instantiation records it requires
+    , lm_eff :: Records a b
+    -- ^ The effect of instantiating it
+    , lm_inst :: [InstMap a b]
+    -- ^ The types it has already been instantiated at
+    }
+
+-- | Stage one monomorphisation
+--   1st component: monomorphically applied clauses
+--   2nd component: type signatures to be monomorphised
+monoClauses1 :: forall a b . (Ord a,Ord b) => [Clause a b] -> ([Clause a b],[Clause a b])
+monoClauses1 cls0 = (source ++ defs ++ lemma_cls,sigs)
   where
-    su = zip tvs ts
+    trg_pred p Clause{..} = p cl_ty_triggers
+    trg_pred _ _          = False
+    (source,other)        = partition (trg_pred (Source `elem`)) cls0
+    (defs_poly,rest)      = partition (trg_pred (not . null))    other
+    (lem_cls,sigs)        = partition (trg_pred (const True))    rest
 
--- | Instantiates a program given some activated records (from
---   a conjecture?), returns it and the instantiated records.
-instProg
-    :: forall a . Ord a
-    => Inst a -- ^ Instantiation function
-    -> (a -> [Record a])       -- ^ Hidden records in identifers (i.e. type constructors in identifier's types)
-    -> Prog a                  -- ^ Initial program
-    -> [Record a]              -- ^ Initial records
-    -> (Prog a,Set (Record a)) -- ^ Final program and records
-instProg iv hr (tcs0,fns0) = go [] [] S.empty
-  where
-    -- current program, activated records, things left to activate
-    go tcs fns rs []          = ((tcs,fns),rs)
-    go tcs fns rs ((x,ts):xs)
-        -- already instantiated
-        | (x,ts) `S.member` rs = go tcs fns rs xs
-        -- a data type
-        | Just dt <- M.lookup x tcm =
-            let dt'          = instTyCon iv dt ts
-                other_rs     = S.fromList (tcTyCons dt') `S.union` S.fromList (concatMap hr (tcIds dt'))
-                rs'          = S.insert (x,ts) rs
-                filtered_rs  = other_rs S.\\ rs'
-            in  go (dt':tcs) fns rs' (xs `union` S.toList filtered_rs)
-        -- a function
-        | Just fn <- M.lookup x fnm =
-            let (fn',new_rs) = instFunc iv fn ts
-                other_rs     = S.fromList (fnTyCons fn') `S.union` S.fromList (concatMap hr (fnIds fn'))
-                rs'          = S.insert (x,ts) rs
-                filtered_rs  = (new_rs `S.union` other_rs) S.\\ rs'
-            in  go tcs (fn':fns) rs' (xs `union` S.toList filtered_rs)
-        | otherwise = error "instProg on unknown identifier"
+    mono = mkMono defs_poly
 
-    -- functions
-    fnm :: Map a (Function a)
-    fnm = M.fromList [ (fn_name,fn)     | fn@Function{..} <- fns0 ]
-    -- type constructors and their data constructors
-    tcm :: Map a (Datatype a)
-    tcm = M.fromList $ concat $
-            [ (data_ty_con,tc) :
-                [ (con_name,tc)
-                | Constructor{..} <- data_cons
-                ]
-            | tc@Datatype{..} <- tcs0
+    (defs,def_irs) = mono empty (unions (map clauseRecs source))
+
+    lemmas :: [Lemma a b]
+    lemmas =
+        [ Lemma cl (toList recs) (snd (mono empty recs)) []
+        | cl <- lem_cls
+        , let recs = clauseRecs cl
+        ]
+
+    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> [Clause a b]
+    go False [] _   _   = []
+    go True  [] acc irs = go False acc [] irs
+    go b (l:ls) acc irs = case new of
+        []        -> go b ls (l:acc) irs
+        (l',cl):_ ->
+            let (cls,irs') = mono irs (clauseRecs cl)
+            in  cl:cls ++ go True (l':ls) acc irs'
+      where
+        new = catMaybes
+            [ instLemma l im irs
+            | im <- possibleInsts l irs
             ]
 
--- | Instantiate a function to some types, giving the new function and new
---   activated records. The instantiated type should (obviously) be
---   monomorphic. Care needs to be taken so the records don't contain the
---   free variables of functions (from arguments and case)
-instFunc :: Ord a => Inst a -> Function a -> [Type a] -> (Function a,Set (Record a))
--- monomorphic functions needn't be instantiated
-instFunc _  fn@(Function _ [] _ _) _ = (fn,S.empty)
--- the interesting case
-instFunc iv (Function f tvs as b) ts = flip runReader (iv,su) $ runWriterT $ do
-    f' <- instId f ts
-    as' <- mapM (`instId` []) as
-    b' <- ignoreLocal as' $ instBody b
-    return $ Function f' [] as' b'
+    lemma_cls = go False lemmas [] def_irs
+
+instLemma :: (Ord a,Ord b)
+          => Lemma a b   {- ^ lemma to maybe instantiate -}
+          -> InstMap a b {- ^ type to instantiate it at -}
+          -> Records a b {- ^ instantiated records so far -}
+          -> Maybe (Lemma a b,Clause a b)
+                         {- Just (l,r,c) :
+                                l: Lemma with new info
+                                c: The clause that got instantiated -}
+instLemma l@Lemma{..} im rs
+    -- Instantiate lemmas as long as they don't trigger new
+    -- types to be instantiated
+    | and
+        [ (t,map (tySubsts (M.toList im)) ts) `member` rs
+        | (t,ts) <- takeWhile (isTySymb . fst) (toList lm_eff)
+        ]
+      -- and we haven't instantiated it before
+      && im `notElem` lm_inst
+      -- and all type variables are assigned
+      && all (`M.member` im) (ty_vars lm_cl)
+
+    = Just
+        ( l { lm_inst = im : lm_inst }
+        , instClauseWith lm_cl (M.toList im)
+        )
+
+    | otherwise = Nothing
+
+-- | Possible instantiations of a lemma given some instantiation records
+possibleInsts :: (Ord a,Ord b) => Lemma a b -> Records a b -> [InstMap a b]
+possibleInsts Lemma{..} rs = go lm_act
   where
-    su = zip tvs ts
+    go []            = [M.empty]
+    go ((trg,ts):xs) =
+        [ m1 `M.union` m2
+        | m1 <- M.empty : mapMaybe (tyInsts ts) (lookup trg rs)
+        , m2 <- go xs
+        , compatible m1 m2
+        ]
 
--- | The instantiation monad: has a current substitution, carries around
---   the instantiation function and keeps a set of activated records
-type InstM a = WriterT (Set (Record a)) (Reader (Inst a,Subst a))
+tyInst :: (Ord a,Ord b)
+       => Type a b {- ^ with type variables -}
+       -> Type a b {- ^ without -}
+       -> Maybe (InstMap a b)
+tyInst (TyVar x)    t                     = Just (M.singleton x t)
+tyInst (TyCon u us) (TyCon v vs) | u == v = tyInsts us vs
+tyInst TType        TType                 = Just M.empty
+tyInst Integer      Integer               = Just M.empty
+tyInst _            _                     = Nothing
 
-instId :: Ord a => a -> [Type a] -> InstM a a
-instId x ts = do
-    (iv,su) <- ask
-    return (iv su ts x)
+tyInsts :: (Ord a,Ord b) => [Type a b] -> [Type a b] -> Maybe (InstMap a b)
+tyInsts (u:us) (v:vs) = do
+    m1 <- tyInst u v
+    m2 <- tyInsts us vs
+    guard (compatible m1 m2)
+    return (m1 `M.union` m2)
+tyInsts [] [] = Just M.empty
+tyInsts _  _  = Nothing
 
-recordId :: Ord a => a -> [Type a] -> InstM a ()
-recordId = curry (tell . S.singleton)
+compatible :: (Ord a,Ord b) => InstMap a b -> InstMap a b -> Bool
+compatible a b = oneway a b && oneway b a
+  where
+    oneway p q = and [ maybe True (== v) (M.lookup k q) | (k,v) <- M.toList p ]
 
-instrecId :: Ord a => a -> [Type a] -> InstM a a
-instrecId x ts = do
-    x' <- instId x ts
-    recordId x ts
-    return x'
+mkMono :: forall a b . (Ord a,Ord b)
+       => [Clause a b]
+       -> Records a b                -- ^ Initial, already instantiated records
+       -> Records a b                -- ^ New record queue
+       -> ([Clause a b],Records a b) -- ^ Instantiated clauses and final records
+mkMono cls0 irs0 q0 = go irs0 (q0 \\ irs0)
+  where
+    -- Since some clauses are activated by either of many triggers,
+    -- we let one of them instantiate the clause, and the other ones just
+    -- retrigger with the major pattern
+    trg_targets :: Map (Trigger a) ([Clause a b],[Trigger a])
+    trg_targets = M.fromListWith mappend $
+        [ (trg,([cl],trgs))
+        | cl <- cls0
+        , let trg:trgs = cl_ty_triggers cl
+        ]
 
-ignoreLocal :: Ord a => [a] -> InstM a b -> InstM a b
-ignoreLocal lcs = censor (S.\\ S.fromList (lcs `zip` repeat []))
+    go :: Records a b
+       -> Records a b
+       -- ^ (invariant: no overlap)
+       -> ([Clause a b],Records a b)
+    go irs q = case minView q of
+        Nothing -> ([],irs)
+        Just ((trg,ts),q') -> case M.lookup trg trg_targets of
+            Nothing            -> go irs q'
+            Just (cls,retrigs) ->
+                let cls' = map (`instClause` ts) cls
+                    rtr  = fromList (zip retrigs (repeat ts))
+                    irs' = insert trg ts irs
+                    recs = (unions (map clauseRecs cls') `union` rtr) \\ irs'
+                in  first (cls' ++) (go irs' (q' `union` recs))
 
-instBody :: Ord a => Body a -> InstM a (Body a)
-instBody b = case b of
-    Case e alts -> Case <$> instExpr e <*> mapM instAlt alts
-    Body e      -> Body <$> instExpr e
+data IdInst a b = IdInst a [Type a b]
+  deriving (Eq,Ord,Show)
 
-instAlt :: Ord a => Alt a -> InstM a (Alt a)
-instAlt (p,b) = case p of
-    ConPat c ts as -> do
-        c' <- instrecId c ts
-        as' <- mapM (`instId` []) as
-        b' <- ignoreLocal as' (instBody b)
-        return (ConPat c' [] as',b')
-    Default    -> (,) Default <$> instBody b
-    LitPat i a -> (,) (LitPat i a) <$> instBody b
+-- | Second pass monomorphisation: remove all type applications and change
+--   the identifier names instead
+monoClauses2 :: (Ord a,Ord b) => ([Clause a b],[Clause a b]) -> [Clause (IdInst a b) b]
+monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
+  where
+    cls' =
+        [ Clause
+            { cl_name        = cl_name cl
+            , cl_ty_triggers = []
+            , cl_type        = cl_type cl
+            , ty_vars        = []
+            , cl_formula     = fmMod tyCon apply (cl_formula cl)
+            }
+        | cl <- cls
+        ]
 
-instExpr :: Ord a => Expr a -> InstM a (Expr a)
-instExpr e = case e of
-    Lcl x ty     ->
-    Gbl x ty ts  -> Var <$> instrecId x ts <*> pure []
-    App e1 e2 -> App <$> instExpr e1 <*> instExpr e2
-    Lit{}     -> return e
+    tyCon f ts = TyCon (IdInst f ts) []
+    apply f ts = Apply (IdInst f ts) []
 
-{-
-_test_map :: Function String
-_test_map = Function "map" ["a","b"] ["f","xs"] $ Case (Var "xs" [])
-    [ (ConPat "cons" [TyVar "a"] ["y","ys"],Body $ Var "cons" [TyVar "b"] `App` (Var "f" [] `App` Var "y" []) `App` (Var "map" [TyVar "a",TyVar "b"] `App` Var "f" [] `App` Var "ys" []))
-    , (ConPat "nil" [TyVar "a"] [],Body $ Var "nil" [TyVar "b"])
-    ]
+    (sorts1,ty_apps) = clsDeps cls'
 
-_test_inst :: [(String,Type String)] -> [Type String] -> String -> String
-_test_inst _ [] x = x
-_test_inst _ ts x = x ++ show ts
 
-_test :: (Function String, Set (Record String))
-_test = instFunc _test_inst _test_map [TyCon "A" [],TyCon "B" []]
+    sig_map = M.fromList [ (f,(tvs,args,res)) | TypeSig f tvs args res <- sigs ]
 
-_test_list :: Datatype String
-_test_list = Datatype "List" ["a"] [Constructor "Cons" [TyVar "a",TyCon "List" [TyVar "a"]],Constructor "Nil" []]
+    ty_sigs =
+       [ TypeSig f' [] args' res'
+       | f'@(IdInst f ts) <- S.toList ty_apps
+       , Just (tvs,args,res) <- [M.lookup f sig_map]
+       , let su = tyMod tyCon . tySubsts (zip tvs ts)
+             args' = map su args
+             res'  = su res
+       ]
 
-_test2 :: Datatype String
-_test2 = instTyCon _test_inst _test_list [TyCon "A" []]
--}
+    (sorts2,_) = clsDeps ty_sigs
+
+    sorts = sorts1 `S.union` sorts2
+
+-- | Monomorphise clauses
+monoClauses :: (Ord a,Ord b) => [Clause a b] -> [Clause (IdInst a b) b]
+monoClauses = monoClauses2 . monoClauses1
 

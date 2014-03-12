@@ -172,7 +172,7 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = runRenameM originalId [] $ do
+initFields p@Property{..} = runRenameM (disambig originalId) [] $ do
     vars' <- insertMany (map fst prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
     return p
@@ -207,7 +207,7 @@ parseProperty e = case collectArgs e of
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore
-tvSkolemProp :: Property eq -> (Property eq,[P.Clause LogicId],[Content])
+tvSkolemProp :: Property eq -> (Property eq,[P.Clause LogicId LogicId],[Content])
 tvSkolemProp p@Property{..} =
     ( p
         { prop_tvs  = []

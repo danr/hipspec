@@ -22,6 +22,6 @@ trLemma am i Property{..} = calcDeps subtheory
 
     quants      = [ (Id x,trType t) | (x,t) <- prop_vars ]
 
-    clause       = Clause (Just i) Axiom (map Id prop_tvs)
+    clause       = Clause (Just i) [] Axiom (map Id prop_tvs)
                  $ forAlls quants (assums ===> goal)
 

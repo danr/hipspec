@@ -66,10 +66,13 @@ executable hipspec
         mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.2,
         pretty               >= 1.1,
         geniplate            >= 0.6,
+        genifunctors,
+        bifunctors,
         void                 >= 0.5.3,
         transformers         >= 0.3,
         split                >= 0.1,
         pretty-show          >= 1.5,
+
 
         ghc-prim,
 

@@ -98,7 +98,7 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
                 [ ( ( con_name
                     , Forall data_tvs
                           (makeArrows con_args (TyCon data_ty_con (map TyVar data_tvs)))
-                    , con_args'
+                    , tc_args -- con_args'
                     )
                   , [ case collectArrTy t of
                         (ts,r) | r == t0 -> case ts of
@@ -154,6 +154,6 @@ trSimpFuns am simp_fns = (new_arities,subthys)
         , let (fn_cls,ptr_cls) = P.trFun f
         ]
 
-trSimpExpr :: ArityMap -> [Id] -> S.Expr Id -> P.Term LogicId
+trSimpExpr :: ArityMap -> [Id] -> S.Expr Id -> P.Term LogicId LogicId
 trSimpExpr am sc e = P.trExpr' sc (stfExpr e `zapExpr` (`M.lookup` am))
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module HipSpec.Lang.Renamer where
 
 import Control.Monad.State
@@ -13,19 +14,21 @@ import qualified Data.Set as S
 
 import Control.Arrow
 
+import Data.Bitraversable (Bitraversable)
+import qualified Data.Bitraversable as B
 
-type RenameM a = ReaderT (Suggestor a) (State (Map a String,Set String))
+type RenameM a b = ReaderT (Suggestor a b) (State (Map a b,Set b))
 
-type Suggestor a = a -> String
+type Suggestor a b = a -> [b]
 
-runRenameM :: Suggestor a -> [String] -> RenameM a b -> b
+disambig :: (a -> String) -> Suggestor a String
+disambig f (f -> x) = x : [ x ++ show (i :: Int) | i <- [2..] ]
+
+runRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> r
 runRenameM f block m = evalState (runReaderT m f) (M.empty,S.fromList block)
 
-insert :: Ord a => a -> RenameM a String
-insert n = do
-    s <- asks ($ n)
-    let ss = s : [ s ++ show i | i <- [(2 :: Int)..] ]
-    go ss
+insert :: (Ord a,Ord b) => a -> RenameM a b b
+insert n = go =<< asks ($ n)
   where
     go (s:ss) = do
         u <- gets snd
@@ -34,19 +37,25 @@ insert n = do
             return s
     go [] = error "ran out of names!?"
 
-insertMany :: Ord a => [a] -> RenameM a [String]
+insertMany :: (Ord a,Ord b) => [a] -> RenameM a b [b]
 insertMany = mapM insert
 
-lkup :: Ord a => a -> RenameM a String
+lkup :: (Ord a,Ord b) => a -> RenameM a b b
 lkup n = do
     m_s <- gets (M.lookup n . fst)
     case m_s of
         Just s  -> return s
         Nothing -> insert n
 
-rename :: (Ord a,Traversable t) => t a -> RenameM a (t String)
+rename :: (Ord a,Ord b,Traversable t) => t a -> RenameM a b (t b)
 rename = T.mapM lkup
 
-renameWith :: (Ord a,Traversable t) => Suggestor a -> t a -> t String
+renameWith :: (Ord a,Ord b,Traversable t) => Suggestor a b -> t a -> t b
 renameWith f = runRenameM f [] . rename
+
+renameBi :: (Ord a,Ord b,Bitraversable t) => t a a -> RenameM a b (t b b)
+renameBi = B.bimapM lkup lkup
+
+renameBiWith :: (Ord a,Ord b,Bitraversable t) => Suggestor a b -> t a a -> t b b
+renameBiWith f = runRenameM f [] . renameBi
 

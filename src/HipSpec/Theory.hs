@@ -65,7 +65,7 @@ type Theory = [Subtheory]
 
 data Subtheory = Subtheory
     { defines :: Content
-    , clauses :: [Clause LogicId]
+    , clauses :: [Clause LogicId LogicId]
     , deps    :: Set Content
     }
 
@@ -109,10 +109,10 @@ calcDepsIgnoring ctnt s = s
 
 -- | Sort clauses: first sort signatures, then type signatures, then axioms and
 --   at last the goal.
-sortClauses :: forall a . [Clause a] -> [Clause a]
+sortClauses :: forall a b . [Clause a b] -> [Clause a b]
 sortClauses = sortBy (comparing rank)
   where
-    rank :: Clause a -> Int
+    rank :: Clause a b -> Int
     rank SortSig{}                        = 0
     rank TypeSig{}                        = 1
     rank cl@Clause{} | Goal <- cl_type cl = 3
