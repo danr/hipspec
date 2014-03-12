@@ -141,9 +141,11 @@ makeSigFrom p@Params{..} ids m_a_ty = do
 
     named_mono_types <- mapM (nameType p mono) types
 
-    let entries =
+    let fun | isabelle_mode = "obs"
+            | otherwise = "Test.QuickSpec.Signature.fun"
+        entries =
             [ unwords
-                [ "Test.QuickSpec.Signature.fun" ++ show (varArity mono i)
+                [ fun ++ show (varArity mono i)
                 , show (varToString i)  -- see Note unqualified identifiers
                 , "("
                 , "(" ++ varToString i ++ ")"
