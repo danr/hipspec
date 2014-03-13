@@ -60,6 +60,11 @@ polyname x0 = case x0 of
 mononame :: IdInst LogicId LogicId -> String
 mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
   where
+    {-
+    ty (P.TyCon TyFn [u,v]) = "q" ++ ty u ++ "_" ++ ty v ++ "p"
+    ty (P.TyCon i []) = polyname i
+    ty (P.TyCon i is) = "q" ++ polyname i ++ concatMap (\ u -> '_':ty u) is ++ "p"
+    -}
     ty (P.TyCon i is) = polyname i ++ concatMap (\ u -> '_':ty u) is
     ty (P.TyVar i)    = polyname i
     ty P.Integer      = "int"

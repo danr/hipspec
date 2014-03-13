@@ -9,6 +9,7 @@ import Var (Var,varName,idDetails,TyVar,tyVarName)
 import IdInfo (IdDetails(..))
 import TyCon (tyConName,TyCon)
 import DataCon (dataConName,DataCon)
+import Data.Char (toUpper)
 
 idFromName :: Name -> Id
 idFromName = GHCOrigin
@@ -45,6 +46,7 @@ data Derived
     | Lambda Id
     | Case Id
     | Eta
+    | Skolem Id
     | Unknown
   deriving (Eq,Ord)
 
@@ -57,6 +59,7 @@ instance Show Derived where
     show (Lambda f)      = "lam_" ++ show f ++ "_endlam"
     show (Case f)        = "case_" ++ show f ++ "_endcase"
     show Eta             = "eta"
+    show (Skolem i)      = show i
     show Unknown         = "unknown"
 
 originalId :: Id -> String
@@ -67,6 +70,7 @@ originalId i = case i of
         _ `LetFrom` b -> originalId b ++ "_"
         Lambda a      -> originalId a ++ "_lambda"
         Case a        -> originalId a ++ "_case"
+        Skolem a      -> map toUpper (originalId a)
         Eta           -> "x"
         Unknown       -> "u"
 
@@ -85,6 +89,7 @@ ppDerived d = case d of
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"
+    Skolem x      -> map toUpper (ppId x)
     Unknown       -> "unknown"
 
 ppName :: Name -> String

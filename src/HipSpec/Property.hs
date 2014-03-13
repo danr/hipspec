@@ -219,7 +219,7 @@ tvSkolemProp p@Property{..} =
     , ignore
     )
   where
-    tvs = [ (tv,mkLetFrom tv i prop_id) | (tv,i) <- zip prop_tvs [0..] ]
+    tvs = [ (tv,Skolem tv `Derived` i) | (tv,i) <- zip prop_tvs [0..] ]
 
     (expr_substs,ty_substs) = unzip
         [ (exprTySubst tv tc,tc /// tv)

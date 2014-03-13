@@ -120,7 +120,7 @@ ptrAxiom f tvs args res =
     [ TypeSig (Ptr f) tvs [] (foldr ty_fn res args)
     , Clause Nothing [Symb (Ptr f)] Axiom tvs $
         forAlls vars $
-            mk_lhs args res ===
+            mk_lhs (reverse vars) res ===
             Apply (Id f) (map P.TyVar tvs) (map (Var . fst) vars)
     ]
   where
@@ -128,11 +128,11 @@ ptrAxiom f tvs args res =
 
     vars = zip (map QVar [0..]) args
 
-    mk_lhs []     _r = Apply (Ptr f) (map P.TyVar tvs) []
-    mk_lhs (a:as) r  =
+    mk_lhs []         _r = Apply (Ptr f) (map P.TyVar tvs) []
+    mk_lhs ((x,a):as) r  =
         Apply App
             [a,r]
-            [mk_lhs as (ty_fn a r),Var (QVar (length as))]
+            [mk_lhs as (ty_fn a r),Var x]
 
 
 diag :: [a] -> [(a,a)]

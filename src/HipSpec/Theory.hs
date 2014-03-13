@@ -116,5 +116,6 @@ sortClauses = sortBy (comparing rank)
     rank SortSig{}                        = 0
     rank TypeSig{}                        = 1
     rank cl@Clause{} | Goal <- cl_type cl = 3
+    rank Comment{}                        = 2
     rank _                                = 2
 
