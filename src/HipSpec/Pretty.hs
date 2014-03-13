@@ -3,6 +3,8 @@ module HipSpec.Pretty where
 
 import Text.PrettyPrint
 import HipSpec.Lang.PrettyAltErgo
+import qualified HipSpec.Lang.PrettyPolyFOL as TFF
+import qualified HipSpec.Lang.PrettySMT as SMT
 
 import HipSpec.Utils.ZEncode
 
@@ -20,6 +22,8 @@ import HipSpec.Lang.PolyFOL (Clause(..))
 import qualified HipSpec.Lang.PolyFOL as P
 
 import HipSpec.Id
+
+import Data.Char
 
 type LogicId = Poly Id
 
@@ -71,15 +75,26 @@ mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
     ty P.TType        = "type"
 
 ppAltErgo :: [Clause LogicId LogicId] -> String
-ppAltErgo = render . vcat . map (ppClause (PP text text)) . renameCls polyname
+ppAltErgo = render . vcat . map (ppClause (PP text text)) . renameCls (zencode . polyname)
 
 ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
 ppMonoAltErgo
-    = render . vcat . map (ppClause (PP text (text . ("lcl_" ++))))
-    . renameCls mononame . map (fmap (`IdInst` []))
+    = render . vcat . map (ppClause (PP text text))
+    . renameCls (zencode . mononame) . map (fmap (`IdInst` []))
+
+ppTFF :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppTFF
+    = render . vcat . map (TFF.ppClause (PP (text . ('x':)) (text . ('X':))))
+    . renameCls (map toLower . zencode . mononame) . map (fmap (`IdInst` []))
+
+ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppSMT
+    = (++ "\n(check-sat)\n") . render . vcat . map (SMT.ppClause (PP text text))
+    . renameCls (zencode . mononame) . map (fmap (`IdInst` []))
+
 
 renameCls :: Ord v => (v -> String) -> [Clause v v] -> [Clause String String]
-renameCls f = runRenameM (disambig (zencode . f)) altErgoKeywords . mapM renameBi
+renameCls f = runRenameM (disambig f) altErgoKeywords . mapM renameBi
 
 altErgoKeywords :: [String]
 altErgoKeywords =

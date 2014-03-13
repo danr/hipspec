@@ -31,6 +31,9 @@ parensIf False = id
 csv :: [Doc] -> Doc
 csv = inside "(" "," ")"
 
+starsep :: [Doc] -> Doc
+starsep = inside "(" "*" ")"
+
 inside :: Doc -> Doc -> Doc -> [Doc] -> Doc
 inside _ _ _ []     = empty
 inside l p r (x:xs) = cat (go (l <> x) xs)

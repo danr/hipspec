@@ -168,6 +168,9 @@ infixr 2 /\
 infixr 1 \/
 infixr 0 ==>, ===>, <=>
 
+neg :: Formula a b -> Formula a b
+neg = Neg
+
 (/\),(\/),(==>),(<=>) :: Formula a b -> Formula a b -> Formula a b
 (/\)  = FOp And
 (\/)  = FOp Or

@@ -55,7 +55,12 @@ tryProve prop lemmas0 = do
             linTheory :: Theory -> LinTheory
             linTheory sthys = LinTheory $ \ t -> case t of
                 AltErgoFmt     -> ppAltErgo (sortClauses (concatMap clauses sthys))
-                AltErgoMonoFmt -> ppMonoAltErgo (sortClauses (monoClauses (concatMap clauses sthys)))
+                AltErgoMonoFmt -> ppMonoAltErgo mthy
+                MonoTFF        -> ppTFF mthy
+                SMT            -> ppSMT mthy
+              where
+                mthy = sortClauses (monoClauses (concatMap clauses sthys))
+
 
             calc_dependencies :: Subtheory -> [Content]
             calc_dependencies s = concatMap dependencies (s:lemma_theories)
