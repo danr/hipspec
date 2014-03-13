@@ -23,15 +23,17 @@ data UTy a r
     = UAppTy r r
     | UArrTy r r
     | UTyCon a
+    | UInt
   deriving (Show,Functor,Foldable,Traversable)
 
 data U a = U a | Fresh Int
   deriving (Show)
 
 data IExpr a
-    = IVar a IntVar
-    | IFun (Typed a) [IntVar]
+    = ILcl a IntVar
+    | IGbl a (PolyType a) [IntVar]
     | IApp (IExpr a) (IExpr a)
+    | ILit Integer
 
 toType :: Eq a => UType a -> UnifyM a (Type (U a))
 toType t0 = go =<< lift (lift (fullprune t0))
@@ -48,7 +50,8 @@ toType t0 = go =<< lift (lift (fullprune t0))
             TyCon tc ts <- go u
             t' <- go v
             return (TyCon tc (ts ++ [t']))
-        UTyCon tc  -> return (TyCon (U tc) [])
+        UTyCon tc -> return (TyCon (U tc) [])
+        UInt      -> return Integer
 
 type Failure a = UnificationFailure (UTy a) IntVar
 
@@ -63,16 +66,15 @@ type UnifyM a =
 uAppTys :: UType a -> [UType a] -> UType a
 uAppTys = foldl (\ t x -> UTerm (UAppTy t x))
 
-freshInst :: forall a . Eq a => Type a -> UnifyM a (UType a,[IntVar])
-freshInst (collectForalls -> (tvs,t0)) = do
+freshInst :: forall a . Eq a => PolyType a -> UnifyM a (UType a,[IntVar])
+freshInst (Forall tvs t0) = do
     m :: [(a,IntVar)] <- sequence [ (,) tv <$> lift (lift freeVar) | tv <- tvs ]
 
     let go t = case t of
             TyVar a     -> UVar (fromJust (lookup a m))
             ArrTy u v   -> UTerm (UArrTy (go u) (go v))
             TyCon tc ts -> uAppTys (UTerm (UTyCon tc)) (map go ts)
-            Forall{}    -> fail "Forall"
-            Star{}      -> fail "Star"
+            Integer     -> UTerm UInt
 
     return (go t0,map snd m)
 
@@ -80,6 +82,7 @@ instance Eq a => Unifiable (UTy a) where
     zipMatch (UArrTy u1 u2) (UArrTy v1 v2)       = Just (UArrTy (Right (u1,v1)) (Right (u2,v2)))
     zipMatch (UTyCon a)     (UTyCon b)  | a == b = Just (UTyCon a)
     zipMatch (UAppTy u1 u2) (UAppTy v1 v2)       = Just (UAppTy (Right (u1,v1)) (Right (u2,v2)))
+    zipMatch UInt           UInt                 = Just UInt
     zipMatch _              _                    = Nothing
 
 runGen :: Eq a => UnifyM a b -> Either (Failure a) b
@@ -104,15 +107,18 @@ insertVars = mapM insertVar
 lookupVars :: Eq a => [(a,IntVar)] -> UnifyM a [(a,Type (U a))]
 lookupVars vs = forM vs $ \ (x,v) -> (,) x <$> varType v
 
-genExpr :: Eq a => Expr (Typed a) -> UnifyM a (UType a,IExpr a)
+genExpr :: Eq a => Expr a -> UnifyM a (UType a,IExpr a)
 genExpr e0 = case e0 of
-    Var xt@(x ::: t) _ts -> do
+    Lcl x _ -> do
         r <- gets (lookup x)
         case r of
-            Just i  -> return (UVar i,IVar x i)
+            Just i  -> return (UVar i,ILcl x i)
             Nothing -> do
-                (rt,new) <- freshInst t
-                return (rt,IFun xt new)
+                (_,i) <- insertVar x
+                return (UVar i,ILcl x i)
+    Gbl x t _ -> do
+        (rt,new) <- freshInst t
+        return (rt,IGbl x t new)
     App e1 e2 -> do
         (t1,i1) <- genExpr e1
         (t2,i2) <- genExpr e2
@@ -126,8 +132,7 @@ genExpr e0 = case e0 of
             _ -> fail "genExpr: ill-typed expression"
         void $ lift $ unifyOccurs t2 a
         return (r,IApp i1 i2)
-    Lit _ (_tc ::: _) -> error "Unify for literals not implemented!"
-                      -- return (UTerm (UTyCon tc))
+    Lit i -> return (UTerm UInt,ILit i)
 
 varType :: Eq a => IntVar -> UnifyM a (Type (U a))
 varType iv = do
@@ -137,15 +142,16 @@ varType iv = do
         Nothing -> toType (UVar iv) -- (TyVar (Fresh i))
 --    return (toType t)
 
-extExpr :: Eq a => IExpr a -> UnifyM a (Expr (Typed (U a)))
+extExpr :: Eq a => IExpr a -> UnifyM a (Expr (U a))
 extExpr i0 = case i0 of
-    IVar x i -> do
+    ILcl x i -> do
         t <- varType i
-        return $ Var (U x ::: t) []
-    IFun xt is -> do
+        return $ Lcl (U x) t
+    IGbl x t is -> do
         ts <- mapM varType is
-        return $ Var (fmap U xt) (map star ts)
+        return $ Gbl (U x) (fmap U t) ts
     IApp i1 i2 -> App <$> extExpr i1 <*> extExpr i2
+    ILit i     -> return (Lit i)
 
 
 {-

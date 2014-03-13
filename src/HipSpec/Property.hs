@@ -30,8 +30,8 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
--- import HipSpec.Unify
--- import Control.Unification
+import HipSpec.Unify
+import Control.Unification
 
 -- import Text.PrettyPrint hiding (comma)
 
@@ -287,10 +287,10 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
 -- | Generalise a property
 generaliseProp :: Property eq -> Property eq
-generaliseProp = id {- prop@Property{..} = case res of
+generaliseProp prop@Property{..} = case res of
     Right (vs,goal:assums) ->
-        let vars        = [ v ::: fmap un_u t | (v,t) <- vs ]
-            tvs         = nubSorted (concatMap (freeTyVars . typed_type) vars)
+        let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
+            tvs  = nubSorted (concatMap (freeTyVars . snd) vars)
         in  prop
                 { prop_tvs    = tvs
                 , prop_vars   = vars
@@ -300,7 +300,7 @@ generaliseProp = id {- prop@Property{..} = case res of
     _ -> prop
   where
     res = runGen $ do
-        vi <- insertVars (map forget_type prop_vars)
+        vi <- insertVars (map fst prop_vars)
         mk_ga <- mapM gen_lit (prop_goal:prop_assums)
         ga <- sequence mk_ga
         vs <- lookupVars vi
@@ -313,11 +313,10 @@ generaliseProp = id {- prop@Property{..} = case res of
         return $ do
             e1' <- extExpr i1
             e2' <- extExpr i2
-            return (fmap (fmap un_u) e1' :=: fmap (fmap un_u) e2')
+            return (fmap un_u e1' :=: fmap un_u e2')
 
-    un_u (Fresh i) = New [] (toInteger i - toInteger (minBound :: Int))
+    un_u (Fresh i) = GenTyVar `Derived` (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
-    -}
 
 maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop

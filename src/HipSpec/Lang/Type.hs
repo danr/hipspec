@@ -4,7 +4,7 @@ module HipSpec.Lang.Type where
 
 import Data.Generics.Geniplate
 import Data.List (nub,elemIndex,(\\))
-import Data.Foldable (Foldable,toList)
+import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Function (on)
 
@@ -44,7 +44,10 @@ freePolyType :: Eq a => PolyType a -> [a]
 freePolyType (Forall xs t) = freeTyVars t \\ xs
 
 freeTyVars :: Eq a => Type a -> [a]
-freeTyVars = nub . toList
+freeTyVars t = nub [ a | TyVar a <- univ t ]
+  where
+    univ :: Type a -> [Type a]
+    univ = $(genUniverseBi 'univ)
 
 makeArrows :: [Type a] -> Type a -> Type a
 makeArrows xs t = foldr ArrTy t xs

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE PatternGuards #-}
 module HipSpec.Id where
 
@@ -29,17 +30,14 @@ idFromTyVar = idFromName . tyVarName
 idFromTyCon :: TyCon -> Id
 idFromTyCon = idFromName . tyConName
 
-
 data Id
     = GHCOrigin Name
     | QSOrigin String Integer
     | Derived Derived Integer
-  deriving (Eq,Ord)
+  deriving (Eq,Ord,Show)
 
-instance Show Id where
-    show (GHCOrigin nm) = showOutputable nm ++ "_" ++ showOutputable (getUnique nm)
-    show (QSOrigin s i) = s ++ "_" ++ show i
-    show (Derived d i)  = show d ++ "_" ++ show i
+instance Show Name where
+    show nm = show (showOutputable nm)
 
 data Derived
     = Id `LetFrom` Id
@@ -48,19 +46,12 @@ data Derived
     | Eta
     | Skolem Id
     | Unknown
-  deriving (Eq,Ord)
+    | GenTyVar
+  deriving (Eq,Ord,Show)
 
 mkLetFrom :: Id -> Integer -> Id -> Id
 mkLetFrom x _ (Derived Unknown _) = x
 mkLetFrom x i y                   = Derived (x `LetFrom` y) i
-
-instance Show Derived where
-    show (f `LetFrom` g) = "let_" ++ show g ++ "_from_" ++ show f ++ "_endlet"
-    show (Lambda f)      = "lam_" ++ show f ++ "_endlam"
-    show (Case f)        = "case_" ++ show f ++ "_endcase"
-    show Eta             = "eta"
-    show (Skolem i)      = show i
-    show Unknown         = "unknown"
 
 originalId :: Id -> String
 originalId i = case i of
@@ -73,6 +64,7 @@ originalId i = case i of
         Skolem a      -> map toUpper (originalId a)
         Eta           -> "x"
         Unknown       -> "u"
+        GenTyVar      -> "a"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -81,15 +73,16 @@ ppId :: Id -> String
 ppId i = case i of
     GHCOrigin nm  -> ppName nm
     QSOrigin s _  -> s
-    Derived d _   -> ppDerived d
+    Derived d x   -> ppDerived x d
 
-ppDerived :: Derived -> String
-ppDerived d = case d of
+ppDerived :: Integer -> Derived -> String
+ppDerived i d = case d of
     f `LetFrom` g -> ppId g ++ "_" ++ ppId f
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"
     Skolem x      -> map toUpper (ppId x)
+    GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
 
 ppName :: Name -> String
