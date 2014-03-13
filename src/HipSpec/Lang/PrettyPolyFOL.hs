@@ -59,6 +59,7 @@ ppForm p f0 = case f0 of
 --    Pred q fs     -> p q <> csv (map (ppForm p) fs)
     FOp{} -> error "PrettyPolyFOL.ppForm FOp"
     Q{}   -> error "PrettyPolyFOL.ppForm Q"
+    DataDecl _ fm -> ppForm p fm
 
 ppQ :: Q -> Doc
 ppQ q = case q of

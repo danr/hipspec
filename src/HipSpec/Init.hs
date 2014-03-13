@@ -84,7 +84,7 @@ processFile cont = do
 
         thy = appThy : data_thy ++ binds_thy
 
-        cls = sortClauses (concatMap clauses thy)
+        cls = sortClauses False (concatMap clauses thy)
 
         tr_props
             = sortOn prop_name

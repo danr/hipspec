@@ -96,6 +96,13 @@ ppSMT
 renameCls :: Ord v => (v -> String) -> [Clause v v] -> [Clause String String]
 renameCls f = runRenameM (disambig f) altErgoKeywords . mapM renameBi
 
+smtKeywords :: [String]
+smtKeywords = altErgoKeywords ++
+    [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
+    , "assert", "check-sat"
+    ]
+
+
 altErgoKeywords :: [String]
 altErgoKeywords =
     [ "ac"

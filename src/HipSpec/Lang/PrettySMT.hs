@@ -13,10 +13,20 @@ ppClause p cls = case cls of
                                         [pp_symb p x
                                         ,parens (sep (map (ppType p) args))
                                         ,ppType p res])
+    Clause _ _ _ _ (DataDecl ds _) -> ppDataDecls p ds
     Clause _ _ cl _tvs fm   -> parens ("assert" $\
                                         ppForm p
-                                            (case cl of {Goal -> neg; _ -> id} $ fm))
+                                            (case cl of {Goal -> neg
+                                                        ; _ -> id} $ fm))
     Comment s               -> vcat (map (\ l -> ";" <+> text l) (lines s))
+
+ppDataDecls :: PP a b -> [DataDecl a b] -> Doc
+ppDataDecls p ds = parens ("declare-datatypes" <+> parens empty $\ parens (sep (map data_decl ds)))
+  where
+    data_decl (Data tc _ cons) = parens (pp_symb p tc $\ sep (map con_decl cons))
+    con_decl (con,[])   = pp_symb p con
+    con_decl (con,args) = parens
+        (pp_symb p con $\ sep [ parens (pp_symb p v <+> ppType p t) | (v,t) <- args ])
 
 ppType :: PP a b -> Type a b -> Doc
 ppType p = go
@@ -34,6 +44,7 @@ ppForm p f0 = case f0 of
     TOp top t1 t2 -> parens (ppTOp top $\ sep (map (ppTerm p) [t1,t2]))
     Neg f         -> parens ("not" $\ ppForm p f)
 --    Pred q fs     -> p q <> csv (map (ppForm p) fs)
+    DataDecl _ fm -> ppForm p fm
     FOp{} -> error "PrettySMT.ppForm FOp"
     Q{}   -> error "PrettySMT.ppForm Q"
 

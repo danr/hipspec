@@ -109,13 +109,14 @@ calcDepsIgnoring ctnt s = s
 
 -- | Sort clauses: first sort signatures, then type signatures, then axioms and
 --   at last the goal.
-sortClauses :: forall a b . [Clause a b] -> [Clause a b]
-sortClauses = sortBy (comparing rank)
+sortClauses :: forall a b . Bool -> [Clause a b] -> [Clause a b]
+sortClauses push_data_types = sortBy (comparing rank)
   where
     rank :: Clause a b -> Int
-    rank SortSig{}                        = 0
-    rank TypeSig{}                        = 1
-    rank cl@Clause{} | Goal <- cl_type cl = 3
-    rank Comment{}                        = 2
-    rank _                                = 2
+    rank SortSig{}                                 = 0
+    rank TypeSig{}                                 = 2
+    rank cl@Clause{} | DataDecl{} <- cl_formula cl = if push_data_types then 1 else 3
+    rank cl@Clause{} | Goal <- cl_type cl          = 4
+    rank Clause{}                                  = 3
+    rank Comment{}                                 = 3
 

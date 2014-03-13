@@ -65,6 +65,7 @@ ppForm p f0 = case f0 of
     Neg f             -> "not" <+> parens (ppForm p f)
 --    Pred q fs         -> pp_symb p q <> csv (map (ppForm p) fs)
     FOp{}             -> error "PrettyAltErgo.ppForm: FOp"
+    DataDecl _ fm     -> ppForm p fm
 
 ppQ :: Q -> Doc
 ppQ q = case q of

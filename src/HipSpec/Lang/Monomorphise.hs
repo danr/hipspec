@@ -238,7 +238,7 @@ monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
         | cl <- cls
         ]
 
-    tyCon f ts = TyCon (IdInst f ts) []
+    tyCon f ts = IdInst f ts
     apply f ts = Apply (IdInst f ts) []
 
     (sorts1,ty_apps) = clsDeps cls'

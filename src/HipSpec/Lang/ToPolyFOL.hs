@@ -70,6 +70,13 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
     -- sort declaration
     sort_decl = SortSig tc (length tvs)
 
+    -- smt data declaration
+    data_decl = DataDecl
+        [Data tc tvs'
+            [ (Id dc,[ (Proj dc i,a) | (i,a) <- zip [0..] args ])
+            | (dc,args) <- dcs
+            ]]
+
     -- type declarations (also for projections)
     ty_decls = concat
         [ TypeSig (Id dc) tvs args tc_ty :
@@ -80,7 +87,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
         ]
 
     -- domain axiom
-    domain = Clause Nothing trgs Axiom tvs $ forAll q0 tc_ty $ foldr1 (\/)
+    domain = Clause Nothing trgs Axiom tvs $ data_decl $ forAll q0 tc_ty $ foldr1 (\/)
         [ Var q0 === Apply (Id dc) tvs'
             [ Apply (Proj dc i) tvs' [Var q0]
             | (i,_) <- zip [0..] args
@@ -91,7 +98,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
         q0 = QVar 0
 
     -- injectivity axioms
-    inj = map (Clause Nothing trgs Axiom tvs) $ concat
+    inj = map (Clause Nothing trgs Axiom tvs . data_decl) $ concat
         [ [ forAlls (zip (map QVar [0..]) args) $
                 Apply (Proj dc i) tvs' [tm] === Var (QVar i)
           | (i,_) <- zip [0..] args
@@ -102,7 +109,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
 
 
     -- discrimination axioms
-    discrim = map (Clause Nothing trgs Axiom tvs) $
+    discrim = map (Clause Nothing trgs Axiom tvs . data_decl) $
         [ forAlls (qs_k ++ qs_j) (tm_k =/= tm_j)
         | ((k,args_k),(j,args_j)) <- diag dcs
         , let qs_k = zip (map QVar [0..]) args_k

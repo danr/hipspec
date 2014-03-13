@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables, RecordWildCards #-}
 {-
 
 Type signatures and formulae have a list of top-level quantified
@@ -28,6 +28,10 @@ import Data.Traversable (Traversable)
 import Data.Bitraversable
 import Data.Bifoldable
 import Data.Bifunctor
+
+import Data.Either
+
+import HipSpec.Utils
 
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -139,6 +143,12 @@ data Formula a b
     | Pred a [Formula a b]
     -- ^ Predication
 -}
+    | DataDecl [DataDecl a b] (Formula a b)
+    -- ^ One or many data declarations for SMT data types,
+    --   or a formula if it is not supported
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+data DataDecl a b = Data a [Type a b] [(a,[(a,Type a b)])]
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 collectFOp :: Formula a b -> Maybe (FOp,[Formula a b])
@@ -250,7 +260,7 @@ clTmUniv = $(genUniverseBi 'clTmUniv)
 clTyUniv :: Clause a b -> [Type a b]
 clTyUniv = $(genUniverseBi 'clTyUniv)
 
-fmMod :: (a -> [Type a b] -> Type c b)
+fmMod :: (a -> [Type a b] -> c)
       -> (a -> [Type a b] -> [Term c b] -> Term c b)
       -> Formula a b -> Formula c b
 fmMod f g = fmg
@@ -260,6 +270,18 @@ fmMod f g = fmg
         FOp op fm1 fm2 -> FOp op (fmg fm1) (fmg fm2)
         Neg fm         -> Neg (fmg fm)
         Q q b ty fm    -> Q q b (tyg ty) (fmg fm)
+        DataDecl ds fm ->
+            DataDecl
+                [ Data (f tc ts) []
+                    [ (f c ts,
+                        [ (f p ts,tyg t)
+                        | (p,t) <- args
+                        ])
+                    | (c,args) <- cons
+                    ]
+                | Data tc ts cons <- ds
+                ]
+                (fmg fm)
 
     tmg tm0 = case tm0 of
         Apply x ts tms -> g x ts (map tmg tms)
@@ -268,13 +290,41 @@ fmMod f g = fmg
 
     tyg = tyMod f
 
-tyMod :: (a -> [Type a b] -> Type c b) -> Type a b -> Type c b
+tyMod :: (a -> [Type a b] -> c) -> Type a b -> Type c b
 tyMod f ty0 = case ty0 of
-    TyCon x ts -> f x ts
+    TyCon x ts -> TyCon (f x ts) []
     TyVar x    -> TyVar x
     TType      -> TType
     Integer    -> Integer
 
+trimDataDecls :: forall a b . (Ord a,Ord b) => [Clause a b] -> [Clause a b]
+trimDataDecls cls
+    = Clause
+        { cl_name        = Nothing
+        , cl_ty_triggers = []
+        , cl_type        = Axiom
+        , ty_vars        = []
+        , cl_formula     = DataDecl ds' (Lit 1 === Lit 1)
+        }
+    : filter (not . ignore) cls'
+  where
+    (ds,cls') = partitionEithers (map inj cls)
+
+    inj (Clause _ _ _ _ (DataDecl d _)) = Left d
+    inj c                               = Right c
+
+    ds' = nubSortedOn (\ (Data tc ts _) -> (tc,ts)) (concat ds)
+
+    ignores :: Set a
+    ignores = S.fromList $ concat
+        [ tc : concat [ c : map fst args | (c,args) <- cons ]
+        | Data tc _ cons <- ds'
+        ]
+
+    ignore :: Clause a b -> Bool
+    ignore TypeSig{..} = sig_id `S.member` ignores
+    ignore SortSig{..} = sig_id `S.member` ignores
+    ignore _           = False
 
 {-
 

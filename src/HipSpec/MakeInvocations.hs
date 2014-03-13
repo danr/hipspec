@@ -15,6 +15,7 @@ import HipSpec.Trim
 import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
+import HipSpec.Lang.PolyFOL (trimDataDecls)
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
@@ -54,12 +55,12 @@ tryProve prop lemmas0 = do
 
             linTheory :: Theory -> LinTheory
             linTheory sthys = LinTheory $ \ t -> case t of
-                AltErgoFmt     -> ppAltErgo (sortClauses (concatMap clauses sthys))
+                AltErgoFmt     -> ppAltErgo (sortClauses False (concatMap clauses sthys))
                 AltErgoMonoFmt -> ppMonoAltErgo mthy
                 MonoTFF        -> ppTFF mthy
-                SMT            -> ppSMT mthy
+                SMT            -> ppSMT (sortClauses True (trimDataDecls mthy))
               where
-                mthy = sortClauses (monoClauses (concatMap clauses sthys))
+                mthy = sortClauses False (monoClauses (concatMap clauses sthys))
 
 
             calc_dependencies :: Subtheory -> [Content]
