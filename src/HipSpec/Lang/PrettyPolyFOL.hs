@@ -6,14 +6,26 @@ import Text.PrettyPrint
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.PrettyUtils
 
-ppClause :: PP a b -> Clause a b -> Doc
+import qualified Data.Set as S
+
+ppClause :: (Ord a,Ord b) => PP a b -> Clause a b -> Doc
 ppClause p cls = case cls of
     SortSig x n            -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) [] (replicate n TType) TType]
     TypeSig x tvs args res -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) tvs args res]
-    Clause _ _ cl tvs phi  -> tff ["x",ppClType cl,ppTyQuant p tvs (ppForm p phi)]
+    Clause _ trg cl tvs phi  ->
+        (if null trg then id else ("% Triggers:" <+> hsep (map (ppTrg p) trg) $$)) $
+        ("% Ty deps:" <+> hsep (map (pp_symb p) (S.toList tcs))) $$
+        ("% Fun deps:" <+> hsep (map (pp_symb p) (S.toList fs))) $$
+        tff ["x",ppClType cl,ppTyQuant p tvs (ppForm p phi)]
+      where (tcs,fs) = clsDeps [cls]
     Comment s              -> vcat (map (\ l -> "%" <+> text l) (lines s))
   where
     tff xs = "tff" <> csv xs <> "."
+
+ppTrg :: PP a b -> Trigger a -> Doc
+ppTrg p (TySymb x) = parens ("Type" <+> pp_symb p x)
+ppTrg p (Symb x)   = pp_symb p x
+ppTrg _ Source     = "source"
 
 ppClType :: ClType -> Doc
 ppClType cl = case cl of
@@ -59,7 +71,12 @@ ppForm p f0 = case f0 of
 --    Pred q fs     -> p q <> csv (map (ppForm p) fs)
     FOp{} -> error "PrettyPolyFOL.ppForm FOp"
     Q{}   -> error "PrettyPolyFOL.ppForm Q"
-    DataDecl _ fm -> ppForm p fm
+    DataDecl ds fm ->
+        ("% Data:" <+> hsep (map (ppDataDecl p) ds)) $$
+        ppForm p fm
+
+ppDataDecl :: PP a b -> DataDecl a b -> Doc
+ppDataDecl p (Data tc _ _) = pp_symb p tc
 
 ppQ :: Q -> Doc
 ppQ q = case q of

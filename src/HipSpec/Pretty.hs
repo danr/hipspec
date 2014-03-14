@@ -82,6 +82,12 @@ ppMonoAltErgo
     = render . vcat . map (ppClause (PP text text))
     . renameCls (zencode . mononame) . map (fmap (`IdInst` []))
 
+ppTHF :: [Clause LogicId LogicId] -> String
+ppTHF
+    = render . vcat . map (TFF.ppClause (PP (text . ('x':)) (text . ('X':))))
+    . renameCls (map toLower . zencode . polyname)
+
+
 ppTFF :: [Clause (IdInst LogicId LogicId) LogicId] -> String
 ppTFF
     = render . vcat . map (TFF.ppClause (PP (text . ('x':)) (text . ('X':))))
@@ -94,7 +100,7 @@ ppSMT
 
 
 renameCls :: Ord v => (v -> String) -> [Clause v v] -> [Clause String String]
-renameCls f = runRenameM (disambig f) altErgoKeywords . mapM renameBi
+renameCls f = runRenameM (disambig f) smtKeywords . mapM renameBi
 
 smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++

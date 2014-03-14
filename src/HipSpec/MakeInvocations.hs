@@ -17,6 +17,10 @@ import HipSpec.Utils
 import HipSpec.Lang.Monomorphise
 import HipSpec.Lang.PolyFOL (trimDataDecls)
 
+import Data.Traversable (traverse)
+
+import Text.Show.Pretty (ppShow)
+
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
@@ -53,14 +57,19 @@ tryProve prop lemmas0 = do
 
             proof_tree = requireAny (map (requireAll . map Leaf) obligss)
 
-            linTheory :: Theory -> LinTheory
-            linTheory sthys = LinTheory $ \ t -> case t of
-                AltErgoFmt     -> ppAltErgo (sortClauses False (concatMap clauses sthys))
-                AltErgoMonoFmt -> ppMonoAltErgo mthy
-                MonoTFF        -> ppTFF mthy
-                SMT            -> ppSMT (sortClauses True (trimDataDecls mthy))
-              where
-                mthy = sortClauses False (monoClauses (concatMap clauses sthys))
+            linTheory :: Theory -> HS LinTheory
+            linTheory sthys = do
+                let cls         = sortClauses False (concatMap clauses sthys)
+                let (mcls,recs) = first (sortClauses False) (monoClauses cls)
+                debugWhen DebugMono $
+                    "\nMonomorphising:\n" ++ ppTHF cls ++
+                    "\n\nResult:\n" ++ ppTFF mcls ++
+                    "\n\nRecords:\n" ++ ppShow recs
+                return $ LinTheory $ \ t -> case t of
+                    AltErgoFmt     -> ppAltErgo (sortClauses False cls)
+                    AltErgoMonoFmt -> ppMonoAltErgo mcls
+                    MonoTFF        -> ppTFF mcls
+                    SMT            -> ppSMT (sortClauses True (trimDataDecls mcls))
 
 
             calc_dependencies :: Subtheory -> [Content]
@@ -69,14 +78,14 @@ tryProve prop lemmas0 = do
             fetcher :: [Content] -> [Subtheory]
             fetcher = trim (theory ++ lemma_theories)
 
-            fetch_and_linearise :: Subtheory -> LinTheory
+            fetch_and_linearise :: Subtheory -> HS LinTheory
             fetch_and_linearise conj = linTheory $
                 conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-            proof_tree_lin :: Tree (Obligation eq LinTheory)
-            proof_tree_lin = fmap (fmap fetch_and_linearise) proof_tree
+        proof_tree_lin :: Tree (Obligation eq LinTheory) <-
+            traverse (traverse fetch_and_linearise) proof_tree
 
-            invoke_env = InvokeEnv
+        let invoke_env = InvokeEnv
                 { timeout         = timeout
                 , store           = output
                 , provers         = proversFromNames provers

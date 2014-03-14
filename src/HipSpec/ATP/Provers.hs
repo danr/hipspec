@@ -102,7 +102,7 @@ z3 = Prover
     , prover_args           = \ _f _t -> ["-smt2","-nw","/dev/stdin"]
     , prover_process_output = searchOutput
         [("unsat",proven)
-        ,("sat",failure)
+--        ,("sat",failure)
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing

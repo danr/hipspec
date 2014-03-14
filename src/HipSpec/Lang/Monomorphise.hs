@@ -88,8 +88,8 @@ data Lemma a b = Lemma
 -- | Stage one monomorphisation
 --   1st component: monomorphically applied clauses
 --   2nd component: type signatures to be monomorphised
-monoClauses1 :: forall a b . (Ord a,Ord b) => [Clause a b] -> ([Clause a b],[Clause a b])
-monoClauses1 cls0 = (source ++ defs ++ lemma_cls,sigs)
+monoClauses1 :: forall a b . (Ord a,Ord b) => [Clause a b] -> (([Clause a b],[Clause a b]),Records a b)
+monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin_recs)
   where
     trg_pred p Clause{..} = p cl_ty_triggers
     trg_pred _ _          = False
@@ -108,21 +108,21 @@ monoClauses1 cls0 = (source ++ defs ++ lemma_cls,sigs)
         , let recs = clauseRecs cl
         ]
 
-    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> [Clause a b]
-    go False [] _   _   = []
+    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> ([Clause a b],Records a b)
+    go False [] _   irs = ([],irs)
     go True  [] acc irs = go False acc [] irs
     go b (l:ls) acc irs = case new of
         []        -> go b ls (l:acc) irs
         (l',cl):_ ->
             let (cls,irs') = mono irs (clauseRecs cl)
-            in  cl:cls ++ go True (l':ls) acc irs'
+            in  first (\ c -> cl:cls ++ c) (go True (l':ls) acc irs')
       where
         new = catMaybes
             [ instLemma l im irs
             | im <- possibleInsts l irs
             ]
 
-    lemma_cls = go False lemmas [] def_irs
+    (lemma_cls,fin_recs) = go False lemmas [] def_irs
 
 instLemma :: (Ord a,Ord b)
           => Lemma a b   {- ^ lemma to maybe instantiate -}
@@ -198,10 +198,10 @@ mkMono cls0 irs0 q0 = go irs0 (q0 \\ irs0)
     -- we let one of them instantiate the clause, and the other ones just
     -- retrigger with the major pattern
     trg_targets :: Map (Trigger a) ([Clause a b],[Trigger a])
-    trg_targets = M.fromListWith mappend $
-        [ (trg,([cl],trgs))
+    trg_targets = M.fromListWith mappend $ concat $
+        [ (trg,([cl],rtrs)) : [ (rtr,([],filter (rtr /=) trgs)) | rtr <- rtrs ]
         | cl <- cls0
-        , let trg:trgs = cl_ty_triggers cl
+        , let trgs@(trg:rtrs) = cl_ty_triggers cl
         ]
 
     go :: Records a b
@@ -260,6 +260,6 @@ monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
     sorts = sorts1 `S.union` sorts2
 
 -- | Monomorphise clauses
-monoClauses :: (Ord a,Ord b) => [Clause a b] -> [Clause (IdInst a b) b]
-monoClauses = monoClauses2 . monoClauses1
+monoClauses :: (Ord a,Ord b) => [Clause a b] -> ([Clause (IdInst a b) b],Records a b)
+monoClauses = first monoClauses2 . monoClauses1
 
