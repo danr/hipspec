@@ -45,7 +45,7 @@ import HipSpec.Id hiding (Derived(Case))
 import TysWiredIn (trueDataCon,boolTyCon)
 -- import DataCon (dataConName)
 
-import Data.List (intercalate)
+import Data.List (intercalate,union)
 import Data.Maybe (mapMaybe)
 
 import Data.Void
@@ -60,6 +60,9 @@ data Literal = S.Expr Id :=: S.Expr Id
 
 mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
+
+literalFreeTyVars :: Literal -> [Id]
+literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
 
 instance Show Literal where
     show (e1 :=: e2) = showExpr e1 ++ " = " ++ showExpr e2
@@ -290,7 +293,9 @@ generaliseProp :: Property eq -> Property eq
 generaliseProp prop@Property{..} = case res of
     Right (vs,goal:assums) ->
         let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
-            tvs  = nubSorted (concatMap (freeTyVars . snd) vars)
+            tvs  = nubSorted $
+                concatMap (freeTyVars . snd) vars ++
+                concatMap literalFreeTyVars (goal:assums)
         in  prop
                 { prop_tvs    = tvs
                 , prop_vars   = vars

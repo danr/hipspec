@@ -74,6 +74,9 @@ mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
     ty P.Integer      = "int"
     ty P.TType        = "type"
 
+
+-- TODO clean up this mess
+
 ppAltErgo :: [Clause LogicId LogicId] -> String
 ppAltErgo = render . vcat . map (ppClause (PP text text)) . renameCls (zencode . polyname)
 

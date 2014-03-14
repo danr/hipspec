@@ -13,6 +13,7 @@ module HipSpec.Lang.Simple
     , Expr(..)
     , collectArgs
     , apply
+    , exprFreeTyVars
     , bodyType
     , exprType
     , exprTySubst
@@ -36,6 +37,8 @@ module HipSpec.Lang.Simple
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Generics.Geniplate
+
+import Data.List (nub,union)
 
 -- Patterns are resued from the rich language
 import HipSpec.Lang.Rich (Pattern(..),anyRhs,Datatype(..),Constructor(..))
@@ -73,6 +76,15 @@ data Expr a
     | App (Expr a) (Expr a)
     | Lit Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+exprFreeTyVars :: Eq a => Expr a -> [a]
+exprFreeTyVars = go
+  where
+    go e0 = case e0 of
+        Lcl _ t    -> freeTyVars t
+        Gbl _ _ ts -> nub (concatMap freeTyVars ts)
+        App e1 e2  -> go e1 `union` go e2
+        Lit{}      -> []
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =
