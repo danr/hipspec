@@ -10,6 +10,7 @@ module HipSpec.GHC.Calls
 
 import CoreSyn
 import Id
+import IdInfo
 import VarSet
 import CoreFVs
 import DataCon
@@ -25,7 +26,9 @@ data Constructors = With | Without deriving Eq
 
 -- | The vars this expression calls
 exprCalls :: Constructors -> CoreExpr -> VarSet
-exprCalls cons = exprSomeFreeVars $ \ v ->
+exprCalls cons = ignoreDicts . exprSomeFreeVars pick
+  where
+    pick v =
           (isLocalId v || isGlobalId v || (cons == With && isDataConId v && not (isNewtypeConId v)))
        && (cons == With || not (isDataConId v))
 
@@ -35,10 +38,18 @@ calls c v = cons `unionVarSet` case maybeUnfolding v of
     Just e -> exprCalls c e
     _      -> emptyVarSet
   where
-    cons | c == With = mkVarSet (concatMap (map dataConWorkId . tyConDataCons)
-                                           (filter (not . isClassTyCon) (S.toList (varTyCons v))))
-                                           -- NOTE: Ignore all class contexts
+    cons | c == With = ignoreDicts $
+            mkVarSet (concatMap
+                        (map dataConWorkId . tyConDataCons)
+                        (filter (not . isClassTyCon) (S.toList (varTyCons v))))
+                        -- NOTE: Ignore all class contexts
          | otherwise = emptyVarSet
+
+-- | Ignore dictionary arguments
+ignoreDicts :: VarSet -> VarSet
+ignoreDicts = filterVarSet $ \ i -> case idDetails i of
+    DFunId{} -> True
+    _        -> False
 
 -- | The functions this function calls transitively
 transCalls :: Constructors -> Id -> VarSet
