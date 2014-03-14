@@ -1,6 +1,6 @@
 module Rotate where
 
-import Prelude hiding ((++),length)
+import Prelude hiding ((++),length,(+))
 
 import HipSpec
 
