@@ -75,13 +75,16 @@ mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
     ty P.Integer      = "int"
     ty P.TType        = "type"
 
+render' :: Doc -> String
+render' = renderStyle style { lineLength = 150 }
+
 renameCls :: (Ord a,Ord b) => [String] -> (a -> String) -> (b -> String) -> [Clause a b] -> [Clause String String]
 renameCls kwds f g = runRenameM (disambig2 f g) kwds . mapM renameBi2
 
 prettyCls :: (Ord a,Ord b) => (PP String String -> Clause String String -> Doc) -> [String]
              -> (a -> String) -> (b -> String)
              -> [Clause a b] -> String
-prettyCls pp kwds f g = render . vcat . map (pp ppText) . renameCls kwds f g
+prettyCls pp kwds f g = render' . vcat . map (pp ppText) . renameCls kwds f g
 
 prettyTPTP :: (Show a,Ord a,Ord b) => (a -> String) -> (b -> String) -> [Clause a b] -> String
 prettyTPTP symb var = prettyCls TFF.ppClause tptpKeywords symb' var'

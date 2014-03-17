@@ -5,6 +5,9 @@ import Text.PrettyPrint
 
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.PrettyUtils
+import HipSpec.Lang.Monomorphise
+
+import qualified Data.Map as M
 
 import qualified Data.Set as S
 
@@ -13,9 +16,9 @@ ppClause p cls = case cls of
     SortSig x n            -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) [] (replicate n TType) TType]
     TypeSig x tvs args res -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) tvs args res]
     Clause _ trg cl tvs phi  ->
-        (if null trg then id else ("% Triggers:" <+> hsep (map (ppTrg p) trg) $$)) $
-        ("% Ty deps:" <+> hsep (map (pp_symb p) (S.toList tcs))) $$
-        ("% Fun deps:" <+> hsep (map (pp_symb p) (S.toList fs))) $$
+        -- (if null trg then id else ("% Triggers:" <+> hsep (map (ppTrg p) trg) $$)) $
+        -- ("% Ty deps:" <+> hsep (map (pp_symb p) (S.toList tcs))) $$
+        -- ("% Fun deps:" <+> hsep (map (pp_symb p) (S.toList fs))) $$
         tff ["x",ppClType cl,ppTyQuant p tvs (ppForm p phi)]
       where (tcs,fs) = clsDeps [cls]
     Comment s              -> vcat (map (\ l -> "%" <+> text l) (lines s))
@@ -72,7 +75,7 @@ ppForm p f0 = case f0 of
     FOp{} -> error "PrettyPolyFOL.ppForm FOp"
     Q{}   -> error "PrettyPolyFOL.ppForm Q"
     DataDecl ds fm ->
-        ("% Data:" <+> hsep (map (ppDataDecl p) ds)) $$
+        -- ("% Data:" <+> hsep (map (ppDataDecl p) ds)) $$
         ppForm p fm
 
 ppDataDecl :: PP a b -> DataDecl a b -> Doc
@@ -102,4 +105,20 @@ ppTerm p = go
         Apply f ts as -> pp_symb p f <> csv (map (ppType p) ts ++ map go as)
         Var v         -> pp_var p v
         Lit x         -> integer x
+
+ppLemma :: (Ord a,Ord b) => PP a b -> Lemma a b -> Doc
+ppLemma p (Lemma cl _ _ im)
+    = ppClause p cl $$ ("instantiated at:" $\ vcat
+        [ csv
+            [ (pp_var p tv <+> "->") $\ ppType p t
+            | (tv,t) <- M.toList m
+            ]
+        | m <- im
+        ])
+
+ppRecords :: (Ord a,Ord b) => PP a b -> Records a b -> Doc
+ppRecords p recs = vcat
+    [ ppTrg p trg $\ sep (map (ppType p) ts)
+    | (trg,ts) <- toList recs
+    ]
 
