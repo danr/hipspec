@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings,PatternGuards #-}
-module HipSpec.Lang.PrettyPolyFOL where
+module HipSpec.Lang.PrettyTFF where
 
 import Text.PrettyPrint
 

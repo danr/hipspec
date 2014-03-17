@@ -16,7 +16,7 @@ module HipSpec
     , names
     ) where
 
-import Test.QuickCheck hiding (Prop, (==>))
+import Test.QuickCheck hiding ((==>))
 import Test.QuickSpec.Approximate
 import Test.QuickSpec
 import Data.Typeable

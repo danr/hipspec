@@ -59,3 +59,13 @@ renameBi = B.bimapM lkup lkup
 renameBiWith :: (Ord a,Ord b,Bitraversable t) => Suggestor a b -> t a a -> t b b
 renameBiWith f = runRenameM f [] . renameBi
 
+renameBi2 :: (Ord a,Ord b,Ord c,Bitraversable t) => t a b -> RenameM (Either a b) c (t c c)
+renameBi2 = B.bimapM (lkup . Left) (lkup . Right)
+
+renameBi2With :: (Ord a,Ord b,Bitraversable t) => Suggestor a b -> t a a -> t b b
+renameBi2With f = runRenameM f [] . renameBi
+
+disambig2 :: (a -> String) -> (b -> String) -> Suggestor (Either a b) String
+disambig2 f _ (Left a)  = disambig f a
+disambig2 _ g (Right b) = disambig g b
+
