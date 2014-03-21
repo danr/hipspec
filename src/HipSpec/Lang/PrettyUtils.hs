@@ -3,7 +3,7 @@ module HipSpec.Lang.PrettyUtils where
 
 import Text.PrettyPrint
 
-infix 1 $\
+infixr 1 $\
 
 ($\) :: Doc -> Doc -> Doc
 d1 $\ d2 = hang d1 2 d2

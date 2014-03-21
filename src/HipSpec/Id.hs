@@ -77,7 +77,7 @@ ppId i = case i of
 
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of
-    f `LetFrom` g -> ppId g ++ "_" ++ ppId f
+    f `LetFrom` g -> (case ppId g of { [] -> ""; s -> s ++ "_" }) ++ ppId f
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"

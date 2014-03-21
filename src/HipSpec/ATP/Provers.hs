@@ -75,7 +75,10 @@ altErgo = Prover
     }
 
 monoAltErgo :: Prover
-monoAltErgo = altErgo { prover_input_format = AltErgoMonoFmt }
+monoAltErgo = altErgo
+    { prover_input_format = AltErgoMonoFmt
+    , prover_name         = MonoAltErgo
+    }
 
 vampire :: Prover
 vampire = Prover

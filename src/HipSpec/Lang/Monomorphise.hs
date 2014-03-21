@@ -2,7 +2,7 @@
 --   records. The idea is that these activation records come from
 --   a monomorphised conjecture.
 {-# LANGUAGE RecordWildCards, ScopedTypeVariables, PatternGuards #-}
-module HipSpec.Lang.Monomorphise (monoClauses, IdInst(..)) where
+module HipSpec.Lang.Monomorphise (monoClauses, IdInst(..),Lemma(..),toList,Records) where
 
 import Prelude hiding (lookup)
 import HipSpec.Lang.PolyFOL
@@ -84,12 +84,15 @@ data Lemma a b = Lemma
     , lm_inst :: [InstMap a b]
     -- ^ The types it has already been instantiated at
     }
+  deriving Show
 
 -- | Stage one monomorphisation
 --   1st component: monomorphically applied clauses
 --   2nd component: type signatures to be monomorphised
-monoClauses1 :: forall a b . (Ord a,Ord b) => [Clause a b] -> (([Clause a b],[Clause a b]),Records a b)
-monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin_recs)
+monoClauses1
+    :: forall a b . (Ord a,Ord b) => [Clause a b]
+    -> (([Clause a b],[Clause a b]),([Lemma a b],Records a b))
+monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin)
   where
     trg_pred p Clause{..} = p cl_ty_triggers
     trg_pred _ _          = False
@@ -108,8 +111,8 @@ monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin_recs)
         , let recs = clauseRecs cl
         ]
 
-    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> ([Clause a b],Records a b)
-    go False [] _   irs = ([],irs)
+    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> ([Clause a b],([Lemma a b],Records a b))
+    go False [] acc irs = ([],(acc,irs))
     go True  [] acc irs = go False acc [] irs
     go b (l:ls) acc irs = case new of
         []        -> go b ls (l:acc) irs
@@ -122,7 +125,7 @@ monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin_recs)
             | im <- possibleInsts l irs
             ]
 
-    (lemma_cls,fin_recs) = go False lemmas [] def_irs
+    (lemma_cls,fin) = go False lemmas [] def_irs
 
 instLemma :: (Ord a,Ord b)
           => Lemma a b   {- ^ lemma to maybe instantiate -}
@@ -260,6 +263,6 @@ monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
     sorts = sorts1 `S.union` sorts2
 
 -- | Monomorphise clauses
-monoClauses :: (Ord a,Ord b) => [Clause a b] -> ([Clause (IdInst a b) b],Records a b)
+monoClauses :: (Ord a,Ord b) => [Clause a b] -> ([Clause (IdInst a b) b],([Lemma a b],Records a b))
 monoClauses = first monoClauses2 . monoClauses1
 

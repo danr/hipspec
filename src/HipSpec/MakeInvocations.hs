@@ -17,9 +17,13 @@ import HipSpec.Utils
 import HipSpec.Lang.Monomorphise
 import HipSpec.Lang.PolyFOL (trimDataDecls)
 
+import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
+import HipSpec.Lang.PrettyUtils (PP(..))
+import Text.PrettyPrint (vcat,text)
+
 import Data.Traversable (traverse)
 
-import Text.Show.Pretty (ppShow)
+-- import Text.Show.Pretty (ppShow)
 
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
@@ -59,12 +63,14 @@ tryProve prop lemmas0 = do
 
             linTheory :: Theory -> HS LinTheory
             linTheory sthys = do
-                let cls         = sortClauses False (concatMap clauses sthys)
-                let (mcls,recs) = first (sortClauses False) (monoClauses cls)
+                let cls               = sortClauses False (concatMap clauses sthys)
+                let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
+                let pp = PP (text . polyname) (text . polyname)
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++
                     "\n\nResult:\n" ++ ppTFF mcls ++
-                    "\n\nRecords:\n" ++ ppShow recs
+                    "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
+                    "\n\nRecords:\n" ++ render' (ppRecords pp recs)
                 return $ LinTheory $ \ t -> case t of
                     AltErgoFmt     -> ppAltErgo (sortClauses False cls)
                     AltErgoMonoFmt -> ppMonoAltErgo mcls

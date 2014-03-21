@@ -2,11 +2,9 @@
 module HipSpec.Pretty where
 
 import Text.PrettyPrint
-import HipSpec.Lang.PrettyAltErgo
-import qualified HipSpec.Lang.PrettyPolyFOL as TFF
+import qualified HipSpec.Lang.PrettyAltErgo as AltErgo
+import qualified HipSpec.Lang.PrettyTFF as TFF
 import qualified HipSpec.Lang.PrettySMT as SMT
-
-import HipSpec.Utils.ZEncode
 
 import HipSpec.Lang.Renamer
 
@@ -20,6 +18,9 @@ import HipSpec.Lang.PrettyUtils (Types(..),PP(..))
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
 import qualified HipSpec.Lang.PolyFOL as P
+
+import qualified Data.Map as M
+import Data.Maybe
 
 import HipSpec.Id
 
@@ -58,7 +59,7 @@ polyname x0 = case x0 of
     Ptr x    -> ppId x ++ "_ptr"
     App      -> "app"
     TyFn     -> "Fn"
-    Proj x i -> "proj_" ++ show i ++ "_" ++ ppId x
+    Proj x i -> "proj_" ++ ppId x ++ "_" ++ show i
     QVar i   -> 'x':show i
 
 mononame :: IdInst LogicId LogicId -> String
@@ -74,43 +75,60 @@ mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
     ty P.Integer      = "int"
     ty P.TType        = "type"
 
+render' :: Doc -> String
+render' = renderStyle style { lineLength = 150 }
 
--- TODO clean up this mess
+renameCls :: (Ord a,Ord b) => [String] -> (a -> String) -> (b -> String) -> [Clause a b] -> [Clause String String]
+renameCls kwds f g = runRenameM (disambig2 f g) kwds . mapM renameBi2
 
-ppAltErgo :: [Clause LogicId LogicId] -> String
-ppAltErgo = render . vcat . map (ppClause (PP text text)) . renameCls (zencode . polyname)
+prettyCls :: (Ord a,Ord b) => (PP String String -> Clause String String -> Doc) -> [String]
+             -> (a -> String) -> (b -> String)
+             -> [Clause a b] -> String
+prettyCls pp kwds f g = render' . vcat . map (pp ppText) . renameCls kwds f g
 
-ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
-ppMonoAltErgo
-    = render . vcat . map (ppClause (PP text text))
-    . renameCls (zencode . mononame) . map (fmap (`IdInst` []))
+prettyTPTP :: (Show a,Ord a,Ord b) => (a -> String) -> (b -> String) -> [Clause a b] -> String
+prettyTPTP symb var = prettyCls TFF.ppClause tptpKeywords symb' var'
+  where
+    -- TPTP: A-Za-Z0-9_ are allowed,
+    -- but initial has to be A-Z_ for variables, and a-z0-9 for symbols
+    -- (General strings could be allowed for symbols, enclosed in '')
+    var' x = case escape (var x) of
+        u:us | isLower u -> toUpper u:us
+             | isDigit u -> 'X':u:us
+             | otherwise -> u:us
+        []               -> "X"
+
+    symb' x = case dropWhile (== '_') (escape (symb x)) of
+        u:us | isUpper u -> toLower u:us
+             | otherwise -> u:us
+        []               -> "a"
+
+ppText :: PP String String
+ppText = PP text text
 
 ppTHF :: [Clause LogicId LogicId] -> String
-ppTHF
-    = render . vcat . map (TFF.ppClause (PP (text . ('x':)) (text . ('X':))))
-    . renameCls (map toLower . zencode . polyname)
-
+ppTHF = prettyTPTP polyname polyname
 
 ppTFF :: [Clause (IdInst LogicId LogicId) LogicId] -> String
-ppTFF
-    = render . vcat . map (TFF.ppClause (PP (text . ('x':)) (text . ('X':))))
-    . renameCls (map toLower . zencode . mononame) . map (fmap (`IdInst` []))
+ppTFF = prettyTPTP mononame polyname
+
+ppAltErgo :: [Clause LogicId LogicId] -> String
+ppAltErgo = prettyCls AltErgo.ppClause altErgoKeywords (escape . polyname) (escape . polyname)
+
+ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppMonoAltErgo = prettyCls AltErgo.ppClause altErgoKeywords (escape . mononame) (escape . polyname)
 
 ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> String
-ppSMT
-    = (++ "\n(check-sat)\n") . render . vcat . map (SMT.ppClause (PP text text))
-    . renameCls (zencode . mononame) . map (fmap (`IdInst` []))
+ppSMT = (++ "\n(check-sat)\n") . prettyCls SMT.ppClause smtKeywords (escape . mononame) (escape . polyname)
 
-
-renameCls :: Ord v => (v -> String) -> [Clause v v] -> [Clause String String]
-renameCls f = runRenameM (disambig f) smtKeywords . mapM renameBi
+tptpKeywords :: [String]
+tptpKeywords = smtKeywords
 
 smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
     ]
-
 
 altErgoKeywords :: [String]
 altErgoKeywords =
@@ -149,3 +167,47 @@ altErgoKeywords =
     , "with"
     ]
 
+escape :: String -> String
+escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
+  where
+    escapes = M.fromList
+        [ (from,'_':to++"_")
+        | (from,to) <-
+            [ ('(',"rpar")
+            , (')',"lpar")
+            , (':',"cons")
+            , ('[',"rbrack")
+            , (']',"lbrack")
+            , (',',"comma")
+
+            , ('}',"rbrace")
+            , ('{',"lbrace")
+
+            , ('\'',"prime")
+            , ('@',"at")
+            , ('!',"bang")
+            , ('%',"percent")
+            , ('$',"dollar")
+            , ('=',"equal")
+            , (' ',"space")
+            , ('>',"gt")
+            , ('#',"hash")
+            , ('|',"pipe")
+            , ('^',"hat")
+            , ('-',"dash")
+            , ('&',"and")
+            , ('.',"dot")
+            , ('+',"plus")
+            , ('?',"qmark")
+            , ('*',"star")
+            , ('~',"twiggle")
+            , ('/',"slash")
+            , ('\\',"bslash")
+            , ('<',"lt")
+            ]
+        ]
+
+    leading :: String -> String
+    leading xs@(x:_) | isDigit x = '_':xs
+                     | otherwise = xs
+    leading []                   = "_"
