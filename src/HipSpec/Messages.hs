@@ -102,7 +102,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
         non_null m_stdout ("\n    stdout:\n" ++ reindent (reindent m_stdout)) ++
         non_null m_stderr ("\n    stderr:\n" ++ reindent (reindent m_stderr))
 
-    Loop                   -> "Loop!"
+    Loop                   -> "Merry-go-round!"
 
     FileProcessed             -> "File processed."
     DefinitionalEquations eqs -> "Definitional equations:\n" ++ numberedEqs eqs

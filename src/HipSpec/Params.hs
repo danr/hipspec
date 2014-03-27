@@ -102,6 +102,7 @@ data Params = Params
     , reverse_video       :: Bool
     , no_colour           :: Bool
     , z_encode_filenames  :: Bool
+    , tr_mod              :: Bool
 #ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
 #endif
@@ -112,16 +113,20 @@ data Params = Params
     , isolate             :: Bool
     , only_user_stated    :: Bool
     , only                :: [String]
-    , tr_mod              :: Bool
+    , add_stupid_lemmas   :: Bool
     , success             :: SuccessOpt
-
     , techniques          :: [Technique]
-
     , provers             :: [ProverName]
 
     , interesting_cands   :: Bool
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
+    , swap_repr           :: Bool
+    , quadratic           :: Bool
+    , prepend_pruned      :: Bool
+    , assoc_important     :: Bool
+    , call_graph          :: Bool
+
     , auto                :: Bool
     , extra_trans         :: [String]
     , extra               :: [String]
@@ -130,11 +135,6 @@ data Params = Params
     , tests               :: Int
     , size                :: Int
 
-    , swap_repr           :: Bool
-    , quadratic           :: Bool
-    , prepend_pruned      :: Bool
-    , assoc_important     :: Bool
-    , call_graph          :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
@@ -199,6 +199,7 @@ defParams = Params
 #endif
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
+    , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
     , auto                = False   &= groupname "\nSignature generation settings"

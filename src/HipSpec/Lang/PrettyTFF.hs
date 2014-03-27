@@ -109,12 +109,16 @@ ppTerm p = go
 ppLemma :: (Ord a,Ord b) => PP a b -> Lemma a b -> Doc
 ppLemma p (Lemma cl _ _ im)
     = ppClause p cl $$ ("instantiated at:" $\ vcat
-        [ csv
+        [ csv'
             [ (pp_var p tv <+> "->") $\ ppType p t
             | (tv,t) <- M.toList m
             ]
         | m <- im
         ])
+
+csv' :: [Doc] -> Doc
+csv' [] = parens empty
+csv' xs = csv xs
 
 ppRecords :: (Ord a,Ord b) => PP a b -> Records a b -> Doc
 ppRecords p recs = vcat

@@ -52,7 +52,7 @@ tryProve prop lemmas0 = do
             lemmas
                 = filter isolation
                 . map thm_prop
-                . filter (not . definitionalTheorem)
+                . filter (\ x -> not (definitionalTheorem x) || add_stupid_lemmas)
                 $ lemmas0
 
             enum_lemmas = zip [0..] lemmas
