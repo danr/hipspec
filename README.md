@@ -72,6 +72,15 @@ one go, which makes the dependency analysis better:
 
     cabal install hipspec quickspec
 
+
+#### Note for Mac users using `homebrew`
+
+The `homebrew` program sometimes messes up the package ghc-paths. If you get
+the error that `hipspec` cannot find the `HipSpec` module, try to reinstall
+this package with:
+
+    cabal install ghc-paths --reinstall
+
 ### Supported theorem provers
 
 Currently, we only support [Alt Ergo](http://alt-ergo.lri.fr/), in particular versions 0.94 and 0.95.
@@ -179,8 +188,8 @@ Quick information about available flags can be accessed anytime by the
 
 ### Processors and parallel proving
 
-While theorem provers are still usually single-core, you can run many 
-of them in parallel. The `--processes` or `-N` flag will let you 
+While theorem provers are still usually single-core, you can run many
+of them in parallel. The `--processes` or `-N` flag will let you
 specify this. The default is 2, but if you to use eight cores: `-N=8`.
 
 ### Timeout
