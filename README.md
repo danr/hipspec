@@ -75,7 +75,7 @@ one go, which makes the dependency analysis better:
 
 #### Note for Mac users using `homebrew`
 
-The `homebrew` program sometimes messes up the package ghc-paths. If you get
+The `homebrew` program sometimes messes up the package `ghc-paths`. If you get
 the error that `hipspec` cannot find the `HipSpec` module, try to reinstall
 this package with:
 
@@ -87,6 +87,8 @@ Currently, we only support [Alt Ergo](http://alt-ergo.lri.fr/), in particular ve
 It exists in the
 [ubuntu repositories](https://launchpad.net/ubuntu/precise/+source/alt-ergo/0.94-1),
 and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
+
+The slightly experimental branch `mono-new` supports Z3 and Vampire. Check it out!
 
 ## Tutorial
 
