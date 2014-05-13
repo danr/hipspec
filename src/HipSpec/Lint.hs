@@ -2,7 +2,7 @@ module HipSpec.Lint where
 
 import Text.PrettyPrint
 
-import HipSpec.Lang.LintRich
+import HipSpec.Lang.LintRich as R
 import HipSpec.Lang.Simple as S
 
 import HipSpec.GHC.Utils
@@ -25,5 +25,5 @@ lintSimple :: [S.Function Id] -> Maybe String
 lintSimple = lintRich ppId [] . lintFns . map injectFn
 
 lintSimpleExpr :: [(Id,Type Id)] -> S.Expr Id -> Maybe String
-lintSimpleExpr sc = lintRich ppId sc . lintExpr . injectExpr
+lintSimpleExpr sc = lintRich ppId sc . R.lintExpr . injectExpr
 

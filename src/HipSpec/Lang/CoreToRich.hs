@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# LANGUAGE PatternGuards, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE PatternGuards, TypeSynonymInstances, FlexibleInstances, CPP #-}
 
 -- | Translation from GHC Core to the Rich HipSpec.Language, a subset
 module HipSpec.Lang.CoreToRich where
@@ -7,6 +7,13 @@ module HipSpec.Lang.CoreToRich where
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
+
+#if __GLASGOW_HASKELL__ >= 708
+import Data.ByteString (unpack)
+import Data.Char (chr)
+#else
+import FastString (unpackFS)
+#endif
 
 import HipSpec.Lang.Rich as R
 import HipSpec.Lang.Type as R
@@ -20,7 +27,6 @@ import Var hiding (Id)
 import TyCon hiding (data_cons)
 import Type as C
 import GHC (dataConType)
-import FastString (unpackFS)
 
 import HipSpec.Lang.DataConPattern
 
@@ -137,7 +143,11 @@ trVar x = do
 trExpr :: CoreExpr -> TM (R.Expr Id)
 trExpr e0 = case e0 of
     C.Var x -> trVar x
+#if __GLASGOW_HASKELL__ >= 708
+    C.Lit (MachStr s) -> return $ String (map (chr . fromInteger . toInteger) (unpack s))
+#else
     C.Lit (MachStr s) -> return $ String (unpackFS s)
+#endif
     C.Lit l -> R.Lit <$> trLit l
 
     C.App e (Type t) -> do

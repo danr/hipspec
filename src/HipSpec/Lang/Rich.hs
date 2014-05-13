@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, PatternGuards #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, PatternGuards #-}
+{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses #-}
 -- | The Rich expression language, a subset of GHC Core
 --
 -- It is Rich because it has lambdas, let and cases at any level.
@@ -46,6 +47,8 @@ data Function a = Function
 mapFnBody :: (Expr a -> Expr a) -> Function a -> Function a
 mapFnBody f fn = fn { fn_body = f (fn_body fn) }
 
+type Alt a = (Pattern a,Expr a)
+
 -- | "Rich" expressions, includes lambda, let and case
 data Expr a
     = Lcl a (Type a)
@@ -75,11 +78,32 @@ data Expr a
     --   a hassle.
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
+-- | Patterns in branches
+data Pattern a
+    = Default
+    | ConPat
+        { pat_con     :: a
+        , pat_type    :: PolyType a
+        , pat_ty_args :: [Type a]
+        , pat_args    :: [(a,Type a)]
+        }
+    | LitPat Integer
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
+instanceUniverseBi  [t| forall a . (Expr a,Type a) |]
+instanceTransformBi [t| forall a . (Expr a,Expr a) |]
+instanceUniverseBi  [t| forall a . (Datatype a,a) |]
+instanceUniverseBi  [t| forall a . (Datatype a,Type a) |]
+
 univExpr :: Expr a -> [Expr a]
-univExpr = $(genUniverseBi 'univExpr)
+univExpr = universeBi
 
 typeUnivExpr :: Expr a -> [Type a]
-typeUnivExpr = $(genUniverseBi 'typeUnivExpr)
+typeUnivExpr = universeBi
+
+transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
+transformExpr = transformBi
 
 exprTyVars :: Eq a => Expr a -> [a]
 exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
@@ -95,23 +119,11 @@ exprType e0 = case e0 of
     Case _ _ alts          -> exprType (anyRhs "Rich.exprType" alts)
     Let _ e                -> exprType e
 
-type Alt a = (Pattern a,Expr a)
 
 anyRhs :: String -> [(b,a)] -> a
 anyRhs _ ((_,e):_) = e
 anyRhs s _         = error $ s ++ ": no alts in case"
 
--- | Patterns in branches
-data Pattern a
-    = Default
-    | ConPat
-        { pat_con     :: a
-        , pat_type    :: PolyType a
-        , pat_ty_args :: [Type a]
-        , pat_args    :: [(a,Type a)]
-        }
-    | LitPat Integer
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Free (local) variables
 freeVars :: Eq a => Expr a -> [a]
@@ -141,11 +153,6 @@ occurrences x e = length [ () | Lcl y _ <- univExpr e, x == y ]
 occursIn :: Eq a => a -> Expr a -> Bool
 occursIn x e = x `elem` freeVars e
 
-transformExpr :: (Expr a -> Expr a) -> Expr a -> Expr a
-transformExpr = $(genTransformBi 'transformExpr)
-
-universeExpr :: Expr a -> [Expr a]
-universeExpr = $(genUniverseBi 'universeExpr)
 
 -- | Substitution, of local variables
 --

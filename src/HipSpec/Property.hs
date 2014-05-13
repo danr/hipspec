@@ -1,7 +1,7 @@
 -- | Properties, represented with the simple language
 --
 --   TODO: Make nicer pretty printers representations
-{-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor #-}
+{-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor, CPP #-}
 module HipSpec.Property
     ( Literal(..)
     , Origin(..)
@@ -30,8 +30,10 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
+#ifdef UNIFICATION
 import HipSpec.Unify
 import Control.Unification
+#endif
 
 -- import Text.PrettyPrint hiding (comma)
 
@@ -290,19 +292,23 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
 -- | Generalise a property
 generaliseProp :: Property eq -> Property eq
-generaliseProp prop@Property{..} = case res of
-    Right (vs,goal:assums) ->
-        let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
-            tvs  = nubSorted $
-                concatMap (freeTyVars . snd) vars ++
-                concatMap literalFreeTyVars (goal:assums)
-        in  prop
-                { prop_tvs    = tvs
-                , prop_vars   = vars
-                , prop_goal   = goal
-                , prop_assums = assums
-                }
-    _ -> prop
+generaliseProp prop@Property{..}
+#ifndef UNIFICATION
+    = prop
+#else
+    = case res of
+        Right (vs,goal:assums) ->
+            let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
+                tvs  = nubSorted $
+                    concatMap (freeTyVars . snd) vars ++
+                    concatMap literalFreeTyVars (goal:assums)
+            in  prop
+                    { prop_tvs    = tvs
+                    , prop_vars   = vars
+                    , prop_goal   = goal
+                    , prop_assums = assums
+                    }
+        _ -> prop
   where
     res = runGen $ do
         vi <- insertVars (map fst prop_vars)
@@ -322,6 +328,7 @@ generaliseProp prop@Property{..} = case res of
 
     un_u (Fresh i) = GenTyVar `Derived` (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
+#endif
 
 maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop

@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-
 
 Type signatures and formulae have a list of top-level quantified
@@ -18,13 +20,16 @@ Type signature example:
     map : (Fn(a,b) * List(a)) -> List(b)
 
 -}
-module HipSpec.Lang.PolyFOL where
+module HipSpec.Lang.PolyFOL
+    ( module HipSpec.Lang.PolyFOL
+    , module HipSpec.Lang.PolyFOL.Types
+    ) where
+
+import HipSpec.Lang.PolyFOL.Types
 
 import Data.Generics.Geniplate
 import Data.Generics.Genifunctors
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Bitraversable
 import Data.Bifoldable
 import Data.Bifunctor
@@ -36,120 +41,20 @@ import HipSpec.Utils
 import Data.Set (Set)
 import qualified Data.Set as S
 
-{-# ANN module "HLint: ignore Use camelCase" #-}
-
--- | Clauses.
---
--- The a type variable is used for many different identifiers:
--- * Quantified variables
--- * Type variables
--- * Function and predicate symbols (Nick: constants (or simply symbols))
--- * Type constructor symbols
-data Clause a b
-    = SortSig
-        { sig_id    :: a
-        -- ^ Symbol this signature is for
-        , sort_args :: Int
-        -- ^ Number of kind arguments, see Note [Simple Kinded Sorts]
-        }
-    | TypeSig
-        { sig_id :: a
-        -- ^ Symbol this signature is for
-        , ty_vars :: [b]
-        -- ^ Type variables
-        , sig_args :: [Type a b]
-        -- ^ Types of the arguments
-        , sig_res :: Type a b
-        -- ^ Result type for this identifer
-        }
-    | Clause
-        { cl_name :: Maybe Int
-        -- ^ Name for this clause to get unsatisfiable cores
-        , cl_ty_triggers :: [Trigger a]
-        -- ^ What things trigger the instantiation of this clause?
-        --   For function definitions, the function causes it
-        --   For data type-related definitions, the type constructor and
-        --   its data constructors do
-        , cl_type :: ClType
-        -- ^ Axiom, conjecture...
-        , ty_vars :: [b]
-        -- ^ Top-level type variables
-        , cl_formula :: Formula a b
-        -- ^ Formula in this clause
-        }
-    | Comment
-        { comment :: String
-        -- ^ A comment.
-        }
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+instanceUniverseBi  [t| forall a b . (Clause a b,Term a b) |]
+instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
+instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
+instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
 instance Bifunctor Clause     where bimap      = bimapDefault
 instance Bifoldable Clause    where bifoldMap  = bifoldMapDefault
 instance Bitraversable Clause where bitraverse = $(genTraverse ''Clause)
 
-data Trigger a
-    = TySymb a
-    -- ^ Needs to be first!
-    | Symb a
-    | Source
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
-isTySymb :: Trigger a -> Bool
-isTySymb TySymb{} = True
-isTySymb _        = False
-
-data ClType
-    = Axiom
-    -- ^ Axioms, or definitions, or hypothesis or negated conjectures
-    --   Is it important to distinguish between these?
-    | Goal
-    -- ^ Conjecture
-  deriving (Eq,Ord,Show)
-
-data Type a b
-    = TyCon a [Type a b]
-    | TyVar b
-    | TType
-    -- ^ The type of types
-    | Integer
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
 instance Bifunctor Type     where bimap      = bimapDefault
 instance Bifoldable Type    where bifoldMap  = bifoldMapDefault
 instance Bitraversable Type where bitraverse = $(genTraverse ''Type)
-
--- | Term operations
-data TOp = Equal | Unequal
-  deriving (Eq,Ord,Show)
-
--- | Formula operations
-data FOp = And | Or | Implies | Equiv
-  deriving (Eq,Ord,Show)
-
--- | Quantifier operations
-data Q = Forall | Exists
-  deriving (Eq,Ord,Show)
-
-data Formula a b
-    = TOp TOp (Term a b) (Term a b)
-    -- ^ Equality and inequality
-    | FOp FOp (Formula a b) (Formula a b)
-    -- ^ Logical connectives
-    | Neg (Formula a b)
-    -- ^ Negation
-    | Q Q b (Type a b) (Formula a b)
-    -- ^ Quantification
-{-
-    | Pred a [Formula a b]
-    -- ^ Predication
--}
-    | DataDecl [DataDecl a b] (Formula a b)
-    -- ^ One or many data declarations for SMT data types,
-    --   or a formula if it is not supported
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
-data DataDecl a b = Data a [Type a b] [(a,[(a,Type a b)])]
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 collectFOp :: Formula a b -> Maybe (FOp,[Formula a b])
 collectFOp f0@(FOp op _ _) = Just (op,go f0)
@@ -198,15 +103,10 @@ exists = Q Exists
 forAlls,existss :: [(b,Type a b)] -> Formula a b -> Formula a b
 [forAlls,existss] = map (\ f xs phi -> foldr (uncurry f) phi xs) [forAll,exists]
 
--- | Terms.
-data Term a b
-    = Apply a [Type a b] [Term a b]
-    -- ^ Symbol applied to arguments (can be empty)
-    | Var b
-    -- ^ Quantified variable
-    | Lit Integer
-    -- ^ An integer
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+isTySymb :: Trigger a -> Bool
+isTySymb TySymb{} = True
+isTySymb _        = False
+
 
 topTmSubst :: Eq b => b -> Term a b -> Term a b -> Term a b
 topTmSubst x tm tm0 = case tm0 of
@@ -214,16 +114,10 @@ topTmSubst x tm tm0 = case tm0 of
     _              -> tm0
 
 tmSubst :: forall a b . Eq b => b -> Term a b -> Term a b -> Term a b
-tmSubst x tm = tr_tm (topTmSubst x tm)
-  where
-    tr_tm :: (Term a b -> Term a b) -> Term a b -> Term a b
-    tr_tm = $(genTransformBi 'tr_tm)
+tmSubst x tm = transformBi (topTmSubst x tm)
 
 fmSubst :: forall a b . Eq b => b -> Term a b -> Formula a b -> Formula a b
-fmSubst x tm = tr_fm (topTmSubst x tm)
-  where
-    tr_fm :: (Term a b -> Term a b) -> Formula a b -> Formula a b
-    tr_fm = $(genTransformBi 'tr_fm)
+fmSubst x tm = transformBi (topTmSubst x tm)
 
 topTySubst :: Eq b => b -> Type a b -> Type a b -> Type a b
 topTySubst a ty ty0 = case ty0 of
@@ -231,16 +125,10 @@ topTySubst a ty ty0 = case ty0 of
     _                -> ty0
 
 fmInst :: forall a b . Eq b => b -> Type a b -> Formula a b -> Formula a b
-fmInst a ty = tr_ty (topTySubst a ty)
-  where
-    tr_ty :: (Type a b -> Type a b) -> Formula a b -> Formula a b
-    tr_ty = $(genTransformBi 'tr_ty)
+fmInst a ty = transformBi (topTySubst a ty)
 
 tySubst :: forall a b . Eq b => b -> Type a b -> Type a b -> Type a b
-tySubst a ty = tr_ty (topTySubst a ty)
-  where
-    tr_ty :: (Type a b -> Type a b) -> Type a b -> Type a b
-    tr_ty = $(genTransformBi 'tr_ty)
+tySubst a ty = transformBi (topTySubst a ty)
 
 fmInsts :: Eq b => [(b,Type a b)] -> Formula a b -> Formula a b
 fmInsts xs phi = foldr (uncurry fmInst) phi xs
@@ -255,10 +143,10 @@ clsDeps cls =
     )
 
 clTmUniv :: Clause a b -> [Term a b]
-clTmUniv = $(genUniverseBi 'clTmUniv)
+clTmUniv = universeBi
 
 clTyUniv :: Clause a b -> [Type a b]
-clTyUniv = $(genUniverseBi 'clTyUniv)
+clTyUniv = universeBi
 
 fmMod :: (a -> [Type a b] -> c)
       -> (a -> [Type a b] -> [Term c b] -> Term c b)

@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses #-}
 -- | Types for the Rich and the Simple language
 module HipSpec.Lang.Type where
 
@@ -22,6 +23,9 @@ data Type a
     | TyCon a [Type a]
     | Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+instanceUniverseBi  [t| forall a . (Type a,Type a) |]
+instanceTransformBi [t| forall a . (Type a,Type a) |]
 
 eqPolyType :: Eq a => PolyType a -> PolyType a -> Bool
 eqPolyType (Forall xs t1) (Forall ys t2) = deBruijn xs t1 == deBruijn ys t2
@@ -47,13 +51,14 @@ freeTyVars :: Eq a => Type a -> [a]
 freeTyVars t = nub [ a | TyVar a <- univ t ]
   where
     univ :: Type a -> [Type a]
-    univ = $(genUniverseBi 'univ)
+    univ = universeBi
+
 
 makeArrows :: [Type a] -> Type a -> Type a
 makeArrows xs t = foldr ArrTy t xs
 
 transformType :: (Type a -> Type a) -> Type a -> Type a
-transformType = $(genTransformBi 'transformType)
+transformType = transformBi
 
 (///) :: Eq a => Type a -> a -> Type a -> Type a
 t /// x = transformType $ \ t0 -> case t0 of
