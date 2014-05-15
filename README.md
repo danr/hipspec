@@ -70,7 +70,7 @@ Assuming your directory structure looks like this:
 You current directory is $CWD. You can then install quickspec and hipspec in
 one go, which makes the dependency analysis better:
 
-    cabal install hipspec quickspec
+    cabal install hipspec/ quickspec/
 
 
 #### Note for Mac users using `homebrew`
