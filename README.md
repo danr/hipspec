@@ -52,7 +52,7 @@ The property and some lemmas conjectured by QuickSpec have been proved! Success!
 ## Installation instructions
 
 HipSpec is only maintained for GHC 7.4.1 and GHC 7.6.3. Patches for other
-versions are more than welcome.
+versions are more than welcome. For GHC 7.8.1, use the branch `mono-new`.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:
@@ -88,7 +88,7 @@ It exists in the
 [ubuntu repositories](https://launchpad.net/ubuntu/precise/+source/alt-ergo/0.94-1),
 and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
 
-The slightly experimental branch `mono-new` supports Z3 and Vampire. Check it out!
+The slightly experimental branch `mono-new` supports Z3 and Vampire and GHC 7.8.1. Check it out!
 
 ## Tutorial
 
