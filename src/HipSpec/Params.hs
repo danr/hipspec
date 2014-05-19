@@ -106,6 +106,7 @@ data Params = Params
 #ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
 #endif
+    , isabelle_mode       :: Bool
 
     , processes           :: Int
     , timeout             :: Double
@@ -141,7 +142,6 @@ data Params = Params
     , indhyps             :: Int
     , indobligs           :: Int
 
-
     , debug_flags         :: [DebugFlag]
     }
   deriving (Show,Data,Typeable)
@@ -155,10 +155,19 @@ data Params = Params
 -- Previously: We cannot have --smt-data-types when using --bottoms.
 sanitizeParams :: Params -> Params
 sanitizeParams
-    = fix_stdin
+    = fix_isabelle_mode
+    . fix_stdin
     . fix_empty_provers
     . fix_empty_techniques {- . fix_smt_data_types -}
   where
+    fix_isabelle_mode params
+        | isabelle_mode params = params
+            { debug_flags    = QuickSpecOnly : debug_flags params
+            , explore_theory = True
+            , verbosity      = 0
+            , auto           = True
+            }
+        | otherwise = params
     fix_stdin params
         | any prover_cannot_stdin provers' = params
             { output = if isNothing (output params)
@@ -197,6 +206,7 @@ defParams = Params
 #ifdef SUPPORT_JSON
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
+    , isabelle_mode       = False                &= help "Isabelle mode"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
@@ -254,7 +264,7 @@ defParams = Params
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]
          &= groupname "\nDebugging"
     }
-    &= summary ("\n" ++ logo ++ "\n            hipspec v3.0 by Dan Rosén, danr@chalmers.se")
+    &= summary ("\n" ++ logo ++ "\n            hipspec v3.1 by Dan Rosén, danr@chalmers.se")
     &= program "hipspec"
 
 enumerate :: (Show val,Data val) => [(val,String)] -> [val]

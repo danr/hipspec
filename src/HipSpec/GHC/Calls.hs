@@ -35,8 +35,9 @@ calls c v = cons `unionVarSet` case maybeUnfolding v of
     Just e -> exprCalls c e
     _      -> emptyVarSet
   where
-    cons | c == With = mkVarSet (concatMap (map dataConWorkId .  tyConDataCons)
-                                           (S.toList (varTyCons v)))
+    cons | c == With = mkVarSet (concatMap (map dataConWorkId . tyConDataCons)
+                                           (filter (not . isClassTyCon) (S.toList (varTyCons v))))
+                                           -- NOTE: Ignore all class contexts
          | otherwise = emptyVarSet
 
 -- | The functions this function calls transitively

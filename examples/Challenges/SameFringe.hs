@@ -4,24 +4,24 @@ module SameFringe where
 import Prelude hiding (reverse,(++),length,map,filter,(.),(+),const,(==),Enum,(&&))
 import Control.Applicative
 import qualified Prelude
-import HipSpec.Prelude
-import Nat hiding (sig)
+import HipSpec
+-- import Nat hiding (sig)
 
 data List = Cons AB List | Nil
-  deriving (Eq,Typeable,Ord)
+  deriving (Eq,Typeable,Ord,Show)
 
 (++) :: List -> List -> List
 Cons x xs ++ ys = Cons x (xs ++ ys)
 Nil       ++ ys = ys
 
 data AB = A | B
-  deriving (Eq,Typeable,Ord)
+  deriving (Eq,Typeable,Ord,Show)
 
 instance Arbitrary AB where
     arbitrary = elements [A,B]
 
 data Tree = Branch Tree AB Tree | Empty
-  deriving (Eq,Typeable,Ord)
+  deriving (Eq,Typeable,Ord,Show)
 
 inorder :: Tree -> List
 inorder (Branch l x r) = inorder l ++ Cons x (inorder r)
@@ -30,7 +30,13 @@ inorder Empty          = Nil
 data Enum
     = Done
     | Next AB Enum Tree
-  deriving (Eq,Typeable,Ord)
+  deriving (Eq,Typeable,Ord,Show)
+
+_a  = Branch Empty A Empty
+_b  = Branch Empty B Empty
+
+t1  = Branch _a B Empty
+t2  = Branch Empty A _b
 
 enum :: Tree -> Enum -> Enum
 enum Empty          e = e
@@ -78,11 +84,23 @@ sig = signature
 	,withQuickCheckSize 20
 	,withSize 1000]
 
+instance Names Tree where
+    names _ = ["t","u","v"]
+
+instance Names Enum where
+    names _ = ["e","e2","e3"]
+
+instance Names List where
+    names _ = ["xs","ys","zs"]
+
 prop_sameFringe t1 t2 xs
     = xs =:= inorder t1 ==> xs =:= inorder t2 ==> sameFringe t1 t2 =:= True
 
 prop_sameFringe' t1 t2
     = sameFringe t1 t2 =:= True ==> inorder t1 =:= inorder t2
+
+prop_sameFringe'' t1 t2
+    = inorder t1 =:= inorder t2 ==> sameFringe t1 t2 =:= True
 
 instance Arbitrary List where
     arbitrary = toList `fmap` arbitrary

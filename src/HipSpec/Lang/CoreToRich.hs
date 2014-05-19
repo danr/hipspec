@@ -32,7 +32,7 @@ import HipSpec.Lang.DataConPattern
 
 import IdInfo
 
-import HipSpec.GHC.Utils (showOutputable)
+import HipSpec.GHC.Utils (showOutputable,rmClass)
 
 import HipSpec.Lang.TyAppBeta
 
@@ -228,7 +228,10 @@ trLit l                    = throw (msgUnsupportedLiteral l)
 trPolyType :: C.Type -> Either String (R.PolyType Id)
 trPolyType t0 =
     let (tv,t) = splitForAllTys (expandTypeSynonyms t0)
-    in  Forall (map idFromTyVar tv) <$> trType t
+    in  Forall (map idFromTyVar tv) <$> trType (rmClass t)
+                              -- NOTE: removing class here otherwise trVar
+                              -- does not work, and then
+                              -- HipSpec.Sig.translateCon does not work!
 
 throw :: String -> TM a
 throw = lift . throwError

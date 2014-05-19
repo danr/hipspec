@@ -3,6 +3,8 @@ module Main where
 
 import Test.QuickSpec.Main (prune)
 import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol)
+import qualified Test.QuickSpec.Term as Term
+import qualified Test.QuickSpec.Signature as Sig
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -183,7 +185,8 @@ runQuickSpec SigInfo{..} = do
         | (s,ss) <- M.toList callg
         ]
 
-    r <- liftIO $ generate False (const totalGen) sig
+    r <- liftIO $ generate isabelle_mode (const totalGen) sig
+                        -- shut up if we're on isabelle mode
 
     let classes = concatMap (some2 (map (Some . O) . TestTree.classes)) (TypeMap.toList r)
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
@@ -252,7 +255,40 @@ runQuickSpec SigInfo{..} = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
+    when isabelle_mode $ do
+        Env{theory} <- getEnv
+        let def_eqs  = definitions theory symbol_map
+            ctx_defs = execEQR ctx_init (mapM_ unify def_eqs)
+--            pruner'  = prune ctx_init (map erase reps) (some eraseEquation)
+        debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
+            unlines (map show def_eqs)
+        liftIO $ do
+            mapM_ putStrLn
+                $ nub
+                $ map (isabelleShowEquation sig)
+                $ filter (not . evalEQR ctx_defs . equal)
+                $ map (some eraseEquation) eqs -- prunedEqs
+            exitSuccess
+
     return (eqs,reps,classes)
+
+isabelleShowEquation :: Sig -> Equation -> String
+isabelleShowEquation sig (t :=: u) =
+    showTerm t ++ " = " ++ showTerm u
+  where
+    showTerm = show . Term.mapVars f . Term.mapConsts (onName g)
+    onName h s = s { Term.name = h (Term.name s) }
+    f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
+    g x =
+      case lookup x isabelleFunctionNames of
+        Nothing -> x
+        Just y -> y
+
+isabelleFunctionNames :: [(String, String)]
+isabelleFunctionNames =
+  [(":", "#"),
+   ("++", "@"),
+   ("reverse", "rev")]
 
 {-
 

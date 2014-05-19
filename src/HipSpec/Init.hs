@@ -24,23 +24,17 @@ import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
 import HipSpec.Lang.Uniquify
 
--- import qualified HipSpec.Lang.RichToSimple as S
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
 import TyCon (isAlgTyCon)
--- import Name (isSystemName,isInternalName)
 import UniqSupply
 
 import System.Exit
 import System.Process
 import System.FilePath
 
--- import Name(Name)
--- import Data.Set (Set)
 import Text.Show.Pretty hiding (Name)
--- import HipSpec.Lang.Monomorphise hiding (Inst)
--- import HipSpec.Lang.CoreToRich (trTyCon)
 
 
 processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
@@ -52,118 +46,84 @@ processFile cont = do
 
     EntryResult{..} <- execute params
 
-    us0 <- mkSplitUniqSupply 'h'
+    case isabelle_mode of
+        True -> runHS params (Env [] emptyArityMap (const Nothing))
+                   (cont sig_info (error "properties: --isabelle-mode"))
 
-    let vars = filterVarSet (not . varFromPrelude) $
-               unionVarSets (map (transCalls Without) prop_ids)
+        False -> do
+            us0 <- mkSplitUniqSupply 'h'
 
-        (binds,_us1) = initUs us0 $ sequence
-            [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
-            | v <- varSetElems vars
-            , Just e <- [maybeUnfolding v]
-            ]
+            let vars = filterVarSet (not . varFromPrelude) $
+                       unionVarSets (map (transCalls Without) prop_ids)
 
-        tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
-                     (bindsTyCons' binds `union` extra_tcs)
+                (binds,_us1) = initUs us0 $ sequence
+                    [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
+                    | v <- varSetElems vars
+                    , Just e <- [maybeUnfolding v]
+                    ]
 
-        (am_tcs,data_thy,ty_env') = trTyCons tcs
+                tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
+                             (bindsTyCons' binds `union` extra_tcs)
 
-        -- Now, split these into properties and non-properties
+                (am_tcs,data_thy,ty_env') = trTyCons tcs
 
-        simp_fns :: [S.Function Id]
-        rich_fns = toRich binds
-        rich_fns_opt = S.simpFuns rich_fns
-        simp_fns = toSimp rich_fns_opt
+                -- Now, split these into properties and non-properties
 
-        is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
+                simp_fns :: [S.Function Id]
+                rich_fns = toRich binds
+                rich_fns_opt = S.simpFuns rich_fns
+                simp_fns = toSimp rich_fns_opt
 
-        (props,fns) = partition is_prop simp_fns
+                is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
-        am_fin = am_fns `combineArityMap` am_tcs
-        (am_fns,binds_thy) = trSimpFuns am_fin fns
+                (props,fns) = partition is_prop simp_fns
 
-        thy = appThy : data_thy ++ binds_thy
+                am_fin = am_fns `combineArityMap` am_tcs
+                (am_fns,binds_thy) = trSimpFuns am_fin fns
 
-        cls = sortClauses False (concatMap clauses thy)
+                cls = sortClauses False (concatMap clauses thy)
 
-        tr_props
-            = sortOn prop_name
-            $ either (error . show)
-                     (map (etaExpandProp . generaliseProp))
-                     (trProperties props)
+                thy = appThy : data_thy ++ binds_thy
 
-        env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
+                tr_props
+                    = sortOn prop_name
+                    $ either (error . show)
+                             (map (etaExpandProp . generaliseProp))
+                             (trProperties props)
 
-        -- *** TESTING ***
+                env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
-{-
-        data_types1 :: [S.Datatype Name]
-        Right data_types1 = mapM trTyCon tcs
+            runHS params env $ do
 
-        bla :: Name -> S.Typed (Inst (S.Rename Name))
-        bla = (S.::: S.Star) . inst . S.Old
+                debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
+                debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
 
-        data_types :: [S.Datatype (S.Typed (Inst (S.Rename Name)))]
-        data_types = map (fmap bla) data_types1
+                debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
 
-        bli :: S.Var Name -> S.Typed (Inst (S.Rename Name))
-        bli = fmap inst
+                debugWhen PrintSimple $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
 
-        mono_types = [ dt | dt@(S.Datatype _ [] _) <- data_types ]
+                debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
-        simp_fns' = map (fmap bli) simp_fns
+                debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
-    forM_ mono_types $ \ (S.Datatype mono_type _ _) ->
-        forM_ simp_fns' $ \ (S.Function f ts _ _) -> unless (null ts) $ do
-            let iv :: [(V,S.Type V)] -> [S.Type V] -> V -> V
-                iv su [] y@(Inst _ _ S.::: _) = y
-                iv su ts (Org x S.::: t) = (Inst x (map S.forget ts)
-                                            S.::: S.substManyTys su ti
-                                           )
-                  where (vs,ti) = S.collectForalls t
+                debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
 
-                hr :: V -> [(V,[S.Type V])]
-                hr (Inst _ ts S.::: t) = S.tyTyCons t
-                hr (Org _ S.::: t)     = S.tyTyCons t
+                debugWhen PrintProps $
+                    "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
+                    "\nProperties:\n" ++ unlines (map show tr_props)
 
-                prg_act :: (Prog V,Set (Record V))
-                prg_act = instProg iv hr (data_types,simp_fns')
-                            [(f,map (\ _ -> S.TyCon mono_type []) ts)]
+                checkLint (lintSimple simp_fns)
+                mapM_ (checkLint . lintProperty) tr_props
 
-            putStrLn $ ppShow prg_act
-            -}
+                whenFlag params LintPolyFOL $ liftIO $ do
+                    let mlw = replaceExtension file ".mlw"
+                    writeFile mlw (ppAltErgo cls)
+                    exc <- system $ "alt-ergo -type-only " ++ mlw
+                    case exc of
+                        ExitSuccess -> return ()
+                        ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
 
-    runHS params env $ do
+                when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
-        debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
-        debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
-
-        debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
-
-        debugWhen PrintSimple $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
-
-        debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
-
-        debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
-
-        debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
-
-        debugWhen PrintProps $
-            "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
-            "\nProperties:\n" ++ unlines (map show tr_props)
-
-        checkLint (lintSimple simp_fns)
-        mapM_ (checkLint . lintProperty) tr_props
-
-        whenFlag params LintPolyFOL $ liftIO $ do
-            let mlw = replaceExtension file ".mlw"
-            writeFile mlw (ppAltErgo cls)
-            exc <- system $ "alt-ergo -type-only " ++ mlw
-            case exc of
-                ExitSuccess -> return ()
-                ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
-
-        when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
-
-        cont sig_info tr_props
+                cont sig_info tr_props
 
