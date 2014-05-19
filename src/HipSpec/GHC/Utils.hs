@@ -19,7 +19,7 @@ import DynFlags (tracingDynFlags)
 portableShowSDoc :: SDoc -> String
 #if __GLASGOW_HASKELL__ >= 708
 portableShowSDoc = showSDoc unsafeGlobalDynFlags
-#elif __GLASGOW_HASKELL__ >= 708
+#elif __GLASGOW_HASKELL__ >= 706
 portableShowSDoc = showSDoc tracingDynFlags
 #else
 portableShowSDoc = showSDoc
