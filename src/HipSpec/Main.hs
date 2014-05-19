@@ -185,14 +185,8 @@ runQuickSpec SigInfo{..} = do
         | (s,ss) <- M.toList callg
         ]
 
-<<<<<<< HEAD
-    r <- liftIO $ generate False (const totalGen) sig
-||||||| merged common ancestors
-    r <- liftIO $ generate (const totalGen) sig
-=======
     r <- liftIO $ generate isabelle_mode (const totalGen) sig
                         -- shut up if we're on isabelle mode
->>>>>>> mono-new
 
     let classes = concatMap (some2 (map (Some . O) . TestTree.classes)) (TypeMap.toList r)
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
