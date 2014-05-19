@@ -169,7 +169,7 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             ] ++
             [ case cond_info of
                 Just (_,cond_ty) | cond_ty `eqType` t -> unwords $
-                    [ "gvars'" , "[" ]
+                    [ "Test.QuickSpec.Signature.gvars'" , "[" ]
                     ++ [intercalate ","
                         [ unwords $
                             [ "(", show ([ '`' | b ] ++ nm), "," ] ++
