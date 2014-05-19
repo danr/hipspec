@@ -53,7 +53,7 @@ makeSignature p@Params{..} prop_ids = do
 
     let extra_ids = mapMaybe thingToId extra_things
 
-        ids = varSetElems $ filterVarSet (\ x -> not (fromPrelude x || varWithPropType x))
+        ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x))
             trans_ids `unionVarSet` mkVarSet extra_ids
 
     -- Filters out silly things like
@@ -87,6 +87,43 @@ getA = do
         | ATyCon tc <- a_things
         ]
 
+backupNames :: [String]
+backupNames = ["x","y","z"]
+
+-- Monomorphise a type and determine what names variables should have for it
+nameType :: Params -> (Type -> Type) -> Type -> Ghc (Type,[String])
+nameType p@Params{..} mono (mono -> t) = handleSourceError handle $ do
+
+    -- Try to get the names from the instance
+    let t_str     = "(" ++ showOutputable t ++ ")"
+        names_str = "HipSpec.names ((let _x = _x in _x) :: " ++ rmNewlines t_str ++ ")"
+    liftIO $ whenFlag p DebugAutoSig $ putStrLn $ "names_str:" ++ names_str
+    m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
+
+    names <- case m_names of
+        -- With isabelle_mode, allow one identifier, "_", for Default
+        Just xs | isabelle_mode -> return xs
+
+        -- Otherwise, warn if there aren't three identifiers and pad or crop
+        Just xs -> do
+            let res = take 3 (xs ++ backupNames)
+            when (length xs /= 3 && verbosity > 0) $ liftIO $ putStrLn $
+                "Warning: Names instance for " ++ t_str ++
+                " does not have three elements, defaulting to " ++ show res
+            return res
+        Nothing -> return backupNames
+
+    return (t,names)
+  where
+    handle e = do
+        let flat_str = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ') . unwords . words
+            e_str = case splitOn "arising from" (show e) of
+                x:_ -> flat_str x
+                []  -> ""
+        when (verbosity > 0 ) $ liftIO $
+            putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backupNames
+        return (t,backupNames)
+
 makeSigFrom :: Params -> [Var] -> Maybe Type -> Ghc (Maybe Sig)
 makeSigFrom p@Params{..} ids m_a_ty = do
 
@@ -102,37 +139,13 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             , let (tys,ty) = splitFunTys (mono (varType i))
             ]
 
-        backup_names = ["x","y","z"]
+    named_mono_types <- mapM (nameType p mono) types
 
-        name_type :: Type -> Ghc (Type,[String])
-        name_type (mono -> t) = handleSourceError handle $ do
-            let t_str     = "(" ++ showOutputable t ++ ")"
-                names_str = "HipSpec.names ((let _x = _x in _x) :: " ++ rmNewlines t_str ++ ")"
-            liftIO $ whenFlag p DebugAutoSig $ putStrLn $ "names_str:" ++ names_str
-            m_names :: Maybe [String] <- fromDynamic `fmap` dynCompileExpr names_str
-            names <- case m_names of
-                    Just xs -> do
-                        let res = take 3 (xs ++ backup_names)
-                        when (length xs /= 3) $ liftIO $ putStrLn $
-                            "Warning: Names instance for " ++ t_str ++
-                            " does not have three elements, defaulting to " ++ show res
-                        return res
-                    Nothing -> return backup_names
-            return (t,names)
-          where
-            handle e = do
-                let flat_str = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ') . unwords . words
-                    e_str = case splitOn "arising from" (show e) of
-                        x:_ -> flat_str x
-                        []  -> ""
-                liftIO $ putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backup_names
-                return (t,backup_names)
-
-    named_mono_types <- mapM name_type types
-
-    let entries =
+    let fun | isabelle_mode = "obs"
+            | otherwise = "Test.QuickSpec.Signature.fun"
+        entries =
             [ unwords
-                [ "Test.QuickSpec.Signature.fun" ++ show (varArity i)
+                [ fun ++ show (varArity mono i)
                 , show (varToString i)  -- see Note unqualified identifiers
                 , "("
                 , "(" ++ varToString i ++ ")"
@@ -141,6 +154,7 @@ makeSigFrom p@Params{..} ids m_a_ty = do
                 , ")"
                 ]
             | i <- ids
+            , not isabelle_mode || varToString i /= "Default" -- Don't add the default constructor
             ] ++
             [ unwords
                 [ if pvars then "pvars" else "vars"
@@ -165,16 +179,19 @@ makeSigFrom p@Params{..} ids m_a_ty = do
     if length entries < 3
         then return Nothing
         else fromDynamic `fmap` dynCompileExpr (expr_str ",")
-  where
 
 rmNewlines :: String -> String
 rmNewlines = unwords . lines
 
-varArity :: Var -> Int
-varArity = length . fst . splitFunTys . snd . splitForAllTys . varType
+varArity :: (Type -> Type) -> Var -> Int
+varArity mono = length . fst . splitFunTys . snd . splitForAllTys . mono . varType
 
+-- Monomorphises (instantiates all foralls with the first argument)
+-- *Also removes contexts*
 monomorphise :: Type -> Type -> Type
-monomorphise mono_ty orig_ty = applyTys orig_ty (zipWith const (repeat mono_ty) tvs)
+monomorphise mono_ty orig_ty = applyTys class_stripped_ty (zipWith const (repeat mono_ty) tvs)
   where
-    (tvs, _rho_ty) = splitForAllTys orig_ty
+    (tvs, rho_ty) = splitForAllTys orig_ty
+
+    class_stripped_ty = mkForAllTys tvs (rmClass rho_ty)
 

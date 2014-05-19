@@ -16,6 +16,8 @@ isn'tGT _  = True
 sortBy :: (a -> a -> Ordering) -> [a] -> [a]
 sortBy cmp = mergeAll . sequences
   where
+    sequences xs = [ [x] | x <- xs ]
+ {-
     sequences (a:b:xs)
       | isGT (a `cmp` b) = descending b [a]  xs
       | True             = ascending  b (a:) xs
@@ -28,7 +30,7 @@ sortBy cmp = mergeAll . sequences
     ascending a as (b:bs)
       | isn'tGT (a `cmp` b) = ascending b (\ys -> as (a:ys)) bs
     ascending a as bs       = as [a]: sequences bs
-
+    -}
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 

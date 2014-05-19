@@ -22,12 +22,6 @@ import Control.Monad.State
 
 import Data.List (tails)
 
--- f :: forall a . (t1 * .. * tn) -> t
--- f x = case x of
---          A a u -> e
---
--- ! [a,x,u] . (f(a,A(a,u)) = e)
-
 data Poly v
     = Id v
     -- ^ A normal identifier
@@ -46,11 +40,11 @@ data Poly v
 data Env v = Env
     { env_fn      :: Poly v
     , env_tvs     :: [Poly v]
-    , env_args    :: [Term (Poly v)]
-    , env_constrs :: [Formula (Poly v)]
+    , env_args    :: [Term (Poly v) (Poly v)]
+    , env_constrs :: [Formula (Poly v) (Poly v)]
     }
 
-appAxioms :: [Clause (Poly v)]
+appAxioms :: [Clause (Poly v) (Poly v)]
 appAxioms =
     [ SortSig TyFn 2
     , TypeSig App [x,y] [P.TyCon TyFn [x',y'],x'] y'
@@ -61,7 +55,7 @@ appAxioms =
 
 -- | Makes axioms for a data type
 --   TODO : The pointers for the different constructors
-trDatatype :: Datatype v -> ([Clause (Poly v)],[(v,[Clause (Poly v)])])
+trDatatype :: Datatype v -> ([Clause (Poly v) (Poly v)],[(v,[Clause (Poly v) (Poly v)])])
 trDatatype (Datatype tc0 tvs0 dcs0) =
     (sort_decl : ty_decls ++ domain : inj ++ discrim,ptrs)
   where
@@ -71,8 +65,17 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
     tc_ty = P.TyCon tc (map P.TyVar tvs)
     dcs   = [ (dc,map trType args) | Constructor dc args <- dcs0 ]
 
+    trgs  = TySymb tc : map (Symb . Id . fst) dcs
+
     -- sort declaration
     sort_decl = SortSig tc (length tvs)
+
+    -- smt data declaration
+    data_decl = DataDecl
+        [Data tc tvs'
+            [ (Id dc,[ (Proj dc i,a) | (i,a) <- zip [0..] args ])
+            | (dc,args) <- dcs
+            ]]
 
     -- type declarations (also for projections)
     ty_decls = concat
@@ -84,7 +87,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
         ]
 
     -- domain axiom
-    domain = Clause Nothing Axiom tvs $ forAll q0 tc_ty $ foldr1 (\/)
+    domain = Clause Nothing trgs Axiom tvs $ data_decl $ forAll q0 tc_ty $ foldr1 (\/)
         [ Var q0 === Apply (Id dc) tvs'
             [ Apply (Proj dc i) tvs' [Var q0]
             | (i,_) <- zip [0..] args
@@ -95,7 +98,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
         q0 = QVar 0
 
     -- injectivity axioms
-    inj = map (Clause Nothing Axiom tvs) $ concat
+    inj = map (Clause Nothing trgs Axiom tvs . data_decl) $ concat
         [ [ forAlls (zip (map QVar [0..]) args) $
                 Apply (Proj dc i) tvs' [tm] === Var (QVar i)
           | (i,_) <- zip [0..] args
@@ -106,7 +109,7 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
 
 
     -- discrimination axioms
-    discrim = map (Clause Nothing Axiom tvs) $
+    discrim = map (Clause Nothing trgs Axiom tvs . data_decl) $
         [ forAlls (qs_k ++ qs_j) (tm_k =/= tm_j)
         | ((k,args_k),(j,args_j)) <- diag dcs
         , let qs_k = zip (map QVar [0..]) args_k
@@ -118,13 +121,13 @@ trDatatype (Datatype tc0 tvs0 dcs0) =
     -- ptr axioms
     ptrs = [ (dc,ptrAxiom dc tvs args tc_ty) | (dc,args) <- dcs ]
 
-ptrAxiom :: v -> [Poly v] -> [P.Type (Poly v)] -> P.Type (Poly v) -> [Clause (Poly v)]
+ptrAxiom :: v -> [Poly v] -> [P.Type (Poly v) (Poly v)] -> P.Type (Poly v) (Poly v) -> [Clause (Poly v) (Poly v)]
 ptrAxiom _ _ [] _ = []
 ptrAxiom f tvs args res =
     [ TypeSig (Ptr f) tvs [] (foldr ty_fn res args)
-    , Clause Nothing Axiom tvs $
+    , Clause Nothing [Symb (Ptr f)] Axiom tvs $
         forAlls vars $
-            mk_lhs args res ===
+            mk_lhs (reverse vars) res ===
             Apply (Id f) (map P.TyVar tvs) (map (Var . fst) vars)
     ]
   where
@@ -132,11 +135,11 @@ ptrAxiom f tvs args res =
 
     vars = zip (map QVar [0..]) args
 
-    mk_lhs []     _r = Apply (Ptr f) (map P.TyVar tvs) []
-    mk_lhs (a:as) r  =
+    mk_lhs []         _r = Apply (Ptr f) (map P.TyVar tvs) []
+    mk_lhs ((x,a):as) r  =
         Apply App
-            [a,foldr ty_fn r as]
-            [mk_lhs as r,Var (QVar (length as))]
+            [a,r]
+            [mk_lhs as (ty_fn a r),Var x]
 
 
 diag :: [a] -> [(a,a)]
@@ -149,7 +152,7 @@ diag xs = [ (x,y) | x:ys <- tails xs, y <- ys ]
 -- reader already
 type TrM v a = ReaderT (Scope v (T.Type v)) (State (Env v)) a
 
-trFun :: Ord v => Function v -> ([Clause (Poly v)],[Clause (Poly v)])
+trFun :: Ord v => Function v -> ([Clause (Poly v) (Poly v)],[Clause (Poly v) (Poly v)])
 trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
   where
     f'       = Id f
@@ -159,7 +162,7 @@ trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
     res_ty'  = trType res_ty
 
     mk_def_cls = do
-        cls <- map (Clause Nothing Axiom tvs') <$> trBody body
+        cls <- map (Clause Nothing [Symb f'] Axiom tvs') <$> trBody body
         let ty_cl = TypeSig f' tvs' args_ty' res_ty'
         return (ty_cl:cls)
 
@@ -171,7 +174,7 @@ trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
 
     ptr_cls = ptrAxiom f tvs' args_ty' res_ty'
 
-trBody :: Ord v => Body v -> TrM v [Formula (Poly v)]
+trBody :: Ord v => Body v -> TrM v [Formula (Poly v) (Poly v)]
 trBody b0 = case b0 of
     Case e alts0 -> do
         let (m_def,alts) = partitionAlts alts0
@@ -205,7 +208,7 @@ trBody b0 = case b0 of
         constrs <- gets env_constrs
         return [forAlls scope' (constrs ===> lhs === rhs)]
 
-insertConstraint :: Ord v => Formula (Poly v) -> TrM v a -> TrM v a
+insertConstraint :: Ord v => Formula (Poly v) (Poly v) -> TrM v a -> TrM v a
 insertConstraint phi = case phi of
     TOp Equal (Var (Id x)) tm ->
         removeFromScope x .
@@ -225,23 +228,23 @@ locally f m = do
     put s
     return r
 
-trLhs :: TrM v (Term (Poly v))
+trLhs :: TrM v (Term (Poly v) (Poly v))
 trLhs = do
     Env{..} <- get
     return (P.Apply env_fn (map P.TyVar env_tvs) env_args)
 
-trType :: T.Type v -> P.Type (Poly v)
+trType :: T.Type v -> P.Type (Poly v) (Poly v)
 trType t0 = case t0 of
     T.ArrTy t1 t2 -> P.TyCon TyFn [trType t1,trType t2]
     T.TyVar x     -> P.TyVar (Id x)
     T.TyCon tc ts -> P.TyCon (Id tc) (map trType ts)
-    T.Forall{}    -> error "ToPolyFOL.trType on Forall"
-    T.Star        -> error "ToPolyFOL.trType on Star"
+    T.Integer     -> P.Integer
 
-trExpr :: Ord v => Expr v -> TrM v (Term (Poly v))
+trExpr :: Ord v => Expr v -> TrM v (Term (Poly v) (Poly v))
 trExpr = go
   where
     go e0 = case e0 of
+
         FO.Fun f ts as -> do
             b <- inScope f
             if b
@@ -254,7 +257,7 @@ trExpr = go
 
         FO.Lit x -> return (P.Lit x)
 
-trExpr' :: Ord v => [v] -> Expr v -> Term (Poly v)
+trExpr' :: Ord v => [v] -> Expr v -> Term (Poly v) (Poly v)
 trExpr' scope e =
     evalState
         (runReaderT (trExpr e)

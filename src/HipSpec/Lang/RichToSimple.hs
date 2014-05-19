@@ -17,126 +17,94 @@ import HipSpec.Lang.Simple as S
 
 import HipSpec.Lang.SimplifyRich (removeScrutinee)
 
-import HipSpec.Lang.Scope
-
 import Control.Monad.RWS
 import Control.Applicative
 
-import Data.List (nub,(\\))
+import HipSpec.Id as Id
 
-type Var a = Typed (Rename a)
+import Data.List (nub)
 
-data Rename a
-    = Old a                        -- an old name
-    | New [Loc (Rename a)] Integer -- a fresh name
-  deriving (Eq,Ord,Show,Functor)
+type RTS = RWS
+    Id              -- current derived position
+    [S.Function Id] -- emitted lifted functions
+    Integer         -- name supply
 
-data Loc a = CaseLoc | LamLoc | LetLoc a
-  deriving (Eq,Ord,Show,Functor)
-
-newtype Env v = Env (Scope v,[Loc v])
-
-instance HasScope v (Env v) where
-    get_scope (Env (s,_))   = get_scope s
-    mod_scope f (Env (s,a)) = Env (mod_scope f s,a)
-
-type RTS v = RWS
-    (Env (Var v))        -- variables in scope
-    [S.Function (Var v)] -- emitted lifted functions
-    Integer              -- name supply
-
-emit :: S.Function (Var v) -> RTS v ()
+emit :: S.Function Id -> RTS ()
 emit = tell . (:[])
 
-runRTS :: Ord v => RTS v a -> (a,[S.Function (Var v)])
-runRTS = runRTSWithScope [] []
+runRTS :: RTS a -> (a,[S.Function Id])
+runRTS m = evalRWS m (Derived Unknown 0) 0
 
-runRTSWithScope :: Ord v =>
-    [Loc (Rename v)] -> [Var v] -> RTS v a -> (a,[S.Function (Var v)])
-runRTSWithScope loc sc m = evalRWS m (Env (makeScope sc,map star loc)) 0
+fresh :: RTS Integer
+fresh = state $ \ s -> (s,succ s)
 
-getLocs :: forall v . RTS v [Loc (Rename v)]
-getLocs = do
-    Env (_,ls) <- ask
-    let ls' :: [Loc (Rename v)]
-        ls' = [ forget l | l <- ls ]
-    return ls'
-
-withNewLoc :: Loc (Rename v) -> RTS v a -> RTS v a
-withNewLoc l = local $ \ (Env (sc,ls)) -> Env (sc,ls ++ [star l])
-
-fresh :: Type (Rename v) -> RTS v (Var v)
-fresh t = do
-    ls <- getLocs
-    state $ \ s -> (New ls s ::: t,succ s)
-
-rtsFun :: Ord v => R.Function (Var v) -> RTS v (S.Function (Var v))
-rtsFun (R.Function f e) = do
+rtsFun :: R.Function Id -> RTS (S.Function Id)
+rtsFun (R.Function f ty e) = do
     let (args,body) = collectBinders e
-    withNewLoc (LetLoc (forget_type f)) $ clearScope $ extendScope args $
-        S.Function f args <$> rtsBody body
+    x <- fresh
+    local (mkLetFrom f x) $ S.Function f ty (map fst args) <$> rtsBody body
 
-rtsBody :: Ord v => R.Expr (Var v) -> RTS v (S.Body (Var v))
+rtsBody :: R.Expr Id -> RTS (S.Body Id)
 rtsBody e0 = case e0 of
     R.Case e x alts -> S.Case <$> rtsExpr e <*> sequence
-        [ (,) p <$> bindPattern p (rtsBody (removeScrutinee e x alt))
+        [ (,) p <$> rtsBody (removeScrutinee e x alt)
         | alt@(p,_) <- alts
         ]
     _ -> S.Body <$> rtsExpr e0
-  where
-    bindPattern p = case p of
-        ConPat _ _ bs -> extendScope bs
-        _             -> id
 
-rtsExpr :: forall v . Ord v => R.Expr (Var v) -> RTS v (S.Expr (Var v))
+rtsExpr :: R.Expr Id -> RTS (S.Expr Id)
 rtsExpr e0 = case e0 of
-    R.Var x ts  -> return (S.Var x ts)
-    R.App e1 e2 -> S.App <$> rtsExpr e1 <*> rtsExpr e2
-    R.Lit l t   -> return (S.Lit l t)
-    R.String{}  -> error "rtsExpr: Strings are not supported!"
+    R.Lcl x ty     -> return (S.Lcl x ty)
+    R.Gbl x ty tys -> return (S.Gbl x ty tys)
+    R.App e1 e2    -> S.App <$> rtsExpr e1 <*> rtsExpr e2
+    R.Lit l        -> return (S.Lit l)
+    R.String s     -> error $ "rtsExpr: Found " ++ show s ++ ", but strings are not supported!"
 
     -- Lambda-lifting of lambda as case
     -- Emits a new function, and replaces the body with this new function
     -- applied to the type variables and free variables.
-    R.Lam{}  -> emitFun LamLoc e0
-    R.Case{} -> emitFun CaseLoc e0
+    R.Lam{}  -> emitFun Lambda e0
+    R.Case{} -> emitFun Id.Case e0
 
     R.Let fns e -> do
-        -- See Example tricky let lifting
 
         let binders = map R.fn_name fns
-            free_vars_overapprox
-                = nub (concatMap (R.freeVars . R.fn_body) fns) \\ binders
+            free_vars =
+                [ at
+                | at@(a,_) <- nub (concatMap (typedFreeVars . R.fn_body) fns)
+                , a `notElem` binders
+                ]
 
-        free_vars <- freeVarsOf free_vars_overapprox
+        let handle_fun (R.Function _ (Forall (_:_) _) _) = error "Polymorphic let in RichToSimple!"
+            handle_fun (R.Function f (Forall [] _) body) = do
 
-        let handle_fun (R.Function fn@(f ::: ft) body) = withNewLoc (LetLoc f) $ do
+                i <- fresh
 
-                f' <- fresh new_type
+                local (mkLetFrom f i) $ do
 
-                let subst = tySubst fn $ \ ty_args ->
-                        R.Var f' (map (star . TyVar) new_ty_vars ++ ty_args)
-                        `R.apply`
-                        map (`R.Var` []) free_vars
+                    f' <- ask
 
-                    fn' = R.Function f' new_lambda
+                    let subst = (R.Gbl f' new_type (map TyVar new_ty_vars)
+                                     `R.apply`
+                                    map (uncurry R.Lcl) free_vars)
+                            R.// f
 
-                return (subst,fn')
+                        fn' = R.Function f' new_type new_lambda
+
+                    return (subst,fn')
               where
-                (tvs,_) = collectForalls ft
-
                 new_lambda = makeLambda free_vars body
 
                 new_type_body = R.exprType new_lambda
 
-                new_ty_vars = freeTyVars new_type_body \\ tvs
+                new_ty_vars = exprTyVars new_lambda
 
-                new_type = makeForalls (new_ty_vars ++ tvs) new_type_body
+                new_type = Forall new_ty_vars  new_type_body
 
         (substs,fns') <- mapAndUnzipM handle_fun fns
 
         -- Substitutions of the functions applied to their new arguments
-        let subst :: R.Expr (Var v) -> R.Expr (Var v)
+        let subst :: R.Expr Id -> R.Expr Id
             subst = foldr (.) id substs
 
         tell =<< mapM (rtsFun . mapFnBody subst) fns'
@@ -144,6 +112,9 @@ rtsExpr e0 = case e0 of
         rtsExpr (subst e)
 
 {-
+
+-- These are not allowed any more, and needs to be handled in CoreToRich
+-- instead
 
 Example tricky let lifting:
 
@@ -171,34 +142,27 @@ This should be lifted to:
 
 -}
 
-emitFun :: forall v . Ord v => Loc (Rename v) -> R.Expr (Var v) -> RTS v (S.Expr (Var v))
-emitFun l body = do
+-- Emits functions for lambda and case
+emitFun :: (Id -> Derived) -> R.Expr Id -> RTS (S.Expr Id)
+emitFun mkName body = do
 
-    args <- exprFreeVars body
+    let args       = typedFreeVars body
 
-    let new_lambda = makeLambda args body
+        new_lambda = makeLambda args body
 
-        new_type   = R.exprType new_lambda
+        inner_type = R.exprType new_lambda
 
-        ty_vars    = freeTyVars new_type
+        ty_vars    = exprTyVars new_lambda
 
-    withNewLoc l $ do
+        new_type   = Forall ty_vars inner_type
 
-        f <- fresh (makeForalls ty_vars new_type)
+    i <- fresh
 
-        emit =<< rtsFun (R.Function f new_lambda)
+    local (\ x -> Derived (mkName x) i) $ do
 
-        return (S.apply (S.Var f (map (star . S.TyVar) ty_vars))
-                        (map (`S.Var` []) args))
+        f <- ask
 
--- | Gets the free vars of an expression
-exprFreeVars :: Ord v => R.Expr (Var v) -> RTS v [Var v]
-exprFreeVars = freeVarsOf . R.freeVars
+        emit =<< rtsFun (R.Function f new_type new_lambda)
 
--- | Given a list of variables, gets the free variables and their types
-freeVarsOf :: Ord v => [Var v] -> RTS v [Var v]
-freeVarsOf = pluckScoped
-
-typeVarsOf :: Ord v => Type v -> [v]
-typeVarsOf = nub . freeTyVars
+        return $ S.apply (S.Gbl f new_type (map TyVar ty_vars)) (map (uncurry S.Lcl) args)
 

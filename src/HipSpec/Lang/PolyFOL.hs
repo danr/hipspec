@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-
 
 Type signatures and formulae have a list of top-level quantified
@@ -18,106 +20,50 @@ Type signature example:
     map : (Fn(a,b) * List(a)) -> List(b)
 
 -}
-module HipSpec.Lang.PolyFOL where
+module HipSpec.Lang.PolyFOL
+    ( module HipSpec.Lang.PolyFOL
+    , module HipSpec.Lang.PolyFOL.Types
+    ) where
+
+import HipSpec.Lang.PolyFOL.Types
 
 import Data.Generics.Geniplate
+import Data.Generics.Genifunctors
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
+import Data.Bitraversable
+import Data.Bifoldable
+import Data.Bifunctor
+
+import Data.Either
+
+import HipSpec.Utils
 
 import Data.Set (Set)
 import qualified Data.Set as S
 
-{-# ANN module "HLint: ignore Use camelCase" #-}
+instanceUniverseBi  [t| forall a b . (Clause a b,Term a b) |]
+instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
+instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
+instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
--- | Clauses.
---
--- The a type variable is used for many different identifiers:
--- * Quantified variables
--- * Type variables
--- * Function and predicate symbols (Nick: constants (or simply symbols))
--- * Type constructor symbols
-data Clause a
-    = SortSig
-        { sig_id    :: a
-        -- ^ Symbol this signature is for
-        , sort_args :: Int
-        -- ^ Number of kind arguments, see Note [Simple Kinded Sorts]
-        }
-    | TypeSig
-        { sig_id :: a
-        -- ^ Symbol this signature is for
-        , ty_vars :: [a]
-        -- ^ Type variables
-        , sig_args :: [Type a]
-        -- ^ Types of the arguments
-        , sig_res :: Type a
-        -- ^ Result type for this identifer
-        }
-    | Clause
-        { cl_name :: Maybe Int
-        -- ^ Name for this clause to get unsatisfiable cores
-        , cl_type :: ClType
-        -- ^ Axiom, conjecture...
-        , ty_vars :: [a]
-        -- ^ Top-level type variables
-        , cl_formula :: Formula a
-        -- ^ Formula in this clause
-        }
-    | Comment
-        { comment :: String
-        -- ^ A comment.
-        }
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+instance Bifunctor Clause     where bimap      = bimapDefault
+instance Bifoldable Clause    where bifoldMap  = bifoldMapDefault
+instance Bitraversable Clause where bitraverse = $(genTraverse ''Clause)
 
-data ClType
-    = Axiom
-    -- ^ Axioms, or definitions, or hypothesis or negated conjectures
-    --   Is it important to distinguish between these?
-    | Goal
-    -- ^ Conjecture
-  deriving (Eq,Ord,Show)
+instance Bifunctor Type     where bimap      = bimapDefault
+instance Bifoldable Type    where bifoldMap  = bifoldMapDefault
+instance Bitraversable Type where bitraverse = $(genTraverse ''Type)
 
-data Type a
-    = TyCon a [Type a]
-    | TyVar a
-    | TType
-    -- ^ The type of types
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
--- | Term operations
-data TOp = Equal | Unequal
-  deriving (Eq,Ord,Show)
-
--- | Formula operations
-data FOp = And | Or | Implies | Equiv
-  deriving (Eq,Ord,Show)
-
--- | Quantifier operations
-data Q = Forall | Exists
-  deriving (Eq,Ord,Show)
-
-data Formula a
-    = TOp TOp (Term a) (Term a)
-    -- ^ Equality and inequality
-    | FOp FOp (Formula a) (Formula a)
-    -- ^ Logical connectives
-    | Neg (Formula a)
-    -- ^ Negation
-    | Q Q a (Type a) (Formula a)
-    -- ^ Quantification
-    | Pred a [Formula a]
-    -- ^ Predication
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
-
-collectFOp :: Formula a -> Maybe (FOp,[Formula a])
+collectFOp :: Formula a b -> Maybe (FOp,[Formula a b])
 collectFOp f0@(FOp op _ _) = Just (op,go f0)
   where
     go (FOp op' f1 f2) | op == op' = go f1 ++ go f2
     go f = [f]
 collectFOp _              = Nothing
 
-collectQ :: Formula a -> Maybe (Q,([(a,Type a)],Formula a))
+collectQ :: Formula a b -> Maybe (Q,([(b,Type a b)],Formula a b))
 collectQ f0@(Q q _ _ _) = Just (q,go f0)
   where
     go (Q q' x t f) | q == q' = let (xs,f') = go f
@@ -129,7 +75,7 @@ collectQ _             = Nothing
 
 infix 3 ===, =/=
 
-(===),(=/=) :: Term a -> Term a -> Formula a
+(===),(=/=) :: Term a b -> Term a b -> Formula a b
 (===) = TOp Equal
 (=/=) = TOp Unequal
 
@@ -137,75 +83,136 @@ infixr 2 /\
 infixr 1 \/
 infixr 0 ==>, ===>, <=>
 
-(/\),(\/),(==>),(<=>) :: Formula a -> Formula a -> Formula a
+neg :: Formula a b -> Formula a b
+neg = Neg
+
+(/\),(\/),(==>),(<=>) :: Formula a b -> Formula a b -> Formula a b
 (/\)  = FOp And
 (\/)  = FOp Or
 (==>) = FOp Implies
 (<=>) = FOp Equiv
 
-(===>) :: [Formula a] -> Formula a -> Formula a
+(===>) :: [Formula a b] -> Formula a b -> Formula a b
 [] ===> psi = psi
 xs ===> psi = foldr1 (/\) xs ==> psi
 
-forAll,exists :: a -> Type a -> Formula a -> Formula a
+forAll,exists :: b -> Type a b -> Formula a b -> Formula a b
 forAll = Q Forall
 exists = Q Exists
 
-forAlls,existss :: [(a,Type a)] -> Formula a -> Formula a
+forAlls,existss :: [(b,Type a b)] -> Formula a b -> Formula a b
 [forAlls,existss] = map (\ f xs phi -> foldr (uncurry f) phi xs) [forAll,exists]
 
--- | Terms.
-data Term a
-    = Apply a [Type a] [Term a]
-    -- ^ Symbol applied to arguments (can be empty)
-    | Var a
-    -- ^ Quantified variable
-    | Lit Integer
-    -- ^ An integer
-  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+isTySymb :: Trigger a -> Bool
+isTySymb TySymb{} = True
+isTySymb _        = False
 
-tmSubst :: forall a . Eq a => a -> Term a -> Term a -> Term a
-tmSubst x tm = go
-  where
-    tr_tm :: (Term a -> Term a) -> Term a -> Term a
-    tr_tm = $(genTransformBi 'tr_tm)
 
-    go :: Term a -> Term a
-    go = tr_tm $ \ tm0 -> case tm0 of
-        Var y | x == y -> tm
-        _              -> tm0
+topTmSubst :: Eq b => b -> Term a b -> Term a b -> Term a b
+topTmSubst x tm tm0 = case tm0 of
+    Var y | x == y -> tm
+    _              -> tm0
 
-fmSubst :: forall a . Eq a => a -> Term a -> Formula a -> Formula a
-fmSubst x = tr_fm . tmSubst x
-  where
-    tr_fm :: (Term a -> Term a) -> Formula a -> Formula a
-    tr_fm = $(genTransformBi 'tr_fm)
+tmSubst :: forall a b . Eq b => b -> Term a b -> Term a b -> Term a b
+tmSubst x tm = transformBi (topTmSubst x tm)
 
-fmInst :: forall a . Eq a => a -> Type a -> Formula a -> Formula a
-fmInst a ty = go
-  where
-    tr_ty :: (Type a -> Type a) -> Formula a -> Formula a
-    tr_ty = $(genTransformBi 'tr_ty)
+fmSubst :: forall a b . Eq b => b -> Term a b -> Formula a b -> Formula a b
+fmSubst x tm = transformBi (topTmSubst x tm)
 
-    go :: Formula a -> Formula a
-    go = tr_ty $ \ ty0 -> case ty0 of
-        TyVar b | a == b -> ty
-        _                -> ty0
+topTySubst :: Eq b => b -> Type a b -> Type a b -> Type a b
+topTySubst a ty ty0 = case ty0 of
+    TyVar b | a == b -> ty
+    _                -> ty0
 
-fmInsts :: Eq a => [(a,Type a)] -> Formula a -> Formula a
+fmInst :: forall a b . Eq b => b -> Type a b -> Formula a b -> Formula a b
+fmInst a ty = transformBi (topTySubst a ty)
+
+tySubst :: forall a b . Eq b => b -> Type a b -> Type a b -> Type a b
+tySubst a ty = transformBi (topTySubst a ty)
+
+fmInsts :: Eq b => [(b,Type a b)] -> Formula a b -> Formula a b
 fmInsts xs phi = foldr (uncurry fmInst) phi xs
 
-clsDeps :: forall a . Ord a => [Clause a] -> (Set a,Set a)
-clsDeps cls =
-    (S.fromList [ tc | TyCon tc _ <- univ_ty cls ]
-    ,S.fromList [ f | Apply f _ _ <- univ_tm cls ]
-    )
-  where
-    univ_tm :: [Clause a] -> [Term a]
-    univ_tm = $(genUniverseBi 'univ_tm)
+tySubsts :: Eq b => [(b,Type a b)] -> Type a b -> Type a b
+tySubsts xs phi = foldr (uncurry tySubst) phi xs
 
-    univ_ty :: [Clause a] -> [Type a]
-    univ_ty = $(genUniverseBi 'univ_ty)
+clsDeps :: forall a b . Ord a => [Clause a b] -> (Set a,Set a)
+clsDeps cls =
+    (S.fromList [ tc | TyCon tc _ <- concatMap clTyUniv cls ]
+    ,S.fromList [ f | Apply f _ _ <- concatMap clTmUniv cls ]
+    )
+
+clTmUniv :: Clause a b -> [Term a b]
+clTmUniv = universeBi
+
+clTyUniv :: Clause a b -> [Type a b]
+clTyUniv = universeBi
+
+fmMod :: (a -> [Type a b] -> c)
+      -> (a -> [Type a b] -> [Term c b] -> Term c b)
+      -> Formula a b -> Formula c b
+fmMod f g = fmg
+  where
+    fmg fm0 = case fm0 of
+        TOp op tm1 tm2 -> TOp op (tmg tm1) (tmg tm2)
+        FOp op fm1 fm2 -> FOp op (fmg fm1) (fmg fm2)
+        Neg fm         -> Neg (fmg fm)
+        Q q b ty fm    -> Q q b (tyg ty) (fmg fm)
+        DataDecl ds fm ->
+            DataDecl
+                [ Data (f tc ts) []
+                    [ (f c ts,
+                        [ (f p ts,tyg t)
+                        | (p,t) <- args
+                        ])
+                    | (c,args) <- cons
+                    ]
+                | Data tc ts cons <- ds
+                ]
+                (fmg fm)
+
+    tmg tm0 = case tm0 of
+        Apply x ts tms -> g x ts (map tmg tms)
+        Var x          -> Var x
+        Lit i          -> Lit i
+
+    tyg = tyMod f
+
+tyMod :: (a -> [Type a b] -> c) -> Type a b -> Type c b
+tyMod f ty0 = case ty0 of
+    TyCon x ts -> TyCon (f x ts) []
+    TyVar x    -> TyVar x
+    TType      -> TType
+    Integer    -> Integer
+
+trimDataDecls :: forall a b . (Ord a,Ord b) => [Clause a b] -> [Clause a b]
+trimDataDecls cls
+    = Clause
+        { cl_name        = Nothing
+        , cl_ty_triggers = []
+        , cl_type        = Axiom
+        , ty_vars        = []
+        , cl_formula     = DataDecl ds' (Lit 1 === Lit 1)
+        }
+    : filter (not . ignore) cls'
+  where
+    (ds,cls') = partitionEithers (map inj cls)
+
+    inj (Clause _ _ _ _ (DataDecl d _)) = Left d
+    inj c                               = Right c
+
+    ds' = nubSortedOn (\ (Data tc ts _) -> (tc,ts)) (concat ds)
+
+    ignores :: Set a
+    ignores = S.fromList $ concat
+        [ tc : concat [ c : map fst args | (c,args) <- cons ]
+        | Data tc _ cons <- ds'
+        ]
+
+    ignore :: Clause a b -> Bool
+    ignore TypeSig{..} = sig_id `S.member` ignores
+    ignore SortSig{..} = sig_id `S.member` ignores
+    ignore _           = False
 
 {-
 

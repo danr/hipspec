@@ -12,13 +12,14 @@ import HipSpec.Property
 import HipSpec.Literal
 import HipSpec.Params
 
-import HipSpec.Lang.RichToSimple (Loc(..),Rename(..))
 import qualified HipSpec.Lang.Simple as S
-import HipSpec.Lang.Simple (Type,Typed(..))
+import HipSpec.Lang.Simple (Type)
 
 import HipSpec.Lang.PolyFOL hiding (Type(..),Term(..))
 import qualified HipSpec.Lang.PolyFOL as P
 import HipSpec.Lang.ToPolyFOL
+
+import HipSpec.Id
 
 import Induction.Structural hiding (Obligation)
 import qualified Induction.Structural as IS
@@ -29,15 +30,14 @@ import Data.Maybe (isJust)
 induction :: Params -> TyEnv' -> ArityMap -> Property eq -> [Int] -> Maybe [ProofObligation eq]
 induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = do
     -- Applying structural induction
-    let vars     = [ (v,t) | v ::: t <- prop_vars ]
-        obligs   = subtermInduction ty_env vars coords
+    let obligs   = subtermInduction ty_env prop_vars coords
         n_obligs = length obligs
 
     -- If induction on these variables with this depth gives too many
     -- obligations, then do not do this induction, return Nothing
     guard (n_obligs <= indobligs)
     guard $ all isJust
-        [ ty_env t | c <- coords, let (_,t) = vars !! c ]
+        [ ty_env t | c <- coords, let (_,t) = prop_vars !! c ]
 
     -- Some parts give very many hypotheses. If this is the case,
     -- we cruelly drop some of the first weak ones
@@ -45,8 +45,8 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
             { hypotheses = take indhyps (reverse $ hypotheses oblig) }
 
     -- Localise all names
-    let obligs' :: [IS.Obligation Con Name' (Type Name')]
-        obligs' = unTag (\ (v :~ i) -> New [LetLoc v] i) obligs
+    let obligs' :: [IS.Obligation Con Id (Type Id)]
+        obligs' = unTag (\ (v :~ i) -> mkLetFrom v i prop_id) obligs
 
     return
         [ Obligation
@@ -65,7 +65,7 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
         , let cls = tr_oblig (dropHyps oblig)
         ]
   where
-    tr_oblig :: IS.Obligation Con Name' (Type Name') -> [Clause LogicId]
+    tr_oblig :: IS.Obligation Con Id (Type Id) -> [Clause LogicId LogicId]
     tr_oblig (IS.Obligation skolems hyps concl) =
 
         -- Type signatures for skolemised variables
@@ -73,29 +73,29 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
         ++
 
         -- Hypotheses
-        [ Clause Nothing Axiom []
-            $ forAlls (tr_quant qs) (tr_pred (skolems ++ qs) p)
+        [ Clause Nothing [Source] Axiom []
+            $ forAlls (tr_quant qs) (tr_pred skolems qs p)
         | (qs,p) <- hyps
         ]
         ++
 
         -- Goal
-        [ Clause Nothing Goal [] (tr_pred skolems concl) ]
+        [ Clause Nothing [Source] Goal [] (tr_pred skolems [] concl) ]
 
-    tr_quant :: [(Name',Type Name')] -> [(LogicId,P.Type LogicId)]
+    tr_quant :: [(Id,Type Id)] -> [(LogicId,P.Type LogicId LogicId)]
     tr_quant qs = [ (Id x,trType t) | (x,t) <- qs ]
 
-    tr_pred :: [(Name',Type Name')] -> [Term Con Name'] -> Formula LogicId
-    tr_pred scope tms = tr_assums ===> tr_goal
+    tr_pred :: [(Id,Type Id)] -> [(Id,Type Id)] -> [Term Con Id] -> Formula LogicId LogicId
+    tr_pred skolems scope tms = tr_assums ===> tr_goal
       where
         -- Scope for trLiteral
         sc = map fst scope
 
         -- Lookup for trTerm
-        lkup :: Name' -> Typed Name'
-        lkup x = case lookup x scope of
-            Just t  -> x ::: t
-            Nothing -> error $ "HipSpec.Induction: Variable " ++ ppRename x ++ " lost!"
+        lkup :: Id -> (Id,Type Id)
+        lkup x = case lookup x (skolems ++ scope) of
+            Just t  -> (x,t)
+            Nothing -> error $ "HipSpec.Induction: Variable " ++ ppId x ++ " lost!"
 
         -- Translated goals to assumptions
         tr_goal:tr_assums = map (trLiteral am sc) (goal:assums)
@@ -107,14 +107,15 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
         -- | substitute the prop vars
         subst :: Literal -> Literal
         subst = mapLiteral $ S.substMany
-            [ (v,trTerm lkup t) | v <- prop_vars | t <- tms ]
+            [ (v,trTerm lkup t) | (v,_) <- prop_vars | t <- tms ]
 
-trTerm :: (Name' -> Typed Name') -> Term Con Name' -> S.Expr (Typed Name')
+trTerm :: (Id -> (Id,Type Id)) -> Term Con Id -> S.Expr Id
 trTerm lkup = go
   where
-    go :: Term Con Name' -> S.Expr (Typed Name')
+    go :: Term Con Id -> S.Expr Id
     go tm = case tm of
-        IS.Var x          -> S.Var (lkup x) []
-        IS.Con (c,ts) tms -> S.apply (S.Var c (map S.star ts)) (map go tms)
-        IS.Fun f      tms -> S.apply (S.Var (lkup f) []) (map go tms)
+        IS.Var x            -> uncurry S.Lcl (lkup x)
+        IS.Con (c,t,ts) tms -> S.apply (S.Gbl c t ts) (map go tms)
+        IS.Fun f        tms -> S.apply (uncurry S.Lcl (lkup f)) (map go tms)
+                                    {- locally quantified functions -}
 

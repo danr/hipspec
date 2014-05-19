@@ -1,139 +1,134 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards,OverloadedStrings #-}
 module HipSpec.Pretty where
 
 import Text.PrettyPrint
-import HipSpec.Lang.PrettyAltErgo
-
-import HipSpec.Utils.ZEncode
+import qualified HipSpec.Lang.PrettyAltErgo as AltErgo
+import qualified HipSpec.Lang.PrettyTFF as TFF
+import qualified HipSpec.Lang.PrettySMT as SMT
 
 import HipSpec.Lang.Renamer
 
+import HipSpec.Lang.Monomorphise
+
+import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
-import qualified HipSpec.Lang.PrettyUtils as P
+import HipSpec.Lang.PrettyUtils (Types(..),PP(..))
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
+import qualified HipSpec.Lang.PolyFOL as P
 
-import HipSpec.Lang.RichToSimple (Rename(..),Loc(..))
-import HipSpec.Lang.Type (Typed(..))
+import qualified Data.Map as M
+import Data.Maybe
 
-import Data.List (intercalate)
+import HipSpec.Id
 
-import HipSpec.GHC.Utils
+import Data.Char
 
-import BasicTypes (TupleSort(..))
-import Name
-import PrelNames
+type LogicId = Poly Id
 
-type Name' = Rename Name
+docId :: Id -> Doc
+docId = text . ppId
 
-type TypedName' = Typed Name'
+showSimp :: S.Function Id -> String
+showSimp = render . R.ppFun Show docId . S.injectFn
 
-type LogicId = Poly Name'
+showRich :: R.Function Id -> String
+showRich = render . R.ppFun Show docId
 
-simpKit :: P.Kit TypedName'
-simpKit = let k = text . ppRename . S.forget_type in (k,k)
+showExpr :: S.Expr Id -> String
+showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr
 
-typeKit :: P.Kit TypedName'
-typeKit = let k = parens . R.ppTyped (text . ppRename) in (k,k)
+showBody :: S.Body Id -> String
+showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
 
-showSimp :: S.Function TypedName' -> String
-showSimp = render . R.ppFun simpKit . S.injectFn
+showType :: S.Type Id -> String
+showType = render . R.ppType 0 docId
 
-showExpr :: S.Expr TypedName' -> String
-showExpr = render . R.ppExpr 0 simpKit . S.injectExpr
+showPolyType :: S.PolyType Id -> String
+showPolyType = render . R.ppPolyType docId
 
-showTypedExpr :: S.Expr TypedName' -> String
-showTypedExpr = render . R.ppExpr 0 typeKit . S.injectExpr
-
-showBody :: S.Body TypedName' -> String
-showBody = render . R.ppExpr 0 simpKit . S.injectBody
-
-showType :: S.Type Name' -> String
-showType = render . R.ppType 0 (text . ppRename)
-
-showTyped :: Typed Name' -> String
-showTyped = render . R.ppTyped (text . ppRename)
+showTyped :: (Id,S.Type Id) -> String
+showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 docId t))
 
 -- | Printing names
 polyname :: LogicId -> String
 polyname x0 = case x0 of
-    Id x     -> ppRename x
-    Ptr x    -> ppRename x ++ "_ptr"
+    Id x     -> ppId x
+    Ptr x    -> ppId x ++ "_ptr"
     App      -> "app"
     TyFn     -> "Fn"
-    Proj x i -> "proj_" ++ show i ++ "_" ++ ppRename x
+    Proj x i -> "proj_" ++ ppId x ++ "_" ++ show i
     QVar i   -> 'x':show i
 
-ppName :: Name -> String
-ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
-    | k == listTyConKey      = "List"
-    | k == listTyConKey      = "List"
-    | k == nilDataConKey     = "Nil"
-    | k == consDataConKey    = "Cons"
-    | k == unitTyConKey      = "UnitTyCon"
-    | k == genUnitDataConKey = "Unit"
-    | Just (ns, ts, n) <- isTupleOcc_maybe (getOccName nm) = name_tuple ns ts n
-    | otherwise = case getOccString nm of
-        "+"   -> "plus"
-        "-"   -> "minus"
-        "/"   -> "div"
-        "*"   -> "mult"
-        "^"   -> "pow"
-        "++"  -> "append"
-        ">>=" -> "bind"
-        "=<<" -> "dnib"
-        ">=>" -> "dot_monadic"
-        "<=<" -> "monadic_dot"
-        "<*>" -> "ap"
-        "<$>" -> "fmap"
-        ">>"  -> "then"
-        "||"  -> "or"
-        "&&"  -> "and"
-        "."   -> "dot"
-        "=="  -> "equal"
-        "/="  -> "unequal"
-        ">"   -> "gt"
-        ">="  -> "ge"
-        "<"   -> "lt"
-        "<="  -> "le"
-        "$"   -> "apply"
-        "!!"  -> "index"
-        "\\\\" -> "difference"
-        s     -> s
+mononame :: IdInst LogicId LogicId -> String
+mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
   where
-    k = getUnique nm
+    {-
+    ty (P.TyCon TyFn [u,v]) = "q" ++ ty u ++ "_" ++ ty v ++ "p"
+    ty (P.TyCon i []) = polyname i
+    ty (P.TyCon i is) = "q" ++ polyname i ++ concatMap (\ u -> '_':ty u) is ++ "p"
+    -}
+    ty (P.TyCon i is) = polyname i ++ concatMap (\ u -> '_':ty u) is
+    ty (P.TyVar i)    = polyname i
+    ty P.Integer      = "int"
+    ty P.TType        = "type"
 
-    name_tuple ns ts n = pre ++ mid ++ show n
-      where
-        pre | ns == tcName   = "T"
-            | ns == dataName = "t"
-            | otherwise      = portableShowSDoc (pprNameSpace ns)
+render' :: Doc -> String
+render' = renderStyle style { lineLength = 150 }
 
-        mid = case ts of
-            BoxedTuple   -> ""
-            UnboxedTuple -> "u"
-            _            -> "unknown_tuple"
+renameCls :: (Ord a,Ord b) => [String] -> (a -> String) -> (b -> String) -> [Clause a b] -> [Clause String String]
+renameCls kwds f g = runRenameM (disambig2 f g) kwds . mapM renameBi2
 
-ppRename :: Name' -> String
-ppRename (Old nm)    = ppName nm
-ppRename (New [LamLoc] _) = "eta"
-ppRename (New [] _)       = "x"
-ppRename (New ls _x) = intercalate "_" (map loc ls)
+prettyCls :: (Ord a,Ord b) => (PP String String -> Clause String String -> Doc) -> [String]
+             -> (a -> String) -> (b -> String)
+             -> [Clause a b] -> String
+prettyCls pp kwds f g = render' . vcat . map (pp ppText) . renameCls kwds f g
+
+prettyTPTP :: (Show a,Ord a,Ord b) => (a -> String) -> (b -> String) -> [Clause a b] -> String
+prettyTPTP symb var = prettyCls TFF.ppClause tptpKeywords symb' var'
   where
-    loc :: Loc Name' -> String
-    loc lc = case lc of
-        CaseLoc   -> "case"
-        LamLoc    -> "lambda"
-        LetLoc nm -> ppRename nm
+    -- TPTP: A-Za-Z0-9_ are allowed,
+    -- but initial has to be A-Z_ for variables, and a-z0-9 for symbols
+    -- (General strings could be allowed for symbols, enclosed in '')
+    var' x = case escape (var x) of
+        u:us | isLower u -> toUpper u:us
+             | isDigit u -> 'X':u:us
+             | otherwise -> u:us
+        []               -> "X"
 
-ppAltErgo :: [Clause LogicId] -> String
-ppAltErgo
-    = render . vcat . map (ppClause text) . renameCls
+    symb' x = case dropWhile (== '_') (escape (symb x)) of
+        u:us | isUpper u -> toLower u:us
+             | otherwise -> u:us
+        []               -> "a"
 
-renameCls :: [Clause LogicId] -> [Clause String]
-renameCls = runRenameM (zencode . polyname) altErgoKeywords . mapM rename
+ppText :: PP String String
+ppText = PP text text
+
+ppTHF :: [Clause LogicId LogicId] -> String
+ppTHF = prettyTPTP polyname polyname
+
+ppTFF :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppTFF = prettyTPTP mononame polyname
+
+ppAltErgo :: [Clause LogicId LogicId] -> String
+ppAltErgo = prettyCls AltErgo.ppClause altErgoKeywords (escape . polyname) (escape . polyname)
+
+ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppMonoAltErgo = prettyCls AltErgo.ppClause altErgoKeywords (escape . mononame) (escape . polyname)
+
+ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> String
+ppSMT = (++ "\n(check-sat)\n") . prettyCls SMT.ppClause smtKeywords (escape . mononame) (escape . polyname)
+
+tptpKeywords :: [String]
+tptpKeywords = smtKeywords
+
+smtKeywords :: [String]
+smtKeywords = altErgoKeywords ++
+    [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
+    , "assert", "check-sat"
+    ]
 
 altErgoKeywords :: [String]
 altErgoKeywords =
@@ -172,3 +167,47 @@ altErgoKeywords =
     , "with"
     ]
 
+escape :: String -> String
+escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
+  where
+    escapes = M.fromList
+        [ (from,'_':to++"_")
+        | (from,to) <-
+            [ ('(',"rpar")
+            , (')',"lpar")
+            , (':',"cons")
+            , ('[',"rbrack")
+            , (']',"lbrack")
+            , (',',"comma")
+
+            , ('}',"rbrace")
+            , ('{',"lbrace")
+
+            , ('\'',"prime")
+            , ('@',"at")
+            , ('!',"bang")
+            , ('%',"percent")
+            , ('$',"dollar")
+            , ('=',"equal")
+            , (' ',"space")
+            , ('>',"gt")
+            , ('#',"hash")
+            , ('|',"pipe")
+            , ('^',"hat")
+            , ('-',"dash")
+            , ('&',"and")
+            , ('.',"dot")
+            , ('+',"plus")
+            , ('?',"qmark")
+            , ('*',"star")
+            , ('~',"twiggle")
+            , ('/',"slash")
+            , ('\\',"bslash")
+            , ('<',"lt")
+            ]
+        ]
+
+    leading :: String -> String
+    leading xs@(x:_) | isDigit x = '_':xs
+                     | otherwise = xs
+    leading []                   = "_"

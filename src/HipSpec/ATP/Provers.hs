@@ -8,15 +8,18 @@ import Data.Data
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo
+data ProverName = AltErgo | MonoAltErgo | Vampire | Z3
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
-defaultProverNames = [AltErgo]
+defaultProverNames = [Z3]
 
 proverFromName :: ProverName -> Prover
 proverFromName p = case p of
-    AltErgo -> altErgo
+    AltErgo     -> altErgo
+    MonoAltErgo -> monoAltErgo
+    Vampire     -> vampire
+    Z3          -> z3
 
 proversFromNames :: [ProverName] -> [Prover]
 proversFromNames = map proverFromName
@@ -47,12 +50,15 @@ data Prover = Prover
     }
 
 -- | Input formats
-data InputFormat = AltErgoFmt
+data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT
   deriving (Eq,Ord,Show)
 
 extension :: InputFormat -> String
 extension fmt = case fmt of
-    AltErgoFmt -> "mlw"
+    AltErgoFmt     -> "mlw"
+    AltErgoMonoFmt -> "mlw"
+    MonoTFF        -> "tff"
+    SMT            -> "smt"
 
 altErgo :: Prover
 altErgo = Prover
@@ -67,6 +73,45 @@ altErgo = Prover
     , prover_parse_lemmas   = Nothing
     , prover_input_format   = AltErgoFmt
     }
+
+monoAltErgo :: Prover
+monoAltErgo = altErgo
+    { prover_input_format = AltErgoMonoFmt
+    , prover_name         = MonoAltErgo
+    }
+
+vampire :: Prover
+vampire = Prover
+    { prover_cmd            = "vampire_rel"
+    , prover_desc           = "Vampire"
+    , prover_name           = Vampire
+    , prover_cannot_stdin   = True
+    , prover_args           = \ f t -> [f,"-t",showCeil t,"-mode","casc"]
+    , prover_process_output = searchOutput
+        [("Unsatisfiable",proven),("Theorem",proven)
+        ,("Timeout",failure),("Satisfiable",failure)
+        ]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_input_format   = MonoTFF
+    }
+
+z3 :: Prover
+z3 = Prover
+    { prover_cmd            = "z3"
+    , prover_desc           = "Z3"
+    , prover_name           = Z3
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f _t -> ["-smt2","-nw","/dev/stdin"]
+    , prover_process_output = searchOutput
+        [("unsat",proven)
+--        ,("sat",failure)
+        ]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_input_format   = SMT
+    }
+
 
 proven,failure :: Maybe Bool
 proven  = Just True

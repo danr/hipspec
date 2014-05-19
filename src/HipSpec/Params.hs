@@ -31,7 +31,8 @@ import Control.Monad(when)
 data DebugFlag
     = PrintParams
     | PrintCore
---    | PrintRich
+    | PrintRich
+    | PrintOptRich
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
@@ -42,6 +43,7 @@ data DebugFlag
     | PrintAutoSig
     | DebugAutoSig
     | DebugStrConv
+    | DebugMono
     | PrintEqClasses
     | TranslateOnly
     | QuickSpecOnly
@@ -56,7 +58,8 @@ debugDesc :: DebugFlag -> String
 debugDesc flg = case flg of
     PrintParams      -> "Print the passed parameters"
     PrintCore        -> "Print GHC Core"
---    PrintRich        -> "Print Rich IR"
+    PrintRich        -> "Print Rich IR"
+    PrintOptRich     -> "Print Optimised Rich IR"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"
@@ -67,6 +70,7 @@ debugDesc flg = case flg of
     PrintAutoSig     -> "Print generated signature"
     DebugAutoSig     -> "Print information about generated signature"
     DebugStrConv     -> "Print string conversions in signature"
+    DebugMono        -> "Print monomorphisation debugging"
     PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
     TranslateOnly    -> "Stop after translating"
     QuickSpecOnly    -> "Stop after QuickSpec"
@@ -98,9 +102,11 @@ data Params = Params
     , reverse_video       :: Bool
     , no_colour           :: Bool
     , z_encode_filenames  :: Bool
+    , tr_mod              :: Bool
 #ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
 #endif
+    , isabelle_mode       :: Bool
 
     , processes           :: Int
     , timeout             :: Double
@@ -108,16 +114,20 @@ data Params = Params
     , isolate             :: Bool
     , only_user_stated    :: Bool
     , only                :: [String]
-    , tr_mod              :: Bool
+    , add_stupid_lemmas   :: Bool
     , success             :: SuccessOpt
-
     , techniques          :: [Technique]
-
     , provers             :: [ProverName]
 
     , interesting_cands   :: Bool
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
+    , swap_repr           :: Bool
+    , quadratic           :: Bool
+    , prepend_pruned      :: Bool
+    , assoc_important     :: Bool
+    , call_graph          :: Bool
+
     , auto                :: Bool
     , extra_trans         :: [String]
     , extra               :: [String]
@@ -126,17 +136,11 @@ data Params = Params
     , tests               :: Int
     , size                :: Int
 
-    , swap_repr           :: Bool
-    , quadratic           :: Bool
-    , prepend_pruned      :: Bool
-    , assoc_important     :: Bool
-    , call_graph          :: Bool
 
     , inddepth            :: Int
     , indvars             :: Int
     , indhyps             :: Int
     , indobligs           :: Int
-
 
     , debug_flags         :: [DebugFlag]
     }
@@ -151,10 +155,19 @@ data Params = Params
 -- Previously: We cannot have --smt-data-types when using --bottoms.
 sanitizeParams :: Params -> Params
 sanitizeParams
-    = fix_stdin
+    = fix_isabelle_mode
+    . fix_stdin
     . fix_empty_provers
     . fix_empty_techniques {- . fix_smt_data_types -}
   where
+    fix_isabelle_mode params
+        | isabelle_mode params = params
+            { debug_flags    = QuickSpecOnly : debug_flags params
+            , explore_theory = True
+            , verbosity      = 0
+            , auto           = True
+            }
+        | otherwise = params
     fix_stdin params
         | any prover_cannot_stdin provers' = params
             { output = if isNothing (output params)
@@ -193,8 +206,10 @@ defParams = Params
 #ifdef SUPPORT_JSON
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
+    , isabelle_mode       = False                &= help "Isabelle mode"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
+    , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
     , auto                = False   &= groupname "\nSignature generation settings"
@@ -249,7 +264,7 @@ defParams = Params
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]
          &= groupname "\nDebugging"
     }
-    &= summary ("\n" ++ logo ++ "\n            hipspec v3.0 by Dan Rosén, danr@chalmers.se")
+    &= summary ("\n" ++ logo ++ "\n            hipspec v3.1 by Dan Rosén, danr@chalmers.se")
     &= program "hipspec"
 
 enumerate :: (Show val,Data val) => [(val,String)] -> [val]

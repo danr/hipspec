@@ -5,8 +5,10 @@ import HipSpec
 import Nat
 import Test.QuickSpec.Signature
 
+{-
 prop_T14 :: [Nat] -> Prop Bool
 prop_T14 x = proveBool (sorted (isort x))
+-}
 
 (<=) :: Nat -> Nat -> Bool
 Z   <= _   = True
@@ -31,6 +33,25 @@ sorted :: [Nat] -> Bool
 sorted (x:y:xs) = x <= y && sorted (y:xs)
 sorted _        = True
 
+iff :: Bool -> [Nat] -> [Nat] -> [Nat]
+iff True  xs _ = xs
+iff False _ ys = ys
+
+
+prop1 x xs = sorted (iff (sorted xs) (insert x xs) []) =:= True
+prop2 x xs = sorted (insert x (iff (sorted xs) xs [])) =:= True
+prop3 x xs = sorted (insert x xs) =:= sorted xs
+prop4 x xs = sorted (isort xs) =:= True
+
+--prop_length_insert x xs = length (insert x xs) =:= S (length xs)
+--prop_length_isort  xs = length (isort xs) =:= length xs
+
+
+length :: [Nat] -> Nat
+length []     = Z
+length (_:xs) = S (length xs)
+
+{-
 -- Koen Style:
 whenSorted :: [Nat] -> [Nat]
 whenSorted xs = if sorted xs then xs else []
@@ -58,3 +79,4 @@ sig =
     , withQuickCheckSize 20
     , withSize 1000
     ]
+    -}

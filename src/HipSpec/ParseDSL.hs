@@ -1,47 +1,66 @@
 -- | A hacky way of parsing the property language DSL
 module HipSpec.ParseDSL where
 
-import Var
-import Type
+--import Type
+--import Outputable
+--
+import Var hiding (Id)
 import HipSpec.GHC.Utils
 import Data.List
-import Outputable
+import HipSpec.Id
+import HipSpec.Lang.Type
+import qualified HipSpec.Lang.CoreToRich as CTR
+import TyCon (TyCon)
 
-varWithPropType   :: Var -> Bool
-varWithPropType x = typeIsProp (varType x) && not (fromPrelude x)
+varWithPropType :: Var -> Bool
+varWithPropType x = case CTR.trPolyType (varType x) of
+    Right (Forall _ t) -> isPropType t
+    _                  -> False
 
-propType :: Type -> Bool
-propType ty = typeIsProp res && not (any typeIsProp args)
+varFromPrelude :: Var -> Bool
+varFromPrelude = isInfixOf "HipSpec" . showOutputable . varName
+
+isPropTyCon :: TyCon -> Bool
+isPropTyCon = isPropId . idFromTyCon
+
+ghcName :: (String -> Bool) -> Id -> Bool
+ghcName k (GHCOrigin n) = k (showOutputable n)
+ghcName _ _             = False
+
+isPropId :: Id -> Bool
+isPropId = ghcName (isInfixOf "HipSpec.Prop")
+
+isPropType  :: Type Id -> Bool
+isPropType t =
+    case res of
+        TyCon p as -> isPropId p && not (any isPropType as)
+        _          -> False
   where
-    (_tvs,ty') = splitForAllTys ty
-    (args,res) = splitFunTys ty'
+    (_args,res) = collectArrTy t
 
-typeIsProp  :: Outputable a => a -> Bool
-typeIsProp  = isInfixOf "HipSpec.Prop" . showOutputable
+fromPrelude :: Id -> Bool
+fromPrelude = ghcName (isInfixOf "HipSpec")
 
-fromPrelude :: Outputable a => a -> Bool
-fromPrelude = isInfixOf "HipSpec" . showOutputable
+isMain      :: Id -> Bool
+isMain      = ghcName (isInfixOf "main")
 
-isMain      :: Outputable a => a -> Bool
-isMain      = isInfixOf "main" . showOutputable
+isEquals    :: Id -> Bool
+isEquals    = ghcName (isInfixOfs [":=:","=:="])
 
-isEquals    :: Outputable a => a -> Bool
-isEquals    = isInfixOfs [":=:","=:="] . showOutputable
+isGiven     :: Id -> Bool
+isGiven     = ghcName (isInfixOfs ["Given","given","==>"])
 
-isGiven     :: Outputable a => a -> Bool
-isGiven     = isInfixOfs ["Given","given","==>"] . showOutputable
+isTotal     :: Id -> Bool
+isTotal     = ghcName (isInfixOfs ["Total","total"])
 
-isTotal     :: Outputable a => a -> Bool
-isTotal     = isInfixOfs ["Total","total"] . showOutputable
+isGivenBool :: Id -> Bool
+isGivenBool = ghcName (isInfixOf "givenBool")
 
-isGivenBool :: Outputable a => a -> Bool
-isGivenBool = isInfixOf "givenBool" . showOutputable
+isProveBool :: Id -> Bool
+isProveBool = ghcName (isInfixOf "proveBool")
 
-isProveBool :: Outputable a => a -> Bool
-isProveBool = isInfixOf "proveBool" . showOutputable
-
-isOops      :: Outputable a => a -> Bool
-isOops      = isInfixOfs ["Oops","oops"] . showOutputable
+isOops      :: Id -> Bool
+isOops      = ghcName (isInfixOfs ["Oops","oops"])
 
 isInfixOfs :: [String] -> String -> Bool
 isInfixOfs ss s = any (`isInfixOf` s) ss

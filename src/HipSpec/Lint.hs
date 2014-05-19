@@ -2,9 +2,8 @@ module HipSpec.Lint where
 
 import Text.PrettyPrint
 
-import HipSpec.Lang.LintRich
+import HipSpec.Lang.LintRich as R
 import HipSpec.Lang.Simple as S
-import HipSpec.Pretty
 
 import HipSpec.GHC.Utils
 
@@ -12,17 +11,19 @@ import CoreSyn
 import CoreLint
 import SrcLoc
 
+import HipSpec.Id
+
 coreExprLint :: CoreExpr -> Maybe String
 coreExprLint = fmap portableShowSDoc . lintUnfolding noSrcLoc []
 
-lintRich :: Ord v => (v -> String) -> [Typed v] -> LintM v a -> Maybe String
-lintRich p sc m = case lintWithScope sc m of
+lintRich :: Ord v => (v -> String) -> [(v,Type v)] -> LintM v a -> Maybe String
+lintRich p sc m = case lintWithScope sc (text . p) m of
     []   -> Nothing
-    errs -> Just (render . vcat . map (ppErr (text . p)) $ errs)
+    errs -> Just (render . vcat $ errs)
 
-lintSimple :: [S.Function TypedName'] -> Maybe String
-lintSimple = lintRich ppRename [] . lintFns . map injectFn
+lintSimple :: [S.Function Id] -> Maybe String
+lintSimple = lintRich ppId [] . lintFns . map injectFn
 
-lintSimpleExpr :: [TypedName'] -> S.Expr TypedName' -> Maybe String
-lintSimpleExpr sc = lintRich ppRename sc . lintExpr . injectExpr
+lintSimpleExpr :: [(Id,Type Id)] -> S.Expr Id -> Maybe String
+lintSimpleExpr sc = lintRich ppId sc . R.lintExpr . injectExpr
 

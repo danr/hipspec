@@ -1,6 +1,6 @@
 -- | Gets the GHC Core information we need, also obtains or creates the
 --   QuickSpec signature
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, CPP #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
 import Test.QuickSpec.Signature (Sig)
@@ -22,7 +22,10 @@ import DynFlags
 import GHC hiding (Sig)
 import GHC.Paths
 import HscTypes
+#if __GLASGOW_HASKELL__ < 708
 import StaticFlags
+#endif
+
 import System.FilePath
 
 import Var
@@ -59,7 +62,9 @@ execute :: Params  -> IO EntryResult
 execute params@Params{..} = do
 
     -- Use -threaded
+#if __GLASGOW_HASKELL__ < 708
     addWay WayThreaded
+#endif
 
     -- Notify where ghc is installed
     runGhc (Just libdir) $ do
@@ -67,13 +72,23 @@ execute params@Params{..} = do
         -- Set interpreted so we can get the signature,
         -- and expose all unfoldings
         dflags0 <- getSessionDynFlags
-        let dflags = dflags0 { ghcMode = CompManager
+        let dflags =
+#if __GLASGOW_HASKELL__ >= 708
+                addWay' WayThreaded
+#endif
+                    (dflags0 { ghcMode = CompManager
                              , optLevel = 1
                              , profAuto = NoProfAuto
                              }
-                `dopt_unset` Opt_IgnoreInterfacePragmas
-                `dopt_unset` Opt_OmitInterfacePragmas
-                `dopt_set` Opt_ExposeAllUnfoldings
+#if __GLASGOW_HASKELL__ >= 708
+                        `gopt_unset` Opt_IgnoreInterfacePragmas
+                        `gopt_unset` Opt_OmitInterfacePragmas
+                        `gopt_set` Opt_ExposeAllUnfoldings)
+#else
+                        `dopt_unset` Opt_IgnoreInterfacePragmas
+                        `dopt_unset` Opt_OmitInterfacePragmas
+                        `dopt_set` Opt_ExposeAllUnfoldings)
+#endif
         _ <- setSessionDynFlags dflags
 
             -- add .hs if it is not present (apparently not supporting lhs)
@@ -99,6 +114,8 @@ execute params@Params{..} = do
             fix_id :: Id -> Id
             fix_id = fixId binds
 
+        whenFlag params PrintCore (liftIO (putStrLn (showOutputable binds)))
+
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
@@ -121,6 +138,7 @@ execute params@Params{..} = do
                 [ i
                 | i <- ids_in_scope
                 , varWithPropType i
+                , not (varFromPrelude i)
                 , null only || varToString i `elem` only'
                 ]
 
@@ -148,6 +166,7 @@ execute params@Params{..} = do
         let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
                          | otherwise = []
 
+        whenFlag params PrintCore (liftIO (putStrLn (showOutputable toplvl_binds)))
 
         -- Wrapping up
         return EntryResult

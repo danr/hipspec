@@ -14,6 +14,17 @@ import HipSpec.Lemma
 import HipSpec.Trim
 import HipSpec.Utils
 
+import HipSpec.Lang.Monomorphise
+import HipSpec.Lang.PolyFOL (trimDataDecls)
+
+import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
+import HipSpec.Lang.PrettyUtils (PP(..))
+import Text.PrettyPrint (vcat,text)
+
+import Data.Traversable (traverse)
+
+-- import Text.Show.Pretty (ppShow)
+
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
@@ -41,7 +52,7 @@ tryProve prop lemmas0 = do
             lemmas
                 = filter isolation
                 . map thm_prop
-                . filter (not . definitionalTheorem)
+                . filter (\ x -> not (definitionalTheorem x) || add_stupid_lemmas)
                 $ lemmas0
 
             enum_lemmas = zip [0..] lemmas
@@ -50,9 +61,22 @@ tryProve prop lemmas0 = do
 
             proof_tree = requireAny (map (requireAll . map Leaf) obligss)
 
-            linTheory :: Theory -> LinTheory
-            linTheory sthys = LinTheory $ \ t -> case t of
-                AltErgoFmt -> ppAltErgo (sortClauses (concatMap clauses sthys))
+            linTheory :: Theory -> HS LinTheory
+            linTheory sthys = do
+                let cls               = sortClauses False (concatMap clauses sthys)
+                let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
+                let pp = PP (text . polyname) (text . polyname)
+                debugWhen DebugMono $
+                    "\nMonomorphising:\n" ++ ppTHF cls ++
+                    "\n\nResult:\n" ++ ppTFF mcls ++
+                    "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
+                    "\n\nRecords:\n" ++ render' (ppRecords pp recs)
+                return $ LinTheory $ \ t -> case t of
+                    AltErgoFmt     -> ppAltErgo (sortClauses False cls)
+                    AltErgoMonoFmt -> ppMonoAltErgo mcls
+                    MonoTFF        -> ppTFF mcls
+                    SMT            -> ppSMT (sortClauses True (trimDataDecls mcls))
+
 
             calc_dependencies :: Subtheory -> [Content]
             calc_dependencies s = concatMap dependencies (s:lemma_theories)
@@ -60,14 +84,14 @@ tryProve prop lemmas0 = do
             fetcher :: [Content] -> [Subtheory]
             fetcher = trim (theory ++ lemma_theories)
 
-            fetch_and_linearise :: Subtheory -> LinTheory
+            fetch_and_linearise :: Subtheory -> HS LinTheory
             fetch_and_linearise conj = linTheory $
                 conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-            proof_tree_lin :: Tree (Obligation eq LinTheory)
-            proof_tree_lin = fmap (fmap fetch_and_linearise) proof_tree
+        proof_tree_lin :: Tree (Obligation eq LinTheory) <-
+            traverse (traverse fetch_and_linearise) proof_tree
 
-            invoke_env = InvokeEnv
+        let invoke_env = InvokeEnv
                 { timeout         = timeout
                 , store           = output
                 , provers         = proversFromNames provers

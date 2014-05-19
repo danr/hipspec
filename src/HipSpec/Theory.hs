@@ -3,6 +3,7 @@ module HipSpec.Theory
     ( module HipSpec.Pretty
     , ArityMap
     , combineArityMap
+    , emptyArityMap
     , Content(..)
     , Theory
     , Subtheory(..)
@@ -15,11 +16,12 @@ module HipSpec.Theory
 
 import HipSpec.Pretty
 
-import HipSpec.Lang.RichToSimple (Rename(..))
+import HipSpec.Id
+
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 
-import Name
+-- import Name
 
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -30,18 +32,21 @@ import qualified Data.Map as M
 import Data.List (sortBy)
 import Data.Ord (comparing)
 
-type ArityMap = Map (Rename Name) Int
+type ArityMap = Map Id Int
 
 combineArityMap :: ArityMap -> ArityMap -> ArityMap
 combineArityMap = M.union
 
+emptyArityMap :: ArityMap
+emptyArityMap = M.empty
+
 data Content
-    = Definition (Rename Name)
+    = Definition Id
     -- ^ Function definition, or a constructor,
     --   with no clauses and only depends on its parent data type
-    | Type Name
+    | Type Id
     -- ^ Axioms for a type
-    | Pointer (Rename Name)
+    | Pointer Id
     -- ^ Pointer to some defined name
     | Lemma Int
     -- ^ A lemma
@@ -53,9 +58,9 @@ data Content
 
 instance Show Content where
     show ctnt = case ctnt of
-        Definition rn -> "Definition " ++ ppRename rn
-        Type nm       -> "Type " ++ ppName nm
-        Pointer rn    -> "Pointer " ++ ppRename rn
+        Definition rn -> "Definition " ++ ppId rn
+        Type nm       -> "Type " ++ ppId nm
+        Pointer rn    -> "Pointer " ++ ppId rn
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
         AppThy        -> "AppThy"
@@ -64,7 +69,7 @@ type Theory = [Subtheory]
 
 data Subtheory = Subtheory
     { defines :: Content
-    , clauses :: [Clause LogicId]
+    , clauses :: [Clause LogicId LogicId]
     , deps    :: Set Content
     }
 
@@ -97,7 +102,7 @@ calcDepsIgnoring ctnt s = s
   where
     (S.toList -> ty_cons,S.toList -> fns) = clsDeps (clauses s)
 
-    types = S.fromList [ Type x | Id (Old x) <- ty_cons ]
+    types = S.fromList [ Type x | Id x@GHCOrigin{} <- ty_cons ]
 
     app = S.fromList $ [ AppThy | TyFn <- ty_cons ] ++ [ AppThy | App <- fns ]
 
@@ -108,12 +113,14 @@ calcDepsIgnoring ctnt s = s
 
 -- | Sort clauses: first sort signatures, then type signatures, then axioms and
 --   at last the goal.
-sortClauses :: forall a . [Clause a] -> [Clause a]
-sortClauses = sortBy (comparing rank)
+sortClauses :: forall a b . Bool -> [Clause a b] -> [Clause a b]
+sortClauses push_data_types = sortBy (comparing rank)
   where
-    rank :: Clause a -> Int
-    rank SortSig{}                        = 0
-    rank TypeSig{}                        = 1
-    rank cl@Clause{} | Goal <- cl_type cl = 3
-    rank _                                = 2
+    rank :: Clause a b -> Int
+    rank SortSig{}                                 = 0
+    rank TypeSig{}                                 = 2
+    rank cl@Clause{} | DataDecl{} <- cl_formula cl = if push_data_types then 1 else 3
+    rank cl@Clause{} | Goal <- cl_type cl          = 4
+    rank Clause{}                                  = 3
+    rank Comment{}                                 = 3
 

@@ -51,8 +51,10 @@ The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 ## Installation instructions
 
-HipSpec is only maintained for GHC 7.4.1 and GHC 7.6.3. Patches for other
-versions are more than welcome.
+HipSpec is only maintained for GHC 7.4.1, 7.6.3 and 7.8.1. To install on 7.8.1,
+use the option `-f-unification`, since the package `unification-fd` does not
+build on 7.8.1. This makes HipSpec slightly worse on handling polymorphic
+properties.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:

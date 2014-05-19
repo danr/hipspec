@@ -5,12 +5,16 @@ import Test.QuickSpec.Term (Symbol)
 import qualified Test.QuickSpec.Term as QS
 import qualified Test.QuickSpec.Equation as QS
 
+import Data.Bifunctor
+
 import qualified HipSpec.Lang.Type as T
 
 import HipSpec.Sig.Symbols
 import HipSpec.Lang.PolyFOL
 import HipSpec.Lang.ToPolyFOL
 import HipSpec.Theory
+
+import HipSpec.Id
 
 import qualified HipSpec.Utils.PopMap as PM
 import HipSpec.Utils.PopMap (PopMap)
@@ -23,9 +27,9 @@ import Data.List (permutations)
 
 type Id'      = Either Symbol LogicId
 
-type VarMap   = PopMap (Type Id') Symbol
+type VarMap   = PopMap (Type Id' Id') Symbol
 
-type ConMap = Map (Name',[Type Id']) Symbol
+type ConMap = Map (Id,[Type Id' Id']) Symbol
 
 definitions :: Theory -> SymbolMap -> [QS.Equation]
 definitions thy SymbolMap{..} = catMaybes
@@ -37,20 +41,20 @@ definitions thy SymbolMap{..} = catMaybes
     -- permutations in case quantifiers have become shuffled around
     ]
   where
-    con_clauses :: Map Name' [Clause Id']
+    con_clauses :: Map Id [Clause Id' Id']
     con_clauses = M.fromList
-        [ (n,map (fmap Right) cls)
+        [ (n,map (bimap Right Right) cls)
         | Subtheory (Definition n) cls _ <- thy
         ]
 
-    var_mapping' :: Map Symbol (Type Id')
+    var_mapping' :: Map Symbol (Type Id' Id')
     var_mapping' = M.map k var_mapping
       where
-        k :: T.Typed Name' -> Type Id'
-        k (_ T.::: t) = tr_type t
+        k :: (Id,T.Type Id) -> Type Id' Id'
+        k (_,t) = tr_type t
 
-    tr_type :: T.Type Name' -> Type Id'
-    tr_type = fmap Right . trType
+    tr_type :: T.Type Id -> Type Id' Id'
+    tr_type = bimap Right Right . trType
 
     var_map :: VarMap
     var_map = PM.reverseMap var_mapping'
@@ -58,17 +62,17 @@ definitions thy SymbolMap{..} = catMaybes
     con_map :: ConMap
     con_map = M.fromList
         [ ((c,map tr_type ts),s)
-        | (s,(c T.::: _,ts)) <- M.toList con_mapping
+        | (s,(c,_,ts)) <- M.toList con_mapping
         ]
 
 
-trClause :: ConMap -> VarMap -> [Type Id'] -> Clause Id' -> Maybe QS.Equation
+trClause :: ConMap -> VarMap -> [Type Id' Id'] -> Clause Id' Id' -> Maybe QS.Equation
 trClause cm pm tys cl = case cl of
-    Clause _ Axiom tvs phi | equalLength tys tvs
+    Clause _ _ Axiom tvs phi | equalLength tys tvs
         -> trFormula cm pm (fmInsts (zip tvs tys) phi)
     _   -> Nothing
 
-trFormula :: ConMap -> VarMap -> Formula Id' -> Maybe QS.Equation
+trFormula :: ConMap -> VarMap -> Formula Id' Id' -> Maybe QS.Equation
 trFormula cm pm phi0 = case phi0 of
     Q Forall x t phi -> do
         case PM.pop t pm of
@@ -80,7 +84,7 @@ trFormula cm pm phi0 = case phi0 of
         return (l QS.:=: r)
     _ -> Nothing
 
-trTerm :: ConMap -> Term Id' -> Maybe QS.Term
+trTerm :: ConMap -> Term Id' Id' -> Maybe QS.Term
 trTerm cm = go
   where
     go tm0 = case tm0 of

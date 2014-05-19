@@ -8,13 +8,18 @@ import Name (Name,getOccString)
 import DataCon
 import Id
 import TyCon
+import Type
 
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 708
+import DynFlags (unsafeGlobalDynFlags)
+#elif __GLASGOW_HASKELL__ >= 706
 import DynFlags (tracingDynFlags)
 #endif
 
 portableShowSDoc :: SDoc -> String
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 708
+portableShowSDoc = showSDoc unsafeGlobalDynFlags
+#elif __GLASGOW_HASKELL__ >= 708
 portableShowSDoc = showSDoc tracingDynFlags
 #else
 portableShowSDoc = showSDoc
@@ -45,3 +50,10 @@ isNewtypeConId i
 --         (mainly from type variables)
 isDataConId :: Id -> Bool
 isDataConId v = isId v && (isConLikeId v || isNewtypeConId v)
+
+-- Removes class constraints
+rmClass :: Type -> Type
+rmClass ty = case splitFunTy_maybe ty of
+    Just (t1,t2) | isPredTy t1 -> rmClass t2
+    _ -> ty
+

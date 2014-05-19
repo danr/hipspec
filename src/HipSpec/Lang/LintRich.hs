@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor,OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor,OverloadedStrings,RecordWildCards #-}
 module HipSpec.Lang.LintRich where
 
 import HipSpec.Lang.Rich
@@ -14,138 +14,183 @@ import qualified Data.Map as M
 
 import Text.PrettyPrint
 import HipSpec.Lang.PrettyRich
+import HipSpec.Lang.PrettyUtils (Types(..),P)
 
-type LintM v a = WriterT [Err v] (Reader (Map v (Type v))) a
+data LintEnv v = Env
+    { pp   :: v -> Doc
+    , gbls :: Map v (PolyType v)
+    , lcls :: Map v (Type v)
+    }
 
-lint :: Ord v => LintM v a -> [Err v]
+withGbls :: (Map v (PolyType v) -> Map v (PolyType v)) -> LintEnv v -> LintEnv v
+withGbls k e = e { gbls = k (gbls e) }
+
+withLcls :: (Map v (Type v) -> Map v (Type v)) -> LintEnv v -> LintEnv v
+withLcls k e = e { lcls = k (lcls e) }
+
+type LintM v a = WriterT [Doc] (Reader (LintEnv v)) a
+
+lint :: Ord v => (v -> Doc) -> LintM v a -> [Doc]
 lint = lintWithScope []
 
-lintWithScope :: Ord v => [Typed v] -> LintM v a -> [Err v]
-lintWithScope sc m = runReader (execWriterT m') M.empty
-  where m' = insertVars sc m
+lintWithScope :: Ord v => [(v,Type v)] -> (v -> Doc) -> LintM v a -> [Doc]
+lintWithScope sc p m = runReader (execWriterT m') (Env p M.empty M.empty)
+  where m' = insertLcls sc m
 
-type TypedExpr v = Expr (Typed v)
+msgAlreadyBound :: a -> Type a -> Type a -> P a -> Doc
+msgBoundAsOtherType :: a -> Type a -> Type a -> P a -> Doc
+msgAlreadyBound' :: a -> PolyType a -> PolyType a -> P a -> Doc
+msgBoundAsOtherType' :: a -> PolyType a -> PolyType a -> P a -> Doc
+msgExprTypeDisagrees :: Expr a -> Type a -> Type a -> P a -> Doc
+msgVarIncorrectlyApplied :: Expr a -> P a -> Doc
+msgNotFunctionType :: Expr a -> Type a -> P a -> Doc
+msgIncorrectApplication :: Expr a -> Type a -> Type a -> P a -> Doc
+msgScrutineeVarIllTyped :: Expr a -> Type a -> Type a -> P a -> Doc
+msgCaseWithoutAlts :: Expr a -> P a -> Doc
+msgAltsRHSIllTyped :: Expr a -> [Type a] -> P a -> Doc
+msgConstructorIncorrectlyApplied :: Pattern a -> P a -> Doc
+msgIllTypedPattern :: Type a -> Pattern a -> P a -> Doc
 
-data Err v
-    = AlreadyBound v (Type v) (Type v)
-    | BoundAsOtherType v (Type v) (Type v)
-    | ExprTypeDisagrees (TypedExpr v) (Type v) (Type v)
-    | VarIncorrectlyApplied (TypedExpr v)
-    | NotFunctionType (TypedExpr v) (Type v)
-    | IncorrectApplication (TypedExpr v) (Type v) (Type v)
-    | ScrutineeVarIllTyped (TypedExpr v) (Type v) (Type v)
-    | CaseWithoutAlts (TypedExpr v)
-    | AltsRHSIllTyped (TypedExpr v) [Type v]
-    | ConstructorIncorrectlyApplied (Pattern (Typed v))
-    | IllTypedPattern (Type v) (Pattern (Typed v))
-  deriving (Show,Functor)
+msgAlreadyBound v t1 t2 p = sep
+       [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
+msgBoundAsOtherType v t1 t2 p = sep
+       [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
 
-ppErr :: (v -> Doc) -> Err v -> Doc
-ppErr p err = case err of
-    AlreadyBound v t1 t2 -> sep
-        [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
-    BoundAsOtherType v t1 t2 -> sep
-        [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
-    ExprTypeDisagrees e t1 t2 -> sep
-        [ppExpr 0 k e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
-    VarIncorrectlyApplied e -> "Variable incorrectly applied: " <+> ppExpr 0 k e
-    NotFunctionType e t -> sep
-        [ppExpr 0 k e,"should be of function type, but is:",ppType 0 p t]
-    IncorrectApplication e t1 t2 -> sep
-        [ppExpr 0 k e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-    ScrutineeVarIllTyped e t1 t2 -> sep
-        [ppExpr 0 k e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-    CaseWithoutAlts e -> "Case without alternatives: " <+> ppExpr 0 k e
-    AltsRHSIllTyped e ts -> sep $
-        "Alternatives in case differ in type:":ppExpr 0 k e:map (ppType 0 p) ts
-    ConstructorIncorrectlyApplied pat -> "Constructor incorrectly applied:" <+> ppPat k pat
-    IllTypedPattern t pat -> ppPat k pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
-  where
-    k = (p . forget_type,ppTyped p)
+msgAlreadyBound' v t1 t2 p = sep
+       [p v,"is bound as:",ppPolyType p t1,", but rebound as:",ppPolyType p t2]
+msgBoundAsOtherType' v t1 t2 p = sep
+       [p v,"is bound as:",ppPolyType p t1,", but used as:",ppPolyType p t2]
 
-report :: Err v -> LintM v ()
-report = tell . (:[])
+msgExprTypeDisagrees e t1 t2 p = sep
+       [ppExpr' p e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
+msgVarIncorrectlyApplied e p = "Variable incorrectly applied: " <+> ppExpr' p e
+msgNotFunctionType e t p = sep
+       [ppExpr' p e,"should be of function type, but is:",ppType 0 p t]
+msgIncorrectApplication e t1 t2 p = sep
+       [ppExpr' p e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+msgScrutineeVarIllTyped e t1 t2 p = sep
+       [ppExpr' p e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
+msgCaseWithoutAlts e p = "Case without alternatives: " <+> ppExpr' p e
+msgAltsRHSIllTyped e ts p = sep $
+       "Alternatives in case differ in type:":ppExpr' p e:map (ppType 0 p) ts
+msgConstructorIncorrectlyApplied pat p = "Constructor incorrectly applied:" <+> ppPat Show p pat
+msgIllTypedPattern t pat p = ppPat Show p pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
 
-insertVar :: Ord v => Typed v -> LintM v a -> LintM v a
-insertVar (v ::: t) m = do
-    mt <- asks (M.lookup v)
+ppExpr' :: P a -> Expr a -> Doc
+ppExpr' = ppExpr 0 Show
+
+report :: ((v -> Doc) -> Doc) -> LintM v ()
+report k = do
+    p <- asks pp
+    tell [k p]
+
+insertGbl :: Ord v => (v,PolyType v) -> LintM v a -> LintM v a
+insertGbl (v,t) m = do
+    mt <- asks (M.lookup v . gbls)
     case mt of
-        Just t' -> report (AlreadyBound v t t') >> m
-        Nothing -> local (M.insert v t) m
+        Just t' -> report (msgAlreadyBound' v t t') >> m
+        Nothing -> local (withGbls (M.insert v t)) m
 
-insertVars :: Ord v => [Typed v] -> LintM v a -> LintM v a
-insertVars xs m = foldr insertVar m xs
+insertGbls :: Ord v => [(v,PolyType v)] -> LintM v a -> LintM v a
+insertGbls xs m = foldr insertGbl m xs
 
-lintVar :: Ord v => Typed v -> LintM v ()
-lintVar (v ::: t) = do
-    mt <- asks (M.lookup v)
+insertLcl :: Ord v => (v,Type v) -> LintM v a -> LintM v a
+insertLcl (v,t) m = do
+    mt <- asks (M.lookup v . lcls)
     case mt of
-        Just t' | not (t `eqType` t') -> report (BoundAsOtherType v t t')
+        Just t' -> report (msgAlreadyBound v t t') >> m
+        Nothing -> local (withLcls (M.insert v t)) m
+
+insertLcls :: Ord v => [(v,Type v)] -> LintM v a -> LintM v a
+insertLcls xs m = foldr insertLcl m xs
+
+lintLcl :: Ord v => v -> Type v -> LintM v ()
+lintLcl v t = do
+    mt <- asks (M.lookup v . lcls)
+    case mt of
+        Just t' | not (t `eqType` t') -> report (msgBoundAsOtherType v t t')
         _ -> return ()
 
-lintFns :: Ord v => [Function (Typed v)] -> LintM v ()
-lintFns fns = lintFnsAnd fns (return ())
+lintGbl :: Ord v => v -> PolyType v -> LintM v ()
+lintGbl v t = do
+    mt <- asks (M.lookup v . gbls)
+    case mt of
+        Just t' | not (t `eqPolyType` t') -> report (msgBoundAsOtherType' v t t')
+        _ -> return ()
 
-lintFnsAnd :: Ord v => [Function (Typed v)] -> LintM v a -> LintM v a
-lintFnsAnd fns m = insertVars (map fn_name fns)
-                              (mapM_ (lintExpr . fn_body) fns >> m)
+lintFns :: Ord v => [Function v] -> LintM v ()
+lintFns fns = insertGbls (map ((,) <$> fn_name <*> fn_type) fns)
+                              (mapM_ (lintExpr . fn_body) fns)
 
-lintExpr :: Ord v => TypedExpr v -> LintM v (Type v)
+lintLclFnsAnd :: Ord v => [Function v] -> LintM v a -> LintM v a
+lintLclFnsAnd fns m = do
+    fts <- sequence
+        [ case fn_type of
+            Forall [] ty -> return (fn_name,ty)
+            Forall __ ty -> do
+                report $ \ p ->
+                    ppFun Don'tShow p fn <+>
+                    "is bound locally and has a polymorphic type." <+>
+                    "This is not currently supported."
+                return (fn_name,ty)
+        | fn@Function{..} <- fns
+        ]
+    insertLcls fts (mapM_ (lintExpr . fn_body) fns >> m)
+
+lintExpr :: Ord v => Expr v -> LintM v (Type v)
 lintExpr e0 = chk_ret $ case e0 of
-    Var v@(_ ::: ty) ts -> do
-        lintVar v
-        let (tvs,ty') = collectForalls ty
-        when (length ts /= length tvs) (report (VarIncorrectlyApplied e0))
-        return (substManyTys (zip tvs (map forget ts)) ty')
+    Lcl v ty -> lintLcl v ty >> return ty
+    Gbl _ (Forall tvs ty) ts -> do
+        when (length ts /= length tvs) (report (msgVarIncorrectlyApplied e0))
+        return (substManyTys (zip tvs ts) ty)
     App e1 e2 -> do
         t1 <- lintExpr e1
         t2 <- lintExpr e2
         case t1 of
             ArrTy ta tb -> do
-                unless (ta `eqType` t2) (report (IncorrectApplication e0 ta t2))
+                unless (ta `eqType` t2) (report (msgIncorrectApplication e0 ta t2))
                 return tb
             _ -> do
-                report (NotFunctionType e1 t1)
-                return Star
-    Lit _ (t ::: _) -> return (TyCon t [])
-    String (t ::: _) -> return (TyCon t [])
-    Lam x@(_ ::: t) e -> insertVar x (ArrTy t <$> lintExpr e)
-    Case e mx {- @(_ ::: tx) -} alts -> do
+                report (msgNotFunctionType e1 t1)
+                return Integer
+    Lit{}    -> return Integer
+    String{} -> return Integer
+    Lam x t e -> insertLcl (x,t) (ArrTy t <$> lintExpr e)
+    Case e mx alts -> do
         ts <- lintExpr e
         case mx of
-            Just (_ ::: tx) | not (ts `eqType` tx)
-                -> report (ScrutineeVarIllTyped e0 ts tx)
+            Just (_,tx) | not (ts `eqType` tx)
+                -> report (msgScrutineeVarIllTyped e0 ts tx)
             _ -> return ()
-        tys <- maybe id insertVar mx (mapM (lintAlt ts) alts)
+        tys <- maybe id insertLcl mx (mapM (lintAlt ts) alts)
         case tys of
-            [] -> report (CaseWithoutAlts e0) >> return Star
+            [] -> report (msgCaseWithoutAlts e0) >> return Integer
             t:tys' -> do
-                unless (all (eqType t) tys') (report (AltsRHSIllTyped e0 tys))
+                unless (all (eqType t) tys') (report (msgAltsRHSIllTyped e0 tys))
                 return t
-    Let fns e -> lintFnsAnd fns (lintExpr e)
+    Let fns e -> lintLclFnsAnd fns (lintExpr e)
   where
     chk_ret m = do
         t <- m
         let t' = exprType e0
-        unless (t `eqType` t') (report (ExprTypeDisagrees e0 t t'))
+        unless (t `eqType` t') (report (msgExprTypeDisagrees e0 t t'))
         return t
 
-lintAlt :: Ord v => Type v -> Alt (Typed v) -> LintM v (Type v)
+lintAlt :: Ord v => Type v -> Alt v -> LintM v (Type v)
 lintAlt t0 (p,rhs) = lintPat t0 p >> lintExpr rhs
 
-lintPat :: Ord v => Type v -> Pattern (Typed v) -> LintM v ()
+lintPat :: Ord v => Type v -> Pattern v -> LintM v ()
 lintPat t0 p = case p of
     Default -> return ()
-    ConPat (_ ::: t) tys args -> do
-        let (tvs,ty) = collectForalls t
-        when (length tys /= length tvs) (report (ConstructorIncorrectlyApplied p))
-        let ty' = substManyTys (zip tvs (map forget tys)) ty
+    ConPat _ (Forall tvs ty) tys args -> do
+        when (length tys /= length tvs) (report (msgConstructorIncorrectlyApplied p))
+        let ty' = substManyTys (zip tvs tys) ty
             (args_ty,res_ty) = collectArrTy ty'
-        when (length args_ty /= length args) (report (ConstructorIncorrectlyApplied p))
+        when (length args_ty /= length args) (report (msgConstructorIncorrectlyApplied p))
         sequence_
-            [ unless (t1 `eqType` t2) (report (ConstructorIncorrectlyApplied p))
-            | (_ ::: t1,t2) <- zip args args_ty
+            [ unless (t1 `eqType` t2) (report (msgConstructorIncorrectlyApplied p))
+            | ((_,t1),t2) <- zip args args_ty
             ]
-        unless (res_ty `eqType` t0) (report (IllTypedPattern t0 p))
-    LitPat _ (t ::: _) -> when (TyCon t [] /= t0) (report (IllTypedPattern t0 p))
+        unless (res_ty `eqType` t0) (report (msgIllTypedPattern t0 p))
+    LitPat{} -> when (Integer `eqType` t0) (report (msgIllTypedPattern t0 p))
 

@@ -14,7 +14,7 @@ length (_:xs) = S (length xs)
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
-map :: (a -> a) -> [a] -> [a]
+map :: (a -> b) -> [a] -> [b]
 map f (x:xs) = f x:map f xs
 map f []     = []
 

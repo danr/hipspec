@@ -3,7 +3,10 @@ language: haskell
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install alt-ergo
-    - cabal install --only-dependencies
+    - git clone https://github.com/nick8325/quickcheck.git
+    - git clone https://github.com/nick8325/quickspec.git
+    - cabal install quickspec/ quickcheck/ . --only-dependencies
+    - cabal install quickspec/ quickcheck/
 
 install:
     - cabal install

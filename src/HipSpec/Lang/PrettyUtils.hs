@@ -3,11 +3,26 @@ module HipSpec.Lang.PrettyUtils where
 
 import Text.PrettyPrint
 
+infixr 1 $\
+
+($\) :: Doc -> Doc -> Doc
+d1 $\ d2 = hang d1 2 d2
+
+data Types = Show | Don'tShow
+
+ppTyped :: Types -> Doc -> Doc -> Doc
+ppTyped Show e t = parens (e <+> "::" $\ t)
+ppTyped _    e _ = e
+
 -- | Pretty printing kit.
---   First component for variable bindings,
---   second for binding variables
---   (to be able to say where to print types and where to ignore it)
-type Kit a = (a -> Doc,a -> Doc)
+type P a = a -> Doc
+
+-- | Pretty printing kit for polymorphic FOL
+--   Here, we want to differentiate between symbols and variables in tff
+data PP a b = PP
+    { pp_symb :: a -> Doc
+    , pp_var  :: b -> Doc
+    }
 
 parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens
@@ -15,6 +30,9 @@ parensIf False = id
 
 csv :: [Doc] -> Doc
 csv = inside "(" "," ")"
+
+starsep :: [Doc] -> Doc
+starsep = inside "(" "*" ")"
 
 inside :: Doc -> Doc -> Doc -> [Doc] -> Doc
 inside _ _ _ []     = empty
