@@ -80,6 +80,7 @@ execute params@Params{..} = do
                              , optLevel = 1
                              , profAuto = NoProfAuto
                              }
+                        `wopt_unset` Opt_WarnOverlappingPatterns
 #if __GLASGOW_HASKELL__ >= 708
                         `gopt_unset` Opt_IgnoreInterfacePragmas
                         `gopt_unset` Opt_OmitInterfacePragmas
