@@ -42,6 +42,7 @@ import qualified Data.Map as M
 import Data.List
 import Data.Maybe
 import Data.Ord
+import Data.Function
 
 import Control.Monad
 
@@ -265,7 +266,12 @@ runQuickSpec SigInfo{..} = do
         liftIO $ do
             mapM_ putStrLn
                 $ nub
-                $ mapMaybe (isabelleShowEquation cond_count cond_name sig)
+                $ map isabelleShowPrecondition
+                $ filter (\(pre, _) -> length pre == cond_count)
+                $ concatMap isabelleFilterEquations
+                $ groupBy ((==) `on` snd)
+                $ sortBy (comparing snd)
+                $ map (isabelleShowEquation cond_name sig)
       --          $ map show
                 $ filter (not . evalEQR ctx_defs . equal)
                 $ map (some eraseEquation) eqs -- prunedEqs
@@ -273,10 +279,17 @@ runQuickSpec SigInfo{..} = do
 
     return (eqs,reps,classes)
 
-isabelleShowEquation :: Int -> String -> Sig -> Equation -> Maybe String
-isabelleShowEquation cond_cnt cond_nm sig (t :=: u)
-    | length backquoted == cond_cnt = Just (precondition backquoted ++ showTerm t' ++ " = " ++ showTerm u')
-    | otherwise = Nothing
+isabelleShowPrecondition :: ([String], String) -> String
+isabelleShowPrecondition ([], xs) = xs
+isabelleShowPrecondition (pre, xs) = intercalate " && " pre ++ " ==> " ++ xs
+
+isabelleFilterEquations :: [([String], String)] -> [([String], String)]
+isabelleFilterEquations xss@((_, xs):_)
+  | ([], xs) `elem` xss = [([], xs)]
+  | otherwise = xss
+
+isabelleShowEquation :: String -> Sig -> Equation -> ([String], String)
+isabelleShowEquation cond_nm sig (t :=: u) = (precondition, showTerm t' ++ " = " ++ showTerm u')
   where
     [t',u'] = map quoteTerm [t,u]
 
@@ -286,8 +299,7 @@ isabelleShowEquation cond_cnt cond_nm sig (t :=: u)
 
     backquoted = map delBackquote $ filter isBackquoted (nub (Term.vars t' ++ Term.vars u'))
 
-    precondition [] = ""
-    precondition xs = intercalate " && " (map (\ x -> cond_nm ++ " " ++ name x) xs) ++ " ==> "
+    precondition = map (\x -> cond_nm ++ " " ++ name x) backquoted
 
     onName h s = s { Term.name = h (Term.name s) }
 
