@@ -107,6 +107,8 @@ data Params = Params
     , json                :: Maybe FilePath
 #endif
     , isabelle_mode       :: Bool
+    , cond_name           :: String
+    , cond_count          :: Int
 
     , processes           :: Int
     , timeout             :: Double
@@ -207,6 +209,8 @@ defParams = Params
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
     , isabelle_mode       = False                &= help "Isabelle mode"
+    , cond_name           = ""                   &= help "Isabelle: pre-condition name"
+    , cond_count          = 0                    &= help "Isabelle: pre-condition count"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"

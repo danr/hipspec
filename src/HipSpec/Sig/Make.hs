@@ -139,6 +139,17 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             , let (tys,ty) = splitFunTys (mono (varType i))
             ]
 
+    cond_info <- case cond_name of
+        "" -> return Nothing
+        nm -> do
+            tyth <- lookupString nm
+            case tyth of
+                AnId i:_ -> case splitFunTy_maybe (mono (varType i)) of
+                    Just (_def,rest) | Just (ty,_bln) <- splitFunTy_maybe rest ->
+                        return (Just (i,ty))
+                    _ -> error $ nm ++ " is of wrong type (not (X -> Bool))"
+                _        -> error $ nm ++ " is not an identifier!"
+
     named_mono_types <- mapM (nameType p mono) types
 
     let fun | isabelle_mode = "obs"
@@ -156,15 +167,42 @@ makeSigFrom p@Params{..} ids m_a_ty = do
             | i <- ids
             , not isabelle_mode || varToString i /= "Default" -- Don't add the default constructor
             ] ++
-            [ unwords
-                [ if pvars then "pvars" else "vars"
-                , show names
-                , "("
-                , "(let _x = _x in _x)"
-                , "::"
-                , showOutputable t
-                , ")"
-                ]
+            [ case cond_info of
+                Just (_,cond_ty) | cond_ty `eqType` t -> unwords $
+                    [ "gvars'" , "[" ]
+                    ++ [intercalate ","
+                        [ unwords $
+                            [ "(", show ([ '`' | b ] ++ nm), "," ] ++
+                            (if b
+                                then
+                                    [ "(Test.QuickCheck.arbitrary `Test.QuickCheck.suchThat` "
+                                    , "(", "(", cond_name, ") Prelude.undefined", ")"
+                                    , "::"
+                                    , "Test.QuickCheck.Gen"
+                                    , "(" , showOutputable t , ")"
+                                    , ")"
+                                    ]
+                               else
+                                    [ "(Test.QuickCheck.arbitrary "
+                                    , "::"
+                                    , "Test.QuickCheck.Gen"
+                                    , "(" , showOutputable t , ")"
+                                    , ")"
+                                    ]) ++
+                             [")"]
+                        | (nm,b) <- reverse (zip (reverse names) (replicate cond_count True ++ repeat False))
+                        ]
+                       ]
+                    ++ ["]"]
+                _ -> unwords
+                    [ if pvars then "pvars" else "vars"
+                    , show names
+                    , "("
+                    , "(let _x = _x in _x)"
+                    , "::"
+                    , showOutputable t
+                    , ")"
+                    ]
             | (t,names) <- named_mono_types
             ] ++
             [ "Test.QuickSpec.Signature.withTests " ++ show tests

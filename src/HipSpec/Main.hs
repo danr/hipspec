@@ -1,8 +1,8 @@
-{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, CPP #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, CPP, PatternGuards #-}
 module Main where
 
 import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol)
+import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol,name)
 import qualified Test.QuickSpec.Term as Term
 import qualified Test.QuickSpec.Signature as Sig
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
@@ -265,20 +265,52 @@ runQuickSpec SigInfo{..} = do
         liftIO $ do
             mapM_ putStrLn
                 $ nub
-                $ map (isabelleShowEquation sig)
+                $ map (isabelleShowEquation cond_name sig)
+      --          $ map show
                 $ filter (not . evalEQR ctx_defs . equal)
                 $ map (some eraseEquation) eqs -- prunedEqs
             exitSuccess
 
     return (eqs,reps,classes)
 
-isabelleShowEquation :: Sig -> Equation -> String
-isabelleShowEquation sig (t :=: u) =
-    showTerm t ++ " = " ++ showTerm u
+isabelleShowEquation :: String -> Sig -> Equation -> String
+isabelleShowEquation cond_nm sig (t :=: u) =
+    precondition backquoted ++ showTerm t' ++ " = " ++ showTerm u'
   where
-    showTerm = show . Term.mapVars f . Term.mapConsts (onName g)
+    [t',u'] = map quoteTerm [t,u]
+
+    quoteTerm = Term.mapVars f . Term.mapConsts (onName g)
+
+    showTerm = show . Term.mapVars delBackquote
+
+    backquoted = map delBackquote $ filter isBackquoted (nub (Term.vars t' ++ Term.vars u'))
+
+    precondition [] = ""
+    precondition xs = intercalate " && " (map (\ x -> cond_nm ++ " " ++ name x) xs) ++ " ==> "
+
     onName h s = s { Term.name = h (Term.name s) }
-    f = Sig.disambiguate sig (Term.vars t ++ Term.vars u)
+
+    f :: Symbol -> Symbol
+    f x = backquotify x (Sig.disambiguate sig (Term.vars t ++ Term.vars u) x)
+
+    isBackquoted :: Symbol -> Bool
+    isBackquoted a = case name a of
+        '`':_ -> True
+        _     -> False
+
+    backquotify :: Symbol -> Symbol -> Symbol
+    backquotify a = if isBackquoted a then addBackquote else delBackquote
+
+    delBackquote :: Symbol -> Symbol
+    delBackquote a = case name a of
+        '`':xs -> a { name = xs }
+        _      -> a
+
+    addBackquote :: Symbol -> Symbol
+    addBackquote a = case name a of
+        '`':_ -> a
+        xs    -> a { name = '`':xs }
+
     g x =
       case lookup x isabelleFunctionNames of
         Nothing -> x
