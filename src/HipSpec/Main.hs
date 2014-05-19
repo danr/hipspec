@@ -265,7 +265,7 @@ runQuickSpec SigInfo{..} = do
         liftIO $ do
             mapM_ putStrLn
                 $ nub
-                $ map (isabelleShowEquation cond_name sig)
+                $ mapMaybe (isabelleShowEquation cond_count cond_name sig)
       --          $ map show
                 $ filter (not . evalEQR ctx_defs . equal)
                 $ map (some eraseEquation) eqs -- prunedEqs
@@ -273,9 +273,10 @@ runQuickSpec SigInfo{..} = do
 
     return (eqs,reps,classes)
 
-isabelleShowEquation :: String -> Sig -> Equation -> String
-isabelleShowEquation cond_nm sig (t :=: u) =
-    precondition backquoted ++ showTerm t' ++ " = " ++ showTerm u'
+isabelleShowEquation :: Int -> String -> Sig -> Equation -> Maybe String
+isabelleShowEquation cond_cnt cond_nm sig (t :=: u)
+    | length backquoted == cond_cnt = Just (precondition backquoted ++ showTerm t' ++ " = " ++ showTerm u')
+    | otherwise = Nothing
   where
     [t',u'] = map quoteTerm [t,u]
 
