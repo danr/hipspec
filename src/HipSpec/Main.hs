@@ -281,7 +281,7 @@ runQuickSpec SigInfo{..} = do
 
 isabelleShowPrecondition :: ([String], String) -> String
 isabelleShowPrecondition ([], xs) = xs
-isabelleShowPrecondition (pre, xs) = intercalate " && " pre ++ " ==> " ++ xs
+isabelleShowPrecondition (pre, xs) = intercalate " & " pre ++ " ==> " ++ xs
 
 isabelleFilterEquations :: [([String], String)] -> [([String], String)]
 isabelleFilterEquations xss@((_, xs):_)
