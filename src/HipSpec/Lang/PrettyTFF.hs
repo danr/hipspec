@@ -9,18 +9,18 @@ import HipSpec.Lang.Monomorphise
 
 import qualified Data.Map as M
 
-import qualified Data.Set as S
+-- import qualified Data.Set as S
 
 ppClause :: (Ord a,Ord b) => PP a b -> Clause a b -> Doc
 ppClause p cls = case cls of
     SortSig x n            -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) [] (replicate n TType) TType]
     TypeSig x tvs args res -> tff [pp_symb p x,"type",ppTySig p (pp_symb p x) tvs args res]
-    Clause _ trg cl tvs phi  ->
+    Clause _ _trg cl tvs phi  ->
         -- (if null trg then id else ("% Triggers:" <+> hsep (map (ppTrg p) trg) $$)) $
         -- ("% Ty deps:" <+> hsep (map (pp_symb p) (S.toList tcs))) $$
         -- ("% Fun deps:" <+> hsep (map (pp_symb p) (S.toList fs))) $$
         tff ["x",ppClType cl,ppTyQuant p tvs (ppForm p phi)]
-      where (tcs,fs) = clsDeps [cls]
+      where (_tcs,_fs) = clsDeps [cls]
     Comment s              -> vcat (map (\ l -> "%" <+> text l) (lines s))
   where
     tff xs = "tff" <> csv xs <> "."
@@ -74,7 +74,7 @@ ppForm p f0 = case f0 of
 --    Pred q fs     -> p q <> csv (map (ppForm p) fs)
     FOp{} -> error "PrettyPolyFOL.ppForm FOp"
     Q{}   -> error "PrettyPolyFOL.ppForm Q"
-    DataDecl ds fm ->
+    DataDecl _ds fm ->
         -- ("% Data:" <+> hsep (map (ppDataDecl p) ds)) $$
         ppForm p fm
 

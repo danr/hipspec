@@ -3,7 +3,7 @@ module HipSpec.GHC.Utils where
 
 import Outputable
 
-import Var (Var,varName)
+import Var (varName)
 import Name (Name,getOccString)
 import DataCon
 import Id

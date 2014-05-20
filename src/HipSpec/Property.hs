@@ -18,6 +18,7 @@ module HipSpec.Property
     , lintProperty
     , generaliseProp
     , maybePropRepr
+    , cgSortProps
     ) where
 
 import Control.Monad.Error
@@ -37,10 +38,13 @@ import Control.Unification
 
 -- import Text.PrettyPrint hiding (comma)
 
+import Var (Var)
+
 import HipSpec.ParseDSL
 import HipSpec.Theory
 import HipSpec.Utils
 import HipSpec.Property.Repr
+import HipSpec.Heuristics.CallGraph
 
 import HipSpec.Id hiding (Derived(Case))
 
@@ -55,6 +59,9 @@ import Data.Void
 import qualified HipSpec.Lang.PolyFOL as P
 import qualified HipSpec.Lang.ToPolyFOL as P
 
+import Data.Map (Map)
+import qualified Data.Map as M
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Literals in propreties
@@ -63,8 +70,13 @@ data Literal = S.Expr Id :=: S.Expr Id
 mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
 
+{-
 literalFreeTyVars :: Literal -> [Id]
 literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
+-}
+
+literalGbls :: Literal -> [Id]
+literalGbls (a :=: b) = exprGbls a `union` exprGbls b
 
 instance Show Literal where
     show (e1 :=: e2) = showExpr e1 ++ " = " ++ showExpr e2
@@ -334,4 +346,12 @@ maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop
     | isUserStated prop = Just (prop_repr prop)
     | otherwise         = Nothing
+
+propertyGbls :: Property eq -> [Id]
+propertyGbls = literalGbls . prop_goal
+
+cgSortProps :: Map Var [Var] -> [Property eq] -> [Property eq]
+cgSortProps callg = concat . sortByGraph callg' propertyGbls
+  where
+    callg' = M.fromList [ (idFromVar i,map idFromVar is) | (i,is) <- M.toList callg ]
 

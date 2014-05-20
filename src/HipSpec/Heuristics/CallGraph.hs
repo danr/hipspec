@@ -51,6 +51,13 @@ sortByGraph cg syms eqs = flattenSCCs sccs
 isSupersetOf :: Eq a => [a] -> [a] -> Bool
 as `isSupersetOf` bs = all (`elem` as) bs
 
+-- | Call graph for a list of identifiers
+idCallGraph :: [Id] -> Map Id [Id]
+idCallGraph is = M.fromList
+    [ (i,varSetElems (transCalls Without i))
+    | i <- is, not (isDataConId i)
+    ]
+
 -- | Calculate the call graph for the QuickSpec string marshallings
 transitiveCallGraph :: ResolveMap -> Map Symbol [Symbol]
 transitiveCallGraph (ResolveMap si _) = M.fromList

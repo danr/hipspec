@@ -15,6 +15,7 @@ module HipSpec.Lang.Simple
     , collectArgs
     , apply
     , exprFreeTyVars
+    , exprGbls
     , bodyType
     , exprType
     , exprTySubst
@@ -81,6 +82,8 @@ data Expr a
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Type a,Expr a) |]
 
+instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
+
 instanceUniverseBi  [t| forall a . (Function a,a) |]
 instanceUniverseBi  [t| forall a . (Function a,Type a) |]
 
@@ -107,6 +110,9 @@ exprFreeTyVars = go
         Gbl _ _ ts -> nub (concatMap freeTyVars ts)
         App e1 e2  -> go e1 `union` go e2
         Lit{}      -> []
+
+exprGbls :: Eq a => Expr a -> [a]
+exprGbls e = nub [ x | Gbl x _ _ <- universeBi e ]
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =

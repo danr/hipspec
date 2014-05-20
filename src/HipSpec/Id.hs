@@ -30,6 +30,10 @@ idFromTyVar = idFromName . tyVarName
 idFromTyCon :: TyCon -> Id
 idFromTyCon = idFromName . tyConName
 
+tryGetGHCName :: Id -> Maybe Name
+tryGetGHCName (GHCOrigin nm) = Just nm
+tryGetGHCName _              = Nothing
+
 data Id
     = GHCOrigin Name
     | QSOrigin String Integer

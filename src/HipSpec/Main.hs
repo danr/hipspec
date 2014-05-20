@@ -54,7 +54,7 @@ import qualified Data.ByteString.Lazy as B
 import System.Exit (exitSuccess,exitFailure)
 
 main :: IO ()
-main = processFile $ \ m_sig_info user_props -> do
+main = processFile $ \ callg m_sig_info user_props -> do
     writeMsg FileProcessed
 
     exit_act <- case m_sig_info of
@@ -65,33 +65,19 @@ main = processFile $ \ m_sig_info user_props -> do
 
             (eqs,reps,classes) <- runQuickSpec sig_info
 
-            Params{explore_theory,user_stated_first} <- getParams
+            Params{explore_theory,user_stated_first,call_graph} <- getParams
 
             let (~+) | user_stated_first = flip (++)
                      | otherwise         = (++)
 
-{-
-            if bottoms then do
+            let callg_sort = if call_graph then cgSortProps callg else id
 
-                let qsconjs = map (some (peqToProp sig_info)) eqs
-
-                (ctx_init,tot_thms,tot_conjs) <- proveTotality sig_info reps
-
-                ctx_with_def <- pruneWithDefEqs sig_info ctx_init
-
-                void $ runMainLoop
-                        ctx_with_def
-                        (qsconjs ~+ map vacuous user_props ++ map vacuous tot_conjs)
-                        (map vacuous tot_thms)
-
-            else do
-                        -}
-
-            let qsconjs =
+                qsconjs = callg_sort
                     [ (etaExpandProp . generaliseProp . eqToProp sig_info i) eq
                     | (eq0,i) <- zip eqs [0..]
                     , let eq = some eraseEquation eq0
                     ]
+
             mapM_ (checkLint . lintProperty) qsconjs
 
             debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
@@ -229,14 +215,8 @@ runQuickSpec SigInfo{..} = do
 
         classToEqs :: [Several Expr] -> [Some TypedEquation]
         classToEqs
-            = concatMap
-                (sortBy (comparing ( eq_order . (swap_repr ? swapEq)
-                                   . some eraseEquation)
-                                   )
-                )
-            . (if call_graph
-                   then sortByGraph callg equation_funs
-                   else (:[]))
+            = sortBy (comparing (eq_order . (swap_repr ? swapEq)
+                                . some eraseEquation))
             . if quadratic
                    then concatMap ( several (map (Some . uncurry (:==:))
                                   . uniqueCartesian)

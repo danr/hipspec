@@ -24,6 +24,8 @@ import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
 import HipSpec.Lang.Uniquify
 
+import HipSpec.Heuristics.CallGraph
+
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
@@ -36,8 +38,10 @@ import System.FilePath
 
 import Text.Show.Pretty hiding (Name)
 
+import Var (Var)
+import Data.Map (Map)
 
-processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a
+processFile :: (Map Var [Var] -> Maybe SigInfo -> [Property Void] -> HS a) -> IO a
 processFile cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
@@ -46,17 +50,19 @@ processFile cont = do
 
     EntryResult{..} <- execute params
 
+    let vars = filterVarSet (not . varFromPrelude) $
+               unionVarSets (map (transCalls Without) prop_ids)
+
+        callg = idCallGraph (varSetElems vars)
+
     case isabelle_mode of
         True -> runHS params (Env [] emptyArityMap (const Nothing))
-                   (cont sig_info (error "properties: --isabelle-mode"))
+                   (cont callg sig_info (error "properties: --isabelle-mode"))
 
         False -> do
             us0 <- mkSplitUniqSupply 'h'
 
-            let vars = filterVarSet (not . varFromPrelude) $
-                       unionVarSets (map (transCalls Without) prop_ids)
-
-                (binds,_us1) = initUs us0 $ sequence
+            let (binds,_us1) = initUs us0 $ sequence
                     [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
                     | v <- varSetElems vars
                     , Just e <- [maybeUnfolding v]
@@ -93,6 +99,7 @@ processFile cont = do
 
                 env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
+
             runHS params env $ do
 
                 debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
@@ -125,5 +132,5 @@ processFile cont = do
 
                 when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
-                cont sig_info tr_props
+                cont callg sig_info tr_props
 
