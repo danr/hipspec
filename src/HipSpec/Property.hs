@@ -70,10 +70,8 @@ data Literal = S.Expr Id :=: S.Expr Id
 mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
 
-{-
 literalFreeTyVars :: Literal -> [Id]
 literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
--}
 
 literalGbls :: Literal -> [Id]
 literalGbls (a :=: b) = exprGbls a `union` exprGbls b
