@@ -334,6 +334,10 @@ isabelleFunctionNames =
   [(":", "#"),
    ("++", "@"),
    ("reverse", "rev")]
+   ("plus_nat", "Groups.plus_class.plus"),
+   ("Zero_nat", "Groups.zero_class.zero"),
+   ("one_nat", "Groups.one_class.one")]
+
 
 {-
 
