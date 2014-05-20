@@ -59,24 +59,25 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
     exit_act <- case m_sig_info of
 
-        Nothing -> snd <$> runMainLoop NoCC user_props []
+        [] -> snd <$> runMainLoop NoCC user_props []
 
-        Just (sig_info@SigInfo{..}) -> do
-
-            (eqs,reps,classes) <- runQuickSpec sig_info
+        sig_info@SigInfo{..}:sig_infos -> do
 
             Params{explore_theory,user_stated_first,call_graph} <- getParams
 
-            let (~+) | user_stated_first = flip (++)
-                     | otherwise         = (++)
+            (init_qsconjs,reps,classes) <- runQuickSpec sig_info
 
-            let callg_sort = if call_graph then cgSortProps callg else id
+            extra_conjs <- concatMapM (fmap (\ (q,_,_) -> q) . runQuickSpec) sig_infos
 
-                qsconjs = callg_sort
-                    [ (etaExpandProp . generaliseProp . eqToProp sig_info i) eq
-                    | (eq0,i) <- zip eqs [0..]
-                    , let eq = some eraseEquation eq0
+            let qsconjs = init_qsconjs ++
+                    [ p { prop_origin = UserStated }
+                    | p <- extra_conjs, not (null (prop_assums p))
                     ]
+
+                callg_sort = if call_graph then cgSortProps callg else id
+
+                (~+) | user_stated_first = flip (++)
+                     | otherwise         = (++)
 
             mapM_ (checkLint . lintProperty) qsconjs
 
@@ -95,7 +96,7 @@ main = processFile $ \ callg m_sig_info user_props -> do
                 unlines (map show def_eqs)
 
             (ctx_final,exit_act) <- runMainLoop ctx_with_def
-                                     (qsconjs ~+ map vacuous user_props)
+                                     (callg_sort qsconjs ~+ map vacuous user_props)
                                      []
 
             when explore_theory $ do
@@ -160,8 +161,8 @@ runMainLoop ctx_init initial_props initial_thms = do
 
     return (ctx_final,exit_act)
 
-runQuickSpec :: SigInfo -> HS ([Some TypedEquation],[Tagged Term],[Several Expr])
-runQuickSpec SigInfo{..} = do
+runQuickSpec :: SigInfo -> HS ([Property Equation],[Tagged Term],[Several Expr])
+runQuickSpec sig_info@SigInfo{..} = do
 
     Params{..} <- getParams
 
@@ -179,13 +180,10 @@ runQuickSpec SigInfo{..} = do
         eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
         swapEq (t :=: u) = u :=: t
 
-        equation_funs :: Some TypedEquation -> [Symbol]
-        equation_funs (some eraseEquation -> t1 :=: t2)
-            = funs t1 `union` funs t2
-
         equations' :: [Several Expr] -> [Some TypedEquation]
         equations' = concatMap (several (map Some . toEquations))
 
+        -- all the symbols this term calls, transitively
         term_calls :: Expr a -> [Symbol]
         term_calls e
             = nubSorted
@@ -196,6 +194,11 @@ runQuickSpec SigInfo{..} = do
         eq_calls :: TypedEquation a -> [Symbol]
         eq_calls (e1 :==: e2) = nubSorted (term_calls e1 ++ term_calls e2)
 
+        -- Nick says that we added this when translating the equivalence
+        -- classes to equations. For each non-representative, we try to
+        -- pick a representative that calls only functions called by the
+        -- non-representative, otherwise at least try to minimize the
+        -- set of extra functions it calls.
         toEquations :: [Expr a] -> [TypedEquation a]
         toEquations es@(x:xs)
             | call_graph = [ toEquation y (reverse ys)
@@ -208,7 +211,10 @@ runQuickSpec SigInfo{..} = do
         toEquation :: Expr a -> [Expr a] -> TypedEquation a
         toEquation e rcs = foldr1 best (map (e :==:) rcs)
           where
+            -- invariant: eq1 < eq2 wrt equation size
             best eq1 eq2
+                -- eq1 is clearly the right representative,
+                -- no new functions called by representative
                 | eq_calls eq1 == term_calls e             = eq1
                 | eq_calls eq2 `isSupersetOf` eq_calls eq1 = eq1
                 | otherwise                                = eq2
@@ -236,6 +242,7 @@ runQuickSpec SigInfo{..} = do
 
     writeMsg $ QuickSpecDone (length classes) (length eqs)
 
+{-
     when isabelle_mode $ do
         Env{theory} <- getEnv
         let def_eqs  = definitions theory symbol_map
@@ -256,9 +263,19 @@ runQuickSpec SigInfo{..} = do
                 $ filter (not . evalEQR ctx_defs . equal)
                 $ map (some eraseEquation) eqs -- prunedEqs
             exitSuccess
+            -}
 
-    return (eqs,reps,classes)
+    let conjs =
+            [ (etaExpandProp . generaliseProp . eqToProp sig_info i) eq
+            | (eq0,i) <- zip eqs [0..]
+            , let eq = some eraseEquation eq0
+            ]
 
+
+    return (conjs,reps,classes)
+
+
+{-
 isabelleShowPrecondition :: ([String], String) -> String
 isabelleShowPrecondition ([], xs) = xs
 isabelleShowPrecondition (pre, xs) = intercalate " & " pre ++ " ==> " ++ xs
@@ -317,6 +334,7 @@ isabelleFunctionNames =
    ("plus_nat", "Groups.plus_class.plus"),
    ("Zero_nat", "Groups.zero_class.zero"),
    ("one_nat", "Groups.one_class.one")]
+   -}
 
 
 {-

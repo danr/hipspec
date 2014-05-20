@@ -41,7 +41,7 @@ import Text.Show.Pretty hiding (Name)
 import Var (Var)
 import Data.Map (Map)
 
-processFile :: (Map Var [Var] -> Maybe SigInfo -> [Property Void] -> HS a) -> IO a
+processFile :: (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
 processFile cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
@@ -57,7 +57,7 @@ processFile cont = do
 
     case isabelle_mode of
         True -> runHS params (Env [] emptyArityMap (const Nothing))
-                   (cont callg sig_info (error "properties: --isabelle-mode"))
+                   (cont callg sig_infos (error "properties: --isabelle-mode"))
 
         False -> do
             us0 <- mkSplitUniqSupply 'h'
@@ -132,5 +132,5 @@ processFile cont = do
 
                 when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
-                cont callg sig_info tr_props
+                cont callg sig_infos tr_props
 

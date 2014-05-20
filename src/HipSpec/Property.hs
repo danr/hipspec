@@ -19,6 +19,7 @@ module HipSpec.Property
     , generaliseProp
     , maybePropRepr
     , cgSortProps
+    , equalsTrue
     ) where
 
 import Control.Monad.Error
@@ -31,10 +32,6 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
-#ifdef UNIFICATION
-import HipSpec.Unify
-import Control.Unification
-#endif
 
 -- import Text.PrettyPrint hiding (comma)
 
@@ -62,6 +59,14 @@ import qualified HipSpec.Lang.ToPolyFOL as P
 import Data.Map (Map)
 import qualified Data.Map as M
 
+#ifdef UNIFICATION
+import HipSpec.Unify
+import Control.Unification
+
+literalFreeTyVars :: Literal -> [Id]
+literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
+#endif
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Literals in propreties
@@ -69,9 +74,6 @@ data Literal = S.Expr Id :=: S.Expr Id
 
 mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
-
-literalFreeTyVars :: Literal -> [Id]
-literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
 
 literalGbls :: Literal -> [Id]
 literalGbls (a :=: b) = exprGbls a `union` exprGbls b
@@ -207,16 +209,19 @@ parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
     (Gbl x _ _,args)
         | isEquals x,    [l,r] <- args -> return ([],l :=: r)
-        | isProveBool x, [l]   <- args -> return ([],l :=: true)
+        | isProveBool x, [l]   <- args -> return ([],equalsTrue l)
         | isGivenBool x, [l,q] <- args -> do
             (as,gl) <- parseProperty q
-            return (l :=: true:as,gl)
+            return (equalsTrue l:as,gl)
         | isGiven x,     [p,q] <- args -> do
             (nested_as,a) <- parseProperty p
             unless (null nested_as) (throwError (NestedAssumptions e))
             (as,gl) <- parseProperty q
             return (a:as,gl)
     _ -> throwError (CannotParse e)
+
+equalsTrue :: S.Expr Id -> Literal
+equalsTrue l = l :=: true
   where
     true = Gbl (idFromDataCon trueDataCon) (Forall [] (TyCon (idFromTyCon boolTyCon) [])) []
 

@@ -179,6 +179,7 @@ escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
             , ('[',"rbrack")
             , (']',"lbrack")
             , (',',"comma")
+            , ('`',"tick")
 
             , ('}',"rbrace")
             , ('{',"lbrace")

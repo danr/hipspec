@@ -1,6 +1,6 @@
 -- | Gets the GHC Core information we need, also obtains or creates the
 --   QuickSpec signature
-{-# LANGUAGE RecordWildCards, CPP #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, CPP #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
 import Test.QuickSpec.Signature (Sig)
@@ -46,16 +46,18 @@ import Control.Monad
 
 -- | The result from calling GHC
 data EntryResult = EntryResult
-    { sig_info  :: Maybe SigInfo
+    { sig_infos :: [SigInfo]
     , prop_ids  :: [Var]
     , extra_tcs :: [TyCon]
     }
 
 -- | Signature from QuickSpec
 data SigInfo = SigInfo
-    { sig         :: Sig
-    , resolve_map :: ResolveMap
-    , symbol_map  :: SymbolMap
+    { sig          :: Sig
+    , resolve_map  :: ResolveMap
+    , symbol_map   :: SymbolMap
+    , cond_id      :: Maybe Id
+    , cond_mono_ty :: Maybe Type
     }
 
 execute :: Params  -> IO EntryResult
@@ -145,25 +147,26 @@ execute params@Params{..} = do
                 ]
 
         -- Make or get signature
-        m_sig <- if auto
-            then makeSignature params props
-            else getSignature
+        cond_id <- findCondId params
+
+        (sigs,cond_mono_ty) <- if auto
+            then (makeSignature params cond_id props)
+            else fmap (flip (,) Nothing . maybeToList) getSignature
+
 
         -- Make signature map
         --
         -- The extra_ids comes from --extra and --extra-trans fields from
         -- the auto signature generation
-        (sig_info,extra_ids,extra_tcs) <- case m_sig of
-            Nothing -> return (Nothing,[],[])
-            Just sig -> do
-                resolve_map <- makeResolveMap params sig
-                let symbol_map = makeSymbolMap resolve_map sig
-                    (ids,tcs) = case resolve_map of
-                        ResolveMap m n -> (M.elems m,M.elems n)
+        (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ sig -> do
+            resolve_map <- makeResolveMap params sig
+            let symbol_map = makeSymbolMap resolve_map sig
+                (ids,tcs) = case resolve_map of
+                    ResolveMap m n -> (M.elems m,M.elems n)
 
-                whenFlag params DebugStrConv (liftIO (putStrLn (show symbol_map)))
+            whenFlag params DebugStrConv (liftIO (putStrLn (show symbol_map)))
 
-                return (Just SigInfo{..},ids,tcs)
+            return (SigInfo{..},ids,tcs)
 
         let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
                          | otherwise = []
@@ -172,10 +175,20 @@ execute params@Params{..} = do
 
         -- Wrapping up
         return EntryResult
-            { sig_info  = sig_info
-            , prop_ids  = props ++ extra_ids ++ toplvl_binds
-            , extra_tcs = extra_tcs
+            { sig_infos = sig_infos
+            , prop_ids  = props ++ concat extra_ids ++ toplvl_binds ++ maybeToList cond_id
+            , extra_tcs = concat extra_tcs
             }
+
+findCondId :: Params -> Ghc (Maybe Id)
+findCondId Params{cond_name} = case cond_name of
+    "" -> return Nothing
+    cn -> do
+        tyth <- lookupString cn
+        case tyth of
+            AnId i:_ -> return (Just i)
+            _        -> error $ "Predicate " ++ cn ++ " is not an identifier!"
+
 
 findModuleSum :: FilePath -> [ModSummary] -> ModSummary
 findModuleSum file

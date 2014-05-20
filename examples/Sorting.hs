@@ -15,9 +15,24 @@ Z   <= _   = True
 _   <= Z   = False
 S x <= S y = x <= y
 
+eq :: Nat -> Nat -> Bool
+Z   `eq` Z   = True
+S x `eq` S y = x `eq` y
+_   `eq` _   = False
+
+merge (x:xs) (y:ys)
+    | x <= y = x:merge xs (y:ys)
+    | True   = y:merge (x:xs) ys
+merge xs [] = xs
+merge [] ys = ys
+
 isort :: [Nat] -> [Nat]
 isort [] = []
 isort (x:xs) = insert x (isort xs)
+
+isort' :: [Nat] -> [Nat] -> [Nat]
+isort' []     ys = ys
+isort' (x:xs) ys = isort' xs (insert x ys)
 
 insert :: Nat -> [Nat] -> [Nat]
 insert n [] = [n]
@@ -37,11 +52,14 @@ iff :: Bool -> [Nat] -> [Nat] -> [Nat]
 iff True  xs _ = xs
 iff False _ ys = ys
 
+-- prop_sorted_tail a as = sorted (a:as) =:= True ==> sorted as =:= True
 
+{-
 prop1 x xs = sorted (iff (sorted xs) (insert x xs) []) =:= True
 prop2 x xs = sorted (insert x (iff (sorted xs) xs [])) =:= True
 prop3 x xs = sorted (insert x xs) =:= sorted xs
 prop4 x xs = sorted (isort xs) =:= True
+-}
 
 --prop_length_insert x xs = length (insert x xs) =:= S (length xs)
 --prop_length_isort  xs = length (isort xs) =:= length xs

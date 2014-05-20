@@ -9,6 +9,7 @@ module HipSpec.Sig.Symbols
     , SymbolMap(..)
     , lookupCon
     , lookupVar
+    , translateId
     ) where
 
 import Test.QuickSpec.Signature
@@ -23,8 +24,6 @@ import HipSpec.Lang.Simple
 import HipSpec.Theory
 
 import HipSpec.Sig.Resolve
-
-import HipSpec.GHC.Utils
 
 import HipSpec.Id
 
@@ -89,24 +88,18 @@ typeRepToType sm = go
       where (ty_con,ts) = Ty.splitTyConApp t
 
 translateCon :: ResolveMap -> Symbol -> Var -> (Id,PolyType Id,[Type Id])
-translateCon sm s v = case runTM (trVar v) of
-                        -- NOTE: trVar removes the context!
+translateCon sm s = translateId (typeRepToType sm (symbolType s))
+
+translateId :: Type Id -> Var -> (Id,PolyType Id,[Type Id])
+translateId t_var v = case runTM (trVar v) of -- NOTE: trVar removes the context!
     Right (R.Gbl x t_orig []) -> case m_unif of
         Just unif -> (x,t_orig,unif)
-        Nothing   -> err $ "Cannot unify the two types " ++
-            showPolyType t_orig ++ " and " ++ showType t_sym
+        Nothing   -> error $ "Cannot unify the two types " ++
+            showPolyType t_orig ++ " and " ++ showType t_var
       where
-        t_sym  = typeRepToType sm (symbolType s)
-
-        m_unif = unify t_orig t_sym
-    Right _ -> err "Not a global variable!"
-    Left e -> err (show e)
-  where
-    err :: forall a . String -> a
-    err str = error $
-        "HipSpec.Sig.Symbols.resolveCon: " ++ str ++
-        " from var " ++ showOutputable v ++
-        " and symbol " ++ show s
+        m_unif = unify t_orig t_var
+    Right _ -> error "Not a global variable!"
+    Left e -> error (show e)
 
 unify :: Eq a => PolyType a -> Type a -> Maybe [Type a]
 unify (Forall tvs t) t' = sequence [ findTv tv t t' | tv <- tvs ]

@@ -35,8 +35,8 @@ import Outputable
 
 -}
 
-makeSignature :: Params -> [Var] -> Ghc (Maybe Sig)
-makeSignature p@Params{..} prop_ids = do
+makeSignature :: Params -> Maybe Var -> [Var] -> Ghc ([Sig],Maybe Type)
+makeSignature p@Params{..} cond_id prop_ids = do
 
     let extra' = concatMap (splitOn ",") extra
         extra_trans' = concatMap (splitOn ",") extra_trans
@@ -75,7 +75,30 @@ makeSignature p@Params{..} prop_ids = do
         OUT(ids_in_scope)
 #undef OUT
 
-    makeSigFrom p ids_in_scope =<< getA
+    m_a_ty <- getA
+
+    let a_ty = case m_a_ty of
+            Just ty -> ty
+            Nothing -> error "Test.QuickSpec.Prelude.A not in scope!"
+
+        mono = monomorphise a_ty
+
+    try <- case cond_id of
+        Nothing -> return Nothing
+        Just i | isabelle_mode -> case splitFunTy_maybe (mono (varType i)) of
+            Just (_def,rest) | Just (ty,_bln) <- splitFunTy_maybe rest -> return (Just ty)
+            _ -> error $ "Predicate " ++ cond_name ++ " is of wrong type, " ++ showOutputable (varType i) ++ ", (not Default -> X -> Bool)"
+        Just i -> case splitFunTy_maybe (mono (varType i)) of
+            Just (ty,_bln) -> return (Just ty)
+            _ -> error $ "Predicate " ++ cond_name ++ " is of wrong type, " ++ showOutputable (varType i) ++ ", (not X -> Bool)"
+
+    let tries = case try of
+            Nothing -> [Nothing]
+            Just ty -> [Nothing] ++ [ Just (ty,i) | i <- [1..1] ]
+
+    sigs <- catMaybes <$> mapM (makeSigFrom p ids_in_scope mono) tries
+
+    return (sigs,try)
 
 getA :: Ghc (Maybe Type)
 getA = do
@@ -147,7 +170,9 @@ stringVarDesc Params{..} (VarDesc xs t)
                 (case m_cond of
                     Just cond_nm ->
                         [ "(Test.QuickCheck.arbitrary `Test.QuickCheck.suchThat` "
-                        , "((", cond_nm, ") Prelude.undefined)" -- undefined to get rid of isabelle Default
+                        , "((", cond_nm, ")"
+                        ,   if isabelle_mode then "Prelude.undefined)" else ")"
+                            -- undefined to get rid of isabelle Default
                         , "::"
                         , "Test.QuickCheck.Gen"
                         , "(" , showOutputable t , "))"
@@ -164,40 +189,23 @@ stringVarDesc Params{..} (VarDesc xs t)
         ] ++ ["]"]
 
 
-makeSigFrom :: Params -> [Var] -> Maybe Type -> Ghc (Maybe Sig)
-makeSigFrom p@Params{..} ids m_a_ty = do
+makeSigFrom :: Params -> [Var] -> (Type -> Type) -> Maybe (Type,Int) -> Ghc (Maybe Sig)
+makeSigFrom p@Params{..} ids mono cond_info = do
 
-    let a_ty = case m_a_ty of
-            Just ty -> ty
-            Nothing -> error "Test.QuickSpec.Prelude.A not in scope!"
-
-        mono = monomorphise a_ty
-
-        types = nubBy eqType $ concat
+    let types = nubBy eqType $ concat
             [ ty : tys
             | i <- ids
             , let (tys,ty) = splitFunTys (mono (varType i))
             ]
 
-    cond_info <- case cond_name of
-        "" -> return Nothing
-        nm -> do
-            tyth <- lookupString nm
-            case tyth of
-                AnId i:_ -> case splitFunTy_maybe (mono (varType i)) of
-                    Just (_def,rest) | Just (ty,_bln) <- splitFunTy_maybe rest ->
-                        return (Just (i,ty))
-                    _ -> error $ "Condition " ++ nm ++ " is of wrong type, " ++ showOutputable (varType i) ++ ", (not Default -> X -> Bool)"
-                _ -> error $ "Condition " ++ nm ++ " is not an identifier!"
-
     named_mono_types <- mapM (nameType p mono) types
 
     let var_desc =
             [ case cond_info of
-                Just (_,cond_ty) | cond_ty `eqType` t ->
+                Just (cond_ty,cond_cnt) | cond_ty `eqType` t ->
                     VarDesc (map (uncurry V) . reverse $
                             reverse names `zip`
-                            (replicate cond_count (Just cond_name) ++ repeat Nothing))
+                            (replicate cond_cnt (Just cond_name) ++ repeat Nothing))
                          t
                 _ -> VarDesc (map (uncurry V) $ names `zip` repeat Nothing) t
             | (t,names) <- named_mono_types
