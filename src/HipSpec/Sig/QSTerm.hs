@@ -51,8 +51,16 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
         Just cd_id   = cond_id
         (v,t,ts) = translateId (either error id (CTR.trType mono_ty)) cd_id
 
-    repr = show (mapVars (delBackquote . disambig) e1) ++ eqls ++ show (mapVars (delBackquote . disambig) e2)
+    repr = show_eq e1 ++ eqls ++ show_eq e2
       where
+        show_eq = show . mapVars (delBackquote . disambig) . mapConsts (on_name g)
+
+        on_name h s = s { name = h (name s) }
+
+        g x = case lookup x isabelleFunctionNames of
+            Just y  | isabelle_mode -> y
+            Nothing                 -> x
+
         eqls | isabelle_mode = " = "
              | otherwise     = " == "
 
@@ -90,3 +98,11 @@ delBackquote a = case name a of
     '`':xs -> a { name = xs }
     _      -> a
 
+isabelleFunctionNames :: [(String, String)]
+isabelleFunctionNames =
+  [(":", "#"),
+   ("++", "@"),
+   ("reverse", "rev"),
+   ("plus_nat", "Groups.plus_class.plus"),
+   ("Zero_nat", "Groups.zero_class.zero"),
+   ("one_nat", "Groups.one_class.one")]
