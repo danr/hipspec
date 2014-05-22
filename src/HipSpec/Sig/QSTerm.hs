@@ -21,7 +21,6 @@ import HipSpec.Lang.CoreToRich as CTR
 
 import Data.List (intercalate)
 
--- import HipSpec.Theory
 import HipSpec.Id
 
 termToExpr :: SymbolMap -> Term -> S.Expr Id

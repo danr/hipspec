@@ -83,13 +83,13 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
     InductiveProof{..} -> green ((not (null vars) ? bold)
-        ("Proved " ++ property_name ++ pmif property_repr ++ (case vars of
+        ("Proved " ++ repr_prop (property_name,property_repr) ++ (case vars of
                 [] -> " without induction"
                 _  -> " by induction on " ++ csv vars)))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
 
-    FailedProof{..} -> "Failed to prove " ++ property_name ++ pmif property_repr
+    FailedProof{..} -> "Failed to prove " ++ repr_prop (property_name,property_repr)
 
     Spawning{..}           -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info
     SpawningWithTheory{..} -> "Spawning "   ++ property_name ++ " " ++ showObInfo prop_ob_info ++ " on:\n" ++ reindent theory_string
@@ -118,6 +118,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
 
   where
     repr_prop :: (String,Maybe String) -> String
+    repr_prop (s,Just s') | s == s' = s
     repr_prop (s,ms) = s ++ pmif ms
 
     pmif :: Maybe String -> String

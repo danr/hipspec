@@ -10,10 +10,17 @@ prop_T14 :: [Nat] -> Prop Bool
 prop_T14 x = proveBool (sorted (isort x))
 -}
 
+{-
 (<=) :: Nat -> Nat -> Bool
 x <= y = case x `cmp` y of
     GT -> False
     _  -> True
+    -}
+
+(<=) :: Nat -> Nat -> Bool
+Z   <= _   = True
+S _ <= Z   = False
+S x <= S y = x <= y
 
 cmp :: Nat -> Nat -> Ordering
 Z   `cmp` Z   = EQ
@@ -66,6 +73,9 @@ insert n (x:xs) =
 True && x = x
 _    && _ = False
 
+False `or` x = x
+_     `or` _ = True
+
 sorted :: [Nat] -> Bool
 sorted (x:y:xs) = x <= y && sorted (y:xs)
 sorted _        = True
@@ -98,7 +108,9 @@ whenSorted xs = if sorted xs then xs else []
 
 -- Use this, or the signature with depth 4 below (takes a lot of time)
 prop_koen x xs = sorted (insert x (whenSorted xs)) =:= True
+-}
 
+{-
 sig =
     [ fun0 "False"          ( False :: Bool )
     , fun0 "True"           ( True :: Bool )
