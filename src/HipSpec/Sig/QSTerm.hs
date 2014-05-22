@@ -60,7 +60,7 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
     raw_occuring_vars = nubSorted (vars e1 ++ vars e2)
 
     disambig :: Symbol -> Symbol
-    disambig = disambiguate sig (map delBackquote $ vars e1 ++ vars e2)
+    disambig = disambiguate sig (vars e1 ++ vars e2)
 
     occuring_vars :: [Symbol]
     occuring_vars = map disambig raw_occuring_vars
@@ -80,8 +80,9 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
         '`':_ -> True
         _     -> False
 
+{-
     delBackquote :: Symbol -> Symbol
     delBackquote a = case name a of
         '`':xs -> a { name = xs }
         _      -> a
-
+-}
