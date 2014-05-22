@@ -51,7 +51,10 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
         Just cd_id   = cond_id
         (v,t,ts) = translateId (either error id (CTR.trType mono_ty)) cd_id
 
-    repr = show (mapVars (delBackquote . disambig) e1 E.:=: mapVars (delBackquote . disambig) e2)
+    repr = show (mapVars (delBackquote . disambig) e1) ++ eqls ++ show (mapVars (delBackquote . disambig) e2)
+      where
+        eqls | isabelle_mode = " = "
+             | otherwise     = " == "
 
     final_repr = show_precond precond_vars repr
 
