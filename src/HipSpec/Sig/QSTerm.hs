@@ -59,7 +59,7 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
 
         g x = case lookup x isabelleFunctionNames of
             Just y  | isabelle_mode -> y
-            Nothing                 -> x
+            _                       -> x
 
         eqls | isabelle_mode = " = "
              | otherwise     = " == "
