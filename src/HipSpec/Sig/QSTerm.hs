@@ -32,7 +32,7 @@ termToExpr sm = go
         T.Const s   -> lookupCon sm s
 
 eqToProp :: Params -> SigInfo -> Integer -> Equation -> Property Equation
-eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
+eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Property
     { prop_name      = final_repr
     , prop_id        = QSOrigin "" i
     , prop_origin    = Equation eq
@@ -72,7 +72,10 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
     goal = term_to_expr e1 P.:=: term_to_expr e2
 
     show_precond [] u = u
-    show_precond xs u = intercalate " && " [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
+    show_precond xs u = intercalate conj [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
+      where
+        conj | isabelle_mode = " & "
+             | otherwise     = " && "
 
 isBackquoted :: Symbol -> Bool
 isBackquoted a = case name a of

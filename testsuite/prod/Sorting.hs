@@ -1,7 +1,7 @@
 module Sorting where
 
 import Prelude(Bool(..),undefined)
-import HipSpec.Prelude
+import HipSpec
 import Definitions
 import Properties(prop_T14)
 import Test.QuickSpec.Signature

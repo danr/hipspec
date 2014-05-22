@@ -3,6 +3,7 @@ module Sorting where
 import Prelude (Bool(..),undefined,Ordering(..))
 import HipSpec
 import Nat
+import List
 import Test.QuickSpec.Signature
 
 {-
@@ -70,14 +71,16 @@ insert n (x:xs) =
     True -> n : x : xs
     False -> x : (insert n xs)
 
+{-
 True && x = x
 _    && _ = False
+-}
 
 False `or` x = x
 _     `or` _ = True
 
 sorted :: [Nat] -> Bool
-sorted (x:y:xs) = x <= y && sorted (y:xs)
+sorted (x:y:xs) = case x <= y of { True -> sorted (y:xs) ; False -> False }
 sorted _        = True
 
 iff :: Bool -> [Nat] -> [Nat] -> [Nat]
@@ -97,18 +100,12 @@ prop4 x xs = sorted (isort xs) =:= True
 --prop_length_isort  xs = length (isort xs) =:= length xs
 
 
-length :: [Nat] -> Nat
-length []     = Z
-length (_:xs) = S (length xs)
-
-{-
 -- Koen Style:
 whenSorted :: [Nat] -> [Nat]
 whenSorted xs = if sorted xs then xs else []
 
 -- Use this, or the signature with depth 4 below (takes a lot of time)
 prop_koen x xs = sorted (insert x (whenSorted xs)) =:= True
--}
 
 {-
 sig =

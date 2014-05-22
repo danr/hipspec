@@ -2,9 +2,7 @@
 module Main where
 
 import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs, Symbol,name)
-import qualified Test.QuickSpec.Term as Term
-import qualified Test.QuickSpec.Signature as Sig
+import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs,Symbol)
 import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
 import Test.QuickSpec.Generate
 import Test.QuickSpec.Signature
@@ -40,6 +38,7 @@ import Prelude hiding (read)
 import qualified Data.Map as M
 
 import Data.List
+import Data.List.Split
 import Data.Maybe
 import Data.Ord
 import Data.Function
@@ -63,26 +62,27 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
         sig_info@SigInfo{..}:sig_infos -> do
 
-            Params{explore_theory,user_stated_first,call_graph} <- getParams
+            Params{explore_theory,user_stated_first,call_graph,isabelle_mode} <- getParams
 
             (init_qsconjs,reps,classes) <- runQuickSpec sig_info
 
             extra_conjs <- concatMapM (fmap (\ (q,_,_) -> q) . runQuickSpec) sig_infos
 
-            let qsconjs = init_qsconjs ++
-                    [ p { prop_origin = UserStated }
-                    | p <- extra_conjs, not (null (prop_assums p))
-                    ]
+            let drop_precond s = case splitOn " ==> " s of
+                    [_,post] -> post
+                    _        -> s
+
+                qsconjs = callg_sort
+                    $ nubBy ((==) `on` drop_precond . prop_repr)
+                    $ init_qsconjs ++
+                      [ p { prop_origin = UserStated }
+                      | p <- extra_conjs, not (null (prop_assums p))
+                      ]
 
                 callg_sort = if call_graph then cgSortProps callg else id
 
                 (~+) | user_stated_first = flip (++)
                      | otherwise         = (++)
-
-            mapM_ (checkLint . lintProperty) qsconjs
-
-            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
-                unlines (map show qsconjs)
 
             let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
 
@@ -92,11 +92,25 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
                 ctx_with_def = execEQR ctx_init (mapM_ unify def_eqs)
 
+            when isabelle_mode $ do
+                liftIO $ do
+                    mapM_ putStrLn
+                        $ map prop_repr
+                        $ filter (maybe True (not . evalEQR ctx_with_def . equal) . propEquation)
+                        $ qsconjs
+                    exitSuccess
+
+            mapM_ (checkLint . lintProperty) qsconjs
+
+            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
+                unlines (map show qsconjs)
+
             debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
                 unlines (map show def_eqs)
 
+
             (ctx_final,exit_act) <- runMainLoop ctx_with_def
-                                     (callg_sort qsconjs ~+ map vacuous user_props)
+                                     (qsconjs ~+ map vacuous user_props)
                                      []
 
             when explore_theory $ do
@@ -219,15 +233,13 @@ runQuickSpec sig_info@SigInfo{..} = do
                 | eq_calls eq2 `isSupersetOf` eq_calls eq1 = eq1
                 | otherwise                                = eq2
 
+        cmp = comparing (eq_order . (swap_repr ? swapEq))
+
         classToEqs :: [Several Expr] -> [Some TypedEquation]
         classToEqs
-            = sortBy (comparing (eq_order . (swap_repr ? swapEq)
-                                . some eraseEquation))
-            . if quadratic
-                   then concatMap ( several (map (Some . uncurry (:==:))
-                                  . uniqueCartesian)
-                                  )
-                   else equations'
+            | quadratic = concatMap ( several (map (Some . uncurry (:==:))
+                                    . uniqueCartesian))
+            | otherwise = equations'
 
         ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
 
@@ -235,7 +247,9 @@ runQuickSpec sig_info@SigInfo{..} = do
 
         pruner    = prune ctx_init (map erase reps) (some eraseEquation)
         prunedEqs = pruner (equations classes)
-        eqs       = prepend_pruned ? (prunedEqs ++) $ classToEqs classes
+        eqs       = prepend_pruned ? (prunedEqs ++)
+                  $ sortBy (cmp `on` some eraseEquation)
+                  $ classToEqs classes
 
     debugWhen PrintEqClasses $ "\nEquivalence classes:\n" ++ unlines
         (map (show . several (map term)) classes)

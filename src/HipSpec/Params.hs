@@ -164,7 +164,7 @@ sanitizeParams
   where
     fix_isabelle_mode params
         | isabelle_mode params = params
-            { debug_flags    = QuickSpecOnly : debug_flags params
+            { debug_flags    = debug_flags params
             , explore_theory = True
             , verbosity      = 0
             , auto           = True
@@ -210,7 +210,7 @@ defParams = Params
 #endif
     , isabelle_mode       = False                &= help "Isabelle mode"
     , cond_name           = ""                   &= help "Isabelle: pre-condition name"
-    , cond_count          = 0                    &= help "Isabelle: pre-condition count"
+    , cond_count          = 1                    &= help "Isabelle: pre-condition count"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
