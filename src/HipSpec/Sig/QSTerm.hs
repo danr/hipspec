@@ -52,7 +52,7 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
         Just cd_id   = cond_id
         (v,t,ts) = translateId (either error id (CTR.trType mono_ty)) cd_id
 
-    repr = show (mapVars disambig e1 E.:=: mapVars disambig e2)
+    repr = show (mapVars (delBackquote . disambig) e1 E.:=: mapVars (delBackquote . disambig) e2)
 
     final_repr = show_precond precond_vars repr
 
@@ -63,10 +63,10 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
     disambig = disambiguate sig (vars e1 ++ vars e2)
 
     occuring_vars :: [Symbol]
-    occuring_vars = map disambig raw_occuring_vars
+    occuring_vars = map delBackquote $ map disambig raw_occuring_vars
 
     precond_vars :: [Symbol]
-    precond_vars = map disambig (filter isBackquoted raw_occuring_vars)
+    precond_vars = map delBackquote $ map disambig (filter isBackquoted raw_occuring_vars)
 
     term_to_expr = termToExpr symbol_map
 
@@ -75,14 +75,13 @@ eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
     show_precond [] u = u
     show_precond xs u = intercalate " && " [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
 
-    isBackquoted :: Symbol -> Bool
-    isBackquoted a = case name a of
-        '`':_ -> True
-        _     -> False
+isBackquoted :: Symbol -> Bool
+isBackquoted a = case name a of
+    '`':_ -> True
+    _     -> False
 
-{-
-    delBackquote :: Symbol -> Symbol
-    delBackquote a = case name a of
-        '`':xs -> a { name = xs }
-        _      -> a
--}
+delBackquote :: Symbol -> Symbol
+delBackquote a = case name a of
+    '`':xs -> a { name = xs }
+    _      -> a
+

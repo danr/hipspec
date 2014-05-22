@@ -37,6 +37,17 @@ merge (x:xs) (y:ys)
 merge xs [] = xs
 merge [] ys = ys
 
+mergesort []  = []
+mergesort [x] = [x]
+mergesort xs  = merge (mergesort (evens xs)) (mergesort (odds xs))
+
+evens (x:_:xs) = x:evens xs
+evens [x]      = [x]
+evens []       = []
+
+odds (_:y:ys) = y:odds ys
+odds _        = []
+
 isort :: [Nat] -> [Nat]
 isort [] = []
 isort (x:xs) = insert x (isort xs)

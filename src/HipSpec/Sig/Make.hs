@@ -94,7 +94,7 @@ makeSignature p@Params{..} cond_id prop_ids = do
 
     let tries = case try of
             Nothing -> [Nothing]
-            Just ty -> [Nothing] ++ [ Just (ty,i) | i <- [1..1] ]
+            Just ty -> [Nothing] ++ [ Just (ty,i) | i <- [1..cond_count] ]
 
     sigs <- catMaybes <$> mapM (makeSigFrom p ids_in_scope mono) tries
 
