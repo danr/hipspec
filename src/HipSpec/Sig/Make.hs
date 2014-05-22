@@ -211,7 +211,7 @@ makeSigFrom p@Params{..} ids mono cond_info = do
             | (t,names) <- named_mono_types
             ]
 
-    let fun | isabelle_mode = "Test.QuickSpec.Signature.obs"
+    let fun | isabelle_mode = "obs"
             | otherwise = "Test.QuickSpec.Signature.fun"
         entries =
             [ unwords

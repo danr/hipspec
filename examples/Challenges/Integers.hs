@@ -67,9 +67,9 @@ N m -. P n = N (n + m)
 P m -. N n = P (S (n + m))
 P m -. P n = m - n
 
-abs :: Z -> Nat
-abs (P n) = n
-abs (N n) = S n
+abs' :: Z -> Nat
+abs' (P n) = n
+abs' (N n) = S n
 
 data Sign = Pos | Neg deriving (Eq,Show,Ord,Typeable)
 
@@ -113,7 +113,7 @@ Neg <| (S m) = N m
 
 -- Integer multiplication
 (*.) :: Z -> Z -> Z
-i *. j = (sign i *% sign j) <| (abs i * abs j)
+i *. j = (sign i *% sign j) <| (abs' i * abs' j)
 
 one :: Z
 one = P (S Z)
@@ -159,7 +159,7 @@ sig =
     , fun2 "*%" (*%)
     , fun1 "opposite" opposite
     , fun1 "neg" neg
-    , fun1 "abs" abs
+    , fun1 "abs'" abs'
     , fun1 "sign" sign
     ]
   where

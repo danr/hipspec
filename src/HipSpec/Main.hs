@@ -164,7 +164,7 @@ runMainLoop ctx_init initial_props initial_thms = do
 runQuickSpec :: SigInfo -> HS ([Property Equation],[Tagged Term],[Several Expr])
 runQuickSpec sig_info@SigInfo{..} = do
 
-    Params{..} <- getParams
+    params@Params{..} <- getParams
 
     let callg = transitiveCallGraph resolve_map
 
@@ -266,7 +266,7 @@ runQuickSpec sig_info@SigInfo{..} = do
             -}
 
     let conjs =
-            [ (etaExpandProp . generaliseProp . eqToProp sig_info i) eq
+            [ (etaExpandProp . generaliseProp . eqToProp params sig_info i) eq
             | (eq0,i) <- zip eqs [0..]
             , let eq = some eraseEquation eq0
             ]

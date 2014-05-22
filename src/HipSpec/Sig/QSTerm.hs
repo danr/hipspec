@@ -1,4 +1,4 @@
-{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE ParallelListComp, ViewPatterns, PatternGuards, ScopedTypeVariables, RecordWildCards, NamedFieldPuns #-}
 -- | Translating from QuickSpec -> Core
 --
 --   There are no type variables here, properties are to be generalised in a
@@ -15,7 +15,11 @@ import HipSpec.Utils
 import HipSpec.Property as P
 import qualified HipSpec.Lang.Simple as S
 
+import HipSpec.Params
+
 import HipSpec.Lang.CoreToRich as CTR
+
+import Data.List (intercalate)
 
 -- import HipSpec.Theory
 import HipSpec.Id
@@ -28,17 +32,17 @@ termToExpr sm = go
         T.Var s     -> uncurry S.Lcl (lookupVar sm s)
         T.Const s   -> lookupCon sm s
 
-eqToProp :: SigInfo -> Integer -> Equation -> Property Equation
-eqToProp SigInfo{..} i eq@(e1 E.:=: e2) = Property
-    { prop_name      = repr
+eqToProp :: Params -> SigInfo -> Integer -> Equation -> Property Equation
+eqToProp Params{cond_name} SigInfo{..} i eq@(e1 E.:=: e2) = Property
+    { prop_name      = final_repr
     , prop_id        = QSOrigin "" i
     , prop_origin    = Equation eq
     , prop_tvs       = []
     , prop_vars      = map (lookupVar symbol_map) occuring_vars
     , prop_goal      = goal
-    , prop_assums    = [ mk_assum x | x <- occuring_vars, isBackquoted x ]
-    , prop_repr      = repr
-    , prop_var_repr  = map (show . disambig) occuring_vars
+    , prop_assums    = [ mk_assum x | x <- precond_vars ]
+    , prop_repr      = final_repr
+    , prop_var_repr  = map show occuring_vars
     }
   where
     mk_assum x = P.equalsTrue
@@ -50,16 +54,34 @@ eqToProp SigInfo{..} i eq@(e1 E.:=: e2) = Property
 
     repr = show (mapVars disambig e1 E.:=: mapVars disambig e2)
 
-    disambig = disambiguate sig (vars e1 ++ vars e2)
+    final_repr = show_precond precond_vars repr
+
+    raw_occuring_vars :: [Symbol]
+    raw_occuring_vars = nubSorted (vars e1 ++ vars e2)
+
+    disambig :: Symbol -> Symbol
+    disambig = disambiguate sig (map delBackquote $ vars e1 ++ vars e2)
 
     occuring_vars :: [Symbol]
-    occuring_vars = nubSorted (vars e1 ++ vars e2)
+    occuring_vars = map disambig raw_occuring_vars
+
+    precond_vars :: [Symbol]
+    precond_vars = map disambig (filter isBackquoted raw_occuring_vars)
 
     term_to_expr = termToExpr symbol_map
 
     goal = term_to_expr e1 P.:=: term_to_expr e2
 
+    show_precond [] u = u
+    show_precond xs u = intercalate " && " [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
+
     isBackquoted :: Symbol -> Bool
     isBackquoted a = case name a of
         '`':_ -> True
         _     -> False
+
+    delBackquote :: Symbol -> Symbol
+    delBackquote a = case name a of
+        '`':xs -> a { name = xs }
+        _      -> a
+

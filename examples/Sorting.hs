@@ -1,6 +1,6 @@
 module Sorting where
 
-import Prelude (Bool(..),undefined)
+import Prelude (Bool(..),undefined,Ordering(..))
 import HipSpec
 import Nat
 import Test.QuickSpec.Signature
@@ -11,9 +11,20 @@ prop_T14 x = proveBool (sorted (isort x))
 -}
 
 (<=) :: Nat -> Nat -> Bool
-Z   <= _   = True
-_   <= Z   = False
-S x <= S y = x <= y
+x <= y = case x `cmp` y of
+    GT -> False
+    _  -> True
+
+cmp :: Nat -> Nat -> Ordering
+Z   `cmp` Z   = EQ
+Z   `cmp` S x = LT
+S y `cmp` Z   = GT
+S x `cmp` S y = x `cmp` y
+
+swap :: Ordering -> Ordering
+swap EQ = EQ
+swap LT = GT
+swap GT = LT
 
 eq :: Nat -> Nat -> Bool
 Z   `eq` Z   = True
