@@ -53,6 +53,6 @@ sorted (Cons x (Cons y xs))
 sorted _        = True
 
 -- To run:
--- hipspec Sorting --auto --extra-trans=isort,count,sorted --cg --cond-name=sorted --cond-count=1
+-- hipspec Sorting --auto --cg --cond-name=sorted --cond-count=1
 prop_sort_sorted xs = sorted (isort xs) =:= True
 prop_sort_permutation xs x = count x xs =:= count x (isort xs)
