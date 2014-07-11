@@ -28,11 +28,6 @@ flag JSON
     default: False
     manual: True
 
--- Don't use the unification-fd library on 7.8.1 as it fails to build
-flag unification
-    default: True
-    manual: False
-
 library
     hs-source-dirs: src
 
@@ -47,7 +42,7 @@ library
     build-depends:
         base                 >= 4    && < 5,
         QuickCheck           >= 2.5,
-        quickspec            == 0.9.4
+        quickspec            == 0.9.5
 
 executable hipspec
     hs-source-dirs: src
@@ -62,11 +57,6 @@ executable hipspec
     if flag(Werror)
         ghc-options: -Werror
     ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
-
-    if flag(unification)
-        cpp-options: -DUNIFICATION
-        build-depends:
-            unification-fd       >= 0.8
 
     build-depends:
         base                 >= 4 && < 5,
@@ -84,12 +74,13 @@ executable hipspec
         transformers         >= 0.3,
         split                >= 0.1,
         pretty-show          >= 1.5,
+        unification-fd       >= 0.9,
 
 
         ghc-prim,
 
         -- QuickSpec
-        quickspec            == 0.9.4,
+        quickspec            == 0.9.5,
 
         -- Printing messages
         time                 >= 1.4,
