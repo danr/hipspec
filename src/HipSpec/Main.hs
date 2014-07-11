@@ -18,7 +18,7 @@ import HipSpec.Reasoning
 
 import Data.Void
 
-import HipSpec.Params (SuccessOpt(..))
+import HipSpec.Params (SuccessOpt(..), defParams, cmdArgs)
 
 import HipSpec.ThmLib
 import HipSpec.Property hiding (Literal(..))
@@ -53,7 +53,10 @@ import qualified Data.ByteString.Lazy as B
 import System.Exit (exitSuccess,exitFailure)
 
 main :: IO ()
-main = processFile $ \ callg m_sig_info user_props -> do
+main = run =<< cmdArgs defParams
+
+run :: Params -> IO ()
+run params = processFile params $ \ callg m_sig_info user_props -> do
     writeMsg FileProcessed
 
     exit_act <- case m_sig_info of

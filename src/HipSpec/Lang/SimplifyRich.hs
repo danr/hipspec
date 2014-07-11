@@ -36,7 +36,7 @@ simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
         , null tvs || loc == Global ->
             let
                 var = case loc of
-                    Global -> Gbl
+                    Global -> Gbl Fn
                     Local  -> \ a _ _ -> Lcl a inner_ty
             in
                 makeLambda xs
@@ -52,7 +52,7 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
 
     -- Known case on a constructor
     Case e mx alts
-        | (Gbl u _ ts,args) <- collectArgs e
+        | (Gbl _ u _ ts,args) <- collectArgs e
         , Just (ConPat _ _ _ bs,rhs) <- findAlt u ts alts
         -> simpExpr (substMany (maybe id (\ (x,_) -> ((x,e):)) mx (zip (map fst bs) args)) rhs)
 
@@ -83,7 +83,7 @@ removeScrutinee e mx (p,rhs) = subst rhs
     subst_expr  = case p of
         Default           -> e
         LitPat l          -> Lit l
-        ConPat u ty ts bs -> apply (Gbl u ty ts) (map (uncurry Lcl) bs)
+        ConPat u ty ts bs -> apply (Gbl Cn u ty ts) (map (uncurry Lcl) bs)
 
     -- If the scrutinee is just a variable, we inline it too.
     -- This can lead to triggering many known case.

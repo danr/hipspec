@@ -61,6 +61,10 @@ polyname x0 = case x0 of
     TyFn     -> "Fn"
     Proj x i -> "proj_" ++ ppId x ++ "_" ++ show i
     QVar i   -> 'x':show i
+    Fuel     -> "Fuel"
+    FuelSucc -> "S"
+    FuelZero -> "Z"
+    FuelN    -> "N"
 
 mononame :: IdInst LogicId LogicId -> String
 mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs

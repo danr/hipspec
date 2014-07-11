@@ -45,7 +45,7 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
     }
   where
     mk_assum x = P.equalsTrue
-        (S.Gbl v t ts `S.App` uncurry S.Lcl (lookupVar symbol_map x))
+        (S.Gbl S.Fn v t ts `S.App` uncurry S.Lcl (lookupVar symbol_map x))
       where
         Just mono_ty = cond_mono_ty
         Just cd_id   = cond_id

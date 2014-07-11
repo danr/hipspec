@@ -54,6 +54,7 @@ data Content
     -- ^ The conjecture
     | AppThy
     -- ^ Defines app and fn
+    | FuelThy
   deriving (Eq,Ord)
 
 instance Show Content where
@@ -64,6 +65,7 @@ instance Show Content where
         Lemma i       -> "Lemma " ++ show i
         Conjecture    -> "Conjecture"
         AppThy        -> "AppThy"
+        FuelThy       -> "FuelThy"
 
 type Theory = [Subtheory]
 
@@ -98,13 +100,15 @@ calcDeps = calcDepsIgnoring []
 -- | Calculate depedencies, ignoring some content
 calcDepsIgnoring :: [Content] -> Subtheory -> Subtheory
 calcDepsIgnoring ctnt s = s
-    { deps = S.unions [types,app,ptrs,defs] S.\\ S.fromList ctnt }
+    { deps = S.unions [types,app,fuel,ptrs,defs] S.\\ S.fromList ctnt }
   where
     (S.toList -> ty_cons,S.toList -> fns) = clsDeps (clauses s)
 
     types = S.fromList [ Type x | Id x@GHCOrigin{} <- ty_cons ]
 
     app = S.fromList $ [ AppThy | TyFn <- ty_cons ] ++ [ AppThy | App <- fns ]
+
+    fuel = S.fromList [ FuelThy | Fuel <- ty_cons ]
 
     ptrs = S.fromList [ Pointer x | Ptr x <- fns ]
 

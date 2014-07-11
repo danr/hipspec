@@ -207,7 +207,7 @@ initFields p@Property{..} = runRenameM (disambig originalId) [] $ do
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)
 parseProperty e = case collectArgs e of
-    (Gbl x _ _,args)
+    (Gbl _ x _ _,args)
         | isEquals x,    [l,r] <- args -> return ([],l :=: r)
         | isProveBool x, [l]   <- args -> return ([],equalsTrue l)
         | isGivenBool x, [l,q] <- args -> do
@@ -223,7 +223,7 @@ parseProperty e = case collectArgs e of
 equalsTrue :: S.Expr Id -> Literal
 equalsTrue l = l :=: true
   where
-    true = Gbl (idFromDataCon trueDataCon) (Forall [] (TyCon (idFromTyCon boolTyCon) [])) []
+    true = Gbl Cn (idFromDataCon trueDataCon) (Forall [] (TyCon (idFromTyCon boolTyCon) [])) []
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore

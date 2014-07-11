@@ -43,7 +43,7 @@ import Data.Generics.Geniplate
 import Data.List (nub,union)
 
 -- Patterns are resued from the rich language
-import HipSpec.Lang.Rich (Pattern(..),anyRhs,Datatype(..),Constructor(..))
+import HipSpec.Lang.Rich (Pattern(..),anyRhs,Datatype(..),Constructor(..),FC(..))
 import qualified HipSpec.Lang.Rich as R
 import HipSpec.Lang.Type
 
@@ -73,7 +73,7 @@ type Alt a = (Pattern a,Body a)
 data Expr a
     = Lcl a (Type a)
     -- ^ Local variables
-    | Gbl a (PolyType a) [Type a]
+    | Gbl R.FC a (PolyType a) [Type a]
     -- ^ Global variables applied to their type arguments
     | App (Expr a) (Expr a)
     | Lit Integer
@@ -107,12 +107,12 @@ exprFreeTyVars = go
   where
     go e0 = case e0 of
         Lcl _ t    -> freeTyVars t
-        Gbl _ _ ts -> nub (concatMap freeTyVars ts)
+        Gbl _ _ _ ts -> nub (concatMap freeTyVars ts)
         App e1 e2  -> go e1 `union` go e2
         Lit{}      -> []
 
 exprGbls :: Eq a => Expr a -> [a]
-exprGbls e = nub [ x | Gbl x _ _ <- universeBi e ]
+exprGbls e = nub [ x | Gbl _ x _ _ <- universeBi e ]
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =
@@ -159,7 +159,7 @@ injectBody b0 = case b0 of
 injectExpr :: Expr a -> R.Expr a
 injectExpr e0 = case e0 of
     Lcl x t    -> R.Lcl x t
-    Gbl x t ts -> R.Gbl x t ts
+    Gbl fc x t ts -> R.Gbl fc x t ts
     App e1 e2  -> R.App (injectExpr e1) (injectExpr e2)
     Lit l      -> R.Lit l
 

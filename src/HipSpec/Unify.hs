@@ -31,7 +31,7 @@ data U a = U a | Fresh Int
 
 data IExpr a
     = ILcl a IntVar
-    | IGbl a (PolyType a) [IntVar]
+    | IGbl FC a (PolyType a) [IntVar]
     | IApp (IExpr a) (IExpr a)
     | ILit Integer
 
@@ -116,9 +116,9 @@ genExpr e0 = case e0 of
             Nothing -> do
                 (_,i) <- insertVar x
                 return (UVar i,ILcl x i)
-    Gbl x t _ -> do
+    Gbl fc x t _ -> do
         (rt,new) <- freshInst t
-        return (rt,IGbl x t new)
+        return (rt,IGbl fc x t new)
     App e1 e2 -> do
         (t1,i1) <- genExpr e1
         (t2,i2) <- genExpr e2
@@ -147,9 +147,9 @@ extExpr i0 = case i0 of
     ILcl x i -> do
         t <- varType i
         return $ Lcl (U x) t
-    IGbl x t is -> do
+    IGbl fc x t is -> do
         ts <- mapM varType is
-        return $ Gbl (U x) (fmap U t) ts
+        return $ Gbl fc (U x) (fmap U t) ts
     IApp i1 i2 -> App <$> extExpr i1 <*> extExpr i2
     ILit i     -> return (Lit i)
 

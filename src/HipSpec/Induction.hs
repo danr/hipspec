@@ -115,7 +115,7 @@ trTerm lkup = go
     go :: Term Con Id -> S.Expr Id
     go tm = case tm of
         IS.Var x            -> uncurry S.Lcl (lkup x)
-        IS.Con (c,t,ts) tms -> S.apply (S.Gbl c t ts) (map go tms)
+        IS.Con (c,t,ts) tms -> S.apply (S.Gbl S.Cn c t ts) (map go tms)
         IS.Fun f        tms -> S.apply (uncurry S.Lcl (lkup f)) (map go tms)
                                     {- locally quantified functions -}
 

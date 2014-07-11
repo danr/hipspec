@@ -55,7 +55,7 @@ rtsBody e0 = case e0 of
 rtsExpr :: R.Expr Id -> RTS (S.Expr Id)
 rtsExpr e0 = case e0 of
     R.Lcl x ty     -> return (S.Lcl x ty)
-    R.Gbl x ty tys -> return (S.Gbl x ty tys)
+    R.Gbl fc x ty tys -> return (S.Gbl fc x ty tys)
     R.App e1 e2    -> S.App <$> rtsExpr e1 <*> rtsExpr e2
     R.Lit l        -> return (S.Lit l)
     R.String s     -> error $ "rtsExpr: Found " ++ show s ++ ", but strings are not supported!"
@@ -84,7 +84,7 @@ rtsExpr e0 = case e0 of
 
                     f' <- ask
 
-                    let subst = (R.Gbl f' new_type (map TyVar new_ty_vars)
+                    let subst = (R.Gbl Fn f' new_type (map TyVar new_ty_vars)
                                      `R.apply`
                                     map (uncurry R.Lcl) free_vars)
                             R.// f
@@ -164,5 +164,5 @@ emitFun mkName body = do
 
         emit =<< rtsFun (R.Function f new_type new_lambda)
 
-        return $ S.apply (S.Gbl f new_type (map TyVar ty_vars)) (map (uncurry S.Lcl) args)
+        return $ S.apply (S.Gbl Fn f new_type (map TyVar ty_vars)) (map (uncurry S.Lcl) args)
 

@@ -35,6 +35,7 @@ data Poly v
     -- ^ Constructor projection on the i:th coordinate
     | QVar Int
     -- ^ Local quantified variable number i
+    | Fuel | FuelSucc | FuelZero | FuelN
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 data Env v = Env
@@ -52,6 +53,23 @@ appAxioms =
   where
     xy@[x,y] = map QVar [0,1]
     [x',y'] = map P.TyVar xy
+
+fuelAxioms :: [Clause (Poly v) (Poly v)]
+fuelAxioms =
+    [ SortSig Fuel 0
+    , TypeSig FuelZero [] [] fuelTy
+    , TypeSig FuelSucc [] [fuelTy] fuelTy
+    ]
+
+
+fuelTy :: Type (Poly v) v'
+fuelTy = P.TyCon Fuel []
+
+fuelSucc :: Term (Poly v) v' -> Term (Poly v) v'
+fuelSucc x = Apply FuelSucc [] [x]
+
+fuelN :: Term v' (Poly v)
+fuelN = Var FuelN
 
 -- | Makes axioms for a data type
 --   TODO : The pointers for the different constructors
@@ -150,15 +168,16 @@ diag xs = [ (x,y) | x:ys <- tails xs, y <- ys ]
 --
 -- The Env is put in a State instead of Reader because Scope wants to be a
 -- reader already
-type TrM v a = ReaderT (Scope v (T.Type v)) (State (Env v)) a
+type TrM v a = ReaderT (Scope (Poly v) (P.Type (Poly v) (Poly v))) (State (Env v)) a
 
 trFun :: Ord v => Function v -> ([Clause (Poly v) (Poly v)],[Clause (Poly v) (Poly v)])
 trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
   where
     f'       = Id f
     tvs'     = map Id tvs
-    args'    = map (P.Var . Id . fst) args
-    args_ty' = map (trType . snd) args
+    args_sc  = FuelN : map (Id . fst) args
+    args'    = fuelSucc fuelN : map (P.Var . Id . fst) args
+    args_ty' = fuelTy : map (trType . snd) args
     res_ty'  = trType res_ty
 
     mk_def_cls = do
@@ -168,7 +187,7 @@ trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
 
     def_cls
         = evalState
-            (runReaderT mk_def_cls (makeScope args))
+            (runReaderT mk_def_cls (makeScope (args_sc `zip` args_ty')))
             (Env f' tvs' args' [])
 
 
@@ -192,9 +211,9 @@ trBody b0 = case b0 of
 
         res <- forM alts $ \ (p,b) -> case p of
             LitPat i -> insertConstraint (lhs === P.Lit i) (trBody b)
-            ConPat c tys args -> extendScope args $ do
-                let var x = FO.Fun x [] []
-                rhs <- trExpr (FO.Fun c tys (map (var . fst) args))
+            ConPat c tys args -> extendScope [ (Id x,trType t) | (x,t) <- args ] $ do
+                let var x = FO.Fun Fn x [] []
+                rhs <- trExpr (FO.Fun Cn c tys (map (var . fst) args))
                 insertConstraint (lhs === rhs) (trBody b)
             Default -> error "ToPolyFOL.trBody: duplicate Defaults"
 
@@ -204,18 +223,17 @@ trBody b0 = case b0 of
         lhs <- trLhs
         rhs <- trExpr e
         scope <- getScope
-        let scope' = [ (Id x,trType t) | (x,t) <- scope ]
         constrs <- gets env_constrs
-        return [forAlls scope' (constrs ===> lhs === rhs)]
+        return [forAlls scope (constrs ===> lhs === rhs)]
 
 insertConstraint :: Ord v => Formula (Poly v) (Poly v) -> TrM v a -> TrM v a
 insertConstraint phi = case phi of
-    TOp Equal (Var (Id x)) tm ->
+    TOp Equal (Var x) tm ->
         removeFromScope x .
         locally
             (\ e -> e
-                { env_args    = map (tmSubst (Id x) tm) (env_args e)
-                , env_constrs = map (fmSubst (Id x) tm) (env_constrs e)
+                { env_args    = map (tmSubst x tm) (env_args e)
+                , env_constrs = map (fmSubst x tm) (env_constrs e)
                 }
             )
     _ -> locally (\ e -> e { env_constrs = phi : env_constrs e })
@@ -245,15 +263,18 @@ trExpr = go
   where
     go e0 = case e0 of
 
-        FO.Fun f ts as -> do
-            b <- inScope f
-            if b
-                then return (Var (Id f))
-                else Apply (Id f) (map trType ts) <$> mapM go as
+        FO.Fun fc f ts as -> do
+            b <- inScope (Id f)
+            case fc of
+                _ | b -> return (Var (Id f))
+                Cn    -> Apply (Id f) (map trType ts) <$> mapM go as
+                Fn    -> Apply (Id f) (map trType ts) <$>
+                        ((Var FuelN :) <$> mapM go as)
 
         FO.App t1 t2 e1 e2 -> Apply App (map trType [t1,t2]) <$> mapM go [e1,e2]
 
-        FO.Ptr f ts -> return (Apply (Ptr f) (map trType ts) [])
+        FO.Ptr Cn f ts -> return (Apply (Ptr f) (map trType ts) [])
+        FO.Ptr Fn f ts -> return (Apply (Ptr f) (map trType ts) [Var FuelN])
 
         FO.Lit x -> return (P.Lit x)
 
@@ -261,6 +282,6 @@ trExpr' :: Ord v => [v] -> Expr v -> Term (Poly v) (Poly v)
 trExpr' scope e =
     evalState
         (runReaderT (trExpr e)
-                    (makeScope (zip scope (repeat (error "ToPolyFOL.trExpr' type")))))
+                    (makeScope (zip (map Id scope) (repeat (error "ToPolyFOL.trExpr' type")))))
         (error "ToPolyFOL.trExpr' Env")
 

@@ -2,11 +2,14 @@
 -- | The Functional First Order language. Explicitly typed.
 --
 --   ArrTy in the Type really means defunctionalised Type
-module HipSpec.Lang.FunctionalFO where
+module HipSpec.Lang.FunctionalFO
+    ( module HipSpec.Lang.FunctionalFO
+    , FC(..) ) where
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
+import HipSpec.Lang.Rich (FC(..))
 import HipSpec.Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -34,11 +37,11 @@ type Alt a = (Pattern a,Body a)
 
 -- | The simple expressions allowed here
 data Expr a
-    = Fun a [Type a] [Expr a]
+    = Fun FC a [Type a] [Expr a]
     -- ^ Function (fully) applied to type arguments and arguments
     | App (Type a) (Type a) (Expr a) (Expr a)
     -- ^ Defunctionalisated application
-    | Ptr a [Type a]
+    | Ptr FC a [Type a]
     -- ^ Pointer (applied to some types)
     | Lit Integer
     -- ^ The integer and its type constructor

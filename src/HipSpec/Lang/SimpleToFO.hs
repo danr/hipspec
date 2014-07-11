@@ -31,9 +31,9 @@ stfPat p = case p of
 
 stfExpr :: S.Expr Id -> FO.Expr Id
 stfExpr e0 = case e0 of
-    S.Lcl f _ty     -> Fun f [] []
-    S.Gbl f _ty tys -> Ptr f tys
-    S.Lit x         -> FO.Lit x
+    S.Lcl f _ty        -> Fun Fn f [] [] -- this Fn should be... Lcl, I guess
+    S.Gbl fc f _ty tys -> Ptr fc f tys
+    S.Lit x            -> FO.Lit x
     S.App e1 e2 -> case S.exprType e1 of
         ArrTy t1 t2 -> App t1 t2 (stfExpr e1) (stfExpr e2)
         _           -> error "SimpleToFO.stfExpr: argument not an arrow type!"

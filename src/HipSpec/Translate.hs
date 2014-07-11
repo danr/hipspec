@@ -39,6 +39,13 @@ appThy = Subtheory
     , deps    = S.empty
     }
 
+fuelThy :: Subtheory
+fuelThy = Subtheory
+    { defines = FuelThy
+    , clauses = P.fuelAxioms
+    , deps    = S.empty
+    }
+
 -- | The type environment for induction.
 --   Constructors are typed, to know which types has been applied to them
 --   We also need to know the full type of the constructor to be able to put it

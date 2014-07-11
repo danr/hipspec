@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns, ViewPatterns #-}
 module HipSpec.Init (processFile,SigInfo(..)) where
 
 import Control.Monad
@@ -41,10 +41,8 @@ import Text.Show.Pretty hiding (Name)
 import Var (Var)
 import Data.Map (Map)
 
-processFile :: (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
-processFile cont = do
-
-    params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
+processFile :: Params -> (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
+processFile (sanitizeParams -> params@Params{..}) cont = do
 
     whenFlag params PrintParams $ putStrLn (ppShow params)
 
@@ -89,7 +87,7 @@ processFile cont = do
 
                 cls = sortClauses False (concatMap clauses thy)
 
-                thy = appThy : data_thy ++ binds_thy
+                thy = fuelThy : appThy : data_thy ++ binds_thy
 
                 tr_props
                     = sortOn prop_name

@@ -37,21 +37,21 @@ zapBody b0 = case b0 of
 
 zapExpr :: Expr v -> Zap v (Expr v)
 zapExpr e0 k = zap $ case e0 of
-    Fun x ts es     -> Fun x ts (mapM zapExpr es k)
+    Fun fc x ts es  -> Fun fc x ts (mapM zapExpr es k)
     App t1 t2 e1 e2 -> App t1 t2 (zapExpr e1 k) (zapExpr e2 k)
     Ptr{}           -> e0
     Lit{}           -> e0
   where
     zap e = case pointer e of
-        Just ((x,ts),args)
+        Just ((fc,x,ts),args)
             | Just arity <- k x
             , length args == arity
-            -> Fun x ts (mapM zapExpr args k)
+            -> Fun fc x ts (mapM zapExpr args k)
         _ -> e
 
-pointer :: Expr v -> Maybe ((v,[Type v]),[Expr v])
+pointer :: Expr v -> Maybe ((FC,v,[Type v]),[Expr v])
 pointer e0 = case e0 of
     App _ _ fn arg | Just (xt,as) <- pointer fn -> Just (xt,as++[arg])
-    Ptr x ts -> Just ((x,ts),[])
+    Ptr fc x ts -> Just ((fc,x,ts),[])
     _        -> Nothing
 

@@ -129,9 +129,9 @@ trVar x = do
                 _            -> fail ("Local identifier " ++ showOutputable x ++
                                       " with forall-type: " ++ showOutputable (varType x))
         else return $ case idDetails x of
-                DataConWorkId dc -> Gbl (idFromName $ dataConName dc) ty []
-                DataConWrapId dc -> Gbl (idFromName $ dataConName dc) ty []
-                _                -> Gbl (idFromVar x) ty []
+                DataConWorkId dc -> Gbl Cn (idFromName $ dataConName dc) ty []
+                DataConWrapId dc -> Gbl Cn (idFromName $ dataConName dc) ty []
+                _                -> Gbl Fn (idFromVar x) ty []
 
 -- | Translating expressions
 --
@@ -153,9 +153,9 @@ trExpr e0 = case e0 of
     C.App e (Type t) -> do
         e' <- trExpr e
         case e' of
-            R.Gbl x tx ts -> do
+            R.Gbl fc x tx ts -> do
                 t' <- lift (trType t)
-                return (R.Gbl x tx (ts ++ [t']))
+                return (R.Gbl fc x tx (ts ++ [t']))
             _ -> throw (msgTypeApplicationToExpr e0)
 
     C.App e1 e2 -> R.App <$> trExpr e1 <*> trExpr e2

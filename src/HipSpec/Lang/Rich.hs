@@ -49,12 +49,14 @@ mapFnBody f fn = fn { fn_body = f (fn_body fn) }
 
 type Alt a = (Pattern a,Expr a)
 
+data FC = Fn | Cn deriving (Eq,Ord,Show)
+
 -- | "Rich" expressions, includes lambda, let and case
 data Expr a
     = Lcl a (Type a)
     -- ^ Local variables
     --   For now, we don't support polymorphic lets. :(
-    | Gbl a (PolyType a) [Type a]
+    | Gbl FC a (PolyType a) [Type a]
     -- ^ Global variables applied to their type arguments
     | App (Expr a) (Expr a)
     | Lit Integer
@@ -111,7 +113,7 @@ exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
 exprType :: Eq a => Expr a -> Type a
 exprType e0 = case e0 of
     Lcl _ t                -> t
-    Gbl _ (Forall xs t) ts -> substManyTys (zip xs ts) t
+    Gbl _ _ (Forall xs t) ts -> substManyTys (zip xs ts) t
     App e _                -> arrowResult "Rich.exprType" (exprType e)
     Lit{}                  -> Integer
     String s               -> error $ "exprType: String: " ++ show s
@@ -172,7 +174,7 @@ substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 -- Use this function to substitute such variables.
 tySubst :: Eq a => a -> ([Type a] -> Expr a) -> Expr a -> Expr a
 tySubst x k = transformExpr $ \ e0 -> case e0 of
-    Gbl y _ tys | x == y -> k tys
+    Gbl _ y _ tys | x == y -> k tys
     _                    -> e0
 
 apply :: Expr a -> [Expr a] -> Expr a

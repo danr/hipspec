@@ -8,7 +8,7 @@ import Text.PrettyPrint
 exprRepr' :: Int -> Expr String -> Doc
 exprRepr' i e0 = case e0 of
     Lcl x _   -> text x
-    Gbl x _ _ -> text x
+    Gbl _ x _ _ -> text x
     App{}   ->
         let (fun,args) = collectArgs e0
             pp_args    = map (exprRepr' 2) args

@@ -24,3 +24,6 @@ dist
 *\.tptp
 *mlw
 proving
+
+# Scratch dir
+scratch

@@ -20,7 +20,7 @@ ppFun t p (Function f ty e) = ppId f ty <+> "=" $\ ppExpr 0 t p e
 ppExpr :: Int -> Types -> P a -> Expr a -> Doc
 ppExpr i t p e0 = case e0 of
     Lcl x ty    -> ppId x ty
-    Gbl x ty ts -> parensIf (not (null ts) && i > 1) $
+    Gbl _fc x ty ts -> parensIf (not (null ts) && i > 1) $
         "*" <> ppPolyId x ty $\ sep [ "@" <+> ppType 1 p t' | t' <- ts ]
     App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0

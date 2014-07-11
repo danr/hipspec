@@ -74,7 +74,7 @@ lookupSymb m s = case M.lookup s m of
         "HipSpec.Sig.Symbols.lookup_sym: cannot find symbol " ++ show s ++ debugStr
 
 lookupCon :: SymbolMap -> Symbol -> Expr Id
-lookupCon rm s = Gbl v t ts
+lookupCon rm s = Gbl R.Fn {- don't know here !! -}v t ts
   where (v,t,ts) = lookupSymb (con_mapping rm) s
 
 lookupVar :: SymbolMap -> Symbol -> (Id,Type Id)
@@ -92,7 +92,7 @@ translateCon sm s = translateId (typeRepToType sm (symbolType s))
 
 translateId :: Type Id -> Var -> (Id,PolyType Id,[Type Id])
 translateId t_var v = case runTM (trVar v) of -- NOTE: trVar removes the context!
-    Right (R.Gbl x t_orig []) -> case m_unif of
+    Right (R.Gbl _fc x t_orig []) -> case m_unif of
         Just unif -> (x,t_orig,unif)
         Nothing   -> error $ "Cannot unify the two types " ++
             showPolyType t_orig ++ " and " ++ showType t_var

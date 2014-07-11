@@ -140,7 +140,7 @@ lintLclFnsAnd fns m = do
 lintExpr :: Ord v => Expr v -> LintM v (Type v)
 lintExpr e0 = chk_ret $ case e0 of
     Lcl v ty -> lintLcl v ty >> return ty
-    Gbl _ (Forall tvs ty) ts -> do
+    Gbl _fc _ (Forall tvs ty) ts -> do
         when (length ts /= length tvs) (report (msgVarIncorrectlyApplied e0))
         return (substManyTys (zip tvs ts) ty)
     App e1 e2 -> do
