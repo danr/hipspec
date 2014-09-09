@@ -103,6 +103,7 @@ data Params = Params
     , no_colour           :: Bool
     , z_encode_filenames  :: Bool
     , tr_mod              :: Bool
+    , directory           :: Maybe FilePath
 #ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
 #endif
@@ -205,6 +206,7 @@ defParams = Params
     , no_colour           = False                &= help "Do not print in colour"
     , reverse_video       = False   &= name "rv" &= help "Reverse video (assume black terminal background)"
     , z_encode_filenames  = False   &= name "z"  &= help "Z-encode filenames (necessary for windows)"
+    , directory           = Nothing &= name "dir" &= help "Change into directory before trying to load file"
 #ifdef SUPPORT_JSON
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
@@ -216,7 +218,7 @@ defParams = Params
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
-    , auto                = False   &= groupname "\nSignature generation settings"
+    , auto                = True    &= groupname "\nSignature generation settings"
                                     &= name "a" &= help "Make signature with functions in user properties"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
@@ -256,7 +258,7 @@ defParams = Params
     , prepend_pruned      = False   &= name "r" &= help "Add nice pruned equations in front of queue"
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , assoc_important     = False               &= help "Associativity is important, try it first"
-    , call_graph          = False   &= name "c" &= name "cg" &= help "Sort equations by the call graph"
+    , call_graph          = True    &= name "c" &= name "cg" &= help "Sort equations by the call graph"
 
     , inddepth            = 1       &= name "d" &= groupname "\nStructural induction"
                                                 &= help "Maximum depth       (default 1)"

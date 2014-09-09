@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveGeneric,RecordWildCards,DeriveFunctor,CPP,DeriveTraversable,DeriveFoldable #-}
 module HipSpec.ThmLib where
 
+import qualified HipSpec.Lang.Simple as S
+import HipSpec.Id
+
 import HipSpec.Property
 import HipSpec.Theory
 import HipSpec.ATP.Provers
@@ -25,6 +28,7 @@ data Theorem eq = Theorem
     { thm_prop    :: Property eq
     , thm_proof   :: Proof
     , thm_lemmas  :: Maybe [Property eq]
+    , thm_insts   :: String
     , thm_provers :: [ProverName]
     }
   deriving (Show,Functor)
@@ -46,9 +50,11 @@ data Obligation eq a = Obligation
 
 data ObInfo
     = ObInduction
-        { ind_coords :: [Int]
-        , ind_num    :: Int
-        , ind_nums   :: Int
+        { ind_coords  :: [Int]
+        , ind_num     :: Int
+        , ind_nums    :: Int
+        , ind_skolems :: [Id]
+        , ind_terms   :: [S.Expr Id]
         }
   deriving (Eq,Ord,Show,Generic)
 
@@ -57,5 +63,5 @@ instance ToJSON ObInfo
 #endif
 
 obInfoFileName :: ObInfo -> String
-obInfoFileName (ObInduction cs n _)
+obInfoFileName (ObInduction cs n _ _ _)
     = intercalate "_" (map show cs) ++ "__" ++ show n

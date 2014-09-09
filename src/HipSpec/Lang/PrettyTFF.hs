@@ -25,7 +25,7 @@ ppClause p cls = case cls of
   where
     tff xs = "tff" <> csv xs <> "."
 
-ppTrg :: PP a b -> Trigger a -> Doc
+ppTrg :: PP a b -> TyTrigger a -> Doc
 ppTrg p (TySymb x) = parens ("Type" <+> pp_symb p x)
 ppTrg p (Symb x)   = pp_symb p x
 ppTrg _ Source     = "source"
@@ -68,12 +68,13 @@ ppType p = go
 ppForm :: PP a b -> Formula a b -> Doc
 ppForm p f0 = case f0 of
     _ | Just (op,fs) <- collectFOp f0 -> inside "(" (ppFOp op) ")" (map (ppForm p) fs)
-      | Just (q,(bs,f)) <- collectQ f0 -> ppQuant p (ppQ q) bs (ppForm p f)
+    Q q bs _trg _qid _tmid f -> ppQuant p (ppQ q) bs (ppForm p f)
     TOp top t1 t2 -> sep [ppTerm p t1 <+> ppTOp top,ppTerm p t2]
     Neg f         -> "~" <+> ppForm p f
 --    Pred q fs     -> p q <> csv (map (ppForm p) fs)
     FOp{} -> error "PrettyPolyFOL.ppForm FOp"
-    Q{}   -> error "PrettyPolyFOL.ppForm Q"
+    f `Named` _ -> ppForm p f
+    f `TermNamed` _ -> ppForm p f
     DataDecl _ds fm ->
         -- ("% Data:" <+> hsep (map (ppDataDecl p) ds)) $$
         ppForm p fm

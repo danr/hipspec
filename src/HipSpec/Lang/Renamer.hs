@@ -24,8 +24,11 @@ type Suggestor a b = a -> [b]
 disambig :: (a -> String) -> Suggestor a String
 disambig f (f -> x) = x : [ x ++ show (i :: Int) | i <- [2..] ]
 
-runRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> r
-runRenameM f block m = evalState (runReaderT m f) (M.empty,S.fromList block)
+evalRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> r
+evalRenameM f block m = fst (runRenameM f block m)
+
+runRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> (r,Map a b)
+runRenameM f block m = second fst (runState (runReaderT m f) (M.empty,S.fromList block))
 
 insert :: (Ord a,Ord b) => a -> RenameM a b b
 insert n = go =<< asks ($ n)
@@ -51,19 +54,19 @@ rename :: (Ord a,Ord b,Traversable t) => t a -> RenameM a b (t b)
 rename = T.mapM lkup
 
 renameWith :: (Ord a,Ord b,Traversable t) => Suggestor a b -> t a -> t b
-renameWith f = runRenameM f [] . rename
+renameWith f = evalRenameM f [] . rename
 
 renameBi :: (Ord a,Ord b,Bitraversable t) => t a a -> RenameM a b (t b b)
 renameBi = B.bimapM lkup lkup
 
 renameBiWith :: (Ord a,Ord b,Bitraversable t) => Suggestor a b -> t a a -> t b b
-renameBiWith f = runRenameM f [] . renameBi
+renameBiWith f = evalRenameM f [] . renameBi
 
 renameBi2 :: (Ord a,Ord b,Ord c,Bitraversable t) => t a b -> RenameM (Either a b) c (t c c)
 renameBi2 = B.bimapM (lkup . Left) (lkup . Right)
 
 renameBi2With :: (Ord a,Ord b,Bitraversable t) => Suggestor a b -> t a a -> t b b
-renameBi2With f = runRenameM f [] . renameBi
+renameBi2With f = evalRenameM f [] . renameBi
 
 disambig2 :: (a -> String) -> (b -> String) -> Suggestor (Either a b) String
 disambig2 f _ (Left a)  = disambig f a

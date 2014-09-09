@@ -74,9 +74,10 @@ trClause cm pm tys cl = case cl of
 
 trFormula :: ConMap -> VarMap -> Formula Id' Id' -> Maybe QS.Equation
 trFormula cm pm phi0 = case phi0 of
-    Q Forall x t phi -> do
+    Q _ [] _ _ _ phi -> trFormula cm pm phi
+    Q Forall ((x,t):xts) trg qid tmid phi -> do
         case PM.pop t pm of
-            Just (s,pm') -> trFormula cm pm' (fmSubst x (Var (Left s)) phi)
+            Just (s,pm') -> trFormula cm pm' (fmSubst x (Var (Left s)) (Q Forall xts trg qid tmid phi))
             _ -> Nothing
     TOp Equal lhs rhs -> do
         l <- trTerm cm lhs

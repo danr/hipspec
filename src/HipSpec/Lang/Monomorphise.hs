@@ -17,12 +17,12 @@ import Data.List (partition)
 import Control.Arrow
 import Control.Monad
 
-type Records a b = Map (Trigger a) (Set [Type a b])
+type Records a b = Map (TyTrigger a) (Set [Type a b])
 
 empty :: Records a b
 empty = M.empty
 
-member :: (Ord a,Ord b) => (Trigger a,[Type a b]) -> Records a b -> Bool
+member :: (Ord a,Ord b) => (TyTrigger a,[Type a b]) -> Records a b -> Bool
 (t,ts) `member` r = maybe False (ts `S.member`) (M.lookup t r)
 
 (\\) :: (Ord a,Ord b) => Records a b -> Records a b -> Records a b
@@ -37,23 +37,23 @@ union = M.unionWith S.union
 unions :: (Ord a,Ord b) => [Records a b] -> Records a b
 unions = M.unionsWith S.union
 
-fromList :: (Ord a,Ord b) => [(Trigger a,[Type a b])] -> Records a b
+fromList :: (Ord a,Ord b) => [(TyTrigger a,[Type a b])] -> Records a b
 fromList = M.fromListWith S.union . map (second S.singleton)
 
-toList :: (Ord a,Ord b) => Records a b -> [(Trigger a,[Type a b])]
+toList :: (Ord a,Ord b) => Records a b -> [(TyTrigger a,[Type a b])]
 toList r = [ (t,ts) | (t,s) <- M.toList r, ts <- S.toList s ]
 
-minView :: (Ord a,Ord b) => Records a b -> Maybe ((Trigger a,[Type a b]),Records a b)
+minView :: (Ord a,Ord b) => Records a b -> Maybe ((TyTrigger a,[Type a b]),Records a b)
 minView m = case M.minViewWithKey m of
     Just ((t,s),m') -> case S.minView s of
         Just (ts,s') -> Just ((t,ts),M.insert t s' m')
         Nothing -> minView m'
     Nothing -> Nothing
 
-insert :: (Ord a,Ord b) => Trigger a -> [Type a b] -> Records a b -> Records a b
+insert :: (Ord a,Ord b) => TyTrigger a -> [Type a b] -> Records a b -> Records a b
 insert i t = M.insertWith S.union i (S.singleton t)
 
-lookup :: (Ord a,Ord b) => Trigger a -> Records a b -> [[Type a b]]
+lookup :: (Ord a,Ord b) => TyTrigger a -> Records a b -> [[Type a b]]
 lookup t r = maybe [] S.toList (M.lookup t r)
 
 -- | Get the records from a clause
@@ -77,7 +77,7 @@ type InstMap a b = Map b (Type a b)
 data Lemma a b = Lemma
     { lm_cl :: Clause a b
     -- ^ the clause
-    , lm_act :: [(Trigger a,[Type a b])] -- Records a b
+    , lm_act :: [(TyTrigger a,[Type a b])] -- Records a b
     -- ^ The instantiation records it requires
     , lm_eff :: Records a b
     -- ^ The effect of instantiating it
@@ -200,7 +200,7 @@ mkMono cls0 irs0 q0 = go irs0 (q0 \\ irs0)
     -- Since some clauses are activated by either of many triggers,
     -- we let one of them instantiate the clause, and the other ones just
     -- retrigger with the major pattern
-    trg_targets :: Map (Trigger a) ([Clause a b],[Trigger a])
+    trg_targets :: Map (TyTrigger a) ([Clause a b],[TyTrigger a])
     trg_targets = M.fromListWith mappend $ concat $
         [ (trg,([cl],rtrs)) : [ (rtr,([],filter (rtr /=) trgs)) | rtr <- rtrs ]
         | cl <- cls0
@@ -222,7 +222,7 @@ mkMono cls0 irs0 q0 = go irs0 (q0 \\ irs0)
                     recs = (unions (map clauseRecs cls') `union` rtr) \\ irs'
                 in  first (cls' ++) (go irs' (q' `union` recs))
 
-data IdInst a b = IdInst a [Type a b]
+data IdInst a b = IdInst { forget_inst :: a, inst_type :: [Type a b] }
   deriving (Eq,Ord,Show)
 
 -- | Second pass monomorphisation: remove all type applications and change

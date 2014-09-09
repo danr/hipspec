@@ -1,9 +1,10 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE PatternGuards #-}
 module HipSpec.Id where
 
 import Name hiding (varName)
-import BasicTypes (TupleSort(..))
+-- import BasicTypes (TupleSort(..))
 import PrelNames
 import HipSpec.GHC.Utils
 import Var (Var,varName,idDetails,TyVar,tyVarName)
@@ -49,6 +50,7 @@ data Derived
     | Case Id
     | Eta
     | Skolem Id
+    | TvSkolem Id
     | Unknown
     | GenTyVar
   deriving (Eq,Ord,Show)
@@ -65,7 +67,8 @@ originalId i = case i of
         _ `LetFrom` b -> originalId b ++ "_"
         Lambda a      -> originalId a ++ "_lambda"
         Case a        -> originalId a ++ "_case"
-        Skolem a      -> map toUpper (originalId a)
+        Skolem a      -> originalId a
+        TvSkolem a    -> map toUpper (originalId a)
         Eta           -> "x"
         Unknown       -> "u"
         GenTyVar      -> "a"
@@ -85,7 +88,8 @@ ppDerived i d = case d of
     Lambda f      -> "lam_" ++ ppId f
     Case f        -> "case_" ++ ppId f
     Eta           -> "eta"
-    Skolem x      -> map toUpper (ppId x)
+    Skolem x      -> ppId x
+    TvSkolem x    -> map toUpper (ppId x)
     GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
 
@@ -96,7 +100,13 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
     | k == consDataConKey    = "Cons"
     | k == unitTyConKey      = "UnitTyCon"
     | k == genUnitDataConKey = "Unit"
+    {-
+#if __GLASGOW_HASKELL__ < 708
     | Just (ns, ts, n) <- isTupleOcc_maybe (getOccName nm) = name_tuple ns ts n
+    -- isTupleOcc_maybe was removed between 7.8.2 and 7.8.3...
+    -- there is isBuiltInOcc_maybe, but, whatever
+#endif
+-}
     | otherwise = case getOccString nm of
         "+"   -> "plus"
         "-"   -> "minus"
@@ -127,6 +137,7 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
   where
     k = getUnique nm
 
+{-
     name_tuple ns ts n = pre ++ mid ++ show n
       where
         pre | ns == tcName   = "T"
@@ -137,4 +148,5 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
             BoxedTuple   -> ""
             UnboxedTuple -> "u"
             _            -> "unknown_tuple"
+            -}
 

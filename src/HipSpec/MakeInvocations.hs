@@ -5,6 +5,10 @@ import HipSpec.ATP.Invoke
 import HipSpec.ATP.Provers
 import HipSpec.ATP.Results
 
+import HipSpec.Property.Repr
+import HipSpec.Lang.Renamer
+import HipSpec.Id (originalId)
+
 import HipSpec.Monad
 import HipSpec.MakeProofs
 import HipSpec.ThmLib
@@ -22,6 +26,8 @@ import HipSpec.Lang.PrettyUtils (PP(..))
 import Text.PrettyPrint (vcat,text)
 
 import Data.Traversable (traverse)
+
+import HipSpec.ATP.Z3ProofParser
 
 -- import Text.Show.Pretty (ppShow)
 
@@ -66,16 +72,25 @@ tryProve prop lemmas0 = do
                 let cls               = sortClauses False (concatMap clauses sthys)
                 let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
                 let pp = PP (text . polyname) (text . polyname)
+                let (smt_str,smt_rename_map) = ppSMT (sortClauses True (trimDataDecls mcls))
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++
                     "\n\nResult:\n" ++ ppTFF mcls ++
                     "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
                     "\n\nRecords:\n" ++ render' (ppRecords pp recs)
-                return $ LinTheory $ \ t -> case t of
+                return $ LinTheory smt_rename_map $ \ t -> case t of
                     AltErgoFmt     -> ppAltErgo (sortClauses False cls)
                     AltErgoMonoFmt -> ppMonoAltErgo mcls
                     MonoTFF        -> ppTFF mcls
-                    SMT            -> ppSMT (sortClauses True (trimDataDecls mcls))
+                    SMT            -> smt_str ++ "\n(check-sat)\n"
+                    SMT_PP         -> unlines
+                      [ "(set-option :produce-proofs true)"
+                      , smt_str
+                      , "(echo \"(output \")"
+                      , "(check-sat)"
+                      , "(get-proof)"
+                      , "(echo \")\")"
+                      ]
 
 
             calc_dependencies :: Subtheory -> [Content]
@@ -127,6 +142,7 @@ tryProve prop lemmas0 = do
                         { property_name = prop_name thm_prop
                         , property_repr = maybePropRepr thm_prop
                         , used_lemmas   = fmap (map prop_name) thm_lemmas
+                        , used_insts    = thm_insts
                         , used_provers  = map show thm_provers
                         , vars          = ind_vars
                         }
@@ -145,7 +161,7 @@ resultsForProp lemma_lkup results prop = case proofs of
     []    -> Nothing
     grp:_ -> case grp of
         [] -> error "MakeInvocations: results (impossible)"
-        Obligation _ (ObInduction cs _ _) _:_ ->
+        Obligation _ (ObInduction cs _ _ _sks _sk_tms) _ :_ ->
             mkProof (ByInduction (varsFromCoords prop cs))
       where
         mkProof pf = Just Theorem
@@ -155,7 +171,14 @@ resultsForProp lemma_lkup results prop = case proofs of
             , thm_lemmas
                 = fmap (map lemma_lkup . nub . concat)
                 $ mapM (successLemmas . snd . ob_content) grp
+            , thm_insts = intercalate "\n" (mapMaybe insts grp)
             }
+
+        insts (Obligation _ i (_,Success{..})) = case successInsts of
+          Nothing   -> Just "<no info>"
+          Just inst -> Just $ intercalate ", " (map (exprRepr . renameWith (disambig originalId)) (ind_terms i))
+                              ++ ":\n" ++ prettyInsts inst
+        insts _ = error "internal error: Not a success!"
   where
 
     resType ObInduction{..} = ind_coords
@@ -169,7 +192,7 @@ resultsForProp lemma_lkup results prop = case proofs of
     proofs = filter check $ groupSortedOn (resType . ob_info) results'
 
     check :: [Obligation eq Result] -> Bool
-    check grp@(Obligation _ (ObInduction _ _ nums) _:_) =
+    check grp@(Obligation _ (ObInduction _ _ nums _ _) _:_) =
         all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
     check _ = False
 

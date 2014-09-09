@@ -4,19 +4,23 @@ module HipSpec.ATP.Results where
 import Data.Function
 import Control.Concurrent.STM.Promise.Process (ProcessResult)
 
--- Result from a prover invocation --------------------------------------------
+import HipSpec.ATP.Z3ProofParser
 
+-- | Result from a prover invocation
 data ProverResult
     = Success
          { successLemmas :: Maybe [Int]
-         -- ^ Just lemmas used if prover is capable of producing a proof
+         -- ^ Just lemmas used if prover is capable of producing
+         --   a proof/unsat core
+         , successInsts :: Maybe Insts
+         -- ^ Maybe instantiations of quantifiers
          }
     | Unknown ProcessResult
     -- ^ Unrecognised output. For debugging
 
 -- | Make a Success result, but register nothing about lemmas
 mkSuccess :: ProverResult
-mkSuccess = Success Nothing
+mkSuccess = Success Nothing Nothing
 
 isSuccess :: ProverResult -> Bool
 isSuccess Success{} = True

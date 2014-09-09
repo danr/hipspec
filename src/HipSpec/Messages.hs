@@ -28,6 +28,7 @@ data Msg
         { property_name :: String
         , property_repr :: Maybe String
         , used_lemmas   :: Maybe [String]
+        , used_insts    :: String
         , used_provers  :: [String]
         , vars          :: [String]
         }
@@ -88,6 +89,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
                 _  -> " by induction on " ++ csv vars)))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
+            ++ "\n" ++ used_insts
 
     FailedProof{..} -> "Failed to prove " ++ repr_prop (property_name,property_repr)
 

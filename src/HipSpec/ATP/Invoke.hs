@@ -30,9 +30,15 @@ import HipSpec.Utils.ZEncode
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>),(<.>))
 
+import Data.Map (Map)
+import qualified Data.Map as M
+import HipSpec.Pretty
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
-newtype LinTheory = LinTheory (InputFormat -> String)
+type RenameMap = Map String LogicId
+
+data LinTheory = LinTheory RenameMap (InputFormat -> String)
 
 data InvokeEnv = InvokeEnv
     { timeout         :: Double
@@ -44,16 +50,16 @@ data InvokeEnv = InvokeEnv
 
 type Result = (ProverName,ProverResult)
 
-interpretResult :: Prover -> ProcessResult -> Maybe ProverResult
-interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
+combinator :: Functor f => f (a -> b) -> a -> f b
+combinator = flip (fmap . flip ($))
+
+interpretResult :: RenameMap -> Prover -> ProcessResult -> Maybe ProverResult
+interpretResult rename_map Prover{..} pr@ProcessResult{..} = excode `seq`
     case prover_process_output stdout of
-        Just True  -> Just (Success (get_lemmas stdout))
+        Just True  -> Just (Success (combinator prover_parse_lemmas stdout)
+                                    (combinator (fmap uncurry prover_parse_proofs) ((rename_map M.!),stdout)))
         Just False -> Nothing
         Nothing    -> Just (Unknown pr)
-  where
-    get_lemmas = case prover_parse_lemmas of
-        Just lemma_parser -> Just . lemma_parser
-        Nothing           -> const Nothing
 
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
@@ -61,7 +67,7 @@ False ? _ = id
 
 filename :: InvokeEnv -> Obligation eq a -> (FilePath,FilePath)
 filename InvokeEnv{z_encode} (Obligation Property{prop_name} info _) = case info of
-    ObInduction coords ix _ ->
+    ObInduction coords ix _ _ _ ->
         ((z_encode ? zencode) prop_name
         ,usv coords ++ "__" ++ show ix)
   where
@@ -72,8 +78,8 @@ promiseProof :: forall eq .
              -> HS (Promise [Obligation eq Result])
 promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 
-    let LinTheory lin = ob_content
-        theory        = lin prover_input_format
+    let LinTheory rename_map lin = ob_content
+        theory                   = lin prover_input_format
 
     filepath <- liftIO $ case store of
         Nothing  -> return Nothing
@@ -113,7 +119,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
     let update :: PromiseResult ProcessResult -> PromiseResult [Obligation eq Result]
         update Cancelled = Cancelled
         update Unfinished = Unfinished
-        update (An r) = case interpretResult prover r of
+        update (An r) = case interpretResult rename_map prover r of
             Just res -> An [fmap (const (prover_name,res)) ob]
             Nothing  -> Cancelled
 

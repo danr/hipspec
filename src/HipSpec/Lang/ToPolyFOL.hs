@@ -35,6 +35,10 @@ data Poly v
     -- ^ Constructor projection on the i:th coordinate
     | QVar Int
     -- ^ Local quantified variable number i
+    | IH
+    -- ^ The induction hypothesis (in structural induction)
+    | Lambda
+    -- ^ For beta-reductions in the structural induction hypothesis
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 data Env v = Env
@@ -206,7 +210,7 @@ trBody b0 = case b0 of
         scope <- getScope
         let scope' = [ (Id x,trType t) | (x,t) <- scope ]
         constrs <- gets env_constrs
-        return [forAlls scope' (constrs ===> lhs === rhs)]
+        return [forAlls scope' (constrs ===> lhs === rhs) `withTrigger` lhs]
 
 insertConstraint :: Ord v => Formula (Poly v) (Poly v) -> TrM v a -> TrM v a
 insertConstraint phi = case phi of

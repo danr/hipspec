@@ -32,7 +32,7 @@ import Data.Generics.Genifunctors
 
 import Data.Bitraversable
 import Data.Bifoldable
-import Data.Bifunctor
+import Data.Bifunctor hiding (second)
 
 import Data.Either
 
@@ -63,6 +63,7 @@ collectFOp f0@(FOp op _ _) = Just (op,go f0)
     go f = [f]
 collectFOp _              = Nothing
 
+{-
 collectQ :: Formula a b -> Maybe (Q,([(b,Type a b)],Formula a b))
 collectQ f0@(Q q _ _ _) = Just (q,go f0)
   where
@@ -70,6 +71,7 @@ collectQ f0@(Q q _ _ _) = Just (q,go f0)
                                 in  ((x,t):xs,f')
     go f = ([],f)
 collectQ _             = Nothing
+-}
 
 -- * Builders
 
@@ -97,13 +99,32 @@ neg = Neg
 xs ===> psi = foldr1 (/\) xs ==> psi
 
 forAll,exists :: b -> Type a b -> Formula a b -> Formula a b
-forAll = Q Forall
-exists = Q Exists
+forAll v t = forAlls [(v,t)]
+exists v t = existss [(v,t)]
 
 forAlls,existss :: [(b,Type a b)] -> Formula a b -> Formula a b
-[forAlls,existss] = map (\ f xs phi -> foldr (uncurry f) phi xs) [forAll,exists]
+forAlls [] phi = phi
+forAlls vs phi = Q Forall vs Nothing Nothing Nothing phi
+existss [] phi = phi
+existss vs phi = Q Exists vs Nothing Nothing Nothing phi
 
-isTySymb :: Trigger a -> Bool
+infixl `withTrigger`
+infixl `withQID`
+infixl `withTQID`
+
+withTrigger :: Formula a b -> Trigger a b -> Formula a b
+q@Q{} `withTrigger` t = q { q_trigger = Just t }
+phi   `withTrigger` _ = phi
+
+withQID :: Formula a b -> QID -> Formula a b
+q@Q{} `withQID` i = q { q_id = Just i }
+phi   `withQID` i = phi `Named` i -- NB
+
+withTQID :: Formula a b -> Term a b -> Formula a b
+q@Q{} `withTQID` t = q { q_term_id = Just t }
+phi   `withTQID` t = phi `TermNamed` t
+
+isTySymb :: TyTrigger a -> Bool
 isTySymb TySymb{} = True
 isTySymb _        = False
 
@@ -157,7 +178,9 @@ fmMod f g = fmg
         TOp op tm1 tm2 -> TOp op (tmg tm1) (tmg tm2)
         FOp op fm1 fm2 -> FOp op (fmg fm1) (fmg fm2)
         Neg fm         -> Neg (fmg fm)
-        Q q b ty fm    -> Q q b (tyg ty) (fmg fm)
+        Q q bvs m_trg qid tmid fm    -> Q q (map (fmap tyg) bvs) (fmap tmg m_trg) qid (fmap tmg tmid) (fmg fm)
+        fm `Named` s -> fmg fm `Named` s
+        fm `TermNamed` tm -> fmg fm `TermNamed` tmg tm
         DataDecl ds fm ->
             DataDecl
                 [ Data (f tc ts) []

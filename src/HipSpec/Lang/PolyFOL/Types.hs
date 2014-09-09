@@ -33,7 +33,7 @@ data Clause a b
     | Clause
         { cl_name :: Maybe Int
         -- ^ Name for this clause to get unsatisfiable cores
-        , cl_ty_triggers :: [Trigger a]
+        , cl_ty_triggers :: [TyTrigger a]
         -- ^ What things trigger the instantiation of this clause?
         --   For function definitions, the function causes it
         --   For data type-related definitions, the type constructor and
@@ -51,7 +51,7 @@ data Clause a b
         }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
-data Trigger a
+data TyTrigger a
     = TySymb a
     -- ^ Needs to be first!
     | Symb a
@@ -86,6 +86,10 @@ data FOp = And | Or | Implies | Equiv
 data Q = Forall | Exists
   deriving (Eq,Ord,Show)
 
+type Trigger a b = Term a b
+
+type QID = String
+
 data Formula a b
     = TOp TOp (Term a b) (Term a b)
     -- ^ Equality and inequality
@@ -93,8 +97,16 @@ data Formula a b
     -- ^ Logical connectives
     | Neg (Formula a b)
     -- ^ Negation
-    | Q Q b (Type a b) (Formula a b)
+    | Q { q_type    :: Q
+        , q_vars    :: [(b,Type a b)]
+        , q_trigger :: Maybe (Trigger a b)
+        , q_id      :: Maybe QID
+        , q_term_id :: Maybe (Term a b)
+        , q_body    :: Formula a b
+        }
+    | Named (Formula a b) String
     -- ^ Quantification
+    | TermNamed (Formula a b) (Term a b)
 {-
     | Pred a [Formula a b]
     -- ^ Predication

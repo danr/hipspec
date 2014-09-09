@@ -35,6 +35,7 @@ import UniqSupply
 import System.Exit
 import System.Process
 import System.FilePath
+import System.Directory
 
 import Text.Show.Pretty hiding (Name)
 
@@ -47,6 +48,8 @@ processFile cont = do
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
 
     whenFlag params PrintParams $ putStrLn (ppShow params)
+
+    maybe (return ()) setCurrentDirectory directory
 
     EntryResult{..} <- execute params
 

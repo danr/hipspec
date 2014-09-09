@@ -23,5 +23,8 @@ trLemma am i Property{..} = calcDeps subtheory
     quants      = [ (Id x,trType t) | (x,t) <- prop_vars ]
 
     clause       = Clause (Just i) [] Axiom (map Id prop_tvs)
-                 $ forAlls quants (assums ===> goal)
+                 $ forAlls quants (assums ===> goal) `withQID` mkQID prop_name
+
+mkQID :: String -> QID
+mkQID s = "|{" ++ filter (/= '|') s ++ "}|"
 

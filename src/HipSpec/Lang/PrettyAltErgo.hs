@@ -60,10 +60,13 @@ ppType p = go
 ppForm :: PP a b -> Formula a b -> Doc
 ppForm p f0 = case f0 of
     _ | Just (op,fs) <- collectFOp f0 -> inside "(" (ppFOp op) ")" (map (ppForm p) fs)
-    Q q x t f         -> hang (ppQ q <+> ppTySig p (pp_var p x) [] t <+> ".") 2 (ppForm p f)
+    Q _q [] _trg _qid _tmid f -> ppForm p f
+    Q q ((x,t):xts) trg qid tmid f -> hang (ppQ q <+> ppTySig p (pp_var p x) [] t <+> ".") 2 (ppForm p (Q q xts trg qid tmid f))
     TOp op t1 t2      -> sep [ppTerm p t1 <+> ppTOp op,ppTerm p t2]
     Neg f             -> "not" <+> parens (ppForm p f)
 --    Pred q fs         -> pp_symb p q <> csv (map (ppForm p) fs)
+    f `Named` _       -> ppForm p f
+    f `TermNamed` _   -> ppForm p f
     FOp{}             -> error "PrettyAltErgo.ppForm: FOp"
     DataDecl _ fm     -> ppForm p fm
 

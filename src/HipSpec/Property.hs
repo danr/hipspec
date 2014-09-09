@@ -59,13 +59,11 @@ import qualified HipSpec.Lang.ToPolyFOL as P
 import Data.Map (Map)
 import qualified Data.Map as M
 
-#ifdef UNIFICATION
 import HipSpec.Unify
 import Control.Unification
 
 literalFreeTyVars :: Literal -> [Id]
 literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
-#endif
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -189,7 +187,7 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
 
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property eq -> Property eq
-initFields p@Property{..} = runRenameM (disambig originalId) [] $ do
+initFields p@Property{..} = evalRenameM (disambig originalId) [] $ do
     vars' <- insertMany (map fst prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
     return p
@@ -239,7 +237,7 @@ tvSkolemProp p@Property{..} =
     , ignore
     )
   where
-    tvs = [ (tv,Skolem tv `Derived` i) | (tv,i) <- zip prop_tvs [0..] ]
+    tvs = [ (tv,TvSkolem tv `Derived` i) | (tv,i) <- zip prop_tvs [0..] ]
 
     (expr_substs,ty_substs) = unzip
         [ (exprTySubst tv tc,tc /// tv)
@@ -308,9 +306,6 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 -- | Generalise a property
 generaliseProp :: Property eq -> Property eq
 generaliseProp prop@Property{..}
-#ifndef UNIFICATION
-    = prop
-#else
     = case res of
         Right (vs,goal:assums) ->
             let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
@@ -343,7 +338,6 @@ generaliseProp prop@Property{..}
 
     un_u (Fresh i) = GenTyVar `Derived` (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
-#endif
 
 maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop

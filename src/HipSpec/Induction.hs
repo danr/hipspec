@@ -2,9 +2,6 @@
              ParallelListComp,ViewPatterns,ScopedTypeVariables #-}
 module HipSpec.Induction (induction) where
 
--- TODO: Structural induction
--- Remember that Rename can be used as local skolems
-
 import HipSpec.ThmLib
 import HipSpec.Theory
 import HipSpec.Translate
@@ -17,7 +14,7 @@ import HipSpec.Lang.Simple (Type)
 
 import HipSpec.Lang.PolyFOL hiding (Type(..),Term(..))
 import qualified HipSpec.Lang.PolyFOL as P
-import HipSpec.Lang.ToPolyFOL
+import HipSpec.Lang.ToPolyFOL as P
 
 import HipSpec.Id
 
@@ -46,7 +43,7 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
 
     -- Localise all names
     let obligs' :: [IS.Obligation Con Id (Type Id)]
-        obligs' = unTag (\ (v :~ i) -> mkLetFrom v i prop_id) obligs
+        obligs' = unTag (\ (v :~ i) -> Derived (Skolem v) i {-mkLetFrom v i prop_id-}) obligs
 
     return
         [ Obligation
@@ -55,6 +52,8 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
                 { ind_coords    = coords
                 , ind_num       = n
                 , ind_nums      = n_obligs
+                , ind_skolems   = skolems
+                , ind_terms     = sk_terms
                 }
             , ob_content = calcDepsIgnoring ignore subtheory
                 { defines = Conjecture
@@ -62,33 +61,47 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
                 }
             }
         | (oblig,n) <- zip obligs' [0..]
-        , let cls = tr_oblig (dropHyps oblig)
+        , let (cls,(skolems,sk_terms)) = tr_oblig (dropHyps oblig)
         ]
   where
-    tr_oblig :: IS.Obligation Con Id (Type Id) -> [Clause LogicId LogicId]
+    tr_oblig :: IS.Obligation Con Id (Type Id) -> ([Clause LogicId LogicId],([Id],[S.Expr Id]))
     tr_oblig (IS.Obligation skolems hyps concl) =
 
-        -- Type signatures for skolemised variables
-        [ TypeSig i [] [] t | (i,t) <- tr_quant skolems ]
-        ++
+        ( -- Type signatures for skolemised variables
+          [ TypeSig i [] [] t | (i,t) <- tr_quant skolems ]
+          ++
 
-        -- Hypotheses
-        [ Clause Nothing [Source] Axiom []
-            $ forAlls (tr_quant qs) (tr_pred skolems qs p)
-        | (qs,p) <- hyps
-        ]
-        ++
+          -- Hypotheses
+          [ Clause Nothing [Source] Axiom []
+              $ forAlls (tr_quant qs) (tr_pred skolems qs p)
+                `withTQID` (lambda (map fst (tr_quant qs))
+                                   (P.Apply IH [] [ t | (_,_,t) <- tr_terms_full skolems qs p ]))
+          | (qs,p) <- hyps
+          ]
+          ++
 
-        -- Goal
-        [ Clause Nothing [Source] Goal [] (tr_pred skolems [] concl) ]
+          -- Goal
+          [ Clause Nothing [Source] Goal [] (tr_pred skolems [] concl) ]
+        , -- Skolem variables, and the terms
+          (map fst skolems, [ sk_tm | (_,sk_tm,_) <- tr_terms_full skolems [] concl ])
+        )
+
+    lambda :: [LogicId] -> P.Term LogicId LogicId -> P.Term LogicId LogicId
+    lambda [] t = t
+    lambda qs t = P.Apply P.Lambda [] (map P.Var qs ++ [t])
 
     tr_quant :: [(Id,Type Id)] -> [(LogicId,P.Type LogicId LogicId)]
     tr_quant qs = [ (Id x,trType t) | (x,t) <- qs ]
 
-    tr_pred :: [(Id,Type Id)] -> [(Id,Type Id)] -> [Term Con Id] -> Formula LogicId LogicId
-    tr_pred skolems scope tms = tr_assums ===> tr_goal
+    tr_terms_full :: [(Id,Type Id)] -> [(Id,Type Id)] -> [Term Con Id] -> [(Id,S.Expr Id,P.Term LogicId LogicId)]
+    tr_terms_full skolems scope tms =
+        [ (v,t',trSimpExpr am sc t')
+        | (v,_) <- prop_vars
+        | t <- tms
+        , let t' = trTerm lkup t
+        ]
       where
-        -- Scope for trLiteral
+        -- Scope for trSimpExpr
         sc = map fst scope
 
         -- Lookup for trTerm
@@ -97,17 +110,22 @@ induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..
             Just t  -> (x,t)
             Nothing -> error $ "HipSpec.Induction: Variable " ++ ppId x ++ " lost!"
 
-        -- Translated goals to assumptions
+    tr_pred :: [(Id,Type Id)] -> [(Id,Type Id)] -> [Term Con Id] -> Formula LogicId LogicId
+    tr_pred skolems scope tms = tr_assums ===> tr_goal
+      where
+        -- Scope for trLiteral
+        sc = map fst scope
+
+        --        -- Translated goals to assumptions
         tr_goal:tr_assums = map (trLiteral am sc) (goal:assums)
 
         -- Goals and assumptions where the property variables are replaced with
         -- the induction predicate's
         goal:assums = map subst (prop_goal:prop_assums)
 
-        -- | substitute the prop vars
+        -- Substitute the prop vars
         subst :: Literal -> Literal
-        subst = mapLiteral $ S.substMany
-            [ (v,trTerm lkup t) | (v,_) <- prop_vars | t <- tms ]
+        subst = mapLiteral $ S.substMany [ (v,t) | (v,t,_) <- tr_terms_full skolems scope tms ]
 
 trTerm :: (Id -> (Id,Type Id)) -> Term Con Id -> S.Expr Id
 trTerm lkup = go

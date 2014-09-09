@@ -5,10 +5,14 @@ import Data.Maybe
 import Data.List
 import Data.Data
 
+import HipSpec.ATP.Z3ProofParser
+
+import HipSpec.Pretty
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo | MonoAltErgo | Vampire | Z3
+data ProverName = AltErgo | MonoAltErgo | Vampire | Z3 | Z3PP
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -20,6 +24,7 @@ proverFromName p = case p of
     MonoAltErgo -> monoAltErgo
     Vampire     -> vampire
     Z3          -> z3
+    Z3PP        -> z3pp
 
 proversFromNames :: [ProverName] -> [Prover]
 proversFromNames = map proverFromName
@@ -46,11 +51,13 @@ data Prover = Prover
     -- ^ Should we ignore standard error from this prover?
     , prover_parse_lemmas   :: Maybe (String -> [Int])
     -- ^ This prover's method of parsing lemmas
+    , prover_parse_proofs   :: Maybe ((String -> LogicId) -> String -> Insts)
+    -- ^ Parse proofs
     , prover_input_format   :: InputFormat
     }
 
 -- | Input formats
-data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT
+data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT | SMT_PP
   deriving (Eq,Ord,Show)
 
 extension :: InputFormat -> String
@@ -59,6 +66,7 @@ extension fmt = case fmt of
     AltErgoMonoFmt -> "mlw"
     MonoTFF        -> "tff"
     SMT            -> "smt"
+    SMT_PP         -> "smt"
 
 altErgo :: Prover
 altErgo = Prover
@@ -71,6 +79,7 @@ altErgo = Prover
         [("Valid",proven),("I don't know",failure) ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
     , prover_input_format   = AltErgoFmt
     }
 
@@ -93,6 +102,7 @@ vampire = Prover
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
     , prover_input_format   = MonoTFF
     }
 
@@ -109,7 +119,15 @@ z3 = Prover
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
     , prover_input_format   = SMT
+    }
+
+z3pp :: Prover
+z3pp = z3
+    { prover_name         = Z3PP
+    , prover_parse_proofs = Just z3proofParser
+    , prover_input_format = SMT_PP
     }
 
 
