@@ -20,6 +20,7 @@ module HipSpec.Property
     , maybePropRepr
     , cgSortProps
     , equalsTrue
+    , boolifyProperty
     ) where
 
 import Control.Monad.Error
@@ -45,7 +46,7 @@ import HipSpec.Heuristics.CallGraph
 
 import HipSpec.Id hiding (Derived(Case))
 
-import TysWiredIn (trueDataCon,boolTyCon)
+import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
 -- import DataCon (dataConName)
 
 import Data.List (intercalate,union)
@@ -201,6 +202,27 @@ initFields p@Property{..} = evalRenameM (disambig originalId) [] $ do
             return (t1 ++ " == " ++ t2)
 
     zap_expr_types = S.travExprTypes (fmap (const (Derived Unknown 0)))
+
+-- | Splits a == b to a == True ==> b == True and b == True ==> a == True
+--   for boolean properties
+boolifyProperty :: Property eq -> [Property eq]
+boolifyProperty prop@Property{..} = case prop_goal of
+  lhs :=: rhs -> case S.exprType lhs of
+    TyCon tc [] | tc == idFromTyCon boolTyCon, notConstant lhs, notConstant rhs ->
+      let mk a b = copyReprToName $ initFields $ prop
+                     { prop_assums = equalsTrue a : prop_assums
+                     , prop_goal   = equalsTrue b
+                     , prop_origin = UserStated -- a bit of a lie
+                     }
+      in  [prop, mk lhs rhs, mk rhs lhs]
+    _ -> [prop]
+
+notConstant :: S.Expr Id -> Bool
+notConstant (Gbl a _ []) = a `notElem` map idFromDataCon [trueDataCon,falseDataCon]
+notConstant _            = True
+
+copyReprToName :: Property eq -> Property eq
+copyReprToName p@Property{..} = p { prop_name = prop_repr }
 
 -- | Tries to "parse" a property in the simple expression format
 parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)

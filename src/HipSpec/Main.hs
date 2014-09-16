@@ -110,8 +110,8 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
 
             (ctx_final,exit_act) <- runMainLoop ctx_with_def
-                                     (qsconjs ~+ map vacuous user_props)
-                                     []
+              (concatMap boolifyProperty $ qsconjs ~+ map vacuous user_props)
+              []
 
             when explore_theory $ do
                 let pruner   = prune ctx_init (map erase reps) id
