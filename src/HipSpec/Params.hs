@@ -132,8 +132,8 @@ data Params = Params
     , call_graph          :: Bool
 
     , auto                :: Bool
-    , extra_trans         :: [String]
     , extra               :: [String]
+    , extra_trans         :: [String]
     , pvars               :: Bool
     , quick_check_size    :: Int
     , tests               :: Int
@@ -270,7 +270,7 @@ defParams = Params
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]
          &= groupname "\nDebugging"
     }
-    &= summary ("\n" ++ logo ++ "\n            hipspec v3.1 by Dan Rosén, danr@chalmers.se")
+    &= summary (logo ++ "\n v3.1 by Dan Rosén, danr@chalmers.se")
     &= program "hipspec"
 
 enumerate :: (Show val,Data val) => [(val,String)] -> [val]
@@ -282,16 +282,13 @@ whenFlag :: Monad m => Params -> DebugFlag -> m () -> m ()
 whenFlag p flg = when (flg `elem` debug_flags p)
 
 logo :: String
-logo = map (\ x -> if x == 'z' then '\"' else x) $ unlines
-    [ "      888      d8b                                               "
-    , "      888      Y8P                                               "
-    , "      888                                                        "
-    , "      888888b. 888 88888b.  .d8888b  88888b.   .d88b.  .d8888    "
-    , "      888  888 888 888 z88b 88K      888 z88b d8P  Y8 d8P        "
-    , "      888  888 888 888  888 zY8888b. 888  888 8888888 888        "
-    , "      888  888 888 888 d88P      X88 888 d88P Y8b.    Y8b.       "
-    , "      888  888 888 88888Pz   88888P' 88888Pz   zY8888  zY8888    "
-    , "                   888               888                         "
-    , "                   888               888    zUpp till bevis!z    "
+logo = map (\ x -> if x == 'z' then '\\' else if x == 'w' then '\"' else x) $ unlines
+    [ "  _     _                           "
+    , " | |   (_)                          "
+    , " | |__  _ _ __  ___ _ __   ___  ___ "
+    , " | '_ z| | '_ z/ __| '_ z / _ z/ __|"
+    , " | | | | | |_) z__ z |_) |  __/ (__ "
+    , " |_| |_|_| .__/|___/ .__/ z___|z___|"
+    , "         | |       | |              "
+    , "         |_|  wUpp |_| till bevis!w "
     ]
-
