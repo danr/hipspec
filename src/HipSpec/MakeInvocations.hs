@@ -175,7 +175,7 @@ resultsForProp lemma_lkup results prop = case proofs of
             }
 
         insts (Obligation _ i (_,Success{..})) = case successInsts of
-          Nothing   -> Just "<no info>"
+          Nothing   -> Nothing -- Just "<no info>"
           Just inst -> Just $ intercalate ", " (map (exprRepr . renameWith (disambig originalId)) (ind_terms i))
                               ++ ":\n" ++ prettyInsts inst
         insts _ = error "internal error: Not a success!"
