@@ -13,7 +13,7 @@ import HipSpec.Lang.Monomorphise
 import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
-import HipSpec.Lang.PrettyUtils (Types(..),PP(..))
+import HipSpec.Lang.PrettyUtils (PP(..))
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
@@ -35,17 +35,22 @@ type LogicId = Poly Id
 docId :: Id -> Doc
 docId = text . ppId
 
+showLikeHaskell :: S.Function Id -> String
+showLikeHaskell
+  = render . R.ppFun R.likeHaskell (\ x -> if x == "List" then "[]" else text x) . S.injectFn
+  . renameWith (disambig ppHaskellId)
+
 showSimp :: S.Function Id -> String
-showSimp = render . R.ppFun Show docId . S.injectFn
+showSimp = render . R.ppFun R.showTypes docId . S.injectFn
 
 showRich :: R.Function Id -> String
-showRich = render . R.ppFun Show docId
+showRich = render . R.ppFun R.showTypes docId
 
 showExpr :: S.Expr Id -> String
-showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr
+showExpr = render . R.ppExpr 0 R.noTypes docId . S.injectExpr
 
 showBody :: S.Body Id -> String
-showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
+showBody = render . R.ppExpr 0 R.noTypes docId . S.injectBody
 
 showType :: S.Type Id -> String
 showType = render . R.ppType 0 docId

@@ -30,6 +30,8 @@ module HipSpec.Utils
     -- * Intersection
     , intersects
 
+    -- * Safe
+    , index
     ) where
 
 import Control.Arrow       ((***),(&&&),first,second)
@@ -117,4 +119,11 @@ nubSortedOn f = map head . groupSortedOn f
 -- | Do these two lists have a non-empty intersection?
 intersects :: Eq a => [a] -> [a] -> Bool
 intersects = (not . null) .: intersect
+
+-- | Safe index
+index :: [a] -> Int -> Maybe a
+index _ n | n < 0 = Nothing
+index (x:_)  0 = Just x
+index []     _ = Nothing
+index (_:xs) n = index xs (n-1)
 

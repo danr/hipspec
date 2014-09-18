@@ -16,6 +16,10 @@ import HipSpec.Sig.Symbols
 
 import HipSpec.Params
 
+import qualified HipSpec.Id as HS
+import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Pretty as HS
+
 import CoreSyn (flattenBinds)
 import CoreMonad (liftIO)
 import DynFlags
@@ -42,6 +46,7 @@ import Data.List
 
 import Control.Monad
 
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The result from calling GHC
@@ -49,6 +54,7 @@ data EntryResult = EntryResult
     { sig_infos :: [SigInfo]
     , prop_ids  :: [Var]
     , extra_tcs :: [TyCon]
+    , extra_unf :: [S.Function HS.Id]
     }
 
 -- | Signature from QuickSpec
@@ -60,8 +66,16 @@ data SigInfo = SigInfo
     , cond_mono_ty :: Maybe Type
     }
 
-execute :: Params  -> IO EntryResult
-execute params@Params{..} = do
+{-
+addPluginModuleName :: String -> DynFlags -> DynFlags
+addPluginModuleName name d = d { pluginModNames = (mkModuleName name) : (pluginModNames d) }
+
+exposePackageId :: String -> DynFlags -> DynFlags
+exposePackageId p d = d { packageFlags = ExposePackage p : packageFlags d }
+-}
+
+execute :: Params -> [S.Function HS.Id] -> IO EntryResult
+execute params@Params{..} extra_defs = do
 
     -- Use -threaded
 #if __GLASGOW_HASKELL__ < 708
@@ -75,6 +89,8 @@ execute params@Params{..} = do
         -- and expose all unfoldings
         dflags0 <- getSessionDynFlags
         let dflags =
+--                exposePackageId "hipspec" $
+--                addPluginModuleName "HipSpec.UnfoldPlugin" $
 #if __GLASGOW_HASKELL__ >= 708
                 addWay' WayThreaded
 #endif
@@ -83,7 +99,11 @@ execute params@Params{..} = do
                              , profAuto = NoProfAuto
                              }
                         `wopt_unset` Opt_WarnOverlappingPatterns
+                        `xopt_set` Opt_ExplicitForAll
 #if __GLASGOW_HASKELL__ >= 708
+--                        `dopt_set` Opt_D_dump_simpl_stats
+--                        `dopt_set` Opt_D_dump_simpl
+--                        `dopt_set` Opt_D_verbose_core2core
                         `gopt_unset` Opt_IgnoreInterfacePragmas
                         `gopt_unset` Opt_OmitInterfacePragmas
                         `gopt_set` Opt_ExposeAllUnfoldings)
@@ -93,6 +113,8 @@ execute params@Params{..} = do
                         `dopt_set` Opt_ExposeAllUnfoldings)
 #endif
         _ <- setSessionDynFlags dflags
+
+--        _ <- setInteractiveDynFlags dflags
 
             -- add .hs if it is not present (apparently not supporting lhs)
         let file_with_ext = replaceExtension file ".hs"
@@ -131,6 +153,40 @@ execute params@Params{..} = do
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
 
+        idflgs <- getInteractiveDynFlags
+
+        liftIO $ print (gopt Opt_ExposeAllUnfoldings idflgs)
+
+        synth_fns' <- forM extra_defs $ \ def -> do
+          let s = "let\n" ++ unlines (map ("    " ++) (lines (HS.showLikeHaskell def)))
+          liftIO $ putStrLn "Adding:"
+          liftIO $ putStrLn s
+          rr <- runStmtWithLocation "hipspec_synthesis" 0 s RunToCompletion
+          case rr of
+            RunOk [nm] -> do
+              liftIO $ putStrLn $ "got name: " ++ show nm
+              th <- lookupName nm
+              case thingToId =<< th of
+                Just i -> do
+                  liftIO $ putStrLn "one id, perfect"
+                  liftIO $ putStrLn $ showOutputable $ maybeUnfolding i
+                  return [(i,S.renameFunction def (HS.idFromName nm))]
+                Nothing -> do
+                  liftIO $ putStrLn "not an id"
+                  return []
+            RunOk nms -> do
+              liftIO $ putStrLn $ "got many names: " ++ show nms
+              return []
+            RunException _e -> do
+              liftIO $ putStrLn "exception"
+              return []
+            RunBreak{} -> do
+              liftIO $ putStrLn "break"
+              return []
+
+        let synth_fns = concat synth_fns'
+            synth_ids = map fst synth_fns
+
         -- Get ids in scope to find the properties (fix their unfoldings, too)
         ids_in_scope <- getIdsInScope fix_id
 
@@ -150,7 +206,7 @@ execute params@Params{..} = do
         cond_id <- findCondId params
 
         (sigs,cond_mono_ty) <- if auto
-            then (makeSignature params cond_id props)
+            then (makeSignature params synth_ids cond_id props)
             else fmap (flip (,) Nothing . maybeToList) getSignature
 
 
@@ -178,6 +234,7 @@ execute params@Params{..} = do
             { sig_infos = sig_infos
             , prop_ids  = props ++ concat extra_ids ++ toplvl_binds ++ maybeToList cond_id
             , extra_tcs = concat extra_tcs
+            , extra_unf = map snd synth_fns
             }
 
 findCondId :: Params -> Ghc (Maybe Id)

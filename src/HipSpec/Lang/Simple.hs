@@ -16,9 +16,13 @@ module HipSpec.Lang.Simple
     , apply
     , exprFreeTyVars
     , exprGbls
+    , exprLcls
+    , exprCalls
+    , bodyCalls
     , bodyType
     , exprType
     , exprTySubst
+    , renameFunction
     , module HipSpec.Lang.Rich
     , module HipSpec.Lang.Type
     , injectFn
@@ -60,6 +64,14 @@ data Function a = Function
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
+renameFunction :: Eq a => Function a -> a -> Function a
+renameFunction fn nm = fn
+    { fn_name = nm
+    , fn_body = flip transformBi (fn_body fn) $ \ e0 -> case e0 of
+        Gbl f pt ta | f == fn_name fn -> Gbl nm pt ta
+        _ -> e0
+    }
+
 -- | The body of a function: cascades of cases, with branches eventually ending
 --   in expressions.
 data Body a
@@ -79,6 +91,7 @@ data Expr a
     | Lit Integer
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
+instanceTransformBi [t| forall a . (Expr a,Body a) |]
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Type a,Expr a) |]
 
@@ -114,11 +127,23 @@ exprFreeTyVars = go
 exprGbls :: Eq a => Expr a -> [a]
 exprGbls e = nub [ x | Gbl x _ _ <- universeBi e ]
 
+exprLcls :: Eq a => Expr a -> [a]
+exprLcls e = nub [ x | Lcl x _ <- universeBi e ]
+
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =
     let (e,es) = collectArgs e1
     in  (e,es ++ [e2])
 collectArgs e           = (e,[])
+
+exprCalls :: Expr a -> [(Expr a,[Expr a])]
+exprCalls e0 = case e0 of
+  App{} -> let (e,es) = collectArgs e0 in (e,es):concatMap exprCalls es
+  _     -> []
+
+bodyCalls :: Body a -> [(Expr a,[Expr a])]
+bodyCalls (Body e) = exprCalls e
+bodyCalls (Case s alts) = exprCalls s ++ concatMap (bodyCalls . snd) alts
 
 apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
@@ -141,6 +166,7 @@ e // x = transformBi $ \ e0 -> case e0 of
 
 substMany :: Eq a => [(a,Expr a)] -> Expr a -> Expr a
 substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
+
 
 -- * Injectors to the Rich language (for pretty-printing, linting)
 
@@ -175,4 +201,3 @@ tcTyCons = concatMap tyTyCons . tcTys
 
 travExprTypes :: (Type a -> Type a) -> Expr a -> Expr a
 travExprTypes = transformBi
-

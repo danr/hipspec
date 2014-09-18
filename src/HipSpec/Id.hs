@@ -53,6 +53,7 @@ data Derived
     | TvSkolem Id
     | Unknown
     | GenTyVar
+    | Generalised Id
   deriving (Eq,Ord,Show)
 
 mkLetFrom :: Id -> Integer -> Id -> Id
@@ -72,6 +73,16 @@ originalId i = case i of
         Eta           -> "x"
         Unknown       -> "u"
         GenTyVar      -> "a"
+        Generalised x -> originalId x
+
+ppHaskellId :: Id -> String
+ppHaskellId i = case tryGetGHCName i of
+    Just x  -> if getUnique x == listTyConKey then "List" else case showOutputable x of
+        xs | all (`elem` symbs) xs -> "(" ++ xs ++ ")"
+        xs                         -> xs
+    Nothing -> ppId i
+  where
+    symbs = "!@#$%^&*<>=~?|+-:"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -92,6 +103,7 @@ ppDerived i d = case d of
     TvSkolem x    -> map toUpper (ppId x)
     GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
+    Generalised x -> ppId x ++ "_gen"
 
 ppName :: Name -> String
 ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}

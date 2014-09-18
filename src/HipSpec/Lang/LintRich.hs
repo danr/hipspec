@@ -14,7 +14,7 @@ import qualified Data.Map as M
 
 import Text.PrettyPrint
 import HipSpec.Lang.PrettyRich
-import HipSpec.Lang.PrettyUtils (Types(..),P)
+import HipSpec.Lang.PrettyUtils (P)
 
 data LintEnv v = Env
     { pp   :: v -> Doc
@@ -73,11 +73,11 @@ msgScrutineeVarIllTyped e t1 t2 p = sep
 msgCaseWithoutAlts e p = "Case without alternatives: " <+> ppExpr' p e
 msgAltsRHSIllTyped e ts p = sep $
        "Alternatives in case differ in type:":ppExpr' p e:map (ppType 0 p) ts
-msgConstructorIncorrectlyApplied pat p = "Constructor incorrectly applied:" <+> ppPat Show p pat
-msgIllTypedPattern t pat p = ppPat Show p pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
+msgConstructorIncorrectlyApplied pat p = "Constructor incorrectly applied:" <+> ppPat showTypes p pat
+msgIllTypedPattern t pat p = ppPat showTypes p pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
 
 ppExpr' :: P a -> Expr a -> Doc
-ppExpr' = ppExpr 0 Show
+ppExpr' = ppExpr 0 showTypes
 
 report :: ((v -> Doc) -> Doc) -> LintM v ()
 report k = do
@@ -129,7 +129,7 @@ lintLclFnsAnd fns m = do
             Forall [] ty -> return (fn_name,ty)
             Forall __ ty -> do
                 report $ \ p ->
-                    ppFun Don'tShow p fn <+>
+                    ppFun noTypes p fn <+>
                     "is bound locally and has a polymorphic type." <+>
                     "This is not currently supported."
                 return (fn_name,ty)

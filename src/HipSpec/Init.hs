@@ -24,6 +24,8 @@ import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
 import HipSpec.Lang.Uniquify
 
+import HipSpec.Lang.Generalise
+
 import HipSpec.Heuristics.CallGraph
 
 import qualified HipSpec.Lang.SimplifyRich as S
@@ -41,9 +43,10 @@ import Text.Show.Pretty hiding (Name)
 
 import Var (Var)
 import Data.Map (Map)
+import Data.Maybe
 
-processFile :: (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
-processFile cont = do
+processFile :: [S.Function Id] -> (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
+processFile extra_defs cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
 
@@ -51,7 +54,7 @@ processFile cont = do
 
     maybe (return ()) setCurrentDirectory directory
 
-    EntryResult{..} <- execute params
+    EntryResult{..} <- execute params extra_defs
 
     let vars = filterVarSet (not . varFromPrelude) $
                unionVarSets (map (transCalls Without) prop_ids)
@@ -85,7 +88,8 @@ processFile cont = do
 
                 is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
-                (props,fns) = partition is_prop simp_fns
+                (props,fns_wo) = partition is_prop simp_fns
+                fns = fns_wo ++ extra_unf
 
                 am_fin = am_fns `combineArityMap` am_tcs
                 (am_fns,binds_thy) = trSimpFuns am_fin fns
@@ -102,6 +106,13 @@ processFile cont = do
 
                 env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
 
+                gens = mapMaybe generaliseFunction fns
+
+            unless (null gens) $ when (null extra_defs) $ do
+                let gen_defs = map showLikeHaskell gens
+                liftIO $ mapM_ putStrLn gen_defs
+                _ <- processFile (gens ++ extra_defs) cont
+                exitSuccess
 
             runHS params env $ do
 

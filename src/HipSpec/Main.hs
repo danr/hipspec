@@ -53,7 +53,7 @@ import qualified Data.ByteString.Lazy as B
 import System.Exit (exitSuccess,exitFailure)
 
 main :: IO ()
-main = processFile $ \ callg m_sig_info user_props -> do
+main = processFile [] $ \ callg m_sig_info user_props -> do
     writeMsg FileProcessed
 
     exit_act <- case m_sig_info of

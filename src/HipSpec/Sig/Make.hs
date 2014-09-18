@@ -35,8 +35,8 @@ import Outputable
 
 -}
 
-makeSignature :: Params -> Maybe Var -> [Var] -> Ghc ([Sig],Maybe Type)
-makeSignature p@Params{..} cond_id prop_ids = do
+makeSignature :: Params -> [Var] -> Maybe Var -> [Var] -> Ghc ([Sig],Maybe Type)
+makeSignature p@Params{..} synth_ids cond_id prop_ids = do
 
     let extra' = concatMap (splitOn ",") extra
         extra_trans' = concatMap (splitOn ",") extra_trans
@@ -54,7 +54,7 @@ makeSignature p@Params{..} cond_id prop_ids = do
     let extra_ids = mapMaybe thingToId extra_things
 
         ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x))
-            trans_ids `unionVarSet` mkVarSet extra_ids
+            trans_ids `unionVarSet` mkVarSet extra_ids `unionVarSet` mkVarSet synth_ids
 
     -- Filters out silly things like
     -- Control.Exception.Base.patError and GHC.Prim.realWorld#
