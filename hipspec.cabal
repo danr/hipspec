@@ -1,6 +1,6 @@
 name:                hipspec
 category:            Theorem Provers
-version:             3.1
+version:             3.0
 synopsis:            HipSpec
 homepage:            http://github.com/danr/hipspec
 license:             GPL-3
@@ -12,7 +12,7 @@ bug-reports:         http://www.github.com/danr/hipspec/issues
 category:            Language
 build-type:          Simple
 cabal-version:       >=1.6
-tested-with:         GHC == 7.4.1, GHC == 7.6.3
+tested-with:         GHC == 7.8.3
 synopsis:            HipSpec: prove properties of Haskell programs, with theory exploration from QuickSpec
 description:         Upp till bevis!
 
@@ -42,7 +42,7 @@ library
     build-depends:
         base                 >= 4    && < 5,
         QuickCheck           >= 2.5,
-        quickspec            == 0.9.5
+        quickspec            == 0.9.6
 
 executable hipspec
     hs-source-dirs: src
@@ -80,7 +80,7 @@ executable hipspec
         ghc-prim,
 
         -- QuickSpec
-        quickspec            == 0.9.5,
+        quickspec            == 0.9.6,
 
         -- Printing messages
         time                 >= 1.4,
@@ -95,7 +95,7 @@ executable hipspec
         parsec               >= 3.1,
 
         -- Running Theorem Provers
-        stm-promise          == 0.0.2,
+        stm-promise          == 0.0.3.0,
         process              >= 1.0.1.1,
         stm                  >= 2.3,
         directory            >= 1.0,
