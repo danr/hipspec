@@ -18,7 +18,8 @@ Z   + m = m
 S n * m = m + (n * m)
 Z   * m = Z
 
--- prop_mul x y = x * y =:= y * x
+--prop_mul x y = x * y =:= y * x
+prop_rid x = x + Z =:= x
 
 instance Enum Nat where
   toEnum 0 = Z

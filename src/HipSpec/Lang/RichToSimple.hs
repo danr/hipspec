@@ -42,7 +42,7 @@ rtsFun :: R.Function Id -> RTS (S.Function Id)
 rtsFun (R.Function f ty e) = do
     let (args,body) = collectBinders e
     x <- fresh
-    local (mkLetFrom f x) $ S.Function f ty (map fst args) <$> rtsBody body
+    local (mkLetFrom f x) $ S.Function f ty (map fst args) <$> fmap Just (rtsBody body)
 
 rtsBody :: R.Expr Id -> RTS (S.Body Id)
 rtsBody e0 = case e0 of

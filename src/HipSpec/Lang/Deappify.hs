@@ -28,7 +28,7 @@ import Control.Applicative
 type Zap v a = (v -> Maybe Int) -> a
 
 zapFn :: Function v -> Zap v (Function v)
-zapFn fn k = fn { fn_body = zapBody (fn_body fn) k }
+zapFn fn k = fn { fn_body = fmap (\ b -> zapBody b k) (fn_body fn) }
 
 zapBody :: Body v -> Zap v (Body v)
 zapBody b0 = case b0 of

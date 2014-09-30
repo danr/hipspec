@@ -39,7 +39,22 @@ data Poly v
     -- ^ The induction hypothesis (in structural induction)
     | Lambda
     -- ^ For beta-reductions in the structural induction hypothesis
+    | SK (Poly v) Int
+    -- ^ Skolemised, derived variable
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+skolemise :: [Clause (Poly u) (Poly v)] -> [Clause (Poly u) (Poly v)]
+skolemise = concatMap sk
+  where
+    sk (Clause n trg Goal tvs fm) = sk (Clause n trg Axiom tvs (neg fm))
+    sk (Clause n trg Axiom tvs (Q Exists vs _trg _id _tm_id b)) =
+        [ Clause n trg Axiom [] (substTypes ty_su (substVars (map fst v_su) b)) ] ++
+        [ SortSig ty 0 | (_,ty) <- ty_su ] ++
+        [ TypeSig v [] t | ((_,v),t) <- v_su ]
+      where
+        ty_su = [ (tv,SK tv (-i)) | (tv,i) <- zip tvs [0..] ]
+        v_su  = [ ((v,SK v i),substTypes ty_su t) | ((v,t),i) <- zip vs [0..] ]
+    sk c = [ c ]
 
 data Env v = Env
     { env_fn      :: Poly v
@@ -166,7 +181,9 @@ trFun (Function f tvs args res_ty body) = (def_cls,ptr_cls)
     res_ty'  = trType res_ty
 
     mk_def_cls = do
-        cls <- map (Clause Nothing [Symb f'] Axiom tvs') <$> trBody body
+        cls <- case body of
+            Just b  -> map (Clause Nothing [Symb f'] Axiom tvs') <$> trBody b
+            Nothing -> return []
         let ty_cl = TypeSig f' tvs' args_ty' res_ty'
         return (ty_cl:cls)
 

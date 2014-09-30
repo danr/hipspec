@@ -18,6 +18,8 @@ import HipSpec.Lint
 import HipSpec.Utils
 import HipSpec.Id
 
+import HipSpec.FixpointInduction
+
 import HipSpec.GHC.Utils
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
@@ -59,7 +61,7 @@ processFile cont = do
         callg = idCallGraph (varSetElems vars)
 
     case isabelle_mode of
-        True -> runHS params (Env [] emptyArityMap (const Nothing))
+        True -> runHS params (Env [] emptyArityMap (const Nothing) (const False))
                    (cont callg sig_infos (error "properties: --isabelle-mode"))
 
         False -> do
@@ -85,10 +87,17 @@ processFile cont = do
 
                 is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
-                (props,fns) = partition is_prop simp_fns
+                (props,fns0) = partition is_prop simp_fns
 
-                am_fin = am_fns `combineArityMap` am_tcs
+                fns_fix = fixFunctions fns0
+                fns = fns0 ++ fns_fix
+
+                is_recursive x = case [ fn | fn <- fns, S.fn_name fn == x ] of
+                    f:_ -> isRecursive f
+                    []  -> False
+
                 (am_fns,binds_thy) = trSimpFuns am_fin fns
+                am_fin = am_fns `combineArityMap` am_tcs
 
                 cls = sortClauses False (concatMap clauses thy)
 
@@ -100,8 +109,10 @@ processFile cont = do
                              (map (etaExpandProp . generaliseProp))
                              (trProperties props)
 
-                env = Env { theory = thy, arity_map = am_fin, ty_env = ty_env' }
-
+                env = Env
+                    { theory = thy, arity_map = am_fin, ty_env = ty_env'
+                    , is_recursive = is_recursive
+                    }
 
             runHS params env $ do
 

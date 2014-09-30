@@ -73,6 +73,7 @@ showObInfo :: ObInfo -> String
 showObInfo (ObInduction{..}) =
     "coords: " ++ csv (map show ind_coords) ++ " " ++
     show ind_num ++ "/" ++ show ind_nums
+showObInfo (ObFixpointInduction{..}) = fpi_repr
 
 showMsg :: Params -> Msg -> String
 showMsg Params{no_colour,reverse_video} msg = case msg of

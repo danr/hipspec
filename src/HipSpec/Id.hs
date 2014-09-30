@@ -53,6 +53,12 @@ data Derived
     | TvSkolem Id
     | Unknown
     | GenTyVar
+    | Id `Fix` BW
+  deriving (Eq,Ord,Show)
+
+-- we turn {f = .. f ..}
+-- into    {fB = .. fW ..}
+data BW = B | W
   deriving (Eq,Ord,Show)
 
 mkLetFrom :: Id -> Integer -> Id -> Id
@@ -72,6 +78,7 @@ originalId i = case i of
         Eta           -> "x"
         Unknown       -> "u"
         GenTyVar      -> "a"
+        f `Fix` _bw   -> "⟨" ++ originalId f ++ "⟩"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -92,6 +99,7 @@ ppDerived i d = case d of
     TvSkolem x    -> map toUpper (ppId x)
     GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
+    f `Fix` bw    -> ppId f ++ show bw
 
 ppName :: Name -> String
 ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}

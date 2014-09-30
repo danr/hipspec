@@ -56,6 +56,9 @@ data ObInfo
         , ind_skolems :: [Id]
         , ind_terms   :: [S.Expr Id]
         }
+    | ObFixpointInduction
+        { fpi_repr :: String
+        }
   deriving (Eq,Ord,Show,Generic)
 
 #ifdef SUPPORT_JSON
@@ -63,5 +66,8 @@ instance ToJSON ObInfo
 #endif
 
 obInfoFileName :: ObInfo -> String
-obInfoFileName (ObInduction cs n _ _ _)
-    = intercalate "_" (map show cs) ++ "__" ++ show n
+obInfoFileName oi = case oi of
+    ObInduction{..}         -> usv ind_coords ++ "__" ++ show ind_num
+    ObFixpointInduction{..} -> fpi_repr
+  where
+    usv = intercalate "_" . map show

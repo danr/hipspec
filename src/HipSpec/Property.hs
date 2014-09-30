@@ -165,8 +165,9 @@ trProperties = mapM trProperty
 -- | Translates a property that has been translated to a simple function earlier
 trProperty :: S.Function Id -> Either Err (Property Void)
 trProperty (S.Function p (Forall tvs ty) args b) = case b of
-    Case{} -> throwError (PropertyWithCase b)
-    Body e -> do
+    Just (c@Case{}) -> throwError (PropertyWithCase c)
+    Nothing         -> error "Inconceivable, property with abstract body"
+    Just (Body e)   -> do
 
         (assums,goal) <- parseProperty e
 

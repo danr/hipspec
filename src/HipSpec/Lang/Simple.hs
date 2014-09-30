@@ -56,7 +56,7 @@ data Function a = Function
     { fn_name    :: a
     , fn_type    :: PolyType a
     , fn_args    :: [a]
-    , fn_body    :: Body a
+    , fn_body    :: Maybe (Body a)
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
@@ -81,6 +81,8 @@ data Expr a
 
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Type a,Expr a) |]
+instanceTransformBi [t| forall a . (Expr a,Body a) |]
+instanceTransformBi [t| forall a . (Expr a,Maybe (Body a)) |]
 
 instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
 
@@ -146,7 +148,7 @@ substMany xs e0 = foldr (\ (u,e) -> (e // u)) e0 xs
 
 injectFn :: Function a -> R.Function a
 injectFn (Function f ty as b)
-    = R.Function f ty (R.makeLambda (zip as as_ty) (injectBody b))
+    = R.Function f ty (R.makeLambda (zip as as_ty) (maybe (R.String "abstract") injectBody b))
   where
     Forall _ (collectArrTy -> (as_ty,_)) = ty
 

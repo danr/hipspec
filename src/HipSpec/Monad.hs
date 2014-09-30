@@ -25,6 +25,7 @@ import HipSpec.Messages
 import HipSpec.Params
 import HipSpec.Theory
 import HipSpec.Translate (TyEnv')
+import HipSpec.Id
 
 import Control.Concurrent.MVar
 
@@ -44,6 +45,7 @@ data Env = Env
     { theory    :: Theory
     , arity_map :: ArityMap
     , ty_env    :: TyEnv'
+    , is_recursive :: Id -> Bool
     }
 
 newtype HS a = HS (ReaderT HSEnv IO a)

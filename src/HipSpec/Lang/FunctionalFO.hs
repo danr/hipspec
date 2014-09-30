@@ -19,7 +19,7 @@ data Function a = Function
     , fn_tvs     :: [a]
     , fn_args    :: [(a,Type a)]
     , fn_res_ty  :: Type a
-    , fn_body    :: Body a
+    , fn_body    :: Maybe (Body a)
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 

@@ -85,7 +85,7 @@ flagifyString
 flagify :: Show a => a -> String
 flagify = flagifyString . show
 
-data Technique = Induction | Plain
+data Technique = Induction | Plain | FixpointInduction
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defaultTechs :: [Technique]

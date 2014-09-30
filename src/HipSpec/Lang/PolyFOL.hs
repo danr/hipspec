@@ -86,7 +86,24 @@ infixr 1 \/
 infixr 0 ==>, ===>, <=>
 
 neg :: Formula a b -> Formula a b
-neg = Neg
+neg f = case f of
+    Q q vs a b c phi -> Q (qneg q) vs a b c (neg phi)
+    TOp top t1 t2 -> TOp (tneg top) t1 t2
+    Named phi s -> Named (neg phi) s
+    TermNamed phi tm -> TermNamed (neg phi) tm
+    DataDecl{} -> error "negation on a data declaration :("
+    FOp And     f1 f2 -> FOp Or    (neg f1) (neg f2)
+    FOp Or      f1 f2 -> FOp And   (neg f1) (neg f2)
+    FOp Implies f1 f2 -> FOp And   (neg f1) f2
+    FOp Equiv   f1 f2 -> FOp Equiv (neg f1) f2
+    Neg phi -> phi
+  where
+    qneg Forall = Exists
+    qneg Exists = Forall
+
+    tneg Equal = Unequal
+    tneg Unequal = Equal
+
 
 (/\),(\/),(==>),(<=>) :: Formula a b -> Formula a b -> Formula a b
 (/\)  = FOp And

@@ -5,6 +5,7 @@ import Data.List (nub)
 
 import HipSpec.ThmLib
 import HipSpec.Induction
+import HipSpec.FixpointInduction
 import HipSpec.Property as Prop
 import HipSpec.Params
 
@@ -45,5 +46,5 @@ makeProofs prop@Property{prop_vars} = do
 
         attempts = mapMaybe (induction params ty_env arity_map prop) induction_coords
 
-    return attempts
+    return (attempts ++ map return (fixpointInduction params arity_map is_recursive prop))
 

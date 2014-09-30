@@ -10,7 +10,7 @@ import HipSpec.Id
 
 stfFun :: S.Function Id -> FO.Function Id
 stfFun (S.Function f (Forall tvs ty) as b) =
-    FO.Function f tvs (zip as arg_tys) res_ty (stfBody b)
+    FO.Function f tvs (zip as arg_tys) res_ty (fmap stfBody b)
   where
     peel 0 t            = ([],t)
     peel n (ArrTy ta t) = let (tas,r) = peel (n - 1) t in (ta:tas,r)

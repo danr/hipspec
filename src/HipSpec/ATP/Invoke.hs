@@ -66,12 +66,8 @@ True  ? f = f
 False ? _ = id
 
 filename :: InvokeEnv -> Obligation eq a -> (FilePath,FilePath)
-filename InvokeEnv{z_encode} (Obligation Property{prop_name} info _) = case info of
-    ObInduction coords ix _ _ _ ->
-        ((z_encode ? zencode) prop_name
-        ,usv coords ++ "__" ++ show ix)
-  where
-    usv = intercalate "_" . map show
+filename InvokeEnv{z_encode} (Obligation Property{prop_name} info _) =
+    ((z_encode ? zencode) prop_name,(z_encode ? zencode) (obInfoFileName info))
 
 promiseProof :: forall eq .
                 InvokeEnv -> Obligation eq LinTheory -> Double -> Prover
