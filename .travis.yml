@@ -6,7 +6,10 @@ ghc:
     - 7.8
 
 before_install:
-    - sudo apt-get update -qq
+    - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
+    - echo "deb-src http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
+    - sudo apt-get update
+    - sudo apt-get install cvc4 --force-yes
     - sudo apt-get install alt-ergo
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git
