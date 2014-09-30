@@ -78,7 +78,7 @@ executable hipspec
         mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.3,
         pretty               >= 1.1,
         geniplate            >= 0.6,
-        genifunctors         >= 0.1.1 && <= 0.2,
+        genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
         void                 >= 0.5.3,
         transformers         >= 0.3,
