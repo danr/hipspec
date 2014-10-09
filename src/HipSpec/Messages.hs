@@ -24,13 +24,13 @@ data Msg
 
     | Discarded      [String]
     | Candidates     [String]
-    | InductiveProof
-        { property_name :: String
-        , property_repr :: Maybe String
-        , used_lemmas   :: Maybe [String]
-        , used_insts    :: String
-        , used_provers  :: [String]
-        , vars          :: [String]
+    | Proof
+        { property_name  :: String
+        , property_repr  :: Maybe String
+        , used_lemmas    :: Maybe [String]
+        , used_insts     :: String
+        , used_provers   :: [String]
+        , used_tech      :: Proof
         }
     | FailedProof
         { property_name :: String
@@ -84,10 +84,12 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
         | otherwise      -> "Discarded: " ++ csv eqs
     Candidates eqs -> "Interesting candidates: " ++ csv eqs
 
-    InductiveProof{..} -> green ((not (null vars) ? bold)
-        ("Proved " ++ repr_prop (property_name,property_repr) ++ (case vars of
-                [] -> " without induction"
-                _  -> " by induction on " ++ csv vars)))
+    Proof{..} -> green ((not (definitionalProof used_tech) ? bold)
+        ("Proved " ++ repr_prop (property_name,property_repr) ++ (case used_tech of
+                ByInduction [] -> " without induction"
+                ByInduction vars  -> " by induction on " ++ csv vars
+                ByFixpointInduction repr -> " by fix point induction (" ++ repr ++ ")"
+                )))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
             ++ "\n" ++ used_insts
@@ -156,8 +158,8 @@ msgVerbosity m = case m of
     ExploredTheory{}         -> 0  -- enabled by a flag
     Finished{}               -> 1  -- most interesting
     UnknownResult{}          -> 10 -- a warning, really
-    InductiveProof{vars=_:_} -> 20
-    InductiveProof{vars=[]}  -> 30
+    Proof{used_tech=ByInduction []} -> 30
+    Proof{used_tech}         -> 20
     FailedProof{}            -> 40
     Loop                     -> 45
     Candidates{}             -> 50

@@ -67,6 +67,7 @@ polyname x0 = case x0 of
     QVar i   -> 'x':show i
     IH       -> "IH"
     P.Lambda -> "lambda"
+    SK a b   -> "sk" ++ polyname a ++ show b
 
 mononame :: IdInst LogicId LogicId -> String
 mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
@@ -139,6 +140,8 @@ smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
+    -- CVC4:
+    , "as"
     ]
 
 altErgoKeywords :: [String]

@@ -39,7 +39,6 @@ import System.Process
 import System.FilePath
 import System.Directory
 
-import Text.Show.Pretty hiding (Name)
 
 import Var (Var)
 import Data.Map (Map)

@@ -43,19 +43,6 @@ data Poly v
     -- ^ Skolemised, derived variable
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
-skolemise :: [Clause (Poly u) (Poly v)] -> [Clause (Poly u) (Poly v)]
-skolemise = concatMap sk
-  where
-    sk (Clause n trg Goal tvs fm) = sk (Clause n trg Axiom tvs (neg fm))
-    sk (Clause n trg Axiom tvs (Q Exists vs _trg _id _tm_id b)) =
-        [ Clause n trg Axiom [] (substTypes ty_su (substVars (map fst v_su) b)) ] ++
-        [ SortSig ty 0 | (_,ty) <- ty_su ] ++
-        [ TypeSig v [] t | ((_,v),t) <- v_su ]
-      where
-        ty_su = [ (tv,SK tv (-i)) | (tv,i) <- zip tvs [0..] ]
-        v_su  = [ ((v,SK v i),substTypes ty_su t) | ((v,t),i) <- zip vs [0..] ]
-    sk c = [ c ]
-
 data Env v = Env
     { env_fn      :: Poly v
     , env_tvs     :: [Poly v]

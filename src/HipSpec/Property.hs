@@ -33,6 +33,8 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
+import HipSpec.Unify
+import Control.Unification
 
 -- import Text.PrettyPrint hiding (comma)
 

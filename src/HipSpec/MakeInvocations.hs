@@ -19,7 +19,8 @@ import HipSpec.Trim
 import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
-import HipSpec.Lang.PolyFOL (trimDataDecls)
+import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise)
+import HipSpec.Lang.ToPolyFOL (Poly(SK))
 
 import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
 import HipSpec.Lang.PrettyUtils (PP(..))
@@ -69,10 +70,13 @@ tryProve prop lemmas0 = do
 
             linTheory :: Theory -> HS LinTheory
             linTheory sthys = do
-                let cls               = sortClauses False (concatMap clauses sthys)
+                let cls               = skolemise SK SK
+                                        (sortClauses False (concatMap clauses sthys))
                 let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
                 let pp = PP (text . polyname) (text . polyname)
-                let (smt_str,smt_rename_map) = ppSMT (sortClauses True (trimDataDecls mcls))
+                let ui | any (`elem` provers) [CVC4,CVC4i,CVC4ig] = uninterpretedInts
+                       | otherwise           = id
+                let (smt_str,smt_rename_map) = ppSMT (ui (sortClauses True (trimDataDecls mcls)))
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++
                     "\n\nResult:\n" ++ ppTFF mcls ++
@@ -91,7 +95,6 @@ tryProve prop lemmas0 = do
                       , "(get-proof)"
                       , "(echo \")\")"
                       ]
-
 
             calc_dependencies :: Subtheory -> [Content]
             calc_dependencies s = concatMap dependencies (s:lemma_theories)
@@ -136,16 +139,15 @@ tryProve prop lemmas0 = do
             res = resultsForProp lemma_lkup results prop
 
         case res of
-            Just Theorem{..} ->
-                case thm_proof of
-                    ByInduction{..} -> writeMsg InductiveProof
-                        { property_name = prop_name thm_prop
-                        , property_repr = maybePropRepr thm_prop
-                        , used_lemmas   = fmap (map prop_name) thm_lemmas
-                        , used_insts    = thm_insts
-                        , used_provers  = map show thm_provers
-                        , vars          = ind_vars
-                        }
+            Just Theorem{..} -> writeMsg Proof
+                { property_name = prop_name thm_prop
+                , property_repr = maybePropRepr thm_prop
+                , used_lemmas   = fmap (map prop_name) thm_lemmas
+                , used_insts    = thm_insts
+                , used_provers  = map show thm_provers
+                , used_tech     = thm_proof
+                }
+
             Nothing ->
                 writeMsg FailedProof
                     { property_name = prop_name prop
@@ -163,6 +165,8 @@ resultsForProp lemma_lkup results prop = case proofs of
         [] -> error "MakeInvocations: results (impossible)"
         Obligation _ (ObInduction cs _ _ _sks _sk_tms) _ :_ ->
             mkProof (ByInduction (varsFromCoords prop cs))
+        [Obligation _ (ObFixpointInduction i) _] ->
+            mkProof (ByFixpointInduction i)
       where
         mkProof pf = Just Theorem
             { thm_prop = prop
@@ -194,5 +198,6 @@ resultsForProp lemma_lkup results prop = case proofs of
     check :: [Obligation eq Result] -> Bool
     check grp@(Obligation _ (ObInduction _ _ nums _ _) _:_) =
         all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
+    check grp@(Obligation _ (ObFixpointInduction _) _:rs) = null rs
     check _ = False
 

@@ -23,10 +23,11 @@ ppClause p cls = case cls of
     Comment s               -> vcat (map (\ l -> ";" <+> text l) (lines s))
 
 ppDataDecls :: PP a b -> [DataDecl a b] -> Doc
+ppDataDecls _ [] = empty
 ppDataDecls p ds = parens ("declare-datatypes" <+> parens empty $\ parens (sep (map data_decl ds)))
   where
     data_decl (Data tc _ cons) = parens (pp_symb p tc $\ sep (map con_decl cons))
-    con_decl (con,[])   = pp_symb p con
+    --con_decl (con,[])   = pp_symb p con -- CVC4 cannot handle this
     con_decl (con,args) = parens
         (pp_symb p con $\ sep [ parens (pp_symb p v <+> ppType p t) | (v,t) <- args ])
 
@@ -107,49 +108,3 @@ ppTerm p = go
         Var v          -> pp_var p v
         Lit x          -> integer x
 
-{-
-
-linPrim :: Prim -> SDoc
-linPrim p = case p of
-    Add -> char '+'
-    Sub -> char '-'
-    Mul -> char '*'
-    Eq  -> char '='
-    Ne  -> text "!=" -- will this work?
-    Lt  -> char '<'
-    Le  -> text "<="
-    Ge  -> text ">="
-    Gt  -> char '>'
-    LiftBool -> linLiftBool
-
-linLiftBool :: SDoc
-linLiftBool = text "lift_bool"
-
-linLiftBoolDefn :: SDoc
-linLiftBoolDefn = vcat $
-    linDeclFun linLiftBool [linBool] linDomain :
-    [ parens $ text "assert" <+>
-        parens (equals <+> parens (linLiftBool <+> text in_bool)
-                       <+> in_domain)
-    | (in_bool,in_domain) <-
-        [("true",linCtor (dataConWorkId trueDataCon))
-        ,("false",linCtor (dataConWorkId falseDataCon))
-        ]
-    ]
-
-primType :: Prim -> ([SDoc],SDoc)
-primType p = case p of
-    Add      -> int_int_int
-    Sub      -> int_int_int
-    Mul      -> int_int_int
-    Eq       -> int_int_bool
-    Ne       -> int_int_bool
-    Lt       -> int_int_bool
-    Le       -> int_int_bool
-    Ge       -> int_int_bool
-    Gt       -> int_int_bool
-    LiftBool -> ([linBool],linDomain)
-  where
-    int_int_int  = ([linInt,linInt],linInt)
-    int_int_bool = ([linInt,linInt],linBool)
- -}

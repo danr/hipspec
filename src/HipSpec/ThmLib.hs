@@ -33,12 +33,22 @@ data Theorem eq = Theorem
     }
   deriving (Show,Functor)
 
-data Proof = ByInduction { ind_vars :: [String] }
-  deriving Show
+data Proof
+    = ByInduction { ind_vars :: [String] }
+    | ByFixpointInduction { fpi_pf_repr :: String }
+  deriving (Show,Generic,Eq,Ord)
+
+#ifdef SUPPORT_JSON
+instance ToJSON Proof
+#endif
+
+definitionalProof :: Proof -> Bool
+definitionalProof p = case p of
+    ByInduction{..} -> null ind_vars
+    ByFixpointInduction{..} -> False
 
 definitionalTheorem :: Theorem eq -> Bool
-definitionalTheorem Theorem{..} = case thm_proof of
-    ByInduction{..} -> null ind_vars
+definitionalTheorem = definitionalProof . thm_proof
 
 data Obligation eq a = Obligation
     { ob_prop     :: Property eq

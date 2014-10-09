@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, ScopedTypeVariables, RecordWildCards #-}
-{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses #-}
+{-# LANGUAGE ExplicitForAll, FlexibleInstances, TemplateHaskell, MultiParamTypeClasses, FlexibleContexts, GADTs #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-
 
@@ -35,6 +35,7 @@ import Data.Bifoldable
 import Data.Bifunctor hiding (second)
 
 import Data.Either
+import Data.Maybe
 
 import HipSpec.Utils
 
@@ -45,6 +46,7 @@ instanceUniverseBi  [t| forall a b . (Clause a b,Term a b) |]
 instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Clause a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
@@ -157,6 +159,9 @@ tmSubst x tm = transformBi (topTmSubst x tm)
 fmSubst :: forall a b . Eq b => b -> Term a b -> Formula a b -> Formula a b
 fmSubst x tm = transformBi (topTmSubst x tm)
 
+fmSubsts :: forall a b . Eq b => [(b,Term a b)] -> Formula a b -> Formula a b
+fmSubsts xs phi = foldr (uncurry fmSubst) phi xs
+
 topTySubst :: Eq b => b -> Type a b -> Type a b -> Type a b
 topTySubst a ty ty0 = case ty0 of
     TyVar b | a == b -> ty
@@ -165,13 +170,13 @@ topTySubst a ty ty0 = case ty0 of
 fmInst :: forall a b . Eq b => b -> Type a b -> Formula a b -> Formula a b
 fmInst a ty = transformBi (topTySubst a ty)
 
-tySubst :: forall a b . Eq b => b -> Type a b -> Type a b -> Type a b
+tySubst :: (TransformBi (Type a b) t, Eq b) => b -> Type a b -> t -> t
 tySubst a ty = transformBi (topTySubst a ty)
 
 fmInsts :: Eq b => [(b,Type a b)] -> Formula a b -> Formula a b
 fmInsts xs phi = foldr (uncurry fmInst) phi xs
 
-tySubsts :: Eq b => [(b,Type a b)] -> Type a b -> Type a b
+tySubsts :: (TransformBi (Type a b) t, Eq b) => [(b,Type a b)] -> t -> t
 tySubsts xs phi = foldr (uncurry tySubst) phi xs
 
 clsDeps :: forall a b . Ord a => [Clause a b] -> (Set a,Set a)
@@ -253,6 +258,47 @@ trimDataDecls cls
     ignore TypeSig{..} = sig_id `S.member` ignores
     ignore SortSig{..} = sig_id `S.member` ignores
     ignore _           = False
+
+-- CVC4 cannot do declare-sort, so we change all occurences of abstract
+-- types to ints
+uninterpretedInts :: forall a b . Eq a => [Clause a b] -> [Clause a b]
+uninterpretedInts cls0 = catMaybes
+    [ case cl of
+        SortSig{} -> Nothing
+        _         -> Just (un cl)
+    | cl <- cls0
+    ]
+  where
+    sorts = [ i | SortSig i _ <- cls0 ]
+    un = transformBi $ \ t -> case t of
+      TyCon tc [] | tc `elem` sorts -> Integer :: Type a b
+      _                             -> t
+
+skolemise :: forall c v tv . (v ~ tv, Eq v) =>
+    (v -> Int -> c) ->
+    (tv -> Int -> c) ->
+    [Clause c v] -> [Clause c v]
+skolemise sk_v sk_tv = concatMap sk
+  where
+    sk (Clause n trg Goal tvs fm) = sk (Clause n trg Axiom tvs (neg fm))
+    sk (Clause n trg Axiom tvs (Q Exists vs0 _trg _id _tm_id b)) =
+        [ Clause n trg Axiom [] (tySubsts ty_su (fmSubsts v_su b)) ] ++
+        [ SortSig ty 0 | (_,ty) <- tys ] ++
+        [ TypeSig v [] [] t | ((_,v),t) <- vs ]
+      where
+        tys :: [(tv,c)]
+        tys = [ (tv,sk_tv tv i) | (tv,i) <- zip tvs [0..] ]
+
+        ty_su :: [ (tv,Type c tv) ]
+        ty_su = [ (x,TyCon x' []) | (x,x') <- tys ]
+
+        vs :: [((v,c),Type c tv)]
+        vs  = [ ((v,sk_v v i),tySubsts ty_su t) | ((v,t),i) <- zip vs0 [0..] ]
+
+        v_su :: [(v,Term c v)]
+        v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
+
+    sk c = [ c ]
 
 {-
 

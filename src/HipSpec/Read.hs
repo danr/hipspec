@@ -149,10 +149,12 @@ execute params@Params{..} = do
         -- Make or get signature
         cond_id <- findCondId params
 
-        (sigs,cond_mono_ty) <- if auto
-            then (makeSignature params cond_id props)
+        (sigs,cond_mono_ty) <-
+            if TranslateOnly `elem` debug_flags
+            then return ([],Nothing)
+            else if auto
+            then makeSignature params cond_id props
             else fmap (flip (,) Nothing . maybeToList) getSignature
-
 
         -- Make signature map
         --

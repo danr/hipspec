@@ -28,6 +28,11 @@ flag JSON
     default: False
     manual: True
 
+-- Don't use pretty on travis because it does not build there (!?)
+flag pretty
+    default: True
+    manual: False
+
 library
     hs-source-dirs: src
 
@@ -58,6 +63,11 @@ executable hipspec
         ghc-options: -Werror
     ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
 
+    if flag(pretty)
+        cpp-options: -DPRETTY
+        build-depends:
+            pretty-show       >= 1.5 && < 2
+
     build-depends:
         base                 >= 4 && < 5,
         ghc-paths            == 0.1.*,
@@ -68,14 +78,13 @@ executable hipspec
         mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.3,
         pretty               >= 1.1,
         geniplate            >= 0.6,
-        genifunctors         >= 0.2.0.0,
+        genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
         void                 >= 0.5.3,
         transformers         >= 0.3,
         split                >= 0.1,
-        pretty-show          >= 1.5,
-        unification-fd       >= 0.9,
 
+        unification-fd       >= 0.9 && < 1.0,
 
         ghc-prim,
 

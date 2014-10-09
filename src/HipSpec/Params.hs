@@ -219,7 +219,7 @@ defParams = Params
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
     , auto                = True    &= groupname "\nSignature generation settings"
-                                    &= name "a" &= help "Make signature with functions in user properties"
+                                    &= name "a" &= help "Make signature with functions in user properties (def. on)"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
@@ -258,7 +258,7 @@ defParams = Params
     , prepend_pruned      = False   &= name "r" &= help "Add nice pruned equations in front of queue"
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , assoc_important     = False               &= help "Associativity is important, try it first"
-    , call_graph          = True    &= name "c" &= name "cg" &= help "Sort equations by the call graph"
+    , call_graph          = True    &= name "c" &= name "cg" &= help "Sort equations by the call graph (def. on)"
 
     , inddepth            = 1       &= name "d" &= groupname "\nStructural induction"
                                                 &= help "Maximum depth       (default 1)"
