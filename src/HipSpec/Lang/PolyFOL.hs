@@ -35,6 +35,7 @@ import Data.Bifoldable
 import Data.Bifunctor
 
 import Data.Either
+import Data.Maybe
 
 import HipSpec.Utils
 
@@ -45,6 +46,7 @@ instanceUniverseBi  [t| forall a b . (Clause a b,Term a b) |]
 instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
+instanceTransformBi [t| forall a b . (Type a b,Clause a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
@@ -213,6 +215,21 @@ trimDataDecls cls
     ignore TypeSig{..} = sig_id `S.member` ignores
     ignore SortSig{..} = sig_id `S.member` ignores
     ignore _           = False
+
+-- CVC4 cannot do declare-sort, so we change all occurences of abstract
+-- types to ints
+uninterpretedInts :: forall a b . Eq a => [Clause a b] -> [Clause a b]
+uninterpretedInts cls0 = catMaybes
+    [ case cl of
+        SortSig{} -> Nothing
+        _         -> Just (un cl)
+    | cl <- cls0
+    ]
+  where
+    sorts = [ i | SortSig i _ <- cls0 ]
+    un = transformBi $ \ t -> case t of
+      TyCon tc [] | tc `elem` sorts -> Integer :: Type a b
+      _                             -> t
 
 {-
 

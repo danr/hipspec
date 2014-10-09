@@ -15,7 +15,7 @@ import HipSpec.Trim
 import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
-import HipSpec.Lang.PolyFOL (trimDataDecls)
+import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts)
 
 import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
 import HipSpec.Lang.PrettyUtils (PP(..))
@@ -66,6 +66,8 @@ tryProve prop lemmas0 = do
                 let cls               = sortClauses False (concatMap clauses sthys)
                 let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
                 let pp = PP (text . polyname) (text . polyname)
+                let ui | CVC4 `elem` provers = uninterpretedInts
+                       | otherwise           = id
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++
                     "\n\nResult:\n" ++ ppTFF mcls ++
@@ -75,7 +77,7 @@ tryProve prop lemmas0 = do
                     AltErgoFmt     -> ppAltErgo (sortClauses False cls)
                     AltErgoMonoFmt -> ppMonoAltErgo mcls
                     MonoTFF        -> ppTFF mcls
-                    SMT            -> ppSMT (sortClauses True (trimDataDecls mcls))
+                    SMT            -> ppSMT (ui (sortClauses True (trimDataDecls mcls)))
 
 
             calc_dependencies :: Subtheory -> [Content]
