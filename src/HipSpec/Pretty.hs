@@ -128,6 +128,8 @@ smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
+    -- CVC4:
+    , "as"
     ]
 
 altErgoKeywords :: [String]

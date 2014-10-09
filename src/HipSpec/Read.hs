@@ -144,7 +144,10 @@ execute params@Params{..} = do
                 ]
 
         -- Make or get signature
-        m_sig <- if auto
+        m_sig <-
+            if TranslateOnly `elem` debug_flags
+            then return Nothing
+            else if auto
             then makeSignature params props
             else getSignature
 

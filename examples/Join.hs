@@ -13,9 +13,9 @@ length (_:xs) = S (length xs)
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
-join :: [[a]] -> [a]
-join (xs:xss) = xs ++ join xss
-join []       = []
+join' :: [[a]] -> [a]
+join' (xs:xss) = xs ++ join' xss
+join' []       = []
 
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
@@ -51,10 +51,10 @@ sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
 
       , fun2 "map"              (map :: ([[A]] -> [A]) -> [[[A]]] -> [[A]])
       , fun2 "map"              (map :: ([A] -> A) -> [[A]] -> [A])
-      , blind0 "join"           (join :: [[A]] -> [A])
-      , blind0 "join"           (join :: [[[A]]] -> [[A]])
-      , fun1 "join"             (join :: [[A]] -> [A])
-      , fun1 "join"             (join :: [[[A]]] -> [[A]])
+      , blind0 "join'"          (join' :: [[A]] -> [A])
+      , blind0 "join'"          (join' :: [[[A]]] -> [[A]])
+      , fun1 "join'"            (join' :: [[A]] -> [A])
+      , fun1 "join'"            (join' :: [[[A]]] -> [[A]])
       ]
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)

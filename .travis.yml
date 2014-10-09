@@ -13,11 +13,11 @@ before_install:
     - sudo apt-get install alt-ergo
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git
-    - cabal install quickspec/ quickcheck/ . --only-dependencies
-    - cabal install quickspec/ quickcheck/
+    - cabal install -f-pretty quickspec/ quickcheck/ . --only-dependencies
+    - cabal install -f-pretty quickspec/ quickcheck/
 
 install:
-    - cabal install
+    - cabal install -f-pretty
 
 script:
     - ./run_tests.sh

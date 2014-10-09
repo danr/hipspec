@@ -4,6 +4,7 @@ module HipSpec
     , module Data.Typeable
     , module Test.QuickSpec.Approximate
     , module Test.QuickSpec
+    , module Test.QuickSpec.Prelude
     , Prop
     , (=:=)
     , proveBool
@@ -18,6 +19,7 @@ module HipSpec
 
 import Test.QuickCheck hiding ((==>))
 import Test.QuickSpec.Approximate
+import Test.QuickSpec.Prelude (A,B,C)
 import Test.QuickSpec
 import Data.Typeable
 

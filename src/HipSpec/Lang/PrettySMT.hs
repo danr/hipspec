@@ -21,6 +21,7 @@ ppClause p cls = case cls of
     Comment s               -> vcat (map (\ l -> ";" <+> text l) (lines s))
 
 ppDataDecls :: PP a b -> [DataDecl a b] -> Doc
+ppDataDecls _ [] = empty
 ppDataDecls p ds = parens ("declare-datatypes" <+> parens empty $\ parens (sep (map data_decl ds)))
   where
     data_decl (Data tc _ cons) = parens (pp_symb p tc $\ sep (map con_decl cons))

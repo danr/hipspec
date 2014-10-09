@@ -34,7 +34,6 @@ import System.Exit
 import System.Process
 import System.FilePath
 
-import Text.Show.Pretty hiding (Name)
 
 
 processFile :: (Maybe SigInfo -> [Property Void] -> HS a) -> IO a

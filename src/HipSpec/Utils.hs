@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module HipSpec.Utils
     (
     -- * Convenience reexports
@@ -30,6 +31,9 @@ module HipSpec.Utils
     -- * Intersection
     , intersects
 
+    -- * Pretty Show
+    , ppShow
+
     ) where
 
 import Control.Arrow       ((***),(&&&),first,second)
@@ -40,6 +44,10 @@ import Control.Monad (liftM)
 import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
+
+#ifdef PRETTY
+import qualified Text.Show.Pretty as Pretty
+#endif
 
 infixr 9 .:
 
@@ -118,3 +126,9 @@ nubSortedOn f = map head . groupSortedOn f
 intersects :: Eq a => [a] -> [a] -> Bool
 intersects = (not . null) .: intersect
 
+ppShow :: Show a => a -> String
+#ifdef PRETTY
+ppShow = Pretty.ppShow
+#else
+ppShow = show
+#endif

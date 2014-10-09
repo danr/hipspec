@@ -8,7 +8,7 @@ import Data.Data
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo | MonoAltErgo | Vampire | Z3 | CVC4
+data ProverName = AltErgo | MonoAltErgo | Vampire | Z3 | CVC4 | CVC4i | CVC4ig
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -20,7 +20,10 @@ proverFromName p = case p of
     MonoAltErgo -> monoAltErgo
     Vampire     -> vampire
     Z3          -> z3
-    CVC4        -> cvc4
+    CVC4        -> mkCVC4 p "" []
+    CVC4i       -> mkCVC4 p " with induction" ["--quant-ind"]
+    CVC4ig      -> mkCVC4 p " with induction and conjecture generation"
+                            ["--quant-ind","--conjecture-gen","--conjecture-gen-per-round=3"]
 
 proversFromNames :: [ProverName] -> [Prover]
 proversFromNames = map proverFromName
@@ -113,13 +116,16 @@ z3 = Prover
     , prover_input_format   = SMT
     }
 
-cvc4 :: Prover
-cvc4 = Prover
+mkCVC4 :: ProverName -> String -> [String] -> Prover
+mkCVC4 name desc opts = Prover
     { prover_cmd            = "cvc4"
-    , prover_desc           = "CVC4"
-    , prover_name           = CVC4
+    , prover_desc           = "CVC4" ++ desc
+    , prover_name           = name
     , prover_cannot_stdin   = False
-    , prover_args           = \ _f t -> ["--lang=smt2","--tlimit=" ++ showCeil (t*1000)]
+    , prover_args           = \ _f t ->
+        ["--lang=smt2","--tlimit=" ++ showCeil (t*1000)] ++
+        ["--quant-cf","--full-saturate-quant"] ++
+        opts
     , prover_process_output = searchOutput
         [("unsat",proven)
         ,("unknown",failure)

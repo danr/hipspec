@@ -66,7 +66,7 @@ tryProve prop lemmas0 = do
                 let cls               = sortClauses False (concatMap clauses sthys)
                 let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
                 let pp = PP (text . polyname) (text . polyname)
-                let ui | CVC4 `elem` provers = uninterpretedInts
+                let ui | any (`elem` provers) [CVC4,CVC4i,CVC4ig] = uninterpretedInts
                        | otherwise           = id
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++

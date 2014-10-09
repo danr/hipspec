@@ -28,8 +28,8 @@ flag JSON
     default: False
     manual: True
 
--- Don't use the unification-fd library on 7.8.1 as it fails to build
-flag unification
+-- Don't use pretty on travis because it does not build there (!?)
+flag pretty
     default: True
     manual: False
 
@@ -63,10 +63,10 @@ executable hipspec
         ghc-options: -Werror
     ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
 
-    if flag(unification)
-        cpp-options: -DUNIFICATION
+    if flag(pretty)
+        cpp-options: -DPRETTY
         build-depends:
-            unification-fd       >= 0.8
+            pretty-show       >= 1.5 && < 2
 
     build-depends:
         base                 >= 4 && < 5,
@@ -83,7 +83,6 @@ executable hipspec
         void                 >= 0.5.3,
         transformers         >= 0.3,
         split                >= 0.1,
-        pretty-show          >= 1.5,
 
 
         ghc-prim,
