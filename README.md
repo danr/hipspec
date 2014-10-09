@@ -22,39 +22,42 @@ In the `examples/Rotate.hs` file we see the following definitions:
     prop_rotate xs = rotate (length xs) xs =:= xs
 
 The second definition defines a property in the HipSpec property language that
-we would like to prove. The `=:=` operator simply means equals. Let's run HipSpec
-on this file. We use `--auto` to automatically pick function to conjecture lemmas
-from based on the properties in the program, and `--cg` to order equations in the
-call graph of the program:
+we would like to prove. The `=:=` operator simply means equals.
+
+Let's run HipSpec on this file:
 
     $ hipspec Rotate.hs --auto --cg --verbosity=30
-    Depth 1: 11 terms, 5 tests, 30 evaluations, 11 classes, 0 raw equations.
-    Depth 2: 63 terms, 100 tests, 2164 evaluations, 48 classes, 15 raw equations.
-    Depth 3: 1688 terms, 100 tests, 65050 evaluations, 1303 classes, 385 raw equations.
-    Proved xs++[] == xs by induction on xs using AltErgo
-    Proved (xs++ys)++zs == xs++(ys++zs) by induction on zs using AltErgo
-    Proved length (xs++ys) == length (ys++xs) by induction on ys,xs using AltErgo
-    Proved rotate m [] == [] by induction on m using AltErgo
-    Proved rotate m (x:[]) == x:[] by induction on x using AltErgo
-    Proved rotate (length xs) (xs++ys) == ys++xs by induction on ys using AltErgo
-    Proved prop_rotate (rotate (length xs) xs == xs) by induction on xs using AltErgo
+    Depth 1: 11 terms, 5 tests, 29 evaluations, 11 classes, 0 raw equations.
+    Depth 2: 63 terms, 100 tests, 2151 evaluations, 48 classes, 15 raw equations.
+    Depth 3: 1688 terms, 100 tests, 63851 evaluations, 1303 classes, 385 raw equations.
+    Proved xs++[] == xs by induction on xs using Z3
+    Proved (xs++ys)++zs == xs++(ys++zs) by induction on xs using Z3
+    Proved length (xs++ys) == length (ys++xs) by induction on ys,xs using Z3
+    Proved rotate m [] == [] without induction using Z3
+    Proved rotate m (rotate n xs) == rotate n (rotate m xs) by induction on n,m using Z3
+    Proved rotate (S m) (rotate n xs) == rotate (S n) (rotate m xs) by induction on xs using Z3
+    Proved rotate m (x:[]) == x:[] by induction on m using Z3
+    Proved rotate m xs++rotate m xs == rotate m (xs++xs) by induction on m using Z3
+    Proved length (rotate m xs) == length xs by induction on m using Z3
+    Proved rotate (length xs) (xs++ys) == ys++xs by induction on xs using Z3
+    Proved prop_rotate {- rotate (length xs) xs == xs -} without induction using Z3
     Proved:
         xs++[] == xs
         (xs++ys)++zs == xs++(ys++zs)
         length (xs++ys) == length (ys++xs)
-        rotate m [] == []
+        rotate m (rotate n xs) == rotate n (rotate m xs)
+        rotate (S m) (rotate n xs) == rotate (S n) (rotate m xs)
         rotate m (x:[]) == x:[]
+        rotate m xs++rotate m xs == rotate m (xs++xs)
+        length (rotate m xs) == length xs
         rotate (length xs) (xs++ys) == ys++xs
-        prop_rotate (rotate (length xs) xs == xs)
+        prop_rotate {- rotate (length xs) xs == xs -}
 
 The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 ## Installation instructions
 
-HipSpec is only maintained for GHC 7.4.1, 7.6.3 and 7.8.1. To install on 7.8.1,
-use the option `-f-unification`, since the package `unification-fd` does not
-build on 7.8.1. This makes HipSpec slightly worse on handling polymorphic
-properties.
+HipSpec is maintained for GHC 7.4.1, 7.6.3 and 7.8.3.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:
@@ -74,7 +77,6 @@ one go, which makes the dependency analysis better:
 
     cabal install hipspec/ quickspec/
 
-
 #### Note for Mac users using `homebrew`
 
 The `homebrew` program sometimes messes up the package `ghc-paths`. If you get
@@ -85,63 +87,18 @@ this package with:
 
 ### Supported theorem provers
 
-Currently, we only support [Alt Ergo](http://alt-ergo.lri.fr/), in particular versions 0.94 and 0.95.
-It exists in the
-[ubuntu repositories](https://launchpad.net/ubuntu/precise/+source/alt-ergo/0.94-1),
-and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
+We support:
 
-The slightly experimental branch `mono-new` supports Z3 and Vampire and GHC 7.8.1. Check it out!
+* [Z3](https://z3.codeplex.com/). The default.
+* [CVC4](http://cvc4.cs.nyu.edu/web/).
+* [Alt Ergo](http://alt-ergo.lri.fr/), in particular versions 0.94 and 0.95.
+  It exists in the
+  [ubuntu repositories](https://launchpad.net/ubuntu/precise/+source/alt-ergo/0.94-1),
+  and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
+* [vampire](http://www.vprover.org/), but your executable should be called `vampire-rel`
+  (or change `src/HipSpec/ATP/Provers.hs`).
 
-## Tutorial
-
-In HipSpec, QuickSpec will generate a background theory, which
-then Hip will try to prove as much as possible from.
-This little tutorial will try to explain how to use HipSpec
-as a theory exploration system.
-
-You need to import `HipSpec`. The data types you will put in the
-signature needs to be an instance of `Eq`, `Ord`, `Data.Typeable`, and
-`Test.QuickCheck.Arbitrary`. Example:
-
-    {-# LANGUAGE DeriveDataTypeable #-}
-
-    import HipSpec.Prelude
-
-    data Nat = S Nat | Z
-        deriving (Eq,Ord,Typeable)
-
-    instance Arbitrary Nat where
-        arbitrary = ...
-
-Hipspec will look for a QuickSpec signature in a top level declaration called
-`sig`.  The signature explains what variables and constants QuickSpec should
-use when generating terms.
-
-  * Make variables with `vars`, then string representations and
-    something of the type of the variable.
-
-  * Use `fun0`, `fun1`, `fun2`, and so on, and a string representation,
-    for Haskell functions and constructors.
-
-Example:
-
-    sig = [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
-          , fun0 "Z" Z
-          , fun1 "S" S
-          , fun2 "+" (+)
-          , fun2 "*" (*)
-          ]
-
-You need to give concrete, monoromorphic signatures to polymorphic functions
-(and variables). QuickSpec gives you one which is called `A`. You can see it as
-a skolem type. In fact, as you might have guessed, it's a newtype wrapper
-around `Int`. To be able to translate from QuickSpec's internal representation
-to HipSpec's, the string of functions and data constructors needs to match up
-exactly as they are named in the source code.
-
-Now, we are good to go!
-
-    $ hipspec Nat
+See `--help` to see the flags to select theorem provers.
 
 ### Automatically Generated Signatures
 
@@ -174,8 +131,6 @@ Quick information about available flags can be accessed anytime by the
     class instead of picking a representative.
   * `--interesting-cands` (`-i`): Consider properties that imply newly
     found theorems.
-  * `--assoc-important` (`-a`): Consider associativity as most important
-    and try to prove it first.
 
 ### Induction flags
 
@@ -200,13 +155,13 @@ specify this. The default is 2, but if you to use eight cores: `-N=8`.
 
 The default timeout is one second. It can be specified with the `-t` or
 `--timeout` flag. With `-t=5`, each theorem prover invocation will be 5 seconds
-long. The timeout can be issued as a double, so `-t=0.1` can be used to get
-100 ms timeout.
+long. The timeout can be issued as a double, so `-t=0.25` can be used to get
+250 ms timeout.
 
 ### Output theories
 
 Should you wish to inspect the generated theory, you can use `--output` (or
-`-o`) and make a `proving/` directory. Then all relevant files will be put
+`-o`) to make a `proving/` directory. Then all relevant files will be put
 there for you to view.
 
 ## Authors and contact
