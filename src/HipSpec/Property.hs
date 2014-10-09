@@ -30,10 +30,8 @@ import HipSpec.Lang.Simple as S
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
-#ifdef UNIFICATION
 import HipSpec.Unify
 import Control.Unification
-#endif
 
 -- import Text.PrettyPrint hiding (comma)
 
@@ -293,9 +291,6 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 -- | Generalise a property
 generaliseProp :: Property eq -> Property eq
 generaliseProp prop@Property{..}
-#ifndef UNIFICATION
-    = prop
-#else
     = case res of
         Right (vs,goal:assums) ->
             let vars = [ (v,fmap un_u t) | (v,t) <- vs ]
@@ -328,7 +323,6 @@ generaliseProp prop@Property{..}
 
     un_u (Fresh i) = GenTyVar `Derived` (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
-#endif
 
 maybePropRepr :: Property eq -> Maybe String
 maybePropRepr prop

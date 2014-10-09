@@ -84,6 +84,7 @@ executable hipspec
         transformers         >= 0.3,
         split                >= 0.1,
 
+        unification-fd       >= 0.9 && < 1.0,
 
         ghc-prim,
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 PR=../testsuite/precision-recall/PrecisionRecall.hs
-COMMON='--cg --verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
+COMMON='--verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
 
 for i in $(ls tfp1/tests/*.hs); do
     echo $i
