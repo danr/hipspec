@@ -12,5 +12,5 @@ rev :: [a] -> [a]
 rev (x:xs) = snoc x (rev xs)
 rev []     = []
 
-prop_equal xs = rev (rev xs) =:= []
+prop_equal xs = rev (rev xs) =:= xs
 

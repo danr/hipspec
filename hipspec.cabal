@@ -105,5 +105,6 @@ executable hipspec
         process              >= 1.0.1.1,
         stm                  >= 2.3,
         directory            >= 1.0,
-        filepath             >= 1.0
+        filepath             >= 1.0,
+        SHA                  >= 1.6 && < 2
 
