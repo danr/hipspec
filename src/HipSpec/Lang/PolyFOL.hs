@@ -96,7 +96,7 @@ neg f = case f of
     DataDecl{} -> error "negation on a data declaration :("
     FOp And     f1 f2 -> FOp Or    (neg f1) (neg f2)
     FOp Or      f1 f2 -> FOp And   (neg f1) (neg f2)
-    FOp Implies f1 f2 -> FOp And   (neg f1) f2
+    FOp Implies f1 f2 -> FOp And   f1       (neg f2)
     FOp Equiv   f1 f2 -> FOp Equiv (neg f1) f2
     Neg phi -> phi
   where
