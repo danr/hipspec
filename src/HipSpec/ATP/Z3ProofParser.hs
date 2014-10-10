@@ -31,6 +31,8 @@ import Data.Generics.Geniplate
 import Control.Applicative hiding (many)
 import Text.ParserCombinators.Parsec hiding (spaces,(<|>))
 
+import Control.Monad
+
 data Expr' a
   = Atom a
   | List [Expr' a]
