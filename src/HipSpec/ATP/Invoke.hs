@@ -31,7 +31,10 @@ import HipSpec.Utils.ZEncode
 
 import System.Directory (createDirectoryIfMissing,doesFileExist,getTemporaryDirectory)
 import System.FilePath ((</>),(<.>))
-import Control.Exception (catch,SomeException)
+
+import Control.Exception (SomeException)
+import qualified Control.Exception as E
+-- GHC 7.4 has catch from both Prelude and this module, so we qualify E.catch
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -106,7 +109,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
             ex <- doesFileExist cache_file
             createDirectoryIfMissing True cache_dir
             unless ex $ writeFile cache_file (if r then "1" else "0")
-                `catch` \ (_ :: SomeException) -> return ()
+                `E.catch` \ (_ :: SomeException) -> return ()
 
 
        filepath <- liftIO $ case store of
