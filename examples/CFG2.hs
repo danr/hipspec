@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module CFG where
+module CFG2 where
 
 import Prelude hiding ((++))
 import Control.Monad
@@ -22,7 +22,7 @@ instance Names Tok where
   names _ = ["a","b","c"]
 
 lin :: E -> [Tok]
-lin (a :+: b) = [C] ++ lin a ++ [Plus] ++ lin b ++ [D]
+lin (a :+: b) = [C] ++ lin a ++ [D,Plus,C] ++ lin b ++ [D]
 lin EX        = [X]
 lin EY        = [Y]
 

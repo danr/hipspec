@@ -111,37 +111,38 @@ monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin)
         , let recs = clauseRecs cl
         ]
 
-    go :: Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> ([Clause a b],([Lemma a b],Records a b))
-    go False [] acc irs = ([],(acc,irs))
-    go True  [] acc irs = go False acc [] irs
-    go b (l:ls) acc irs = case new of
-        []        -> go b ls (l:acc) irs
+    go :: Int -> Bool -> [Lemma a b] -> [Lemma a b] -> Records a b -> ([Clause a b],([Lemma a b],Records a b))
+    go _rounds False [] acc irs = ([],(acc,irs))
+    go rounds  True  [] acc irs = go (rounds+1) False acc [] irs
+    go rounds  b (l:ls) acc irs = case new of
+        []        -> go rounds b ls (l:acc) irs
         (l',cl):_ ->
             let (cls,irs') = mono irs (clauseRecs cl)
-            in  first (\ c -> cl:cls ++ c) (go True (l':ls) acc irs')
+            in  first (\ c -> cl:cls ++ c) (go rounds True (l':ls) acc irs')
       where
         new = catMaybes
-            [ instLemma l im irs
+            [ instLemma (rounds < 2) l im irs
             | im <- possibleInsts l irs
             ]
 
-    (lemma_cls,fin) = go False lemmas [] def_irs
+    (lemma_cls,fin) = go 0 False lemmas [] def_irs
 
 instLemma :: (Ord a,Ord b)
-          => Lemma a b   {- ^ lemma to maybe instantiate -}
+          => Bool        {- ^ allow new type instantiations -}
+          -> Lemma a b   {- ^ lemma to maybe instantiate -}
           -> InstMap a b {- ^ type to instantiate it at -}
           -> Records a b {- ^ instantiated records so far -}
           -> Maybe (Lemma a b,Clause a b)
                          {- Just (l,r,c) :
                                 l: Lemma with new info
                                 c: The clause that got instantiated -}
-instLemma l@Lemma{..} im rs
+instLemma allow_new l@Lemma{..} im rs
     -- Instantiate lemmas as long as they don't trigger new
     -- types to be instantiated
-    | and
+    | (allow_new || and
         [ (t,map (tySubsts (M.toList im)) ts) `member` rs
         | (t,ts) <- takeWhile (isTySymb . fst) (toList lm_eff)
-        ]
+        ])
       -- and we haven't instantiated it before
       && im `notElem` lm_inst
       -- and all type variables are assigned

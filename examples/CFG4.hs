@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module CFG where
+module CFG4 where
 
 import Prelude hiding ((++))
 import Control.Monad
@@ -22,19 +22,25 @@ instance Names Tok where
   names _ = ["a","b","c"]
 
 lin :: E -> [Tok]
-lin (a :+: b) = [C] ++ lin a ++ [Plus] ++ lin b ++ [D]
+lin (a :+: b) = linTerm a ++ [Plus] ++ linTerm b
 lin EX        = [X]
 lin EY        = [Y]
 
+linTerm :: E -> [Tok]
+linTerm e@(_ :+: _) = [C] ++ lin e ++ [D]
+linTerm EX          = [X]
+linTerm EY          = [Y]
+
 unambig u v = lin u =:= lin v ==> u =:= v
+
+unambigTerm u v = linTerm u =:= linTerm v ==> u =:= v
 
 injR u v w = v ++ u =:= w ++ u ==> v =:= w
 inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
 injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
-rhs v w s t = v
-
 lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
+lemmaTerm v w s t = linTerm v ++ s =:= linTerm w ++ t ==> (v,s) =:= (w,t)
 
 instance Arbitrary E where
   arbitrary = sized arb
