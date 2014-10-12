@@ -17,14 +17,10 @@ sum (x:xs) = x + sum xs
 []     ++ ys = ys
 
 concat :: [[a]] -> [a]
-concat (xs:xss) = xs ++ concat xss
-concat []       = []
+concat xss = [ x | xs <- xss, x <- xs ]
 
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
-
-instance Names (a -> b) where
-    names _ = ["f","g","h"]
 
 sig :: [Sig]
 sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
