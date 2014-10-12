@@ -11,7 +11,7 @@ hipspec $PR                         --extra-trans=++,map,reverse --success=Nothi
 hipspec Nat.hs                      --extra-trans=*              --success=NothingUnproved  $COMMON || exit $?
 hipspec List.hs        --auto=False                              --success=NothingUnproved  $COMMON || exit $?
 hipspec Reverse.hs                  --only-user-stated           --success=ProvesUserStated $COMMON || exit $?
-hipspec Join.hs        --auto=False                              --success=NothingUnproved  $COMMON || exit $?
+hipspec Concat.hs      --auto=False                              --success=NothingUnproved  $COMMON || exit $?
 hipspec BinLists.hs                                              --success=NothingUnproved  $COMMON || exit $?
 hipspec Rotate.hs                   --only-user-stated           --success=ProvesUserStated $COMMON || exit $?
 cd ..
