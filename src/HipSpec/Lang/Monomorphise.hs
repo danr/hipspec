@@ -118,7 +118,7 @@ monoClauses1 cls0 = ((source ++ defs ++ lemma_cls,sigs),fin)
         []        -> go rounds b ls (l:acc) irs
         (l',cl):_ ->
             let (cls,irs') = mono irs (clauseRecs cl)
-            in  first (\ c -> cl:cls ++ c) (go rounds True (l':ls) acc irs')
+            in  first (\ c -> cl:cls ++ c) (go rounds True ls (l':acc) irs')
       where
         new = catMaybes
             [ instLemma (rounds < 2) l im irs
