@@ -123,7 +123,7 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
   where
     k = getUnique nm
 
-    name_tuple ns ts n = pre ++ mid ++ show n
+    _name_tuple ns ts n = pre ++ mid ++ show n
       where
         pre | ns == tcName   = "T"
             | ns == dataName = "t"

@@ -106,5 +106,6 @@ executable hipspec
         stm                  >= 2.3,
         directory            >= 1.0,
         filepath             >= 1.0,
+--        jukebox              >= 0.1 && < 1,
         SHA                  >= 1.6 && < 2
 

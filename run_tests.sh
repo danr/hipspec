@@ -1,7 +1,7 @@
 #!/bin/sh
 
 PR=../testsuite/precision-recall/PrecisionRecall.hs
-COMMON='--cvc4 --alt-ergo --verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
+COMMON='--cvc4 --alt-ergo -e --verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
 
 cd examples
 hipspec HOF.hs         --auto=False                              --success=NothingUnproved  $COMMON || exit $?

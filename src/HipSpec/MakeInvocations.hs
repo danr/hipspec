@@ -25,6 +25,7 @@ import Data.Traversable (traverse)
 
 -- import Text.Show.Pretty (ppShow)
 
+
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
@@ -32,6 +33,29 @@ import Data.List
 import Data.Maybe
 
 import Control.Monad
+
+-- import Jukebox.Toolbox (encodeString)
+
+import System.IO
+import System.Process
+
+encodeString :: String -> IO String
+encodeString s = do
+    (Just inh, Just outh, Just errh, pid) <- createProcess $
+        (proc "jukebox" ["fof","/dev/stdin"])
+            { System.Process.std_in  = CreatePipe
+            , System.Process.std_out = CreatePipe
+            , System.Process.std_err = CreatePipe
+            }
+    hPutStr inh s
+    hFlush inh
+    hClose inh
+    exc <- waitForProcess pid
+    out <- hGetContents outh
+    err <- hGetContents errh
+    -- unless (null err) (putStrLn err)
+    -- putStrLn out
+    length out `seq` return out
 
 -- | Try to prove a property, given some lemmas
 tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
@@ -68,17 +92,18 @@ tryProve prop lemmas0 = do
                 let pp = PP (text . polyname) (text . polyname)
                 let ui | any (`elem` provers) [CVC4,CVC4i,CVC4ig] = uninterpretedInts
                        | otherwise           = id
+                let tff = ppTFF mcls
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls ++
                     "\n\nResult:\n" ++ ppTFF mcls ++
                     "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
                     "\n\nRecords:\n" ++ render' (ppRecords pp recs)
                 return $ LinTheory $ \ t -> case t of
-                    AltErgoFmt     -> ppAltErgo (sortClauses False cls)
-                    AltErgoMonoFmt -> ppMonoAltErgo mcls
-                    MonoTFF        -> ppTFF mcls
-                    SMT            -> ppSMT (ui (sortClauses True (trimDataDecls mcls)))
-
+                    AltErgoFmt     -> return $ ppAltErgo (sortClauses False cls)
+                    AltErgoMonoFmt -> return $ ppMonoAltErgo mcls
+                    MonoTFF        -> return tff
+                    SMT            -> return $ ppSMT (ui (sortClauses True (trimDataDecls mcls)))
+                    FOF            -> encodeString tff
 
             calc_dependencies :: Subtheory -> [Content]
             calc_dependencies s = concatMap dependencies (s:lemma_theories)

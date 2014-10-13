@@ -8,7 +8,7 @@ import Data.Data
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo | MonoAltErgo | Vampire | Z3 | CVC4 | CVC4i | CVC4ig
+data ProverName = Z3 | CVC4 | CVC4i | CVC4ig | AltErgo | MonoAltErgo | Vampire | E | SPASS
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -20,6 +20,8 @@ proverFromName p = case p of
     MonoAltErgo -> monoAltErgo
     Vampire     -> vampire
     Z3          -> z3
+    E           -> eprover
+    SPASS       -> spass
     CVC4        -> mkCVC4 p "" []
     CVC4i       -> mkCVC4 p " with induction" ["--quant-ind"]
     CVC4ig      -> mkCVC4 p " with induction and conjecture generation"
@@ -57,7 +59,7 @@ instance Show Prover where
     show = show . prover_name
 
 -- | Input formats
-data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT
+data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT | FOF
   deriving (Eq,Ord,Show)
 
 extension :: InputFormat -> String
@@ -66,6 +68,39 @@ extension fmt = case fmt of
     AltErgoMonoFmt -> "mlw"
     MonoTFF        -> "tff"
     SMT            -> "smt"
+    FOF            -> "p"
+
+eprover :: Prover
+eprover = Prover
+    { prover_cmd            = "eprover"
+    , prover_desc           = "E prover"
+    , prover_name           = E
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f t -> ["--cpu-limit="++showCeil t,"-xAuto","-tAuto","--tptp3-format","-s"]
+    , prover_process_output = searchOutput
+        [("Unsatisfiable",proven),("Theorem",proven)
+        ,("Timeout",failure),("Satisfiable",failure)
+        ]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_input_format   = FOF
+    }
+
+spass :: Prover
+spass = Prover
+    { prover_cmd            = "SPASS"
+    , prover_desc           = "SPASS"
+    , prover_name           = SPASS
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f _t -> ["-Auto","-TPTP","-PGiven=0","-PProblem=0","-DocProof=0","-PStatistic=0"]
+    , prover_process_output = searchOutput
+        [("Unsatisfiable",proven),("Theorem",proven)
+        ,("Timeout",failure),("Satisfiable",failure)
+        ]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_input_format   = FOF
+    }
 
 altErgo :: Prover
 altErgo = Prover

@@ -8,9 +8,12 @@ ghc:
 before_install:
     - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - echo "deb-src http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
+    - cat /proc/cpuinfo | grep processor
     - sudo apt-get update
     - sudo apt-get install cvc4 --force-yes
     - sudo apt-get install alt-ergo
+    - sudo apt-get install eprover
+    - cabal install jukebox
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git
     - cabal install -f-pretty quickspec/ quickcheck/ . --only-dependencies

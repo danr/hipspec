@@ -38,7 +38,7 @@ import qualified Control.Exception as E
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
-newtype LinTheory = LinTheory (InputFormat -> String)
+newtype LinTheory = LinTheory (InputFormat -> IO String)
 
 data InvokeEnv = InvokeEnv
     { timeout         :: Double
@@ -80,21 +80,22 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
 
     tmp <- liftIO getTemporaryDirectory
 
-    let sha        = showDigest (sha256 (pack theory))
+    theory_str <- liftIO (lin prover_input_format)
+
+    let sha        = showDigest (sha256 (pack theory_str))
         cache_dir  = tmp </> show prover </> take 2 sha
         cache_file = cache_dir </> drop 2 sha
 
     cache_exists <- liftIO (doesFileExist cache_file)
 
-    cached cache_exists cache_dir cache_file
+    cached cache_exists cache_dir cache_file theory_str
 
   where
     LinTheory lin = ob_content
-    theory        = lin prover_input_format
 
     ret res = An [fmap (const (prover_name,res)) ob]
 
-    cached True _cache_dir cache_file = do
+    cached True _cache_dir cache_file _theory = do
         content <- liftIO (readFile cache_file)
         length content `seq` return Promise
             { spawn = return ()
@@ -103,14 +104,13 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                  '1':_ -> ret (Success Nothing)
                  _     -> Cancelled
             }
-    cached False cache_dir cache_file = do
+    cached False cache_dir cache_file theory_str = do
 
        let writeCache r = do
             ex <- doesFileExist cache_file
             createDirectoryIfMissing True cache_dir
             unless ex $ writeFile cache_file (if r then "1" else "0")
                 `E.catch` \ (_ :: SomeException) -> return ()
-
 
        filepath <- liftIO $ case store of
            Nothing  -> return Nothing
@@ -119,7 +119,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                    d = dir </> path
                    f = d </> file <.> extension prover_input_format
                createDirectoryIfMissing True d
-               writeFile f theory
+               writeFile f theory_str
                return (Just f)
 
        when (prover_cannot_stdin && isNothing filepath) $ liftIO $
@@ -135,7 +135,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                           " should not open a file, but it did!"
 
            inputStr | prover_cannot_stdin = ""
-                    | otherwise         = theory
+                    | otherwise           = theory_str
 
        w <- getWriteMsgFun
 
@@ -161,7 +161,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
        return Promise
            { spawn = do
                w $ Spawning (prop_name ob_prop) ob_info
-               w $ SpawningWithTheory (prop_name ob_prop) ob_info theory
+               w $ SpawningWithTheory (prop_name ob_prop) ob_info theory_str
                spawn promise
            , cancel = do
                w $ Cancelling (prop_name ob_prop) ob_info

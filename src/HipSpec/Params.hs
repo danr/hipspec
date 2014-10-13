@@ -243,7 +243,7 @@ defParams = Params
     , interesting_cands   = False   &= groupname "\nEquation ordering"
                                     &= name "i" &= help "Add interesting candidates after theorems"
 
-    , explore_theory      = False   &= name "e"  &= help "Print explored theory"
+    , explore_theory      = False               &= help "Print explored theory"
 
     , user_stated_first   = False   &= name "U" &= help "Put user stated properties first in the loop"
 
