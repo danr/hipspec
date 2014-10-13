@@ -52,10 +52,10 @@ type Result = (ProverName,ProverResult)
 
 interpretResult :: Prover -> ProcessResult -> Maybe ProverResult
 interpretResult Prover{..} pr@ProcessResult{..} = excode `seq`
-    case prover_process_output stdout of
-        Just True  -> Just (Success (get_lemmas stdout))
-        Just False -> Nothing
-        Nothing    -> Just (Unknown pr)
+    case prover_process_output (stdout ++ stderr) of
+        Just True                            -> Just (Success (get_lemmas stdout))
+        Nothing | excode /= ExitFailure (-9) -> Just (Unknown pr)
+        _                                    -> Nothing
   where
     get_lemmas = case prover_parse_lemmas of
         Just lemma_parser -> Just . lemma_parser
@@ -78,7 +78,7 @@ promiseProof :: forall eq .
              -> HS (Promise [Obligation eq Result])
 promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 
-    tmp <- liftIO getTemporaryDirectory
+    tmp <- fmap (</> "hipspec") (liftIO getTemporaryDirectory)
 
     theory_str <- liftIO (lin prover_input_format)
 

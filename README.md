@@ -97,6 +97,8 @@ We support:
   and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
 * [vampire](http://www.vprover.org/), but your executable should be called `vampire-rel`
   (or change `src/HipSpec/ATP/Provers.hs`).
+* [E](http://wwwlehre.dhbw-stuttgart.de/~sschulz/E/E.html)
+* [SPASS](http://www.spass-prover.org/)
 
 See `--help` to see the flags to select theorem provers.
 

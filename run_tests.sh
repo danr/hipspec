@@ -1,7 +1,9 @@
 #!/bin/sh
 
+N=$(cat /proc/cpuinfo | grep processor | wc -l)
+echo "Using $N threads."
 PR=../testsuite/precision-recall/PrecisionRecall.hs
-COMMON='--cvc4 --alt-ergo -e --verbosity=40  --lint-poly-fol +RTS -N2 -RTS'
+COMMON="--cvc4 --alt-ergo --spass --verbosity=40  --lint-poly-fol -N$N +RTS -N4 -RTS"
 
 cd examples
 hipspec HOF.hs         --auto=False                              --success=NothingUnproved  $COMMON || exit $?

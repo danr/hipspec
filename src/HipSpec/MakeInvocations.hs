@@ -36,26 +36,30 @@ import Control.Monad
 
 -- import Jukebox.Toolbox (encodeString)
 
-import System.IO
+import Control.Exception (SomeException)
+import qualified Control.Exception as E
+import System.IO hiding (stdout,stderr)
 import System.Process
 
 encodeString :: String -> IO String
 encodeString s = do
-    (Just inh, Just outh, Just errh, pid) <- createProcess $
+    (Just inh, Just outh, Just _errh, pid) <- createProcess $
         (proc "jukebox" ["fof","/dev/stdin"])
             { System.Process.std_in  = CreatePipe
             , System.Process.std_out = CreatePipe
             , System.Process.std_err = CreatePipe
             }
-    hPutStr inh s
-    hFlush inh
-    hClose inh
-    exc <- waitForProcess pid
-    out <- hGetContents outh
-    err <- hGetContents errh
-    -- unless (null err) (putStrLn err)
-    -- putStrLn out
-    length out `seq` return out
+    (do
+        hPutStr inh s
+        hFlush inh
+        hClose inh
+        _exc <- waitForProcess pid
+        out <- hGetContents outh
+        length out `seq` return out)
+      `E.catch` \ (e :: SomeException) -> do
+        putStrLn ("Jukebox: " ++ show e)
+        waitForProcess pid
+        return ""
 
 -- | Try to prove a property, given some lemmas
 tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))

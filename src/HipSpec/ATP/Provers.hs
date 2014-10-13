@@ -70,17 +70,23 @@ extension fmt = case fmt of
     SMT            -> "smt"
     FOF            -> "p"
 
+outputSZS :: [(String,Maybe Bool)]
+outputSZS =
+    [ ("# SZS status " ++ s,r)
+    | (s,r) <-
+        [("Unsatisfiable",proven),("Theorem",proven)
+        ,("Timeout",failure),("Satisfiable",failure),("ResourceOut",failure)
+        ]
+    ]
+
 eprover :: Prover
 eprover = Prover
     { prover_cmd            = "eprover"
     , prover_desc           = "E prover"
     , prover_name           = E
     , prover_cannot_stdin   = False
-    , prover_args           = \ _f t -> ["--cpu-limit="++showCeil t,"-xAuto","-tAuto","--tptp3-format","-s"]
-    , prover_process_output = searchOutput
-        [("Unsatisfiable",proven),("Theorem",proven)
-        ,("Timeout",failure),("Satisfiable",failure)
-        ]
+    , prover_args           = \ _f _t -> ["-xAuto","-tAuto","--tptp3-format","-s"]
+    , prover_process_output = searchOutput outputSZS
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
     , prover_input_format   = FOF
@@ -92,10 +98,11 @@ spass = Prover
     , prover_desc           = "SPASS"
     , prover_name           = SPASS
     , prover_cannot_stdin   = False
-    , prover_args           = \ _f _t -> ["-Auto","-TPTP","-PGiven=0","-PProblem=0","-DocProof=0","-PStatistic=0"]
+    , prover_args           = \ _f t -> ["-Auto","-TPTP","-PGiven=0","-PProblem=0","-DocProof=0","-PStatistic=0","-Stdin","-TimeLimit="++showCeil t]
     , prover_process_output = searchOutput
-        [("Unsatisfiable",proven),("Theorem",proven)
-        ,("Timeout",failure),("Satisfiable",failure)
+        [("SPASS beiseite: Proof found.",proven)
+        ,("SPASS beiseite: Completion found.",failure)
+        ,("No formulae and clauses found in input file!",failure)
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
@@ -108,7 +115,7 @@ altErgo = Prover
     , prover_desc           = "Alt-Ergo"
     , prover_name           = AltErgo
     , prover_cannot_stdin   = True
-    , prover_args           = \ f _t -> [f,{- "-timelimit",showCeil t, -} "-triggers-var"]
+    , prover_args           = \ f _t -> [f,"-triggers-var"]
     , prover_process_output = searchOutput
         [("Valid",proven),("I don't know",failure) ]
     , prover_suppress_errs  = False
@@ -129,10 +136,7 @@ vampire = Prover
     , prover_name           = Vampire
     , prover_cannot_stdin   = True
     , prover_args           = \ f t -> [f,"-t",showCeil t,"-mode","casc"]
-    , prover_process_output = searchOutput
-        [("Unsatisfiable",proven),("Theorem",proven)
-        ,("Timeout",failure),("Satisfiable",failure)
-        ]
+    , prover_process_output = searchOutput outputSZS
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
     , prover_input_format   = MonoTFF
@@ -147,7 +151,7 @@ z3 = Prover
     , prover_args           = \ _f _t -> ["-smt2","-nw","/dev/stdin"]
     , prover_process_output = searchOutput
         [("unsat",proven)
---        ,("sat",failure)
+        ,("unknown",failure)
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
