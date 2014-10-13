@@ -1,27 +1,26 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Join where
+module Concat where
 
-import Prelude hiding ((++),length,(+),map)
-import qualified Prelude
+import Prelude hiding ((++),length,(+),map,sum,concat)
 import HipSpec
 
 length :: [a] -> Nat
 length []     = Z
 length (_:xs) = S (length xs)
 
+sum :: [Nat] -> Nat
+sum []     = Z
+sum (x:xs) = x + sum xs
+
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
-join' :: [[a]] -> [a]
-join' (xs:xss) = xs ++ join' xss
-join' []       = []
+concat :: [[a]] -> [a]
+concat xss = [ x | xs <- xss, x <- xs ]
 
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
-
-instance Names (a -> b) where
-    names _ = ["f","g","h"]
 
 sig :: [Sig]
 sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
@@ -34,10 +33,16 @@ sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
       , fun1 "S"                S
       , fun2 "+"                (+)
 
+      -- These three for {sum (map length xss) = length (join xss)}
+      , fun1 "sum"              (sum :: [Nat] -> Nat)
+      , blind0 "length"         (length :: [A] -> Nat)
+      , fun2 "map"              (map :: ([A] -> Nat) -> [[A]] -> [Nat])
+
       , fun0 "[]"               ([] :: [A])
       , fun2 ":"                ((:) :: A -> [A] -> [A])
       , fun2 "++"               ((++) :: [A] -> [A] -> [A])
       , fun1 "length"           (length :: [A] -> Nat)
+
 
       , fun0 "[]"               ([] :: [[A]])
       , fun2 ":"                ((:) :: [A] -> [[A]] -> [[A]])
@@ -51,10 +56,10 @@ sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
 
       , fun2 "map"              (map :: ([[A]] -> [A]) -> [[[A]]] -> [[A]])
       , fun2 "map"              (map :: ([A] -> A) -> [[A]] -> [A])
-      , blind0 "join'"          (join' :: [[A]] -> [A])
-      , blind0 "join'"          (join' :: [[[A]]] -> [[A]])
-      , fun1 "join'"            (join' :: [[A]] -> [A])
-      , fun1 "join'"            (join' :: [[[A]]] -> [[A]])
+      , blind0 "concat"         (concat :: [[A]] -> [A])
+      , blind0 "concat"         (concat :: [[[A]]] -> [[A]])
+      , fun1 "concat"           (concat :: [[A]] -> [A])
+      , fun1 "concat"           (concat :: [[[A]]] -> [[A]])
       ]
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
@@ -73,6 +78,6 @@ instance Enum Nat where
 
 instance Arbitrary Nat where
   arbitrary = sized $ \ s -> do
-    x <- choose (0,round (sqrt (toEnum s)))
+    x <- choose (0,round (sqrt (toEnum s) :: Double))
     return (toEnum x)
 

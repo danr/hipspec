@@ -62,9 +62,6 @@ import qualified HipSpec.Lang.ToPolyFOL as P
 import Data.Map (Map)
 import qualified Data.Map as M
 
-import HipSpec.Unify
-import Control.Unification
-
 literalFreeTyVars :: Literal -> [Id]
 literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
 

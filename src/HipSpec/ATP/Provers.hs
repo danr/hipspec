@@ -60,6 +60,9 @@ data Prover = Prover
     , prover_input_format   :: InputFormat
     }
 
+instance Show Prover where
+    show = show . prover_name
+
 -- | Input formats
 data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT | SMT_PP
   deriving (Eq,Ord,Show)

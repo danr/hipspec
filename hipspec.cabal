@@ -104,9 +104,10 @@ executable hipspec
         parsec               >= 3.1,
 
         -- Running Theorem Provers
-        stm-promise          == 0.0.3.0,
+        stm-promise          >= 0.0.3.1 && < 0.1 ,
         process              >= 1.0.1.1,
         stm                  >= 2.3,
         directory            >= 1.0,
-        filepath             >= 1.0
+        filepath             >= 1.0,
+        SHA                  >= 1.6 && < 2
 

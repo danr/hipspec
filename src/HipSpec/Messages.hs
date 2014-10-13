@@ -159,7 +159,7 @@ msgVerbosity m = case m of
     Finished{}               -> 1  -- most interesting
     UnknownResult{}          -> 10 -- a warning, really
     Proof{used_tech=ByInduction []} -> 30
-    Proof{used_tech}         -> 20
+    Proof{}                  -> 20
     FailedProof{}            -> 40
     Loop                     -> 45
     Candidates{}             -> 50
