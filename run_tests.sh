@@ -8,7 +8,7 @@ hipspec HOF.hs         --auto=False                              --success=Nothi
 hipspec Properties.hs  --auto=False                              --success=NothingUnproved  $COMMON || exit $?
 hipspec $PR                         --extra-trans=++,foldl,foldr --success=NothingUnproved  $COMMON || exit $?
 hipspec $PR                         --extra-trans=++,map,reverse --success=NothingUnproved  $COMMON || exit $?
-hipspec Nat.hs                      --extra-trans=*              --success=NothingUnproved  $COMMON || exit $?
+hipspec Nat.hs         -i           --extra-trans=*              --success=NothingUnproved  $COMMON || exit $?
 hipspec List.hs        --auto=False                              --success=NothingUnproved  $COMMON || exit $?
 hipspec Reverse.hs                  --only-user-stated           --success=ProvesUserStated $COMMON || exit $?
 hipspec Concat.hs      --auto=False                              --success=NothingUnproved  $COMMON || exit $?

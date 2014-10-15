@@ -46,5 +46,8 @@ makeProofs prop@Property{prop_vars} = do
 
         attempts = mapMaybe (induction params ty_env arity_map prop) induction_coords
 
-    return (attempts ++ map return (fixpointInduction params arity_map is_recursive prop))
+        fpis | FixpointInduction `notElem` techniques = []
+             | otherwise = map return (fixpointInduction params arity_map is_recursive prop)
+
+    return (attempts ++ fpis)
 

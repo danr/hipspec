@@ -92,7 +92,7 @@ showMsg Params{no_colour,reverse_video} msg = case msg of
                 )))
             ++ view_provers used_provers
             ++ view_lemmas used_lemmas
-            ++ "\n" ++ used_insts
+            ++ non_null used_insts ("\n" ++ used_insts)
 
     FailedProof{..} -> "Failed to prove " ++ repr_prop (property_name,property_repr)
 

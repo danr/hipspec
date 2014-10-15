@@ -19,7 +19,7 @@ import HipSpec.Trim
 import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
-import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise)
+import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise,unlabel)
 import HipSpec.Lang.ToPolyFOL (Poly(SK))
 
 import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
@@ -70,23 +70,30 @@ tryProve prop lemmas0 = do
 
             linTheory :: Theory -> HS LinTheory
             linTheory sthys = do
-                let cls               = skolemise SK SK
-                                        (sortClauses False (concatMap clauses sthys))
-                let (mcls,(ils,recs)) = first (sortClauses False) (monoClauses cls)
+
+                let cls = sortClauses False (concatMap clauses sthys)
+                let cls_sk = skolemise SK SK cls
+
+                let (mcls_sk,(ils,recs)) = first (sortClauses False) (monoClauses cls_sk)
+                let (mcls,(_ils,_recs)) = first (sortClauses False) (monoClauses cls)
+
                 let pp = PP (text . polyname) (text . polyname)
-                let ui | any (`elem` provers) [CVC4,CVC4i,CVC4ig] = uninterpretedInts
-                       | otherwise           = id
-                let (smt_str,smt_rename_map) = ppSMT (ui (sortClauses True (trimDataDecls mcls)))
+
+                let (smt_str,smt_rename_map) = ppSMT                             (sortClauses True (trimDataDecls mcls_sk))
+                let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (sortClauses True (trimDataDecls mcls))))
+
                 debugWhen DebugMono $
-                    "\nMonomorphising:\n" ++ ppTHF cls ++
-                    "\n\nResult:\n" ++ ppTFF mcls ++
+                    "\nMonomorphising:\n" ++ ppTHF cls_sk ++
+                    "\n\nResult:\n" ++ ppTFF mcls_sk ++
                     "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
                     "\n\nRecords:\n" ++ render' (ppRecords pp recs)
+
                 return $ LinTheory smt_rename_map $ \ t -> case t of
-                    AltErgoFmt     -> ppAltErgo (sortClauses False cls)
-                    AltErgoMonoFmt -> ppMonoAltErgo mcls
-                    MonoTFF        -> ppTFF mcls
+                    AltErgoFmt     -> ppAltErgo (sortClauses False cls_sk)
+                    AltErgoMonoFmt -> ppMonoAltErgo mcls_sk
+                    MonoTFF        -> ppTFF mcls_sk
                     SMT            -> smt_str ++ "\n(check-sat)\n"
+                    SMT_CVC4       -> "(set-logic ALL_SUPPORTED)\n" ++ cvc4_str ++ "\n(check-sat)\n"
                     SMT_PP         -> unlines
                       [ "(set-option :produce-proofs true)"
                       , smt_str

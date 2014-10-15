@@ -63,8 +63,9 @@ interpretResult rename_map Prover{..} pr@ProcessResult{..} = excode `seq`
     case prover_process_output stdout of
         Just True  -> Just (Success (combinator prover_parse_lemmas stdout)
                                     (combinator (fmap uncurry prover_parse_proofs) ((rename_map M.!),stdout)))
-        Just False -> Nothing
-        Nothing    -> Just (Unknown pr)
+        Nothing    | (not (null stdout) || not (null stderr)) &&
+                     (excode /= (ExitFailure (-9))) -> Just (Unknown pr)
+        _ -> Nothing
 
 (?) :: Bool -> (a -> a) -> a -> a
 True  ? f = f
@@ -118,7 +119,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
            Just dir -> do
                let (path,file) = filename env ob
                    d = dir </> path
-                   f = d </> file <.> extension prover_input_format
+                   f = d </> completeName prover_input_format file
                createDirectoryIfMissing True d
                writeFile f theory
                return (Just f)

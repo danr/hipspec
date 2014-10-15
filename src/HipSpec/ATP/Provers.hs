@@ -9,6 +9,8 @@ import HipSpec.ATP.Z3ProofParser
 
 import HipSpec.Pretty
 
+import System.FilePath ((<.>))
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
@@ -64,16 +66,22 @@ instance Show Prover where
     show = show . prover_name
 
 -- | Input formats
-data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT | SMT_PP
+data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT
+    | SMT_PP
+    -- ^ With produce-proofs
+    | SMT_CVC4
+    -- ^ For CVC4: the goal is not skolemised, uninterpreted sorts are
+    --   ints, and all labels and names are removed.
   deriving (Eq,Ord,Show)
 
-extension :: InputFormat -> String
-extension fmt = case fmt of
-    AltErgoFmt     -> "mlw"
-    AltErgoMonoFmt -> "mlw"
-    MonoTFF        -> "tff"
-    SMT            -> "smt"
-    SMT_PP         -> "smt"
+completeName :: InputFormat -> FilePath -> FilePath
+completeName fmt s = case fmt of
+    AltErgoFmt     -> s <.> "mlw"
+    AltErgoMonoFmt -> (s ++ "_m") <.> "mlw"
+    MonoTFF        -> s <.> "tff"
+    SMT            -> s <.> "smt"
+    SMT_CVC4       -> (s ++ "_cvc4") <.> "smt"
+    SMT_PP         -> (s ++ "_pp") <.> "smt"
 
 altErgo :: Prover
 altErgo = Prover
@@ -154,7 +162,7 @@ mkCVC4 name desc opts = Prover
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
     , prover_parse_proofs   = Nothing
-    , prover_input_format   = SMT
+    , prover_input_format   = SMT_CVC4
     }
 
 proven,failure :: Maybe Bool

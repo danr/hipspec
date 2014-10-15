@@ -47,6 +47,7 @@ instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Clause a b) |]
+instanceTransformBi [t| forall a b . (Formula a b,Clause a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
@@ -274,17 +275,25 @@ uninterpretedInts cls0 = catMaybes
       TyCon tc [] | tc `elem` sorts -> Integer :: Type a b
       _                             -> t
 
+unlabel :: forall a b . [Clause a b] -> [Clause a b]
+unlabel = map un
+  where
+    un = transformBi $ \ x -> case x of
+        Q t vs trg _ _ b -> Q t vs trg Nothing Nothing b
+        Named y _        -> y :: Formula a b
+        TermNamed y _    -> y
+        _                -> x
+
+-- | Only skolemises the goal, and tries to select a new goal.
 skolemise :: forall c v tv . (v ~ tv, Eq v) =>
     (v -> Int -> c) ->
     (tv -> Int -> c) ->
     [Clause c v] -> [Clause c v]
-skolemise sk_v sk_tv = concatMap sk
+skolemise sk_v sk_tv = concatMap skC
   where
-    sk (Clause n trg Goal tvs fm) = sk (Clause n trg Axiom tvs (neg fm))
-    sk (Clause n trg Axiom tvs (Q Exists vs0 _trg _id _tm_id b)) =
-        [ Clause n trg Axiom [] (tySubsts ty_su (fmSubsts v_su b)) ] ++
-        [ SortSig ty 0 | (_,ty) <- tys ] ++
-        [ TypeSig v [] [] t | ((_,v),t) <- vs ]
+    skC (Clause n trg Goal tvs fm)
+        =  [ SortSig ty 0 | (_,ty) <- tys ]
+        ++ sk (tySubsts ty_su fm)
       where
         tys :: [(tv,c)]
         tys = [ (tv,sk_tv tv i) | (tv,i) <- zip tvs [0..] ]
@@ -292,13 +301,23 @@ skolemise sk_v sk_tv = concatMap sk
         ty_su :: [ (tv,Type c tv) ]
         ty_su = [ (x,TyCon x' []) | (x,x') <- tys ]
 
-        vs :: [((v,c),Type c tv)]
-        vs  = [ ((v,sk_v v i),tySubsts ty_su t) | ((v,t),i) <- zip vs0 [0..] ]
+        clause p = Clause n trg p []
 
-        v_su :: [(v,Term c v)]
-        v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
+        sk (FOp Implies a b) = map (clause Axiom) (split a) ++ sk b
+        sk (Q Forall vs0 _trg _id _tm_id b) =
+            [ TypeSig v [] [] t | ((_,v),t) <- vs ] ++ sk (fmSubsts v_su b)
+          where
+            vs :: [((v,c),Type c tv)]
+            vs  = [ ((v,sk_v v i),t) | ((v,t),i) <- zip vs0 [0..] ]
 
-    sk c = [ c ]
+            v_su :: [(v,Term c v)]
+            v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
+        sk a = [ clause Goal a ]
+
+        split (FOp And a b) = split a ++ split b
+        split a             = [a]
+
+    skC c = [ c ]
 
 {-
 

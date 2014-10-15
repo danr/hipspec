@@ -18,7 +18,7 @@ ppClause p cls = case cls of
     Clause _ _ _ _ (DataDecl ds _) -> ppDataDecls p ds
     Clause _ _ cl _tvs fm   -> parens ("assert" $\
                                         ppForm p
-                                            (case cl of {Goal -> neg
+                                            (case cl of {Goal -> Neg
                                                         ; _ -> id} $ fm))
     Comment s               -> vcat (map (\ l -> ";" <+> text l) (lines s))
 
