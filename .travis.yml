@@ -6,9 +6,13 @@ ghc:
     - 7.8
 
 before_install:
+    - alex --version
+    - cabal install alex
+    - export PATH=$HOME/.cabal/bin:$PATH
+    - which alex
+    - alex --version
     - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - echo "deb-src http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
-    - alex --version
     - sudo apt-get update
     - sudo apt-get install cvc4 --force-yes
     - sudo apt-get install alt-ergo spass

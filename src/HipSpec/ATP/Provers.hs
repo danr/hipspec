@@ -85,7 +85,7 @@ eprover = Prover
     , prover_desc           = "E prover"
     , prover_name           = E
     , prover_cannot_stdin   = False
-    , prover_args           = \ _f _t -> ["-xAuto","-tAuto","--tptp3-format","-s"]
+    , prover_args           = \ _f t -> ["--auto-schedule","--tptp3-format","--silent","--cpu-limit="++showCeil t]
     , prover_process_output = searchOutput outputSZS
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
