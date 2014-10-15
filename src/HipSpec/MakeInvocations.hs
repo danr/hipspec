@@ -34,8 +34,9 @@ import Data.Maybe
 
 import Control.Monad
 
--- import Jukebox.Toolbox (encodeString)
+import Jukebox.Toolbox (encodeString)
 
+{-
 import Control.Exception (SomeException)
 import qualified Control.Exception as E
 import System.IO hiding (stdout,stderr)
@@ -60,6 +61,7 @@ encodeString s = do
         putStrLn ("Jukebox: " ++ show e)
         waitForProcess pid
         return ""
+        -}
 
 -- | Try to prove a property, given some lemmas
 tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
