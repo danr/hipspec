@@ -72,7 +72,7 @@ extension fmt = case fmt of
 
 outputSZS :: [(String,Maybe Bool)]
 outputSZS =
-    [ ("# SZS status " ++ s,r)
+    [ (" SZS status " ++ s,r)
     | (s,r) <-
         [("Unsatisfiable",proven),("Theorem",proven)
         ,("Timeout",failure),("Satisfiable",failure),("ResourceOut",failure)
@@ -102,6 +102,7 @@ spass = Prover
     , prover_process_output = searchOutput
         [("SPASS beiseite: Proof found.",proven)
         ,("SPASS beiseite: Completion found.",failure)
+        ,("SPASS beiseite: Ran out of time.",failure)
         ,("No formulae and clauses found in input file!",failure)
         ]
     , prover_suppress_errs  = False

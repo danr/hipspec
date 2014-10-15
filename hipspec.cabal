@@ -61,10 +61,7 @@ executable hipspec
 
     if flag(Werror)
         ghc-options: -Werror
-    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
-
-    if impl(ghc >= 7.8)
-        ghc-options: -dynamic
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all -dynamic
 
     if flag(pretty)
         cpp-options: -DPRETTY
