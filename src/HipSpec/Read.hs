@@ -64,7 +64,7 @@ execute params@Params{..} = do
     -- Use -threaded
 #if __GLASGOW_HASKELL__ < 708
     addWay WayThreaded
-    addWay WayDyn
+    -- addWay WayDyn -- don't dyn on <7.8
 #endif
 
     -- Notify where ghc is installed
