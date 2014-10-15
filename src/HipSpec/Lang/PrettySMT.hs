@@ -46,7 +46,7 @@ ppForm p f0 = case f0 of
     Q q bs trg qid tmid f ->
       parens (ppQ q $\ sep
         [ppQList p bs
-        ,ppKVs (zmap (ppTrg p) trg ++ zmap ppQid qid ++ zmap (ppTmId p) tmid) (ppForm p f)
+        ,ppKVs ({- zmap (ppTrg p) trg ++ -}zmap ppQid qid ++ zmap (ppTmId p) tmid) (ppForm p f)
         ])
     f `Named` s   -> ppKVs [(k,text s) | k <- ["named","lblpos","lblneg"]] (ppForm p f)
     f `TermNamed` tm -> ppKVs [(k,bracketed (ppTerm p tm)) | k <- ["named","lblpos","lblneg"]] (ppForm p f)
