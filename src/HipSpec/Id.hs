@@ -39,6 +39,7 @@ data Id
     = GHCOrigin Name
     | QSOrigin String Integer
     | Derived Derived Integer
+    | Const Int Int
   deriving (Eq,Ord,Show)
 
 instance Show Name where
@@ -67,8 +68,10 @@ mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
 originalId :: Id -> String
 originalId i = case i of
-    GHCOrigin nm -> getOccString nm
+    GHCOrigin nm  -> getOccString nm
     QSOrigin s _  -> s
+    Const 0 2     -> "const"
+    Const i j     -> "const_" ++ show i ++ "_" ++ show j
     Derived d _   -> case d of
         _ `LetFrom` b -> originalId b ++ "_"
         Lambda a      -> originalId a ++ "_lambda"
