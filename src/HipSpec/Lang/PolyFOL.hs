@@ -42,6 +42,9 @@ import HipSpec.Utils
 import Data.Set (Set)
 import qualified Data.Set as S
 
+import Control.Monad
+import Control.Monad.State
+
 instanceUniverseBi  [t| forall a b . (Clause a b,Term a b) |]
 instanceUniverseBi  [t| forall a b . (Clause a b,Type a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
@@ -293,7 +296,7 @@ skolemise sk_v sk_tv = concatMap skC
   where
     skC (Clause n trg Goal tvs fm)
         =  [ SortSig ty 0 | (_,ty) <- tys ]
-        ++ sk (tySubsts ty_su fm)
+        ++ sk True (tySubsts ty_su fm) `evalState` 0
       where
         tys :: [(tv,c)]
         tys = [ (tv,sk_tv tv i) | (tv,i) <- zip tvs [0..] ]
@@ -303,16 +306,23 @@ skolemise sk_v sk_tv = concatMap skC
 
         clause p = Clause n trg p []
 
-        sk (FOp Implies a b) = map (clause Axiom) (split a) ++ sk b
-        sk (Q Forall vs0 _trg _id _tm_id b) =
-            [ TypeSig v [] [] t | ((_,v),t) <- vs ] ++ sk (fmSubsts v_su b)
-          where
-            vs :: [((v,c),Type c tv)]
-            vs  = [ ((v,sk_v v i),t) | ((v,t),i) <- zip vs0 [0..] ]
+        app :: forall m a . Monad m => m [a] -> m [a] -> m [a]
+        app = liftM2 (++)
 
-            v_su :: [(v,Term c v)]
-            v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
-        sk a = [ clause Goal a ]
+        unique = do
+            i <- get
+            put (i+1)
+            return i
+
+        sk g (Q Forall vs0 _trg _id _tm_id b) = do
+            vs <- mapM (\(v,t) -> unique >>= \ i -> return ((v,sk_v v i),t)) vs0
+            let v_su :: [(v,Term c v)]
+                v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
+            ([ TypeSig v [] [] t | ((_,v),t) <- vs ] ++) <$> sk g (fmSubsts v_su b)
+        sk g (FOp Or a b)      = sk False a `app` sk g b
+        sk g (FOp Implies a b) = concatMapM (sk False) (split a) `app` sk g b
+        sk True  a = return [ clause Goal a ]
+        sk False a = return [ clause Axiom (neg a) ]
 
         split (FOp And a b) = split a ++ split b
         split a             = [a]

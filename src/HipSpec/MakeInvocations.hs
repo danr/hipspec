@@ -168,12 +168,12 @@ resultsForProp :: forall eq . (Int -> Property eq)
                -> Maybe (Theorem eq)
 resultsForProp lemma_lkup results prop = case proofs of
     []    -> Nothing
-    grp:_ -> case grp of
+    grp:_ -> case take 1 grp of
         [] -> error "MakeInvocations: results (impossible)"
-        Obligation _ (ObInduction cs _ _ _sks _sk_tms) _ :_ ->
+        [Obligation _ (ObInduction cs _ _ _sks _sk_tms) _] ->
             mkProof (ByInduction (varsFromCoords prop cs))
-        [Obligation _ (ObFixpointInduction i) _] ->
-            mkProof (ByFixpointInduction i)
+        [Obligation _ (ObFixpointInduction{fpi_repr}) _] ->
+            mkProof (ByFixpointInduction fpi_repr)
       where
         mkProof pf = Just Theorem
             { thm_prop = prop
@@ -191,8 +191,8 @@ resultsForProp lemma_lkup results prop = case proofs of
                               ++ ":\n" ++ prettyInsts inst
         insts _ = error "internal error: Not a success!"
   where
-
-    resType ObInduction{..} = ind_coords
+    resType ObInduction{..}         = Left  ind_coords
+    resType ObFixpointInduction{..} = Right fpi_repr
 
     results' = [ ob | ob@Obligation{..} <- results
                     , prop_name prop == prop_name ob_prop
@@ -205,6 +205,6 @@ resultsForProp lemma_lkup results prop = case proofs of
     check :: [Obligation eq Result] -> Bool
     check grp@(Obligation _ (ObInduction _ _ nums _ _) _:_) =
         all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
-    check grp@(Obligation _ (ObFixpointInduction _) _:rs) = null rs
+    check grp@(Obligation _ (ObFixpointInduction{}) _:rs) = length grp == 2 && length (nub (map (fpi_step . ob_info) grp)) == 2
     check _ = False
 

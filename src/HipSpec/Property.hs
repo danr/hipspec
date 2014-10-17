@@ -214,7 +214,7 @@ boolifyProperty prop@Property{..} = case prop_goal of
                      , prop_goal   = equalsTrue b
                      , prop_origin = UserStated -- a bit of a lie
                      }
-      in  [prop, mk lhs rhs, mk rhs lhs]
+      in  [prop {- , mk lhs rhs, mk rhs lhs -}]
     _ -> [prop]
 
 notConstant :: S.Expr Id -> Bool

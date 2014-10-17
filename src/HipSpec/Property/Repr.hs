@@ -34,5 +34,5 @@ oper s = not (null s') && all (`elem` opSyms) s'
   where s' = filter (`notElem` ('_':['0'..'9'])) s
 
 opSyms :: String
-opSyms = ":!#$%&*+./<=>?@|^-~\\⟨⟩"
+opSyms = ":!#$%&*+./<=>?@|^-~\\{}"
 

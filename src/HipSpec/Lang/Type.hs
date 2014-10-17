@@ -12,7 +12,10 @@ import Data.Function (on)
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Polymorphic types
-data PolyType a = Forall [a] (Type a)
+data PolyType a = Forall
+    { polytype_tvs   :: [a]
+    , polytype_inner :: Type a
+    }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Types

@@ -81,7 +81,7 @@ originalId i = case i of
         Eta           -> "x"
         Unknown       -> "u"
         GenTyVar      -> "a"
-        f `Fix` _bw   -> "⟨" ++ originalId f ++ "⟩"
+        f `Fix` _bw   -> "{" ++ originalId f ++ "}"
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -91,6 +91,8 @@ ppId i = case i of
     GHCOrigin nm  -> ppName nm
     QSOrigin s _  -> s
     Derived d x   -> ppDerived x d
+    Const 0 2     -> "const"
+    Const i j     -> "const_" ++ show i ++ "_" ++ show j
 
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of

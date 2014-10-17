@@ -12,6 +12,7 @@ import qualified HipSpec.Lang.PolyFOL as P
 import HipSpec.Lang.ToPolyFOL as P
 
 import Data.Maybe (mapMaybe)
+import Data.List (foldl')
 
 import HipSpec.ThmLib
 import HipSpec.Theory
@@ -31,6 +32,9 @@ import Data.Generics.Geniplate
 import qualified Data.Foldable as F
 
 import Control.Monad
+
+singleton :: a -> [a]
+singleton = return
 
 black :: Id -> Id
 black f = Derived (f `Fix` B) 0
@@ -57,6 +61,24 @@ fixFunction fn@Function{..} =
 
 fixFunctions :: [Function Id] -> [Function Id]
 fixFunctions fs = concat [ fixFunction f | f <- fs, isRecursive f ]
+               ++ [ constFunction i j | j <- [1..maxi arities+1], i <- [0..j-1] ]
+  where
+    maxi    = foldl' max 0
+    arities = map (length . fst . collectArrTy . polytype_inner . fn_type) fs
+
+constFunction :: Int -> Int -> Function Id
+constFunction i j = Function {..}
+  where
+    fn_name = Const i j
+    tvs     = [ mkLetFrom (Derived GenTyVar x) x fn_name | x <- [0..toInteger j-1] ]
+    fn_args = [ mkLetFrom (Derived Eta x)      x fn_name | x <- [0..toInteger j-1] ]
+    fn_type = S.Forall tvs (map TyVar tvs `makeArrows` TyVar (tvs !! i))
+    fn_body = Just (Body (Lcl (fn_args !! i) (TyVar (tvs !! i))))
+
+callConst :: Int -> [Type Id] -> Expr Id
+callConst i ts = Gbl name ty ts
+  where
+    Function name ty _ _ = constFunction i (length ts)
 
 type Rec a = (a,PolyType a,[Type a])
 
@@ -67,14 +89,15 @@ fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,i
         , ob_info = ObFixpointInduction
             { fpi_repr =
                 let a :=: b = replace_with sel (Gbl . black)
-                in  exprRepr (fmap originalId a) ++ " == " ++ exprRepr (fmap originalId b) ++ desc
+                in  exprRepr (fmap originalId a) ++ " == " ++ exprRepr (fmap originalId b)
+            , fpi_step = is_step
             }
         , ob_content = calcDepsIgnoring ignore subtheory
             { defines = Conjecture
             , clauses = sorts ++ content
             }
         }
-      | (desc,content) <- [("",base sel),(" (step)",step sel)]
+      | (is_step,content) <- [(False,base sel),(True,step sel)]
       ]
     | sel <- yes_no
     ]
@@ -82,51 +105,59 @@ fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,i
     (recs,replace) = replaceLit is_recursive prop_goal
 
     yes_no :: [[(Bool,Rec Id)]]
-    yes_no = drop 1 $ zipWith zip (replicateM (length recs) [False,True]) (repeat recs)
+    yes_no = take 24 $ drop 1 $ zipWith zip (replicateM (length recs) [False,True]) (repeat recs)
 
     replace_with :: [(Bool,Rec Id)] -> (Id -> PolyType Id -> [Type Id] -> Expr Id) -> Literal
-    replace_with sel mk_id = replace [ mk_id x t ts | (b,(x,t,ts)) <- sel, b ]
+    replace_with sel mk_id = replace [ if b then mk_id x t ts else Gbl x t ts | (b,(x,t,ts)) <- sel ]
+
+    tr_vars :: [(Id,Type Id)] -> [(P.Poly Id,P.Type (P.Poly Id) (P.Poly Id))]
+    tr_vars qs = [ (P.Id x,trType t) | (x,t) <- qs ]
+
+    tr_lits :: [Id] -> [Literal] -> P.Formula (P.Poly Id) (P.Poly Id)
+    tr_lits scope (g:as) =
+       forAlls
+           (tr_vars prop_vars)
+           ((map (trLiteral am (scope ++ map fst prop_vars)) as)
+            ===> trLiteral am (scope ++ map fst prop_vars) g)
 
     step sel =
         let cl l mk_id = Clause Nothing [Source] l [] (tr_lits [] (replace_with sel (Gbl . mk_id):prop_assums))
         in  [ cl Axiom white, cl Goal black ]
 
-    tr_lits scope (g:as) =
-       forAlls
-           [ (P.Id x,trType t) | (x,t) <- prop_vars ]
-           ((map (trLiteral am (scope ++ map fst prop_vars)) as)
-            ===> trLiteral am (scope ++ map fst prop_vars) g)
-
-    base sel = Clause Nothing [Source] Goal [] $ ny
-        [ existss quant (tr_lits quant (replace es:prop_assums))
+    base sel = singleton $ Clause Nothing [Source] Goal [] $ ny
+        [ existss (tr_vars quant) (tr_lits (map fst quant) (replace es:prop_assums))
         | (quant,es) <- cands
         ]
       where
         ny = foldr1 (\/)
 
-        active = [ rec | (b,rec) <- sel, b ]
-
         cands :: [([(Id,Type Id)],[Expr Id])]
         cands = [ let (iss,es) = unzip c in (concat iss,es) | c <- cands0 ]
 
         cands0 :: [[([(Id,Type Id)],Expr Id)]]
-        cands0 = forM (zip [0..] active) $ \ (i,(x,S.Forall tvs ty,ts)) ->
-            let t = S.substManyTys (tvs `zip` ts) ty
-                (args,res) = collectArrTy t
-            in  [ ([],callConst i args)
-                | (i,arg) <- [0..] `zip` args
-                , arg == res
-                ] ++
-                [ ([(v,res)],callConst 0 (res:args) `S.App` Lcl v res)
-                | let v = mkLetFrom Eta i x
-                ]
+        cands0 = forM ([0..] `zip` sel) $ \ (i,(active,(x,ty0@(S.Forall tvs ty),ts))) ->
+            if active then
+                let t = S.substManyTys (tvs `zip` ts) ty
+                    (args,res) = collectArrTy t
+                in  [ ([],callConst i args)
+                    | (i,arg) <- [0..] `zip` args
+                    , arg == res
+                    ] ++
+                    [ ([(v,t)],Lcl v t)
+                    | let v = mkLetFrom (Eta `Derived` 1) i x
+                    ] ++
+                    [ ([(v,res)],callConst 0 (res:args) `S.App` Lcl v res)
+                    | let v = mkLetFrom (Eta `Derived` 0) i x
+                    ]
 
-callConst :: Int -> [Type a] -> Expr a
-callConst i ts = Gbl name ty ts
+                else
+                    [ ([],Gbl x ty0 ts) ]
+
+replaceTwo :: (b -> ([r],[e] -> c)) -> (c -> c -> d) -> b -> b -> ([r],[e] -> d)
+replaceTwo f mk l r = (r1 ++ r2, \ xs -> x1 (take (length r1) xs) `mk` x2 (drop (length r1) xs))
   where
-    name = Const i (length ts)
-    ty   = S.Forall tvs (map TyVar tvs `makeArrows` TyVar tvs !! i)
-    tvs  = [ mkLetFrom (Derived GenTyVar j) j name | (j,_) <- zip [0..] ts ]
+    (r1,x1) = f l
+    (r2,x2) = f r
 
 replaceExpr :: Eq a => (a -> Bool) -> Expr a -> ([Rec a],[Expr a] -> Expr a)
 replaceExpr ok e0 = case e0 of
@@ -134,14 +165,8 @@ replaceExpr ok e0 = case e0 of
                | otherwise -> ([],\ [] -> e0)
     Lcl{} -> ([],\ [] -> e0)
     Lit{} -> ([],\ [] -> e0)
-    S.App e1 e2 -> (r1++r2,\ xs -> x1 (take (length r1) xs) `S.App` x2 (drop (length r1) xs))
-      where
-        (r1,x1) = replaceExpr ok e1
-        (r2,x2) = replaceExpr ok e2
-
+    S.App e1 e2 -> replaceTwo (replaceExpr ok) S.App e1 e2
 
 replaceLit :: (Id -> Bool) -> Literal -> ([Rec Id],[Expr Id] -> Literal)
-replaceLit ok (e1 :=: e2) = (r1++r2,\ xs -> x1 xs :=: x2 (drop (length r1) xs))
-  where
-    (r1,x1) = replaceExpr ok e1
-    (r2,x2) = replaceExpr ok e2
+replaceLit ok (e1 :=: e2) = replaceTwo (replaceExpr ok) (:=:) e1 e2
+
