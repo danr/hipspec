@@ -57,7 +57,7 @@ The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 ## Installation instructions
 
-HipSpec is maintained for GHC 7.4.1, 7.6.3 and 7.8.3.
+HipSpec is maintained for GHC 7.8.3.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:

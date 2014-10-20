@@ -1,15 +1,12 @@
 language: haskell
 
 ghc:
-    - 7.4
-    - 7.6
     - 7.8
 
 before_install:
-    - rm ~/.ghc ~/.cabal -rf # force reinstallation of everything
     - export PATH=$HOME/.cabal/bin:$PATH
     - cabal update
-    - if [ $(ghc --numeric-version | sed 's/\.//g' ) -gt 780 ]; then cabal install alex; fi
+    - cabal install alex
     - which alex
     - alex --version
     - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
@@ -19,11 +16,11 @@ before_install:
     - sudo apt-get install alt-ergo spass
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git
-    - cabal install --ghc-options=-dynamic --enable-shared --enable-executable-dynamic -f-pretty quickspec/ quickcheck/ . --only-dependencies
-    - cabal install --ghc-options=-dynamic --enable-shared --enable-executable-dynamic -f-pretty quickspec/ quickcheck/
+    - cabal install quickspec/ quickcheck/ . --only-dependencies
+    - cabal install quickspec/ quickcheck/
 
 install:
-    - cabal install --ghc-options=-dynamic --enable-shared --enable-executable-dynamic -f-pretty
+    - cabal install
 
 script:
     - ./run_tests.sh
