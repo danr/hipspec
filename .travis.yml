@@ -6,9 +6,11 @@ ghc:
 before_install:
     - export PATH=$HOME/.cabal/bin:$PATH
     - cabal update
-    - cabal install alex
+    - cabal install alex happy
     - which alex
+    - which happy
     - alex --version
+    - happy --version
     - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - echo "deb-src http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - sudo apt-get update
