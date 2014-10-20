@@ -80,7 +80,7 @@ executable hipspec
         geniplate            >= 0.6,
         genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
-        void                 >= 0.5.3,
+        void                 >= 0.6 && <= 1,
         transformers         >= 0.3,
         split                >= 0.1,
 
