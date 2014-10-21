@@ -14,7 +14,7 @@ import System.FilePath ((<.>))
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = AltErgo | MonoAltErgo | Vampire | Z3PP | Z3 | CVC4 | CVC4i | CVC4ig
+data ProverName = Z3 | Z3PP | CVC4 | CVC4i | CVC4ig | AltErgo | MonoAltErgo | Vampire | E | SPASS
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -27,6 +27,8 @@ proverFromName p = case p of
     Vampire     -> vampire
     Z3          -> z3
     Z3PP        -> z3pp
+    E           -> eprover
+    SPASS       -> spass
     CVC4        -> mkCVC4 p "" []
     CVC4i       -> mkCVC4 p " with induction" ["--quant-ind"]
     CVC4ig      -> mkCVC4 p " with induction and conjecture generation"
@@ -66,7 +68,12 @@ instance Show Prover where
     show = show . prover_name
 
 -- | Input formats
-data InputFormat = AltErgoFmt | AltErgoMonoFmt | MonoTFF | SMT
+data InputFormat
+    = AltErgoFmt
+    | AltErgoMonoFmt
+    | MonoTFF
+    | FOF
+    | SMT
     | SMT_PP
     -- ^ With produce-proofs
     | SMT_CVC4
@@ -82,6 +89,49 @@ completeName fmt s = case fmt of
     SMT            -> s <.> "smt"
     SMT_CVC4       -> (s ++ "_cvc4") <.> "smt"
     SMT_PP         -> (s ++ "_pp") <.> "smt"
+    FOF            -> s <.> "p"
+
+outputSZS :: [(String,Maybe Bool)]
+outputSZS =
+    [ (" SZS status " ++ s,r)
+    | (s,r) <-
+        [("Unsatisfiable",proven),("Theorem",proven)
+        ,("Timeout",failure),("Satisfiable",failure),("ResourceOut",failure)
+        ]
+    ]
+
+eprover :: Prover
+eprover = Prover
+    { prover_cmd            = "eprover"
+    , prover_desc           = "E prover"
+    , prover_name           = E
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f t -> ["--auto-schedule","--tptp3-format","--silent","--cpu-limit="++showCeil t]
+    , prover_process_output = searchOutput outputSZS
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
+    , prover_input_format   = FOF
+    }
+
+spass :: Prover
+spass = Prover
+    { prover_cmd            = "SPASS"
+    , prover_desc           = "SPASS"
+    , prover_name           = SPASS
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f t -> ["-Auto","-TPTP","-PGiven=0","-PProblem=0","-DocProof=0","-PStatistic=0","-Stdin","-TimeLimit="++showCeil t]
+    , prover_process_output = searchOutput
+        [("SPASS beiseite: Proof found.",proven)
+        ,("SPASS beiseite: Completion found.",failure)
+        ,("SPASS beiseite: Ran out of time.",failure)
+        ,("No formulae and clauses found in input file!",failure)
+        ]
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
+    , prover_input_format   = FOF
+    }
 
 altErgo :: Prover
 altErgo = Prover
@@ -89,7 +139,7 @@ altErgo = Prover
     , prover_desc           = "Alt-Ergo"
     , prover_name           = AltErgo
     , prover_cannot_stdin   = True
-    , prover_args           = \ f _t -> [f,{- "-timelimit",showCeil t, -} "-triggers-var"]
+    , prover_args           = \ f _t -> [f,"-triggers-var"]
     , prover_process_output = searchOutput
         [("Valid",proven),("I don't know",failure) ]
     , prover_suppress_errs  = False
@@ -111,10 +161,7 @@ vampire = Prover
     , prover_name           = Vampire
     , prover_cannot_stdin   = True
     , prover_args           = \ f t -> [f,"-t",showCeil t,"-mode","casc"]
-    , prover_process_output = searchOutput
-        [("Unsatisfiable",proven),("Theorem",proven)
-        ,("Timeout",failure),("Satisfiable",failure)
-        ]
+    , prover_process_output = searchOutput outputSZS
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing
     , prover_parse_proofs   = Nothing
@@ -130,7 +177,7 @@ z3 = Prover
     , prover_args           = \ _f _t -> ["-smt2","-nw","/dev/stdin"]
     , prover_process_output = searchOutput
         [("unsat",proven)
---        ,("sat",failure)
+        ,("unknown",failure)
         ]
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing

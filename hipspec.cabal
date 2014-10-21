@@ -28,11 +28,6 @@ flag JSON
     default: False
     manual: True
 
--- Don't use pretty on travis because it does not build there (!?)
-flag pretty
-    default: True
-    manual: False
-
 library
     hs-source-dirs: src
 
@@ -61,12 +56,7 @@ executable hipspec
 
     if flag(Werror)
         ghc-options: -Werror
-    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all
-
-    if flag(pretty)
-        cpp-options: -DPRETTY
-        build-depends:
-            pretty-show       >= 1.5 && < 2
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all -dynamic
 
     build-depends:
         base                 >= 4 && < 5,
@@ -77,10 +67,11 @@ executable hipspec
         -- mtl-2.1 contains a severe bug
         mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.3,
         pretty               >= 1.1,
+        pretty-show          >= 1.5 && < 2,
         geniplate            >= 0.6,
         genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
-        void                 >= 0.5.3,
+        void                 >= 0.6 && <= 1,
         transformers         >= 0.3,
         split                >= 0.1,
 
@@ -104,10 +95,11 @@ executable hipspec
         parsec               >= 3.1,
 
         -- Running Theorem Provers
-        stm-promise          >= 0.0.3.1 && < 0.1 ,
+        stm-promise          >= 0.0.3.1 && < 0.1,
         process              >= 1.0.1.1,
         stm                  >= 2.3,
         directory            >= 1.0,
         filepath             >= 1.0,
+        jukebox              >= 0.1 && < 1,
         SHA                  >= 1.6 && < 2
 

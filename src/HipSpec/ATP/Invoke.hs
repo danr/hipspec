@@ -28,7 +28,7 @@ import HipSpec.Monad
 
 import HipSpec.Utils.ZEncode
 
-import System.Directory (createDirectoryIfMissing,doesFileExist,getTemporaryDirectory)
+import System.Directory (createDirectoryIfMissing,doesFileExist,getTemporaryDirectory,removeFile)
 import System.FilePath ((</>),(<.>))
 
 import Data.Map (Map)
@@ -43,7 +43,7 @@ import qualified Control.Exception as E
 
 type RenameMap = Map String LogicId
 
-data LinTheory = LinTheory RenameMap (InputFormat -> String)
+data LinTheory = LinTheory RenameMap (InputFormat -> IO String)
 
 data InvokeEnv = InvokeEnv
     { timeout         :: Double
@@ -82,37 +82,45 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
 
     tmp <- fmap (</> "hipspec") (liftIO getTemporaryDirectory)
 
-    let sha        = showDigest (sha256 (pack theory))
+    theory_str <- liftIO (lin prover_input_format)
+
+    let sha        = showDigest (sha256 (pack theory_str))
         cache_dir  = tmp </> show prover </> take 2 sha
         cache_file = cache_dir </> drop 2 sha
 
     cache_exists <- liftIO (doesFileExist cache_file)
 
-    cached cache_exists cache_dir cache_file
+    cached cache_exists cache_dir cache_file theory_str
 
   where
     LinTheory rename_map lin = ob_content
-    theory                   = lin prover_input_format
 
     ret res = An [fmap (const (prover_name,res)) ob]
 
-    cached True _cache_dir cache_file = do
+    cached True _cache_dir cache_file _theory_str = do
         content <- liftIO (readFile cache_file)
-        length content `seq` return Promise
-            { spawn = return ()
-            , cancel = return ()
-            , result = return $ case content of
-                 '1':_ -> ret (Success Nothing Nothing)
-                 _     -> Cancelled
-            }
-    cached False cache_dir cache_file = do
+        let mk_promise s = do
+                -- liftIO $ putStrLn $ cache_file ++ ": Cache exists with content: " ++ content
+                return Promise
+                    { spawn = return ()
+                    , cancel = return ()
+                    , result = return s
+                    }
+        length content `seq` case content of
+            '1':_ -> mk_promise (ret (Success Nothing Nothing))
+            _     -> mk_promise Cancelled
+
+    cached False cache_dir cache_file theory_str = do
 
        let writeCache r = do
             ex <- doesFileExist cache_file
             createDirectoryIfMissing True cache_dir
-            unless ex $ writeFile cache_file (if r then "1" else "0")
-                `E.catch` \ (_ :: SomeException) -> return ()
-
+            content <- if ex then liftIO (readFile cache_file) else return ""
+            when (not ex || content /= "1") $ do
+                let v = if r then "1" else "0"
+                -- putStrLn $ cache_file ++ ": Writing cache: " ++ v
+                writeFile cache_file v
+                    `E.catch` \ (_ :: SomeException) -> return ()
 
        filepath <- liftIO $ case store of
            Nothing  -> return Nothing
@@ -121,7 +129,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                    d = dir </> path
                    f = d </> completeName prover_input_format file
                createDirectoryIfMissing True d
-               writeFile f theory
+               writeFile f theory_str
                return (Just f)
 
        when (prover_cannot_stdin && isNothing filepath) $ liftIO $
@@ -137,7 +145,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                           " should not open a file, but it did!"
 
            inputStr | prover_cannot_stdin = ""
-                    | otherwise         = theory
+                    | otherwise           = theory_str
 
        w <- getWriteMsgFun
 
@@ -163,12 +171,12 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
        return Promise
            { spawn = do
                w $ Spawning (prop_name ob_prop) ob_info
-               w $ SpawningWithTheory (prop_name ob_prop) ob_info theory
+               w $ SpawningWithTheory (prop_name ob_prop) ob_info theory_str
                spawn promise
            , cancel = do
                w $ Cancelling (prop_name ob_prop) ob_info
                cancel promise
-               writeCache False
+               -- writeCache False
            , result = update <$> result promise
            }
 

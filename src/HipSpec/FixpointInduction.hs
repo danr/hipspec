@@ -2,16 +2,16 @@
              ParallelListComp,ViewPatterns,ScopedTypeVariables #-}
 module HipSpec.FixpointInduction where
 
-import HipSpec.Translate
+-- import HipSpec.Translate
 
 import HipSpec.Lang.Simple as S
-import HipSpec.Lang.Simple (Type)
+-- import HipSpec.Lang.Simple (Type)
 
 import HipSpec.Lang.PolyFOL hiding (Type(..),Term(..))
 import qualified HipSpec.Lang.PolyFOL as P
 import HipSpec.Lang.ToPolyFOL as P
 
-import Data.Maybe (mapMaybe)
+-- import Data.Maybe (mapMaybe)
 import Data.List (foldl')
 
 import HipSpec.ThmLib
@@ -21,11 +21,11 @@ import HipSpec.Literal
 import HipSpec.Property
 import HipSpec.Property.Repr
 
-import HipSpec.Pretty
+-- import HipSpec.Pretty
 
 import HipSpec.Id
 
-import qualified HipSpec.Lang.Rich as R
+-- import qualified HipSpec.Lang.Rich as R
 
 import Data.Generics.Geniplate
 
@@ -139,8 +139,8 @@ fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,i
             if active then
                 let t = S.substManyTys (tvs `zip` ts) ty
                     (args,res) = collectArrTy t
-                in  [ ([],callConst i args)
-                    | (i,arg) <- [0..] `zip` args
+                in  [ ([],callConst j args)
+                    | (j,arg) <- [0..] `zip` args
                     , arg == res
                     ] ++
                     [ ([(v,t)],Lcl v t)

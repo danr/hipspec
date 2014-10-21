@@ -92,6 +92,6 @@ ppTerm p = go
   where
     go tm0 = case tm0 of
         Apply f _ts as -> pp_symb p f <> empty {- ("(*" <+> csv (map (ppType p) ts) <+> "*)") -} <> csv (map go as)
-        Var v          -> pp_var p v
         Lit x          -> integer x
+        Var v          -> pp_var p v
 

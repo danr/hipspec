@@ -106,7 +106,7 @@ prettyTPTP symb var = fst . prettyCls TFF.ppClause tptpKeywords symb' var'
     -- (General strings could be allowed for symbols, enclosed in '')
     var' x = case escape (var x) of
         u:us | isLower u -> toUpper u:us
-             | isDigit u -> 'X':u:us
+             | isDigit u || u == '_' -> 'X':u:us
              | otherwise -> u:us
         []               -> "X"
 
@@ -134,12 +134,14 @@ ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> (String,Map String LogicId
 ppSMT = second (M.map (either forget_inst id)) . prettyCls SMT.ppClause smtKeywords (escape . mononame) (escape . polyname)
 
 tptpKeywords :: [String]
-tptpKeywords = smtKeywords
+tptpKeywords = smtKeywords ++
+    [ "fof", "cnf", "tff" ]
 
 smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
+    , "abs"
     -- CVC4:
     , "as"
     ]

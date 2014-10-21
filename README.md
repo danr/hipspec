@@ -57,7 +57,9 @@ The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 ## Installation instructions
 
-HipSpec is maintained for GHC 7.4.1, 7.6.3 and 7.8.3.
+HipSpec is maintained for GHC 7.8.3.
+
+If you have an older version of GHC and cannot upgrade, try building at commit 2ba4d52c2c101a810dea4058496cf5f0da199b31.
 
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:
@@ -97,6 +99,8 @@ We support:
   and in Arch Linux' [AUR](https://aur.archlinux.org/packages/alt-ergo/).
 * [vampire](http://www.vprover.org/), but your executable should be called `vampire-rel`
   (or change `src/HipSpec/ATP/Provers.hs`).
+* [E](http://wwwlehre.dhbw-stuttgart.de/~sschulz/E/E.html)
+* [SPASS](http://www.spass-prover.org/)
 
 See `--help` to see the flags to select theorem provers.
 

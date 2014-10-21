@@ -30,8 +30,6 @@ import Data.Traversable (traverse)
 
 import HipSpec.ATP.Z3ProofParser
 
--- import Text.Show.Pretty (ppShow)
-
 import Control.Concurrent.STM.Promise.Tree
 import Control.Concurrent.STM.Promise.Process (ProcessResult(..))
 
@@ -39,6 +37,8 @@ import Data.List
 import Data.Maybe
 
 import Control.Monad
+
+import Jukebox.Toolbox (encodeString)
 
 -- | Try to prove a property, given some lemmas
 tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
@@ -82,6 +82,8 @@ tryProve prop lemmas0 = do
                 let (smt_str,smt_rename_map) = ppSMT                             (sortClauses True (trimDataDecls mcls_sk))
                 let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (sortClauses True (trimDataDecls mcls))))
 
+                let tff = ppTFF mcls
+
                 debugWhen DebugMono $
                     "\nMonomorphising:\n" ++ ppTHF cls_sk ++
                     "\n\nResult:\n" ++ ppTFF mcls_sk ++
@@ -89,12 +91,13 @@ tryProve prop lemmas0 = do
                     "\n\nRecords:\n" ++ render' (ppRecords pp recs)
 
                 return $ LinTheory smt_rename_map $ \ t -> case t of
-                    AltErgoFmt     -> ppAltErgo (sortClauses False cls_sk)
-                    AltErgoMonoFmt -> ppMonoAltErgo mcls_sk
-                    MonoTFF        -> ppTFF mcls_sk
-                    SMT            -> smt_str ++ "\n(check-sat)\n"
-                    SMT_CVC4       -> "(set-logic ALL_SUPPORTED)\n" ++ cvc4_str ++ "\n(check-sat)\n"
-                    SMT_PP         -> unlines
+                    AltErgoFmt     -> return $ ppAltErgo (sortClauses False cls)
+                    AltErgoMonoFmt -> return $ ppMonoAltErgo mcls
+                    MonoTFF        -> return tff
+                    FOF            -> encodeString tff
+                    SMT            -> return $ smt_str ++ "\n(check-sat)\n"
+                    SMT_CVC4       -> return $ "(set-logic ALL_SUPPORTED)\n" ++ cvc4_str ++ "\n(check-sat)\n"
+                    SMT_PP         -> return $ unlines
                       [ "(set-option :produce-proofs true)"
                       , smt_str
                       , "(echo \"(output \")"

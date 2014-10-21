@@ -235,6 +235,7 @@ prettyInsts = printSummary exprRepr . evalRenameM (disambig string_var) [] . map
     P.Ptr v    -> originalId v
     P.IH       -> "IH"
     P.Proj k n -> "p" ++ show n ++ "{" ++ originalId k ++ "}"
+    P.SK v _   -> string_var v
     _          -> "{printLikeHaskell: " ++ show i ++ "}"
 
 #endif

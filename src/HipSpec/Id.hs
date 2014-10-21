@@ -113,13 +113,6 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
     | k == consDataConKey    = "Cons"
     | k == unitTyConKey      = "UnitTyCon"
     | k == genUnitDataConKey = "Unit"
-    {-
-#if __GLASGOW_HASKELL__ < 708
-    | Just (ns, ts, n) <- isTupleOcc_maybe (getOccName nm) = name_tuple ns ts n
-    -- isTupleOcc_maybe was removed between 7.8.2 and 7.8.3...
-    -- there is isBuiltInOcc_maybe, but, whatever
-#endif
--}
     | otherwise = case getOccString nm of
         "+"   -> "plus"
         "-"   -> "minus"
@@ -149,17 +142,4 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
         s     -> s
   where
     k = getUnique nm
-
-{-
-    name_tuple ns ts n = pre ++ mid ++ show n
-      where
-        pre | ns == tcName   = "T"
-            | ns == dataName = "t"
-            | otherwise      = portableShowSDoc (pprNameSpace ns)
-
-        mid = case ts of
-            BoxedTuple   -> ""
-            UnboxedTuple -> "u"
-            _            -> "unknown_tuple"
-            -}
 

@@ -45,9 +45,7 @@ import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
 
-#ifdef PRETTY
 import qualified Text.Show.Pretty as Pretty
-#endif
 
 infixr 9 .:
 
@@ -126,9 +124,7 @@ nubSortedOn f = map head . groupSortedOn f
 intersects :: Eq a => [a] -> [a] -> Bool
 intersects = (not . null) .: intersect
 
+-- | Pretty show
 ppShow :: Show a => a -> String
-#ifdef PRETTY
 ppShow = Pretty.ppShow
-#else
-ppShow = show
-#endif
+

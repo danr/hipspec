@@ -66,6 +66,7 @@ execute params@Params{..} = do
     -- Use -threaded
 #if __GLASGOW_HASKELL__ < 708
     addWay WayThreaded
+    addWay WayDyn
 #endif
 
     -- Notify where ghc is installed
@@ -76,9 +77,11 @@ execute params@Params{..} = do
         dflags0 <- getSessionDynFlags
         let dflags =
 #if __GLASGOW_HASKELL__ >= 708
-                addWay' WayThreaded
+                updateWays $
+                addWay' WayThreaded $
+                addWay' WayDyn $
 #endif
-                    (dflags0 { ghcMode = CompManager
+                     dflags0 { ghcMode = CompManager
                              , optLevel = 1
                              , profAuto = NoProfAuto
                              }
@@ -86,11 +89,11 @@ execute params@Params{..} = do
 #if __GLASGOW_HASKELL__ >= 708
                         `gopt_unset` Opt_IgnoreInterfacePragmas
                         `gopt_unset` Opt_OmitInterfacePragmas
-                        `gopt_set` Opt_ExposeAllUnfoldings)
+                        `gopt_set` Opt_ExposeAllUnfoldings
 #else
                         `dopt_unset` Opt_IgnoreInterfacePragmas
                         `dopt_unset` Opt_OmitInterfacePragmas
-                        `dopt_set` Opt_ExposeAllUnfoldings)
+                        `dopt_set` Opt_ExposeAllUnfoldings
 #endif
         _ <- setSessionDynFlags dflags
 

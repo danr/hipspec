@@ -1,23 +1,28 @@
 language: haskell
 
 ghc:
-    - 7.4
-    - 7.6
     - 7.8
 
 before_install:
+    - export PATH=$HOME/.cabal/bin:$PATH
+    - cabal update
+    - cabal install alex happy
+    - which alex
+    - which happy
+    - alex --version
+    - happy --version
     - echo "deb http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - echo "deb-src http://cvc4.cs.nyu.edu/debian/ unstable/" | sudo tee -a /etc/apt/sources.list
     - sudo apt-get update
     - sudo apt-get install cvc4 --force-yes
-    - sudo apt-get install alt-ergo
+    - sudo apt-get install alt-ergo spass
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git
-    - cabal install -f-pretty quickspec/ quickcheck/ . --only-dependencies
-    - cabal install -f-pretty quickspec/ quickcheck/
+    - cabal install quickspec/ quickcheck/ . --only-dependencies
+    - cabal install quickspec/ quickcheck/
 
 install:
-    - cabal install -f-pretty
+    - cabal install
 
 script:
     - ./run_tests.sh
