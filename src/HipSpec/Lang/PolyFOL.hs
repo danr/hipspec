@@ -319,10 +319,10 @@ skolemise sk_v sk_tv = concatMap skC
             let v_su :: [(v,Term c v)]
                 v_su = [ (x,Apply x' [] [])  | ((x,x'),_) <- vs ]
             ([ TypeSig v [] [] t | ((_,v),t) <- vs ] ++) <$> sk g (fmSubsts v_su b)
-        sk g (FOp Or a b)      = sk False a `app` sk g b
+        sk g (FOp Or a b)      = sk g (FOp Implies (neg a) b)
         sk g (FOp Implies a b) = concatMapM (sk False) (split a) `app` sk g b
         sk True  a = return [ clause Goal a ]
-        sk False a = return [ clause Axiom (neg a) ]
+        sk False a = return [ clause Axiom a ]
 
         split (FOp And a b) = split a ++ split b
         split a             = [a]
