@@ -59,6 +59,8 @@ The property and some lemmas conjectured by QuickSpec have been proved! Success!
 
 HipSpec is maintained for GHC 7.8.3.
 
+If you have an older version of GHC and cannot upgrade, try building at commit 2ba4d52c2c101a810dea4058496cf5f0da199b31.
+
 You need to have the development version of QuickSpec. It can be obtained by
 cloning that repository:
 
