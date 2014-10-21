@@ -62,7 +62,7 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
         sig_info@SigInfo{..}:sig_infos -> do
 
-            Params{explore_theory,user_stated_first,call_graph,isabelle_mode} <- getParams
+            Params{explore_theory,user_stated_first,call_graph,isabelle_mode,expand_boolprops} <- getParams
 
             (init_qsconjs,reps,classes) <- runQuickSpec sig_info
 
@@ -110,7 +110,8 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
 
             (ctx_final,exit_act) <- runMainLoop ctx_with_def
-              (concatMap boolifyProperty $ qsconjs ~+ map vacuous user_props)
+              (concatMap (if expand_boolprops then boolifyProperty else return)
+                         (qsconjs ~+ map vacuous user_props))
               []
 
             when explore_theory $ do

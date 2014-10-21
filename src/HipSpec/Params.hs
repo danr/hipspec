@@ -113,6 +113,7 @@ data Params = Params
 
     , processes           :: Int
     , timeout             :: Double
+    , expand_boolprops    :: Bool
 
     , isolate             :: Bool
     , only_user_stated    :: Bool
@@ -230,6 +231,7 @@ defParams = Params
     , processes           = 2    &= groupname "\nProving settings"
                                  &= name "N" &= help "Prover processes          (default 2)"
     , timeout             = 1    &= name "t" &= help "Prover timeout in seconds (default 1.0)"
+    , expand_boolprops    = False            &= help "Expand boolean properties to implication form"
 
     , techniques = enumerate
          [ (t,show t ++ defStr t defaultTechs)
