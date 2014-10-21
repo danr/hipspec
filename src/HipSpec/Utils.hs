@@ -45,9 +45,7 @@ import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
 
-#ifdef PRETTY
 import qualified Text.Show.Pretty as Pretty
-#endif
 
 infixr 9 .:
 
