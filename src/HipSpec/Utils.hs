@@ -126,9 +126,7 @@ nubSortedOn f = map head . groupSortedOn f
 intersects :: Eq a => [a] -> [a] -> Bool
 intersects = (not . null) .: intersect
 
+-- | Pretty show
 ppShow :: Show a => a -> String
-#ifdef PRETTY
 ppShow = Pretty.ppShow
-#else
-ppShow = show
-#endif
+
