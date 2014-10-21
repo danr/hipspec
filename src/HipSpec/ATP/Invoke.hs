@@ -29,7 +29,7 @@ import HipSpec.Monad
 
 import HipSpec.Utils.ZEncode
 
-import System.Directory (createDirectoryIfMissing,doesFileExist,getTemporaryDirectory)
+import System.Directory (createDirectoryIfMissing,doesFileExist,getTemporaryDirectory,removeFile)
 import System.FilePath ((</>),(<.>))
 
 import Control.Exception (SomeException)
@@ -95,22 +95,30 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
 
     ret res = An [fmap (const (prover_name,res)) ob]
 
-    cached True _cache_dir cache_file _theory = do
+    cached True _cache_dir cache_file _theory_str = do
         content <- liftIO (readFile cache_file)
-        length content `seq` return Promise
-            { spawn = return ()
-            , cancel = return ()
-            , result = return $ case content of
-                 '1':_ -> ret (Success Nothing)
-                 _     -> Cancelled
-            }
+        let mk_promise s = do
+                -- liftIO $ putStrLn $ cache_file ++ ": Cache exists with content: " ++ content
+                return Promise
+                    { spawn = return ()
+                    , cancel = return ()
+                    , result = return s
+                    }
+        length content `seq` case content of
+            '1':_ -> mk_promise (ret (Success Nothing))
+            _     -> mk_promise Cancelled
+
     cached False cache_dir cache_file theory_str = do
 
        let writeCache r = do
             ex <- doesFileExist cache_file
             createDirectoryIfMissing True cache_dir
-            unless ex $ writeFile cache_file (if r then "1" else "0")
-                `E.catch` \ (_ :: SomeException) -> return ()
+            content <- if ex then liftIO (readFile cache_file) else return ""
+            when (not ex || content /= "1") $ do
+                let v = if r then "1" else "0"
+                -- putStrLn $ cache_file ++ ": Writing cache: " ++ v
+                writeFile cache_file v
+                    `E.catch` \ (_ :: SomeException) -> return ()
 
        filepath <- liftIO $ case store of
            Nothing  -> return Nothing
@@ -166,7 +174,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
            , cancel = do
                w $ Cancelling (prop_name ob_prop) ob_info
                cancel promise
-               writeCache False
+               -- writeCache False
            , result = update <$> result promise
            }
 
