@@ -28,6 +28,12 @@ msort [x] = [x]
 msort xs  = merge (msort ys) (msort zs)
   where (ys,zs) = split xs
 
+{-
+qsort :: [Nat] -> [Nat]
+qsort [] = []
+qsort (x:xs) = ...
+-}
+
 split :: [Nat] -> ([Nat],[Nat])
 split [] = ([],[])
 split [x] = ([x],[])

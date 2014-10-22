@@ -32,8 +32,6 @@ injR u v w = v ++ u =:= w ++ u ==> v =:= w
 inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
 injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
-rhs v w s t = v
-
 lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
 
 instance Arbitrary E where
