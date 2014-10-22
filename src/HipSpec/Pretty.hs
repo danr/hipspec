@@ -141,7 +141,7 @@ smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
-    , "abs"
+    , "abs", "min", "max"
     -- CVC4:
     , "as"
     ]
