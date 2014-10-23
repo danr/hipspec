@@ -1,10 +1,8 @@
 {-# LANGUAGE OverlappingInstances, FlexibleInstances, FlexibleContexts, GADTs #-}
 module HipSpec
     ( module Test.QuickCheck
+    , module QuickSpec.Signature
     , module Data.Typeable
---    , module QuickSpec.Approximate
---    , module QuickSpec
---    , module QuickSpec.Prelude
     , Prop
     , (=:=)
     , proveBool
@@ -13,14 +11,12 @@ module HipSpec
     , total
     , (==>)
     , oops
-    , Names
-    , names
     ) where
 
 import Test.QuickCheck hiding ((==>))
--- import QuickSpec.Approximate
--- import QuickSpec.Prelude (A,B,C)
--- import QuickSpec
+import QuickSpec.Signature
+ {- hiding
+    (names,Literal(..),Prop(..),typeOf,typeRep,Result,subterms,generate,TyCon,cast) -}
 import Data.Typeable
 
 infix 1 =:=
@@ -64,6 +60,7 @@ instance Eq a => Testable (Prop a) where
   property (Oops p)      = expectFailure (property p)
   property _             = error "Cannot test"
 
+{-
 class Names a where
     -- | Suggest three names for variables of this type in generated signatures
     names :: a -> [String]
@@ -97,3 +94,4 @@ instance (Names a,Names b) => Names (Either a b) where
 instance Names a => Names (Maybe a) where
     names ~(Just x) = map ("m_" ++) (names x)
 
+-}

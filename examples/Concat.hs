@@ -31,7 +31,7 @@ sig = signature
         [ constant "Z" Z
         , (constant "S" S) { conStyle = Uncurried }
         , constant "+" (+)
-        , constant "length" (length :: [A] -> Nat)
+        , (constant "length" (length :: [A] -> Nat)) { conStyle = Uncurried }
         , constant "map" (map :: (A -> B) -> [A] -> [B])
         , constant "concat" (concat :: [[A]] -> [A])
         , constant "++" ((++) :: [A] -> [A] -> [A])

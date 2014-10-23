@@ -10,7 +10,7 @@ import HipSpec.ParseDSL
 import Data.List.Split (splitOn)
 
 import HipSpec.Sig.Resolve
--- import HipSpec.Sig.Make
+import HipSpec.Sig.Make
 import HipSpec.Sig.Get
 
 import HipSpec.Params
@@ -54,7 +54,6 @@ data EntryResult = EntryResult
 data SigInfo = SigInfo
     { sig          :: Signature
     , resolve_map  :: ResolveMap
-    , cond_id      :: Maybe Id
     , cond_mono_ty :: Maybe Type
     }
 
@@ -123,8 +122,8 @@ execute params@Params{..} = do
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
---            , IIDecl (qualifiedImport "QuickSpec.Signature")
---            , IIDecl (qualifiedImport "QuickSpec.Prelude")
+            , IIDecl (qualifiedImport "QuickSpec.Signature")
+            , IIDecl (qualifiedImport "QuickSpec.Type")
             , IIDecl (qualifiedImport "Test.QuickCheck")
             , IIDecl (qualifiedImport "GHC.Types")
             , IIDecl (qualifiedImport "Prelude")
@@ -148,14 +147,14 @@ execute params@Params{..} = do
                 ]
 
         -- Make or get signature
-        cond_id <- return Nothing -- findCondId params
+        -- cond_id <- return Nothing -- findCondId params
 
-        (sigs,cond_mono_ty) <-
+        sigs <-
             if TranslateOnly `elem` debug_flags
-            then return ([],Nothing)
-            else {- if auto
-            then makeSignature params cond_id props
-            else -} fmap (flip (,) Nothing . maybeToList) getSignature
+            then return []
+            else if auto
+            then makeSignature params props
+            else fmap maybeToList getSignature
 
         -- Make signature map
         --
@@ -174,7 +173,7 @@ execute params@Params{..} = do
         -- Wrapping up
         return EntryResult
             { sig_infos = sig_infos
-            , prop_ids  = props ++ concat extra_ids ++ toplvl_binds ++ maybeToList cond_id
+            , prop_ids  = props ++ concat extra_ids ++ toplvl_binds
             , extra_tcs = concat extra_tcs
             }
 

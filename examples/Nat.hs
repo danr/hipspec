@@ -30,18 +30,3 @@ instance Arbitrary Nat where
     x <- choose (0,round (sqrt (toEnum s)))
     return (toEnum x)
 
-instance Names Nat where
-  names _ = ["m","n","o"]
-
-sig :: Signature
-sig = signature
-    { constants =
-        [ constant "Z" Z
-        , (constant "S" S) { conStyle = Uncurried }
-        , constant "+" (+)
-        , constant "*" (*)
-        ]
-    , instances = [ baseType (undefined :: Nat) ]
-    }
-
-

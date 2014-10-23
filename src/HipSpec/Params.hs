@@ -42,8 +42,8 @@ data DebugFlag
     | TranslateOnly
     | PrintProps
 
---    | PrintAutoSig
---    | DebugAutoSig
+    | PrintAutoSig
+    | DebugAutoSig
 
 --    | PrintCallGraph
 --    | PrintDefinitions
@@ -71,8 +71,8 @@ debugDesc flg = case flg of
     TranslateOnly    -> "Stop after translating"
     PrintProps       -> "Print properties"
 
---    PrintAutoSig     -> "Print generated signature"
---    DebugAutoSig     -> "Print information about generated signature"
+    PrintAutoSig     -> "Print generated signature"
+    DebugAutoSig     -> "Print information about generated signature"
 
 --    PrintCallGraph   -> "Print the call graph"
 --    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
@@ -143,10 +143,12 @@ data Params = Params
     , auto                :: Bool
     , extra               :: [String]
     , extra_trans         :: [String]
+    {-
     , pvars               :: Bool
     , quick_check_size    :: Int
     , tests               :: Int
     , size                :: Int
+    -}
 
 
     , inddepth            :: Int
@@ -235,11 +237,13 @@ defParams = Params
                                     &= name "a" &= help "Make signature with functions in user properties (def. on)"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
+    {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"
     , tests               = 100                 &= help "Set the withTests          (default 100)"
     , size                = 1000                &= help "Set the withSize           (default \"unlimited\")"
 
+-}
     , processes           = 2    &= groupname "\nProving settings"
                                  &= name "N" &= help "Prover processes          (default 2)"
     , timeout             = 1    &= name "t" &= help "Prover timeout in seconds (default 1.0)"

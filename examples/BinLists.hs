@@ -11,9 +11,6 @@ data Bin = One | ZeroAnd Bin | OneAnd Bin deriving (Show, Eq, Ord, Typeable)
 
 data Nat = Z | S Nat deriving (Show,Eq,Ord,Typeable)
 
-instance Names Bin where names _ = ["a","b","c"]
-instance Names Nat where names _ = ["x","y","z"]
-
 {-
 
 toNat :: Bin -> Nat
@@ -61,26 +58,6 @@ prop_s n = toNat (s n) =:= S (toNat n)
 
 prop_plus :: Bin -> Bin -> Prop Nat
 prop_plus x y = toNat (x `plus` y) =:= toNat x + toNat y
-
-{-
-main :: IO ()
-main = hipSpec $(fileName)
-    [ vars ["x", "y", "z"] (error "Nat type" :: Nat)
-    , vars ["a", "b", "c"] (error "Bin type" :: Bin)
-
-    , fun1 "toNat" toNat
-
-    , fun0 "One" One
-    , fun1 "ZeroAnd" ZeroAnd
-    , fun1 "OneAnd" OneAnd
-    , fun1 "s" s
-    , fun2 "plus" plus
-
-    , fun0 "Z" Z
-    , fun1 "S" S
-    , fun2 "+" (+)
-    ]
-    -}
 
 instance Arbitrary Bin where
   arbitrary = sized arbBin

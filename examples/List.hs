@@ -2,6 +2,7 @@
 module List where
 
 import Prelude hiding (reverse,(++),length,map,filter,(.),(+),const)
+import QuickSpec hiding (S,Prop)
 import qualified Prelude
 import HipSpec
 import Nat
@@ -25,6 +26,7 @@ filter p [] = []
 
 f . g = \ x -> f (g x)
 
+{-
 sig = [ vars ["m","n","o"]    (undefined :: Nat)
       , vars ["x","y","z"]    (undefined :: A)
       , vars ["xs","ys","zs"] (undefined :: [A])
@@ -41,4 +43,4 @@ sig = [ vars ["m","n","o"]    (undefined :: Nat)
       , fun2 "filter" (filter :: (A -> Bool) -> [A] -> [A])
       , blind2 "."    ((.) :: (A -> A) -> (A -> A) -> (A -> A))
       ]
-
+-}
