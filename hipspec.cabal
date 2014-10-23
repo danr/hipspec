@@ -71,16 +71,17 @@ executable hipspec
         geniplate            >= 0.6,
         genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
-        void                 >= 0.6 && <= 1,
+        -- void                 >= 0.6 && <= 1,
         transformers         >= 0.3,
         split                >= 0.1,
 
-        unification-fd       >= 0.9 && < 1.0,
+        -- unification-fd       >= 0.9 && < 1.0,
 
         ghc-prim,
 
         -- QuickSpec
         quickspec            == 0.9.6,
+        term-rewriting       >= 0.1.1 && < 0.2,
 
         -- Printing messages
         time                 >= 1.4,

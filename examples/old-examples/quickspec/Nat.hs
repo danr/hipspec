@@ -6,7 +6,7 @@ import Data.Typeable
 import Hip.HipSpec
 
 import Test.QuickCheck hiding (Prop)
-import Test.QuickSpec
+import QuickSpec
 
 import Prelude hiding ((+),(*),even,odd,pred,sum,id)
 import qualified Prelude as P

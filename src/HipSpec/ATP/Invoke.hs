@@ -71,13 +71,12 @@ interpretResult rename_map Prover{..} pr@ProcessResult{..} = excode `seq`
 True  ? f = f
 False ? _ = id
 
-filename :: InvokeEnv -> Obligation eq a -> (FilePath,FilePath)
+filename :: InvokeEnv -> Obligation a -> (FilePath,FilePath)
 filename InvokeEnv{z_encode} (Obligation Property{prop_name} info _) =
     ((z_encode ? zencode) prop_name,(z_encode ? zencode) (obInfoFileName info))
 
-promiseProof :: forall eq .
-                InvokeEnv -> Obligation eq LinTheory -> Double -> Prover
-             -> HS (Promise [Obligation eq Result])
+promiseProof :: InvokeEnv -> Obligation LinTheory -> Double -> Prover
+             -> HS (Promise [Obligation Result])
 promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} = do
 
     tmp <- fmap (</> "hipspec") (liftIO getTemporaryDirectory)
@@ -161,7 +160,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                prover_cmd
                (prover_args filepath' timelimit) inputStr)
 
-       let update :: PromiseResult ProcessResult -> PromiseResult [Obligation eq Result]
+       let update :: PromiseResult ProcessResult -> PromiseResult [Obligation Result]
            update Cancelled = Cancelled
            update Unfinished = Unfinished
            update (An r) = case interpretResult rename_map prover r of
@@ -180,13 +179,13 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
            , result = update <$> result promise
            }
 
-invokeATPs :: Tree (Obligation eq LinTheory) -> InvokeEnv -> HS [Obligation eq Result]
+invokeATPs :: Tree (Obligation LinTheory) -> InvokeEnv -> HS [Obligation Result]
 invokeATPs tree env@InvokeEnv{..}
     | null provers = return []
     | otherwise = do
 
-        let make_promises :: Obligation eq LinTheory
-                          -> HS (Tree (Promise [Obligation eq Result]))
+        let make_promises :: Obligation LinTheory
+                          -> HS (Tree (Promise [Obligation Result]))
             make_promises p = requireAny . map Leaf <$> mapM (promiseProof env p timeout) provers
 
         promise_tree <- join <$> mapM make_promises tree

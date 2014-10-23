@@ -4,7 +4,6 @@ module HipSpec.Init (processFile,SigInfo(..)) where
 import Control.Monad
 
 import Data.List (partition,union)
-import Data.Void
 
 import HipSpec.GHC.Calls
 import HipSpec.Monad
@@ -43,7 +42,7 @@ import System.Directory
 import Var (Var)
 import Data.Map (Map)
 
-processFile :: (Map Var [Var] -> [SigInfo] -> [Property Void] -> HS a) -> IO a
+processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
 processFile cont = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
@@ -59,11 +58,14 @@ processFile cont = do
 
         callg = idCallGraph (varSetElems vars)
 
+{-
     case isabelle_mode of
         True -> runHS params (Env [] emptyArityMap (const Nothing) (const False))
                    (cont callg sig_infos (error "properties: --isabelle-mode"))
 
         False -> do
+        -}
+    do
             us0 <- mkSplitUniqSupply 'h'
 
             let (binds,_us1) = initUs us0 $ sequence
@@ -105,7 +107,7 @@ processFile cont = do
                 tr_props
                     = sortOn prop_name
                     $ either (error . show)
-                             (map (etaExpandProp . generaliseProp))
+                             (map (etaExpandProp{- . generaliseProp-}))
                              (trProperties props)
 
                 env = Env

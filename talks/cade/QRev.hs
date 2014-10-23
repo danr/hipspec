@@ -3,7 +3,7 @@ module Main where
 import Prelude hiding ((++))
 import Hip.HipSpec
 import Hip.Prelude
-import Test.QuickSpec
+import QuickSpec
 
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)

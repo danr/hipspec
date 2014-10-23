@@ -37,16 +37,18 @@ data DebugFlag
 --    | PrintFunFO
     | PrintPolyFOL
     | LintPolyFOL
-    | PrintProps
-    | PrintDefinitions
-    | PrintCallGraph
-    | PrintAutoSig
-    | DebugAutoSig
     | DebugStrConv
     | DebugMono
-    | PrintEqClasses
     | TranslateOnly
-    | QuickSpecOnly
+    | PrintProps
+
+--    | PrintAutoSig
+--    | DebugAutoSig
+
+--    | PrintCallGraph
+--    | PrintDefinitions
+--    | PrintEqClasses
+--    | QuickSpecOnly
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defStr :: Eq a => a -> [a] -> String
@@ -64,16 +66,18 @@ debugDesc flg = case flg of
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"
     LintPolyFOL      -> "Use alt-ergo to lint Polymorphic FOL"
-    PrintProps       -> "Print properties"
-    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
-    PrintCallGraph   -> "Print the call graph"
-    PrintAutoSig     -> "Print generated signature"
-    DebugAutoSig     -> "Print information about generated signature"
     DebugStrConv     -> "Print string conversions in signature"
     DebugMono        -> "Print monomorphisation debugging"
-    PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
     TranslateOnly    -> "Stop after translating"
-    QuickSpecOnly    -> "Stop after QuickSpec"
+    PrintProps       -> "Print properties"
+
+--    PrintAutoSig     -> "Print generated signature"
+--    DebugAutoSig     -> "Print information about generated signature"
+
+--    PrintCallGraph   -> "Print the call graph"
+--    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
+--    PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
+--    QuickSpecOnly    -> "Stop after QuickSpec"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol
@@ -107,9 +111,11 @@ data Params = Params
 #ifdef SUPPORT_JSON
     , json                :: Maybe FilePath
 #endif
+{-
     , isabelle_mode       :: Bool
     , cond_name           :: String
     , cond_count          :: Int
+-}
 
     , processes           :: Int
     , timeout             :: Double
@@ -123,6 +129,7 @@ data Params = Params
     , techniques          :: [Technique]
     , provers             :: [ProverName]
 
+{-
     , interesting_cands   :: Bool
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
@@ -131,6 +138,7 @@ data Params = Params
     , prepend_pruned      :: Bool
     , assoc_important     :: Bool
     , call_graph          :: Bool
+-}
 
     , auto                :: Bool
     , extra               :: [String]
@@ -159,11 +167,13 @@ data Params = Params
 -- Previously: We cannot have --smt-data-types when using --bottoms.
 sanitizeParams :: Params -> Params
 sanitizeParams
-    = fix_isabelle_mode
-    . fix_stdin
+    = {- fix_isabelle_mode
+    . -} fix_stdin
     . fix_empty_provers
-    . fix_empty_techniques {- . fix_smt_data_types -}
+    . fix_empty_techniques
+ {- . fix_smt_data_types -}
   where
+{-
     fix_isabelle_mode params
         | isabelle_mode params = params
             { debug_flags    = debug_flags params
@@ -172,6 +182,8 @@ sanitizeParams
             , auto           = True
             }
         | otherwise = params
+-}
+
     fix_stdin params
         | any prover_cannot_stdin provers' = params
             { output = if isNothing (output params)
@@ -211,9 +223,9 @@ defParams = Params
 #ifdef SUPPORT_JSON
     , json                = Nothing &= typFile   &= help "File to write statistics to (in json format)"
 #endif
-    , isabelle_mode       = False                &= help "Isabelle mode"
-    , cond_name           = ""                   &= help "Isabelle: pre-condition name"
-    , cond_count          = 1                    &= help "Isabelle: pre-condition count"
+--     , isabelle_mode       = False                &= help "Isabelle mode"
+--     , cond_name           = ""                   &= help "Isabelle: pre-condition name"
+--     , cond_count          = 1                    &= help "Isabelle: pre-condition count"
     , only                = []                   &= help "Only try these user properties (affects --auto)"
     , tr_mod              = False                &= help "Unconditonally translate all module bindings"
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
@@ -248,6 +260,7 @@ defParams = Params
     , isolate             = False   &= name "l" &= help "Do not use user stated properties as lemmas"
     , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
 
+{-
     , interesting_cands   = False   &= groupname "\nEquation ordering"
                                     &= name "i" &= help "Add interesting candidates after theorems"
 
@@ -261,6 +274,7 @@ defParams = Params
     , quadratic           = False   &= name "q" &= help "All pairs of equations"
     , assoc_important     = False               &= help "Associativity is important, try it first"
     , call_graph          = True    &= name "c" &= name "cg" &= help "Sort equations by the call graph (def. on)"
+-}
 
     , inddepth            = 1       &= name "d" &= groupname "\nStructural induction"
                                                 &= help "Maximum depth       (default 1)"

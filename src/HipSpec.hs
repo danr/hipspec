@@ -2,9 +2,9 @@
 module HipSpec
     ( module Test.QuickCheck
     , module Data.Typeable
-    , module Test.QuickSpec.Approximate
-    , module Test.QuickSpec
-    , module Test.QuickSpec.Prelude
+--    , module QuickSpec.Approximate
+--    , module QuickSpec
+--    , module QuickSpec.Prelude
     , Prop
     , (=:=)
     , proveBool
@@ -18,9 +18,9 @@ module HipSpec
     ) where
 
 import Test.QuickCheck hiding ((==>))
-import Test.QuickSpec.Approximate
-import Test.QuickSpec.Prelude (A,B,C)
-import Test.QuickSpec
+-- import QuickSpec.Approximate
+-- import QuickSpec.Prelude (A,B,C)
+-- import QuickSpec
 import Data.Typeable
 
 infix 1 =:=
@@ -71,6 +71,7 @@ class Names a where
 instance Names a => Names [a] where
     names ~[x] = map (++ "s") (names x)
 
+{-
 instance Names A where
     names _ = ["x","y","z"]
 
@@ -79,6 +80,7 @@ instance Names B where
 
 instance Names C where
     names _ = ["r","s","t"]
+    -}
 
 instance Names Bool where
     names _ = ["a","b","c"]

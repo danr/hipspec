@@ -2,6 +2,7 @@
 module Concat where
 
 import Prelude hiding ((++),length,(+),map,sum,concat)
+import QuickSpec hiding (S)
 import HipSpec
 
 length :: [a] -> Nat
@@ -18,10 +19,32 @@ sum (x:xs) = x + sum xs
 
 concat :: [[a]] -> [a]
 concat xss = [ x | xs <- xss, x <- xs ]
+-- concat (xs:xss) = xs ++ concat xss
+-- concat [] = []
 
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
 
+sig :: Signature
+sig = signature
+    { constants =
+        [ constant "Z" Z
+        , (constant "S" S) { conStyle = Uncurried }
+        , constant "+" (+)
+        , constant "length" (length :: [A] -> Nat)
+        , constant "map" (map :: (A -> B) -> [A] -> [B])
+        , constant "concat" (concat :: [[A]] -> [A])
+        , constant "++" ((++) :: [A] -> [A] -> [A])
+        , constant ":" ((:) :: A -> [A] -> [A])
+        , constant "[]" ([] :: [A])
+        , constant "sum" sum
+        ]
+    , instances = [ baseType (undefined :: Nat) ]
+    }
+
+
+
+{-
 sig :: [Sig]
 sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
       , vars ["x", "y", "z"]          (undefined :: A)
@@ -61,6 +84,7 @@ sig = [ vars ["m", "n", "o"]          (undefined :: Nat)
       , fun1 "concat"           (concat :: [[A]] -> [A])
       , fun1 "concat"           (concat :: [[[A]]] -> [[A]])
       ]
+      -}
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
 

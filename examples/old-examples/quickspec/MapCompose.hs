@@ -1,6 +1,6 @@
 module Main where
 
-import Test.QuickSpec
+import QuickSpec
 
 -- Desired property : map (f . g) xs == map f (map g xs), not found
 

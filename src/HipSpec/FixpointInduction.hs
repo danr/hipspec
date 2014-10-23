@@ -82,7 +82,7 @@ callConst i ts = Gbl name ty ts
 
 type Rec a = (a,PolyType a,[Type a])
 
-fixpointInduction :: Params -> ArityMap -> (Id -> Bool) -> Property eq -> [[ProofObligation eq]]
+fixpointInduction :: Params -> ArityMap -> (Id -> Bool) -> Property -> [[ProofObligation]]
 fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,ignore)) =
     [ [ Obligation
         { ob_prop = prop

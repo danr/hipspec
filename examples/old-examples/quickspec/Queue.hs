@@ -7,7 +7,7 @@ import Data.Function
 import Data.Typeable
 
 import Test.QuickCheck 
-import Test.QuickSpec hiding (size)
+import QuickSpec hiding (size)
 import Hip.HipSpec hiding (size)
 
 -- Invariant : front is never empty unless back also is

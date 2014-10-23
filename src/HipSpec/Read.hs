@@ -3,23 +3,22 @@
 {-# LANGUAGE RecordWildCards, NamedFieldPuns, CPP #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
-import Test.QuickSpec.Signature (Sig)
+import QuickSpec.Signature (Signature)
 
 import HipSpec.ParseDSL
 
 import Data.List.Split (splitOn)
 
 import HipSpec.Sig.Resolve
-import HipSpec.Sig.Make
+-- import HipSpec.Sig.Make
 import HipSpec.Sig.Get
-import HipSpec.Sig.Symbols
 
 import HipSpec.Params
 
 import CoreSyn (flattenBinds)
 import CoreMonad (liftIO)
 import DynFlags
-import GHC hiding (Sig)
+import GHC
 import GHC.Paths
 import HscTypes
 #if __GLASGOW_HASKELL__ < 708
@@ -53,9 +52,8 @@ data EntryResult = EntryResult
 
 -- | Signature from QuickSpec
 data SigInfo = SigInfo
-    { sig          :: Sig
+    { sig          :: Signature
     , resolve_map  :: ResolveMap
-    , symbol_map   :: SymbolMap
     , cond_id      :: Maybe Id
     , cond_mono_ty :: Maybe Type
     }
@@ -125,8 +123,8 @@ execute params@Params{..} = do
         -- Set the context for evaluation
         setContext $
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
-            , IIDecl (qualifiedImport "Test.QuickSpec.Signature")
-            , IIDecl (qualifiedImport "Test.QuickSpec.Prelude")
+--            , IIDecl (qualifiedImport "QuickSpec.Signature")
+--            , IIDecl (qualifiedImport "QuickSpec.Prelude")
             , IIDecl (qualifiedImport "Test.QuickCheck")
             , IIDecl (qualifiedImport "GHC.Types")
             , IIDecl (qualifiedImport "Prelude")
@@ -150,27 +148,22 @@ execute params@Params{..} = do
                 ]
 
         -- Make or get signature
-        cond_id <- findCondId params
+        cond_id <- return Nothing -- findCondId params
 
         (sigs,cond_mono_ty) <-
             if TranslateOnly `elem` debug_flags
             then return ([],Nothing)
-            else if auto
+            else {- if auto
             then makeSignature params cond_id props
-            else fmap (flip (,) Nothing . maybeToList) getSignature
+            else -} fmap (flip (,) Nothing . maybeToList) getSignature
 
         -- Make signature map
         --
         -- The extra_ids comes from --extra and --extra-trans fields from
         -- the auto signature generation
         (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ sig -> do
-            resolve_map <- makeResolveMap params sig
-            let symbol_map = makeSymbolMap resolve_map sig
-                (ids,tcs) = case resolve_map of
-                    ResolveMap m n -> (M.elems m,M.elems n)
-
-            whenFlag params DebugStrConv (liftIO (putStrLn (show symbol_map)))
-
+            resolve_map@(ResolveMap m n) <- makeResolveMap params sig
+            let (ids,tcs) = (map fst (M.elems m),M.elems n)
             return (SigInfo{..},ids,tcs)
 
         let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
@@ -185,6 +178,7 @@ execute params@Params{..} = do
             , extra_tcs = concat extra_tcs
             }
 
+{-
 findCondId :: Params -> Ghc (Maybe Id)
 findCondId Params{cond_name} = case cond_name of
     "" -> return Nothing
@@ -193,7 +187,7 @@ findCondId Params{cond_name} = case cond_name of
         case tyth of
             AnId i:_ -> return (Just i)
             _        -> error $ "Predicate " ++ cn ++ " is not an identifier!"
-
+-}
 
 findModuleSum :: FilePath -> [ModSummary] -> ModSummary
 findModuleSum file

@@ -10,7 +10,7 @@ import HipSpec.Lang.PolyFOL as P
 import HipSpec.Lang.ToPolyFOL
 -- import HipSpec.Lang.Simple
 
-trLemma :: ArityMap -> Int -> Property eq -> Subtheory
+trLemma :: ArityMap -> Int -> Property -> Subtheory
 trLemma am i Property{..} = calcDeps subtheory
     { defines = Lemma i
     , clauses = [clause]

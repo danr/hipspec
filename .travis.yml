@@ -17,7 +17,7 @@ before_install:
     - sudo apt-get install cvc4 --force-yes
     - sudo apt-get install alt-ergo spass
     - git clone https://github.com/nick8325/quickcheck.git
-    - git clone https://github.com/nick8325/quickspec.git
+    - git clone https://github.com/nick8325/quickspec.git --branch v2
     - cabal install quickspec/ quickcheck/ . --only-dependencies
     - cabal install quickspec/ quickcheck/
 

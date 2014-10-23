@@ -41,7 +41,7 @@ import Control.Monad
 import Jukebox.Toolbox (encodeString)
 
 -- | Try to prove a property, given some lemmas
-tryProve :: forall eq . Property eq -> [Theorem eq] -> HS (Maybe (Theorem eq))
+tryProve :: Property -> [Theorem] -> HS (Maybe Theorem)
 tryProve prop lemmas0 = do
 
     Params{..} <- getParams
@@ -116,7 +116,7 @@ tryProve prop lemmas0 = do
             fetch_and_linearise conj = linTheory $
                 conj : lemma_theories ++ fetcher (calc_dependencies conj)
 
-        proof_tree_lin :: Tree (Obligation eq LinTheory) <-
+        proof_tree_lin :: Tree (Obligation LinTheory) <-
             traverse (traverse fetch_and_linearise) proof_tree
 
         let invoke_env = InvokeEnv
@@ -127,7 +127,7 @@ tryProve prop lemmas0 = do
                 , z_encode        = z_encode_filenames
                 }
 
-        results :: [Obligation eq Result] <- invokeATPs proof_tree_lin invoke_env
+        results :: [Obligation Result] <- invokeATPs proof_tree_lin invoke_env
 
         forM_ results $ \ Obligation{..} -> do
             let (prover,res) = ob_content
@@ -143,7 +143,7 @@ tryProve prop lemmas0 = do
                         }
                 _ -> return ()
 
-        let lemma_lkup :: Int -> Property eq
+        let lemma_lkup :: Int -> Property
             lemma_lkup = fromJust . flip lookup enum_lemmas
 
             res = resultsForProp lemma_lkup results prop
@@ -166,9 +166,7 @@ tryProve prop lemmas0 = do
 
         return res
 
-resultsForProp :: forall eq . (Int -> Property eq)
-               -> [Obligation eq Result] -> Property eq
-               -> Maybe (Theorem eq)
+resultsForProp :: (Int -> Property) -> [Obligation Result] -> Property -> Maybe Theorem
 resultsForProp lemma_lkup results prop = case proofs of
     []    -> Nothing
     grp:_ -> case take 1 grp of
@@ -202,10 +200,10 @@ resultsForProp lemma_lkup results prop = case proofs of
                     , isSuccess (snd ob_content)
                ]
 
-    proofs :: [[Obligation eq Result]]
+    proofs :: [[Obligation Result]]
     proofs = filter check $ groupSortedOn (resType . ob_info) results'
 
-    check :: [Obligation eq Result] -> Bool
+    check :: [Obligation Result] -> Bool
     check grp@(Obligation _ (ObInduction _ _ nums _ _) _:_) =
         all (\ n -> any ((n ==) . ind_num . ob_info) grp) [0..nums-1]
     check grp@(Obligation _ (ObFixpointInduction{}) _:rs) = length grp == 2 && length (nub (map (fpi_step . ob_info) grp)) == 2

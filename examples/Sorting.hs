@@ -4,9 +4,9 @@ module Sorting where
 import Prelude (Bool(..),undefined,Ordering(..), (&&), otherwise, not, fmap, Eq, Ord)
 import HipSpec
 import Nat
-import Test.QuickSpec.Signature
-import Test.QuickSpec
-import Test.QuickSpec.Prelude
+import QuickSpec.Signature
+import QuickSpec
+import QuickSpec.Prelude
 import Test.QuickCheck hiding ((==>))
 import GHC.Types
 import Data.Typeable

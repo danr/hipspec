@@ -7,7 +7,7 @@ module HipSpec.Property
     , Origin(..)
     , mapLiteral
     , Property(..)
-    , propEquation
+--    , propEquation
     , isUserStated
     , isFromQS
     , trProperty
@@ -16,12 +16,14 @@ module HipSpec.Property
     , etaExpandProp
     , varsFromCoords
     , lintProperty
-    , generaliseProp
+--    , generaliseProp
     , maybePropRepr
     , cgSortProps
     , equalsTrue
     , boolifyProperty
     ) where
+
+import qualified QuickSpec.Prop as QS
 
 import Control.Monad.Error
 
@@ -32,9 +34,6 @@ import HipSpec.Lang.Simple as S
 -- import HipSpec.Lang.PrettyRich as R
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
-
-import HipSpec.Unify
-import Control.Unification
 
 -- import Text.PrettyPrint hiding (comma)
 
@@ -53,8 +52,6 @@ import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
 
 import Data.List (intercalate,union)
 import Data.Maybe (mapMaybe)
-
-import Data.Void
 
 import qualified HipSpec.Lang.PolyFOL as P
 import qualified HipSpec.Lang.ToPolyFOL as P
@@ -80,20 +77,20 @@ instance Show Literal where
     show (e1 :=: e2) = showExpr e1 ++ " = " ++ showExpr e2
 
 -- | Origins of properties
-data Origin eq
-    = Equation eq
+data Origin
+    = QSProp QS.Prop
     -- ^ A QuickSpec equation
     | UserStated
     -- ^ User-stated property
-  deriving (Eq,Ord,Functor)
+  deriving (Eq,Ord)
 
 -- | Properties
-data Property eq = Property
+data Property = Property
     { prop_name     :: String
     -- ^ Name (e.g. prop_rotate)
     , prop_id       :: Id
     -- ^ Its property id...
-    , prop_origin   :: Origin eq
+    , prop_origin   :: Origin
     -- ^ Origin of the property
     , prop_tvs      :: [Id]
     -- ^ Type variables
@@ -108,24 +105,23 @@ data Property eq = Property
     , prop_var_repr :: [String]
     -- ^ Representation of variables (e.g ["xs"])
     }
-  deriving Functor
 
-isUserStated :: Property eq -> Bool
+isUserStated :: Property -> Bool
 isUserStated p = case prop_origin p of
     UserStated -> True
     _          -> False
 
-isFromQS :: Property eq -> Bool
+isFromQS :: Property -> Bool
 isFromQS p = case prop_origin p of
-    Equation{} -> True
+    QSProp{} -> True
     _          -> False
 
-instance Show (Origin eq) where
+instance Show Origin where
     show o = case o of
-        Equation{} -> "equation from QuickSpec"
+        QSProp{}   -> "property from QuickSpec"
         UserStated -> "user stated"
 
-instance Show (Property eq) where
+instance Show (Property) where
     show Property{..} = concatMap (++ "\n    ")
         [ "Property"
         , "{ prop_name = " ++ prop_name
@@ -158,11 +154,11 @@ instance Show Err where
         PropertyWithCase b  -> "Property with a case: " ++ showBody b
         Internal s          -> s
 
-trProperties :: [S.Function Id] -> Either Err [Property Void]
+trProperties :: [S.Function Id] -> Either Err [Property]
 trProperties = mapM trProperty
 
 -- | Translates a property that has been translated to a simple function earlier
-trProperty :: S.Function Id -> Either Err (Property Void)
+trProperty :: S.Function Id -> Either Err Property
 trProperty (S.Function p (Forall tvs ty) args b) = case b of
     Just (c@Case{}) -> throwError (PropertyWithCase c)
     Nothing         -> error "Inconceivable, property with abstract body"
@@ -187,7 +183,7 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
             }
 
 -- | Initialises the prop_repr and prop_var_repr fields
-initFields :: Property eq -> Property eq
+initFields :: Property -> Property
 initFields p@Property{..} = evalRenameM (disambig originalId) [] $ do
     vars' <- insertMany (map fst prop_vars)
     goal:assums <- mapM show_lit (prop_goal:prop_assums)
@@ -205,7 +201,7 @@ initFields p@Property{..} = evalRenameM (disambig originalId) [] $ do
 
 -- | Splits a == b to a == True ==> b == True and b == True ==> a == True
 --   for boolean properties
-boolifyProperty :: Property eq -> [Property eq]
+boolifyProperty :: Property -> [Property]
 boolifyProperty prop@Property{..} = case prop_goal of
   lhs :=: rhs -> case S.exprType lhs of
     TyCon tc [] | tc == idFromTyCon boolTyCon, notConstant lhs, notConstant rhs ->
@@ -221,7 +217,7 @@ notConstant :: S.Expr Id -> Bool
 notConstant (Gbl a _ []) = a `notElem` map idFromDataCon [trueDataCon,falseDataCon]
 notConstant _            = True
 
-copyReprToName :: Property eq -> Property eq
+copyReprToName :: Property -> Property
 copyReprToName p@Property{..} = p { prop_name = prop_repr }
 
 -- | Tries to "parse" a property in the simple expression format
@@ -247,7 +243,7 @@ equalsTrue l = l :=: true
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore
-tvSkolemProp :: Property eq -> (Property eq,[P.Clause LogicId LogicId],[Content])
+tvSkolemProp :: Property -> (Property,[P.Clause LogicId LogicId],[Content])
 tvSkolemProp p@Property{..} =
     ( p
         { prop_tvs  = []
@@ -275,7 +271,7 @@ tvSkolemProp p@Property{..} =
     sk_lit     = mapLiteral expr_subst
 
 -- | Eta-expands a property, if possible
-etaExpandProp :: Property eq -> Property eq
+etaExpandProp :: Property -> Property
 etaExpandProp p@Property{..}
     | e :=: _ <- prop_goal
     , (ts,_res_ty) <- collectArrTy (S.exprType e)
@@ -289,17 +285,19 @@ etaExpandProp p@Property{..}
 etaExpandProp p = p
 
 -- | String representation of the variables at these coordinates
-varsFromCoords :: Property eq -> [Int] -> [String]
+varsFromCoords :: Property -> [Int] -> [String]
 varsFromCoords p cs = [ prop_var_repr p !! c | c <- cs ]
 
+{-
 -- | Maybe the QuickSpec equation this originated from
-propEquation :: Property eq -> Maybe eq
+propEquation :: Property -> Maybe QS.Prop
 propEquation p = case prop_origin p of
-    Equation eq -> Just eq
-    _           -> Nothing
+    Prop eq -> Just eq
+    _       -> Nothing
+    -}
 
 -- | Lint pass on a property
-lintProperty :: Property eq -> Maybe String
+lintProperty :: Property -> Maybe String
 lintProperty prop@Property{..} =
     case concatMap (lintLiteral prop_vars) (prop_goal:prop_assums) of
         []   -> Nothing
@@ -325,8 +323,9 @@ lintLiteral sc lit@(e1 :=: e2) = ty_err ++ lint_errs
 
     lint_err e = "Lint error in literal\n\t" ++ show lit ++ ":\n" ++ e
 
+{-
 -- | Generalise a property
-generaliseProp :: Property eq -> Property eq
+generaliseProp :: Property -> Property
 generaliseProp prop@Property{..}
     = case res of
         Right (vs,goal:assums) ->
@@ -360,16 +359,17 @@ generaliseProp prop@Property{..}
 
     un_u (Fresh i) = GenTyVar `Derived` (toInteger i - toInteger (minBound :: Int))
     un_u (U a) = a
+    -}
 
-maybePropRepr :: Property eq -> Maybe String
+maybePropRepr :: Property -> Maybe String
 maybePropRepr prop
     | isUserStated prop = Just (prop_repr prop)
     | otherwise         = Nothing
 
-propertyGbls :: Property eq -> [Id]
+propertyGbls :: Property -> [Id]
 propertyGbls = literalGbls . prop_goal
 
-cgSortProps :: Map Var [Var] -> [Property eq] -> [Property eq]
+cgSortProps :: Map Var [Var] -> [Property] -> [Property]
 cgSortProps callg = concat . sortByGraph callg' propertyGbls
   where
     callg' = M.fromList [ (idFromVar i,map idFromVar is) | (i,is) <- M.toList callg ]

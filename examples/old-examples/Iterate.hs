@@ -3,7 +3,7 @@ module Iterate where
 import Prelude (fmap,undefined,error,Eq,Ord)
 
 import HipSpec.Prelude
-import Test.QuickSpec.Signature hiding (total)
+import QuickSpec.Signature hiding (total)
 
 import List
 

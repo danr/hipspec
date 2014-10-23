@@ -3,7 +3,7 @@ module Nichomachus where
 import Prelude (error)
 import Nat hiding (sig)
 import HipSpec
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 
 sum :: Nat -> Nat
 sum Z     = Z

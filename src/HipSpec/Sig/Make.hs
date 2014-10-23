@@ -19,7 +19,7 @@ import HipSpec.GHC.Calls
 import HipSpec.Params
 import HipSpec.Utils
 
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 
 import Control.Monad
 import Outputable
@@ -79,7 +79,7 @@ makeSignature p@Params{..} cond_id prop_ids = do
 
     let a_ty = case m_a_ty of
             Just ty -> ty
-            Nothing -> error "Test.QuickSpec.Prelude.A not in scope!"
+            Nothing -> error "QuickSpec.Prelude.A not in scope!"
 
         mono = monomorphise a_ty
 
@@ -103,7 +103,7 @@ makeSignature p@Params{..} cond_id prop_ids = do
 getA :: Ghc (Maybe Type)
 getA = do
 
-    a_things <- lookupString "Test.QuickSpec.Prelude.A"
+    a_things <- lookupString "QuickSpec.Prelude.A"
 
     return $ listToMaybe
         [ mkTyConTy tc
@@ -163,7 +163,7 @@ stringVarDesc Params{..} (VarDesc xs t)
         , ")"
         ]
     | otherwise = unwords $
-        [ "Test.QuickSpec.Signature.gvars'", "[" ] ++
+        [ "QuickSpec.Signature.gvars'", "[" ] ++
         [ intercalate ","
             [ unwords $
                 ["(", show ([ '`' | isJust m_cond ] ++ nm), ","] ++
@@ -212,7 +212,7 @@ makeSigFrom p@Params{..} ids mono cond_info = do
             ]
 
     let fun | isabelle_mode = "obs"
-            | otherwise = "Test.QuickSpec.Signature.fun"
+            | otherwise = "QuickSpec.Signature.fun"
         entries =
             [ unwords
                 [ fun ++ show (varArity mono i)
@@ -227,9 +227,9 @@ makeSigFrom p@Params{..} ids mono cond_info = do
             , not isabelle_mode || varToString i /= "Default" -- Don't add the default constructor
             ]
             ++ map (stringVarDesc p) var_desc ++
-            [ "Test.QuickSpec.Signature.withTests " ++ show tests
-            , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
-            , "Test.QuickSpec.Signature.withSize " ++ show size
+            [ "QuickSpec.Signature.withTests " ++ show tests
+            , "QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
+            , "QuickSpec.Signature.withSize " ++ show size
             ]
 
         expr_str x = "signature [" ++ intercalate x (map rmNewlines entries) ++ "]"

@@ -3,7 +3,7 @@ module Arrays where
 
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),return,otherwise,undefined,zip)
 import HipSpec.Prelude
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 import Test.QuickCheck.All
 import Data.List (delete)
 

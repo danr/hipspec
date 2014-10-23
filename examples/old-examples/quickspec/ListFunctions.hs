@@ -1,6 +1,6 @@
 module Main where
 
-import Test.QuickSpec
+import QuickSpec
 
 -- This finds the weirdest properties, like
 -- zipWith k xs ys = zipWith k ys xs

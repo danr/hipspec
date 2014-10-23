@@ -24,7 +24,7 @@ import qualified Induction.Structural as IS
 import Control.Monad
 import Data.Maybe (isJust)
 
-induction :: Params -> TyEnv' -> ArityMap -> Property eq -> [Int] -> Maybe [ProofObligation eq]
+induction :: Params -> TyEnv' -> ArityMap -> Property -> [Int] -> Maybe [ProofObligation]
 induction Params{indhyps,indobligs} ty_env am (tvSkolemProp -> (prop@Property{..},sorts,ignore)) coords = do
     -- Applying structural induction
     let obligs   = subtermInduction ty_env prop_vars coords

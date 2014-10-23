@@ -3,7 +3,7 @@ module Nicomachus where
 
 import Prelude hiding ((+),(*))
 import HipSpec.Prelude
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
 

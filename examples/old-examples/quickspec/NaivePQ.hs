@@ -7,7 +7,7 @@ import Data.Function
 import Data.Typeable
 import Control.Applicative hiding (empty)
 
-import Test.QuickSpec hiding (size)
+import QuickSpec hiding (size)
 import Test.QuickCheck 
 
 data PQ = PQ { toList :: [Int] }

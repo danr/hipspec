@@ -4,7 +4,7 @@ module Main where
 import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),undefined,Int,return)
 -- import AutoPrelude
 import Hip.HipSpec
-import Test.QuickSpec
+import QuickSpec
 import Data.Typeable
 import Test.QuickCheck hiding (Prop)
 

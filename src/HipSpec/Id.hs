@@ -13,6 +13,10 @@ import TyCon (tyConName,TyCon)
 import DataCon (dataConName,DataCon)
 import Data.Char (toUpper)
 
+import qualified QuickSpec.Term as QS
+import qualified QuickSpec.Type as QS
+import qualified QuickSpec.Base as QS -- (prettyShow)
+
 idFromName :: Name -> Id
 idFromName = GHCOrigin
 
@@ -37,7 +41,9 @@ tryGetGHCName _              = Nothing
 
 data Id
     = GHCOrigin Name
-    | QSOrigin String Integer
+    | QSVariable QS.Variable
+    | QSTyVar QS.TyVar
+    | QSPropId Integer
     | Derived Derived Integer
     | Const Int Int
   deriving (Eq,Ord,Show)
@@ -69,7 +75,8 @@ mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 originalId :: Id -> String
 originalId i = case i of
     GHCOrigin nm  -> getOccString nm
-    QSOrigin s _  -> s
+    QSVariable v  -> QS.prettyShow v
+    QSTyVar tv    -> QS.prettyShow tv
     Const 0 2     -> "const"
     Const i j     -> "const_" ++ show i ++ "_" ++ show j
     Derived d _   -> case d of
@@ -89,7 +96,8 @@ originalId i = case i of
 ppId :: Id -> String
 ppId i = case i of
     GHCOrigin nm  -> ppName nm
-    QSOrigin s _  -> s
+    QSVariable v  -> QS.prettyShow v
+    QSTyVar tv    -> QS.prettyShow tv
     Derived d x   -> ppDerived x d
     Const 0 2     -> "const"
     Const i j     -> "const_" ++ show i ++ "_" ++ show j

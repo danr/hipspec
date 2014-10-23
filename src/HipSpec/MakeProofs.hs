@@ -14,7 +14,7 @@ import HipSpec.Monad
 import Data.Maybe (mapMaybe)
 import Control.Monad (filterM)
 
-makeProofs :: forall eq . Property eq -> HS [[ProofObligation eq]]
+makeProofs :: Property -> HS [[ProofObligation]]
 makeProofs prop@Property{prop_vars} = do
 
     params@Params{techniques,indvars,inddepth} <- getParams

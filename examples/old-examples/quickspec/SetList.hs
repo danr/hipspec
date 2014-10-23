@@ -6,7 +6,7 @@ import Data.Function
 import qualified Data.List as L
 
 import Test.QuickCheck
-import Test.QuickSpec
+import QuickSpec
 
 import Control.Applicative hiding (empty)
 

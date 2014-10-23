@@ -7,7 +7,7 @@ import Data.Typeable
 
 import HipSpec
 import HipSpec.Prelude
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 
 id :: a -> a
 id x = x

@@ -3,6 +3,7 @@ module Nat where
 
 import Prelude hiding ((+),(*))
 import HipSpec
+import QuickSpec hiding (S)
 import Data.Typeable
 
 data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
@@ -31,3 +32,16 @@ instance Arbitrary Nat where
 
 instance Names Nat where
   names _ = ["m","n","o"]
+
+sig :: Signature
+sig = signature
+    { constants =
+        [ constant "Z" Z
+        , (constant "S" S) { conStyle = Uncurried }
+        , constant "+" (+)
+        , constant "*" (*)
+        ]
+    , instances = [ baseType (undefined :: Nat) ]
+    }
+
+

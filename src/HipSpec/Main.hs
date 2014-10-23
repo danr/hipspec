@@ -1,22 +1,8 @@
 {-# LANGUAGE RecordWildCards, NamedFieldPuns, DoAndIfThenElse, ViewPatterns, CPP, PatternGuards #-}
 module Main where
 
-import Test.QuickSpec.Main (prune)
-import Test.QuickSpec.Term (totalGen,Term,Expr,term,funs,Symbol)
-import Test.QuickSpec.Equation (Equation(..), equations, TypedEquation(..), eraseEquation)
-import Test.QuickSpec.Generate
-import Test.QuickSpec.Signature
-import Test.QuickSpec.Utils.Typed
--- import Test.QuickSpec.TestTotality
-import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
-import qualified Test.QuickSpec.TestTree as TestTree
-
-import qualified Test.QuickSpec.Reasoning.NaiveEquationalReasoning as NER
--- import qualified Test.QuickSpec.Reasoning.PartialEquationalReasoning as PER
-
-import HipSpec.Reasoning
-
-import Data.Void
+import QuickSpec.Eval
+import QuickSpec.Rules
 
 import HipSpec.Params (SuccessOpt(..))
 
@@ -27,11 +13,7 @@ import HipSpec.Init
 import HipSpec.Monad hiding (equations)
 import HipSpec.MainLoop
 
-import HipSpec.Heuristics.Associativity
-import HipSpec.Heuristics.CallGraph
 import HipSpec.Utils
-
-import HipSpec.Sig.Definitions
 
 import Prelude hiding (read)
 
@@ -52,78 +34,35 @@ import qualified Data.ByteString.Lazy as B
 
 import System.Exit (exitSuccess,exitFailure)
 
+import Control.Concurrent.STM
+import Control.Monad.IO.Class
+import Control.Concurrent
+
+populateChan :: MonadIO m => TChan a -> [a] -> m ()
+populateChan ch = liftIO . atomically . mapM_ (writeTChan ch)
+
 main :: IO ()
 main = processFile $ \ callg m_sig_info user_props -> do
     writeMsg FileProcessed
 
     exit_act <- case m_sig_info of
 
-        [] -> snd <$> runMainLoop NoCC user_props []
+        [] -> do
+            ch <- liftIO newTChanIO
+            populateChan ch (map Just user_props ++ [Nothing])
+            runMainLoop ch []
 
-        sig_info@SigInfo{..}:sig_infos -> do
+        sig_info@SigInfo{..}:_sig_infos -> do
 
-            Params{explore_theory,user_stated_first,call_graph,isabelle_mode,expand_boolprops} <- getParams
+            Params{expand_boolprops} <- getParams
 
-            (init_qsconjs,reps,classes) <- runQuickSpec sig_info
+            ch <- runQuickSpec sig_info
 
-            extra_conjs <- concatMapM (fmap (\ (q,_,_) -> q) . runQuickSpec) sig_infos
+            -- let callg_sort = if call_graph then cgSortProps callg else id
 
-            let drop_precond s = case splitOn " ==> " s of
-                    [_,post] -> post
-                    _        -> s
+            populateChan ch (map Just user_props)
 
-                qsconjs = callg_sort
-                    $ nubBy ((==) `on` drop_precond . prop_repr)
-                    $ init_qsconjs ++
-                      [ p { prop_origin = UserStated }
-                      | p <- extra_conjs, not (null (prop_assums p))
-                      ]
-
-                callg_sort = if call_graph then cgSortProps callg else id
-
-                (~+) | user_stated_first = flip (++)
-                     | otherwise         = (++)
-
-            let ctx_init = NER.initial (maxDepth sig) (symbols sig) reps
-
-            Env{theory} <- getEnv
-
-            let def_eqs = definitions theory symbol_map
-
-                ctx_with_def = execEQR ctx_init (mapM_ unify def_eqs)
-
-            when isabelle_mode $ do
-                liftIO $ do
-                    mapM_ putStrLn
-                        $ map prop_repr
-                        $ filter (maybe True (not . evalEQR ctx_with_def . equal) . propEquation)
-                        $ qsconjs
-                    exitSuccess
-
-            mapM_ (checkLint . lintProperty) qsconjs
-
-            debugWhen PrintProps $ "\nQuickSpec Properties:\n" ++
-                unlines (map show qsconjs)
-
-            debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
-                unlines (map show def_eqs)
-
-
-            (ctx_final,exit_act) <- runMainLoop ctx_with_def
-              (concatMap (if expand_boolprops then boolifyProperty else return)
-                         (qsconjs ~+ map vacuous user_props))
-              []
-
-            when explore_theory $ do
-                let pruner   = prune ctx_init (map erase reps) id
-                    provable = evalEQR ctx_final . equal
-                    explored_theory
-                        = filter (not . evalEQR ctx_with_def . equal)
-                        $ pruner $ filter provable
-                        $ map (some eraseEquation) (equations classes)
-                writeMsg $ ExploredTheory $ map (showEquation sig) explored_theory
-
-            return exit_act
+            runMainLoop ch []
 
 #ifdef SUPPORT_JSON
     Params{json} <- getParams
@@ -135,16 +74,14 @@ main = processFile $ \ callg m_sig_info user_props -> do
         Nothing -> return ()
 #endif
 
-    vacuous exit_act
+    exit_act
 
-runMainLoop :: EQR eq ctx cc => ctx -> [Property eq] -> [Theorem eq] -> HS (ctx,HS Void)
-runMainLoop ctx_init initial_props initial_thms = do
+runMainLoop :: TChan (Maybe Property) -> [Theorem] -> HS (HS ())
+runMainLoop ch initial_thms = do
 
     params@Params{only_user_stated,success,file} <- getParams
 
-    whenFlag params QuickSpecOnly (liftIO exitSuccess)
-
-    (theorems,conjectures,ctx_final) <- mainLoop ctx_init initial_props initial_thms
+    (theorems,conjectures) <- mainLoop ch initial_thms
 
     let showProperties ps = [ (prop_name p,maybePropRepr p) | p <- ps ]
         theorems' = map thm_prop
@@ -174,12 +111,26 @@ runMainLoop ctx_init initial_props initial_thms = do
                     else putStrLn "fail" >> exitFailure
             CleanRun -> exitSuccess
 
-    return (ctx_final,exit_act)
+    return exit_act
 
-runQuickSpec :: SigInfo -> HS ([Property Equation],[Tagged Term],[Several Expr])
+runQuickSpec :: SigInfo -> HS (TChan (Maybe Property))
 runQuickSpec sig_info@SigInfo{..} = do
 
     params@Params{..} <- getParams
+
+    ch <- liftIO newTChanIO
+
+    liftIO $ forkIO $ runM sig $ do
+        rule $ do
+            Found p <- event
+            execute $ liftIO (atomically (writeTChan ch (Just (trProp params sig_info 0 p))))
+        quickSpecLoop sig
+        -- send finished:
+        liftIO (atomically (writeTChan ch Nothing))
+
+    return ch
+
+    {-
 
     let callg = transitiveCallGraph resolve_map
 
@@ -187,105 +138,5 @@ runQuickSpec sig_info@SigInfo{..} = do
         [ show s ++ " calls " ++ show ss
         | (s,ss) <- M.toList callg
         ]
-
-    r <- liftIO $ generate isabelle_mode (const totalGen) sig
-                        -- shut up if we're on isabelle mode
-
-    let classes = concatMap (some2 (map (Some . O) . TestTree.classes)) (TypeMap.toList r)
-        eq_order eq = (assoc_important && not (eqIsAssoc eq), eq)
-        swapEq (t :=: u) = u :=: t
-
-        equations' :: [Several Expr] -> [Some TypedEquation]
-        equations' = concatMap (several (map Some . toEquations))
-
-        -- all the symbols this term calls, transitively
-        term_calls :: Expr a -> [Symbol]
-        term_calls e
-            = nubSorted
-            . concat
-            . mapMaybe (`M.lookup` callg)
-            . funs . term $ e
-
-        eq_calls :: TypedEquation a -> [Symbol]
-        eq_calls (e1 :==: e2) = nubSorted (term_calls e1 ++ term_calls e2)
-
-        -- Nick says that we added this when translating the equivalence
-        -- classes to equations. For each non-representative, we try to
-        -- pick a representative that calls only functions called by the
-        -- non-representative, otherwise at least try to minimize the
-        -- set of extra functions it calls.
-        toEquations :: [Expr a] -> [TypedEquation a]
-        toEquations es@(x:xs)
-            | call_graph = [ toEquation y (reverse ys)
-                           | y:ys <- tails (reverse es)
-                           , not (null ys)
-                           ]
-            | otherwise = [ y :==: x | y <- xs ]
-        toEquations [] = error "HipSpec.toEquations internal error"
-
-        toEquation :: Expr a -> [Expr a] -> TypedEquation a
-        toEquation e rcs = foldr1 best (map (e :==:) rcs)
-          where
-            -- invariant: eq1 < eq2 wrt equation size
-            best eq1 eq2
-                -- eq1 is clearly the right representative,
-                -- no new functions called by representative
-                | eq_calls eq1 == term_calls e             = eq1
-                | eq_calls eq2 `isSupersetOf` eq_calls eq1 = eq1
-                | otherwise                                = eq2
-
-        cmp = comparing (eq_order . (swap_repr ? swapEq))
-
-        classToEqs :: [Several Expr] -> [Some TypedEquation]
-        classToEqs
-            | quadratic = concatMap ( several (map (Some . uncurry (:==:))
-                                    . uniqueCartesian))
-            | otherwise = equations'
-
-        ctx_init  = NER.initial (maxDepth sig) (symbols sig) reps
-
-        reps = map (some2 (tagged term . head)) classes
-
-        pruner    = prune ctx_init (map erase reps) (some eraseEquation)
-        prunedEqs = pruner (equations classes)
-        eqs       = prepend_pruned ? (prunedEqs ++)
-                  $ sortBy (cmp `on` some eraseEquation)
-                  $ classToEqs classes
-
-    debugWhen PrintEqClasses $ "\nEquivalence classes:\n" ++ unlines
-        (map (show . several (map term)) classes)
-
-    writeMsg $ QuickSpecDone (length classes) (length eqs)
-
-{-
-    when isabelle_mode $ do
-        Env{theory} <- getEnv
-        let def_eqs  = definitions theory symbol_map
-            ctx_defs = execEQR ctx_init (mapM_ unify def_eqs)
---            pruner'  = prune ctx_init (map erase reps) (some eraseEquation)
-        debugWhen PrintDefinitions $ "\nDefinitions as QuickSpec Equations:\n" ++
-            unlines (map show def_eqs)
-        liftIO $ do
-            mapM_ putStrLn
-                $ nub
-                $ map isabelleShowPrecondition
-                $ filter (\(pre, _) -> length pre == cond_count)
-                $ concatMap isabelleFilterEquations
-                $ groupBy ((==) `on` snd)
-                $ sortBy (comparing snd)
-                $ map (isabelleShowEquation cond_name sig)
-      --          $ map show
-                $ filter (not . evalEQR ctx_defs . equal)
-                $ map (some eraseEquation) eqs -- prunedEqs
-            exitSuccess
-            -}
-
-    let conjs =
-            [ (etaExpandProp . generaliseProp . eqToProp params sig_info i) eq
-            | (eq0,i) <- zip eqs [0..]
-            , let eq = some eraseEquation eq0
-            ]
-
-
-    return (conjs,reps,classes)
+    -}
 

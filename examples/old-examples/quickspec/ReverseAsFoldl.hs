@@ -1,6 +1,6 @@
 module Main where
 
-import Test.QuickSpec
+import QuickSpec
 
 -- Need to instantiate flip and foldl quite precise
 -- Desired property foldl (flip (:)) [] xs == reverse xs, found!

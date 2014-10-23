@@ -21,20 +21,20 @@ import Data.List(intercalate)
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- One subtheory with a conjecture with all dependencies
-type ProofObligation eq = Obligation eq Subtheory
-type ProofTree eq       = Tree (ProofObligation eq)
+type ProofObligation = Obligation Subtheory
+type ProofTree       = Tree ProofObligation
 
-data Theorem eq = Theorem
-    { thm_prop    :: Property eq
+data Theorem = Theorem
+    { thm_prop    :: Property
     , thm_proof   :: Proof
-    , thm_lemmas  :: Maybe [Property eq]
+    , thm_lemmas  :: Maybe [Property]
     , thm_insts   :: String
     , thm_provers :: [ProverName]
     }
-  deriving (Show,Functor)
+  deriving Show
 
 data Proof
-    = ByInduction { ind_vars :: [String] }
+    = ByInduction         { ind_vars :: [String] }
     | ByFixpointInduction { fpi_pf_repr :: String }
   deriving (Show,Generic,Eq,Ord)
 
@@ -47,11 +47,11 @@ definitionalProof p = case p of
     ByInduction{..} -> null ind_vars
     ByFixpointInduction{..} -> False
 
-definitionalTheorem :: Theorem eq -> Bool
+definitionalTheorem :: Theorem -> Bool
 definitionalTheorem = definitionalProof . thm_proof
 
-data Obligation eq a = Obligation
-    { ob_prop     :: Property eq
+data Obligation a = Obligation
+    { ob_prop     :: Property
     , ob_info     :: ObInfo
     , ob_content  :: a
     -- ^ This will be a theory, TPTP string or prover results

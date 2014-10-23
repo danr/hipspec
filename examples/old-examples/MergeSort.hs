@@ -4,7 +4,7 @@ module MergeSort where
 import Prelude(Bool(..),undefined,return,Eq,Ord)
 import HipSpec.Prelude
 import Definitions
-import Test.QuickSpec.Signature
+import QuickSpec.Signature
 import Test.QuickCheck.All
 
 -- Koen Style:

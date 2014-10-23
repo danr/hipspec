@@ -2,7 +2,7 @@
 -- Sort functions according to the call graph
 module HipSpec.Heuristics.CallGraph where
 
-import Test.QuickSpec.Term
+import QuickSpec.Term
 
 import HipSpec.GHC.Calls
 import HipSpec.Sig.Resolve
@@ -19,7 +19,7 @@ import Data.Graph hiding (edges)
 
 import HipSpec.Utils
 
-sortByCallGraph :: ResolveMap -> (a -> [Symbol]) -> [a] -> [[a]]
+sortByCallGraph :: ResolveMap -> (a -> [Constant]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph
 
 sortByGraph :: forall a s . Ord s => Map s [s] -> (a -> [s]) -> [a] -> [[a]]
@@ -59,15 +59,15 @@ idCallGraph is = M.fromList
     ]
 
 -- | Calculate the call graph for the QuickSpec string marshallings
-transitiveCallGraph :: ResolveMap -> Map Symbol [Symbol]
+transitiveCallGraph :: ResolveMap -> Map Constant [Constant]
 transitiveCallGraph (ResolveMap si _) = M.fromList
     [ (s,mapMaybe (`M.lookup` ism) (varSetElems (transCalls Without i)))
     | (i,s) <- is
     ]
   where
-    is :: [(Id,Symbol)]
-    is = [ (i,s) | (s,i) <- M.toList si, not (isDataConId i) ]
+    is :: [(Id,Constant)]
+    is = [ (i,s) | (s,(i,_pt)) <- M.toList si, not (isDataConId i) ]
 
-    ism :: Map Id Symbol
+    ism :: Map Id Constant
     ism = M.fromList is
 
