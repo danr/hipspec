@@ -7,7 +7,7 @@ import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),return,undefined)
 import HipSpec
 import Data.Typeable
 
-import Nat hiding (sig)
+import Nat hiding ((-))
 
 data Z = P Nat | N Nat deriving (Show,Eq,Typeable,Ord)
 

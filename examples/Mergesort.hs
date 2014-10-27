@@ -1,12 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Mergesort where
 
-import Prelude (Bool(..),undefined,Ordering(..), (&&), otherwise, not, fmap, Eq, Ord)
+import Prelude (Bool(..),undefined,Ordering(..), (&&), (||), otherwise, not, fmap, Eq, Ord)
 import HipSpec
 import Nat
-import QuickSpec.Signature hiding (ord)
-import QuickSpec
-import QuickSpec.Prelude
 import Test.QuickCheck hiding ((==>))
 import GHC.Types
 import Data.Typeable
@@ -32,12 +29,6 @@ msort [x] = [x]
 msort xs  = merge (msort ys) (msort zs)
   where (ys,zs) = split xs
 
-{-
-qsort :: [Nat] -> [Nat]
-qsort [] = []
-qsort (x:xs) = ...
--}
-
 split :: [Nat] -> ([Nat],[Nat])
 split [] = ([],[])
 split [x] = ([x],[])
@@ -57,27 +48,10 @@ sorted (x:y:xs)
   | otherwise = False
 sorted _      = True
 
-{-
-ordered :: [Nat] -> Bool
-ordered []     = True
-ordered (x:xs) = ord x xs
-
-ord :: Nat -> [Nat] -> Bool
-ord x [] = True
-ord x (y:ys) = if x <= y then ord y ys else False
-
-prop_merge_ord a b xs ys = ord a xs =:= True ==> ord b ys =:= True ==> ord (min a b) (merge xs ys) =:= True
-prop_merge_ordered xs ys = ordered xs =:= True ==> ordered ys =:= True ==> ordered (merge xs ys) =:= True
--}
-
-prop_merge_sorted_lemma x y xs ys =
-    x <= y =:= True ==> sorted xs =:= True ==> sorted (y:ys) =:= True ==>
-    sorted (x:merge xs ys) =:= True ==>
-    sorted (merge xs (y:ys)) =:= True
-
-
 prop_merge_sorted xs ys = sorted xs =:= True ==> sorted ys =:= True ==> sorted (merge xs ys) =:= True
+
+prop_total a b = a <= b || b <= a =:= True
 
 prop_msort_sorted xs = sorted (msort xs) =:= True
 
--- prop_msort_permutation xs x = count x xs =:= count x (msort xs)
+prop_msort_permutation xs x = count x xs =:= count x (msort xs)

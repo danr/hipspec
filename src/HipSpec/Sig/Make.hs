@@ -24,25 +24,26 @@ import QuickSpec.Signature
 import Control.Monad
 import Outputable
 
+parseToId :: String -> Ghc Id
+parseToId s = do
+    t <- lookupString s
+    case mapMaybe thingToId t of
+        []  -> error $ s ++ " not in scope!"
+        [x] -> return x
+        xs  -> error $ s ++ " in scope as too many things: " ++ showOutputable xs
+
 makeSignature :: Params -> [Var] -> Ghc [Signature]
 makeSignature p@Params{..} prop_ids = do
 
-    let extra' = concatMap (splitOn ",") extra
-        extra_trans' = concatMap (splitOn ",") extra_trans
+    extra_trans_ids <- mapM parseToId (concatMap (splitOn ",") extra_trans)
 
-    extra_trans_things <- concatMapM lookupString extra_trans'
-
-    let extra_trans_ids = mapMaybe thingToId extra_trans_things
-
-        trans_ids :: VarSet
+    let trans_ids :: VarSet
         trans_ids = unionVarSets $
             map (transCalls With) (prop_ids ++ extra_trans_ids)
 
-    extra_things <- concatMapM lookupString extra'
+    extra_ids <- mapM parseToId (concatMap (splitOn ",") extra)
 
-    let extra_ids = mapMaybe thingToId extra_things
-
-        ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x))
+    let ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x))
             trans_ids `unionVarSet` mkVarSet extra_ids
 
     -- Filters out silly things like
@@ -55,10 +56,7 @@ makeSignature p@Params{..} prop_ids = do
         let out :: Outputable a => String -> a -> IO ()
             out lbl o = putStrLn $ lbl ++ " =\n " ++ showOutputable o
 #define OUT(i) out "i" (i)
-        OUT(extra_trans_things)
         OUT(extra_trans_ids)
-        OUT(trans_ids)
-        OUT(extra_things)
         OUT(extra_ids)
         OUT(ids)
         OUT(ids_in_scope)
