@@ -75,9 +75,12 @@ makeSigFrom p ids poly = do
         then return Nothing
         else fromDynamic `fmap` dynCompileExpr (oneliner expr_str)
   where
+    sg s = "QuickSpec.Signature." ++ s
+    cs s = "Data.Constraint." ++ s
+
     constants =
         [ unwords
-            [ "QuickSpec.Signature.constant"
+            [ sg "constant"
             , show (varToString i)
             , par $
                 par (varToString i) ++ " :: " ++
@@ -88,25 +91,28 @@ makeSigFrom p ids poly = do
 
     instances =
         [ unwords
-            [ "QuickSpec.Signature.inst"
-            , par ("Sub Dict :: " ++
-                intercalate " :- " [ cls ++ " " ++ par (showOutputable p) | p <- pre ++ [post] ]
-              )
+            [ sg ("inst" ++ concat [ show (length tvs) | length tvs >= 2 ])
+            , par $ unwords
+                [ cs "Sub", cs "Dict", "::"
+                , par (intercalate "," (map pp pre))
+                , cs ":-", pp post
+                ]
             ]
         | tc <- nub (concatMap (tycons . varType) ids)
         , let tvs = tyConTyVars tc
-        , not (null tvs)
+--        , not (null tvs)
         , let tvs_ty = map mkTyVarTy tvs
         , let t = mkForAllTys tvs (tvs_ty `mkFunTys` mkTyConApp tc tvs_ty)
         , let (pre,post) = splitFunTys (poly t)
         , cls <- ["Ord","Arbitrary"]
+        , let pp x = cls ++ " " ++ par (showOutputable x)
         ]
 
     expr_str = unlines $
         [ "signature" ] ++
         ind (["{ constants ="] ++ ind (list constants) ++
              [", instances ="] ++ ind (list instances) ++
-             [", extraPruner = Prelude.Just QuickSpec.Signature.None"] ++
+--             [", extraPruner = Prelude.Just QuickSpec.Signature.None"] ++
              ["}"])
 
 list :: [String] -> [String]
