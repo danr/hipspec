@@ -3,7 +3,7 @@ HIPSPEC_BASE_FLAGS = --verbosity=85
 endif
 
 ifndef HIPSPEC_FLAGS
-HIPSPEC_FLAGS = --cg -luU
+HIPSPEC_FLAGS = --isolate --only-user-stated --expand-boolprops
 endif
 
 results:

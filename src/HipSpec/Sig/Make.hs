@@ -8,7 +8,7 @@ import GHC hiding (Sig)
 import Type
 import Var
 
-import Data.Dynamic
+import Data.Dynamic (fromDynamic)
 import Data.List
 import Data.Maybe
 
@@ -86,19 +86,27 @@ makeSigFrom p ids poly = do
         | i <- ids
         ]
 
-    base_types = nubBy eqType (concatMap (baseTypes . varType) ids)
     instances =
         [ unwords
-            [ "QuickSpec.Signature.baseType"
-            , par ("undefined :: " ++ showOutputable t)
+            [ "QuickSpec.Signature.inst"
+            , par ("Sub Dict :: " ++
+                intercalate " :- " [ cls ++ " " ++ par (showOutputable p) | p <- pre ++ [post] ]
+              )
             ]
-        | t <- base_types
+        | tc <- nub (concatMap (tycons . varType) ids)
+        , let tvs = tyConTyVars tc
+        , not (null tvs)
+        , let tvs_ty = map mkTyVarTy tvs
+        , let t = mkForAllTys tvs (tvs_ty `mkFunTys` mkTyConApp tc tvs_ty)
+        , let (pre,post) = splitFunTys (poly t)
+        , cls <- ["Ord","Arbitrary"]
         ]
 
     expr_str = unlines $
         [ "signature" ] ++
         ind (["{ constants ="] ++ ind (list constants) ++
              [", instances ="] ++ ind (list instances) ++
+             [", extraPruner = Prelude.Just QuickSpec.Signature.None"] ++
              ["}"])
 
 list :: [String] -> [String]
@@ -116,21 +124,12 @@ ind = map ("  "++)
 oneliner :: String -> String
 oneliner = unwords . lines
 
-baseTypes :: Type -> [Type]
-baseTypes t0
-    | Just (t1,t2) <- splitFunTy_maybe t0    = me $ baseTypes t1 ++ baseTypes t2
-    | Just (tc,ts) <- splitTyConApp_maybe t0 = me $ concatMap baseTypes ts
-    | Just (tvs,t) <- splitForAllTy_maybe t0 = me $ baseTypes t
-    | otherwise                              = me []
-  where
-    me | isBase t0 = (t0:)
-       | otherwise = id
-
-isBase :: Type -> Bool
-isBase t
-    | Just (tc,ts) <- splitTyConApp_maybe t = not (isFunTyCon tc) && all isBase ts
-    | otherwise                             = False
-
+tycons :: Type -> [TyCon]
+tycons t0
+    | Just (t1,t2) <- splitFunTy_maybe t0    = tycons t1 `union` tycons t2
+    | Just (tc,ts) <- splitTyConApp_maybe t0 = tc : nub (concatMap tycons ts)
+    | Just (tvs,t) <- splitForAllTy_maybe t0 = tycons t
+    | otherwise                              = []
 
 magicTyVars :: Ghc [Type]
 magicTyVars = concatMapM

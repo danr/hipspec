@@ -49,20 +49,14 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
         [] -> do
             ch <- liftIO newTChanIO
-            populateChan ch (map Just user_props ++ [Nothing])
-            runMainLoop ch []
+            populateChan ch [Nothing]
+            runMainLoop ch user_props []
 
         sig_info@SigInfo{..}:_sig_infos -> do
 
             Params{expand_boolprops} <- getParams
-
             ch <- runQuickSpec sig_info
-
-            -- let callg_sort = if call_graph then cgSortProps callg else id
-
-            populateChan ch (map Just user_props)
-
-            runMainLoop ch []
+            runMainLoop ch user_props []
 
 #ifdef SUPPORT_JSON
     Params{json} <- getParams
@@ -76,12 +70,12 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
     exit_act
 
-runMainLoop :: TChan (Maybe Property) -> [Theorem] -> HS (HS ())
-runMainLoop ch initial_thms = do
+runMainLoop :: TChan (Maybe Property) -> [Property] -> [Theorem] -> HS (HS ())
+runMainLoop ch user_props initial_thms = do
 
     params@Params{only_user_stated,success,file} <- getParams
 
-    (theorems,conjectures) <- mainLoop ch initial_thms
+    (theorems,conjectures) <- mainLoop params ch user_props initial_thms
 
     let showProperties ps = [ (prop_name p,maybePropRepr p) | p <- ps ]
         theorems' = map thm_prop
@@ -123,7 +117,10 @@ runQuickSpec sig_info@SigInfo{..} = do
     liftIO $ forkIO $ runM sig $ do
         rule $ do
             Found p <- event
-            execute $ liftIO (atomically (writeTChan ch (Just (trProp params sig_info 0 p))))
+            let prop = trProp params sig_info 0 p
+            let props | expand_boolprops = boolifyProperty prop
+                      | otherwise        = [prop]
+            execute $ liftIO $ populateChan ch $ map Just props
         quickSpecLoop sig
         -- send finished:
         liftIO (atomically (writeTChan ch Nothing))

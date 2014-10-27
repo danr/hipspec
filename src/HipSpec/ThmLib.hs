@@ -74,6 +74,7 @@ data ObInfo
 
 #ifdef SUPPORT_JSON
 instance ToJSON ObInfo
+instance ToJSON (S.Expr a) where toJSON _ = Null
 #endif
 
 obInfoFileName :: ObInfo -> String

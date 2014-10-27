@@ -88,62 +88,6 @@ trProp Params{} SigInfo{..} i prop = Property
     plits@(pgoal:passums) = map (trLiteral m) (goal:assums)
       where assums :=>: goal = prop
 
-{-
-    mk_assum x = P.equalsTrue
-        (S.Gbl v t ts `S.App` uncurry S.Lcl (lookupVar symbol_map x))
-      where
-        Just mono_ty = cond_mono_ty
-        Just cd_id   = cond_id
-        (v,t,ts) = translateId (either error id (CTR.trType mono_ty)) cd_id
-
-    repr = show_eq e1 ++ eqls ++ show_eq e2
-      where
-        show_eq = show . mapVars (delBackquote . disambig) . mapConsts (on_name g)
-
-        on_name h s = s { name = h (name s) }
-
-        g x = case lookup x isabelleFunctionNames of
-            Just y  | isabelle_mode -> y
-            _                       -> x
-
-        eqls | isabelle_mode = " = "
-             | otherwise     = " == "
-
-    final_repr = show_precond precond_vars repr
-
-    raw_occuring_vars :: [Symbol]
-    raw_occuring_vars = nubSorted (vars e1 ++ vars e2)
-
-    disambig :: Symbol -> Symbol
-    disambig = disambiguate sig (vars e1 ++ vars e2)
-
-    occuring_vars :: [Symbol]
-    occuring_vars = map delBackquote $ map disambig raw_occuring_vars
-
-    precond_vars :: [Symbol]
-    precond_vars = map delBackquote $ map disambig (filter isBackquoted raw_occuring_vars)
-
-    term_to_expr = termToExpr symbol_map
-
-    goal = term_to_expr e1 P.:=: term_to_expr e2
-
-    show_precond [] u = u
-    show_precond xs u = intercalate conj [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
-      where
-        conj | isabelle_mode = " & "
-             | otherwise     = " && "
-
-isBackquoted :: Symbol -> Bool
-isBackquoted a = case name a of
-    '`':_ -> True
-    _     -> False
-
-delBackquote :: Symbol -> Symbol
-delBackquote a = case name a of
-    '`':xs -> a { name = xs }
-    _      -> a
-    -}
-
 isabelleFunctionNames :: [(String, String)]
 isabelleFunctionNames =
   [(":", "#"),

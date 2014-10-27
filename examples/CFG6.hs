@@ -91,6 +91,7 @@ injL u v w = u ++ v =:= u ++ w ==> v =:= w
 lemmaA_L v w s t = linA v ++ s =:= linA w ++ t ==> (v,s) =:= (w,t)
 lemmaB_L v w s t = linB v ++ s =:= linB w ++ t ==> (v,s) =:= (w,t)
 
+{-
 lemmaAB a b = linA a =:= linB b ==> A a =:= B b {- i.e: false -}
 
 lemmaCountA a = count X (linA a) =:= count Y (linA a)
@@ -100,16 +101,19 @@ countMorph x xs ys = count x (xs ++ ys) =:= count x xs + count x ys
 
 nonZeroA x a = nonZero (count x (linA a)) =:= True
 nonZeroB x b = nonZero (count x (linB b)) =:= True
+-}
 
 -- after either of these (because commutativity), all the lemmas about double below follow
 plusInjL x y z = y + x =:= z + x ==> y =:= z
 plusInjR x y z = x + y =:= x + z ==> y =:= z
 
+{-
 lemmaDouble x = double (S x) =:= S x ==> x =:= S x
 lemmaDouble2 x = double x =:= x ==> x =:= Zero
 
 lemmaPlus x  = S x + S x =:= S x ==> x =:= S x
 lemmaPlus2 x = x + x =:= x ==> x =:= Zero
+-}
 
 
 -- this one is false:
@@ -136,21 +140,6 @@ instance Arbitrary B where
 
 instance Arbitrary Tok where
   arbitrary = elements [X,Y,Z]
-
-instance Names S where
-  names _ = ["s","s2","s3"]
-
-instance Names A where
-  names _ = ["a","a2","a3"]
-
-instance Names B where
-  names _ = ["b","b2","b3"]
-
-instance Names Tok where
-  names _ = ["x","y","z"]
-
-instance Names Nat where
-  names _ = ["n","m","o"]
 
 instance Arbitrary Nat where
     arbitrary =

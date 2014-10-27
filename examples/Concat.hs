@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable,TypeOperators #-}
 module Concat where
 
 import Prelude hiding ((++),length,(+),map,sum,concat)
@@ -25,21 +25,28 @@ concat xss = [ x | xs <- xss, x <- xs ]
 map :: (a -> b) -> [a] -> [b]
 map f xs = [ f x | x <- xs ]
 
+-- length . concat = sum . map length
+
 sig :: Signature
 sig = signature
     { constants =
         [ constant "Z" Z
-        , (constant "S" S) { conStyle = Uncurried }
+        , constant "S" S
         , constant "+" (+)
-        , (constant "length" (length :: [A] -> Nat)) { conStyle = Uncurried }
+        , constant "length" (length :: [A] -> Nat)
         , constant "map" (map :: (A -> B) -> [A] -> [B])
         , constant "concat" (concat :: [[A]] -> [A])
         , constant "++" ((++) :: [A] -> [A] -> [A])
         , constant ":" ((:) :: A -> [A] -> [A])
         , constant "[]" ([] :: [A])
         , constant "sum" sum
+        , constant "id" (id :: [Nat] -> [Nat])
+        , constant "id" (id :: [[Nat]] -> [[Nat]])
         ]
-    , instances = [ baseType (undefined :: Nat) ]
+    , instances =
+        [ baseType (undefined :: Nat)
+        , inst (Sub Dict :: () :- CoArbitrary Nat)
+        ]
     }
 
 
@@ -104,4 +111,8 @@ instance Arbitrary Nat where
   arbitrary = sized $ \ s -> do
     x <- choose (0,round (sqrt (toEnum s) :: Double))
     return (toEnum x)
+
+instance CoArbitrary Nat where
+  coarbitrary Z     = variant 0
+  coarbitrary (S x) = variant (-1) . coarbitrary x
 

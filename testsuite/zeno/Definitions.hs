@@ -1,8 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable,FlexibleInstances #-}
 module Definitions where
 
-import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),div,return,(.))
-import HipSpec
+import Prelude (Eq,Ord,Show,iterate,(!!),fmap,Bool(..),div,return,(.),Maybe(..))
+import HipSpec hiding (signature,constants,instances,None,extraPruner)
+import QuickSpec hiding (S,ins)
+import QuickSpec.Signature
+import QuickSpec.Type
 
 data Nat = S Nat | Z
   deriving (Eq,Show,Typeable,Ord)
@@ -11,9 +14,6 @@ instance Arbitrary Nat where
   arbitrary =
     let nats = iterate S Z
     in (nats !!) `fmap` choose (0,5)
-
-instance Names Nat where
-  names _ = ["m","n","o"]
 
 instance CoArbitrary Nat where
   coarbitrary Z     = variant 0
@@ -33,15 +33,6 @@ instance Arbitrary a => Arbitrary (Tree a) where
                x <- arbitrary
                r <- arbTree n'
                return (Node l x r))]
-
-instance Names a => Names (Tree a) where
-  names ~(Node _ x _) = [ n ++ "t" | n <- names x ]
-
-instance Names (A -> A) where
-    names _ = ["f","g","h"]
-
-instance Names (A -> Bool) where
-    names _ = ["p","q","r"]
 
 -- Boolean functions
 

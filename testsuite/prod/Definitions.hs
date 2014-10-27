@@ -31,18 +31,11 @@ instance Arbitrary Nat where
         let nats = iterate S Z
         in  (nats !!) `fmap` choose (0,5)
 
+{-
 instance Partial Nat where
     unlifted Z     = return Z
     unlifted (S x) = fmap S (lifted x)
-
-instance Names Nat where
-    names _ = ["m","n","o"]
-
-instance Names (A -> A) where
-    names _ = ["f","g","h"]
-
-instance Names (A -> Bool) where
-    names _ = ["p","q","r"]
+-}
 
 (+) :: Nat -> Nat -> Nat
 Z + y = y

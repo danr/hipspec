@@ -5,22 +5,26 @@ import HipSpec.Monad
 import HipSpec.Property
 import HipSpec.ThmLib
 import HipSpec.MakeInvocations
-import HipSpec.Utils
+-- import HipSpec.Utils
 
-import Data.List
-import Data.Ord
-import Data.Maybe
+-- import Data.List
+-- import Data.Ord
+-- import Data.Maybe
 
-import Control.Monad
+-- import Control.Monad
 import Control.Concurrent.STM
 
 -- | The main loop
-mainLoop ::
-        TChan (Maybe Property)
+mainLoop
+     :: Params
+     -> TChan (Maybe Property)
+     -> [Property]                -- ^ Initial properties
      -> [Theorem]                 -- ^ Initial lemmas
      -> HS ([Theorem],[Property]) -- ^ Resulting theorems and conjectures
-mainLoop ch thms0 = go False [] thms0
+mainLoop Params{only_user_stated} ch props0 thms0 = go False props0 thms0
   where
+    go _ unproved thms | only_user_stated && not (any isUserStated unproved) = return (thms,unproved)
+
     go True  unproved thms = return (thms,unproved)
                              -- OR: try to prove stuff in unproved
     go False unproved@(uprop:unproved') thms = do

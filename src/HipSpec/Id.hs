@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards,DeriveGeneric,StandaloneDeriving #-}
 module HipSpec.Id where
 
 import Name hiding (varName)
@@ -16,6 +16,11 @@ import Data.Char (toUpper)
 import qualified QuickSpec.Term as QS
 import qualified QuickSpec.Type as QS
 import qualified QuickSpec.Base as QS -- (prettyShow)
+
+#ifdef SUPPORT_JSON
+import Data.Aeson
+#endif
+import GHC.Generics
 
 idFromName :: Name -> Id
 idFromName = GHCOrigin
@@ -46,7 +51,7 @@ data Id
     | QSPropId Integer
     | Derived Derived Integer
     | Const Int Int
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Generic)
 
 instance Show Name where
     show nm = show (showOutputable nm)
@@ -61,12 +66,22 @@ data Derived
     | Unknown
     | GenTyVar
     | Id `Fix` BW
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Generic)
 
 -- we turn {f = .. f ..}
 -- into    {fB = .. fW ..}
 data BW = B | W
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Generic)
+
+#ifdef SUPPORT_JSON
+instance ToJSON Id
+instance ToJSON Derived
+instance ToJSON BW
+
+instance ToJSON QS.TyVar where toJSON _ = Null
+instance ToJSON QS.Variable where toJSON _ = Null
+instance ToJSON Name where toJSON _ = Null
+#endif
 
 mkLetFrom :: Id -> Integer -> Id -> Id
 mkLetFrom x _ (Derived Unknown _) = x
