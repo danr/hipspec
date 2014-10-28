@@ -54,8 +54,11 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
         sig_info@SigInfo{..}:_sig_infos -> do
 
-            Params{expand_boolprops} <- getParams
+            p@Params{expand_boolprops} <- getParams
             ch <- runQuickSpec sig_info
+            whenFlag p QuickSpecOnly $ liftIO $ forever $ do
+                x <- atomically (readTChan ch)
+                when (isNothing x) exitSuccess
             runMainLoop ch user_props []
 
 #ifdef SUPPORT_JSON

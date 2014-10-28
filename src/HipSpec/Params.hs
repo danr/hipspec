@@ -48,7 +48,7 @@ data DebugFlag
 --    | PrintCallGraph
 --    | PrintDefinitions
 --    | PrintEqClasses
---    | QuickSpecOnly
+    | QuickSpecOnly
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defStr :: Eq a => a -> [a] -> String
@@ -77,7 +77,7 @@ debugDesc flg = case flg of
 --    PrintCallGraph   -> "Print the call graph"
 --    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
 --    PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
---    QuickSpecOnly    -> "Stop after QuickSpec"
+    QuickSpecOnly    -> "Stop after QuickSpec"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol
@@ -130,6 +130,7 @@ data Params = Params
     , provers             :: [ProverName]
 
     , qspruner            :: Bool
+    , termsize            :: Int
 
 {-
     , interesting_cands   :: Bool
@@ -241,6 +242,7 @@ defParams = Params
     , extra_trans         = []                  &= help "Like --extra, but transitively"
 
     , qspruner            = False               &= help "Use the default QuickSpec pruner"
+    , termsize            = 7                   &= help "QuickSpec term size"
     {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"

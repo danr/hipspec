@@ -69,7 +69,7 @@ makeSignature p@Params{..} prop_ids = do
     return (maybeToList msig)
 
 makeSigFrom :: Params -> [Var] -> (Type -> Type)  -> Ghc (Maybe Signature)
-makeSigFrom p@Params{qspruner} ids poly = do
+makeSigFrom p@Params{qspruner,termsize} ids poly = do
     liftIO $ whenFlag p PrintAutoSig $ putStrLn expr_str
     if null constants
         then return Nothing
@@ -112,7 +112,8 @@ makeSigFrom p@Params{qspruner} ids poly = do
         [ "signature" ] ++
         ind (["{ constants ="] ++ ind (list constants) ++
              [", instances ="] ++ ind (list instances) ++
-             [", extraPruner = Prelude.Just QuickSpec.Signature.None" | not qspruner ] ++
+             [", extraPruner = Prelude.Just QuickSpec.Signature.None" | not qspruner] ++
+             [", maxTermSize = Prelude.Just " ++ show termsize] ++
              ["}"])
 
 list :: [String] -> [String]
