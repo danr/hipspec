@@ -114,6 +114,7 @@ makeSigFrom p@Params{qspruner,termsize} ids poly = do
              [", instances ="] ++ ind (list instances) ++
              [", extraPruner = Prelude.Just QuickSpec.Signature.None" | not qspruner] ++
              [", maxTermSize = Prelude.Just " ++ show termsize] ++
+             [", testTimeout = Prelude.Just 400000"] ++
              ["}"])
 
 list :: [String] -> [String]
