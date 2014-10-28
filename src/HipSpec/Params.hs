@@ -49,6 +49,7 @@ data DebugFlag
 --    | PrintDefinitions
 --    | PrintEqClasses
     | QuickSpecOnly
+    | QuickSpecDebug
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defStr :: Eq a => a -> [a] -> String
@@ -78,6 +79,7 @@ debugDesc flg = case flg of
 --    PrintDefinitions -> "Print definitions translated to QuickSpec eqns"
 --    PrintEqClasses   -> "Print initial equivalence classes from QuickSpec"
     QuickSpecOnly    -> "Stop after QuickSpec"
+    QuickSpecDebug   -> "Debug what QuickSpec is doing"
 
 -- | Makes a nice flag from a constructor string
 --   e.g. PrintPolyFOL becomes print-poly-fol
@@ -129,28 +131,20 @@ data Params = Params
     , techniques          :: [Technique]
     , provers             :: [ProverName]
 
-    , qspruner            :: Bool
-    , termsize            :: Int
-
 {-
-    , interesting_cands   :: Bool
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
-    , swap_repr           :: Bool
-    , quadratic           :: Bool
-    , prepend_pruned      :: Bool
-    , assoc_important     :: Bool
     , call_graph          :: Bool
 -}
 
     , auto                :: Bool
     , extra               :: [String]
     , extra_trans         :: [String]
+    , qspruner            :: Bool
+    , termsize            :: Int
+
     {-
     , pvars               :: Bool
-    , quick_check_size    :: Int
-    , tests               :: Int
-    , size                :: Int
     -}
 
 
@@ -240,9 +234,9 @@ defParams = Params
                                     &= name "a" &= help "Make signature with functions in user properties (def. on)"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
-
     , qspruner            = False               &= help "Use the default QuickSpec pruner"
     , termsize            = 7                   &= help "QuickSpec term size"
+
     {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"
@@ -271,18 +265,11 @@ defParams = Params
     , only_user_stated    = False   &= name "u" &= help "Stop when all user stated properties are proved"
 
 {-
-    , interesting_cands   = False   &= groupname "\nEquation ordering"
-                                    &= name "i" &= help "Add interesting candidates after theorems"
-
     , explore_theory      = False               &= help "Print explored theory"
 
     , user_stated_first   = False   &= name "U" &= help "Put user stated properties first in the loop"
 
-    , swap_repr           = False   &= groupname "\nEquation ordering"
-                                    &= name "s" &= help "Swap equations with their representative"
     , prepend_pruned      = False   &= name "r" &= help "Add nice pruned equations in front of queue"
-    , quadratic           = False   &= name "q" &= help "All pairs of equations"
-    , assoc_important     = False               &= help "Associativity is important, try it first"
     , call_graph          = True    &= name "c" &= name "cg" &= help "Sort equations by the call graph (def. on)"
 -}
 

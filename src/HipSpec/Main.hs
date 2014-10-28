@@ -3,6 +3,7 @@ module Main where
 
 import QuickSpec.Eval
 import QuickSpec.Rules
+import QuickSpec.Pretty (prettyPrint)
 
 import HipSpec.Params (SuccessOpt(..))
 
@@ -118,6 +119,9 @@ runQuickSpec sig_info@SigInfo{..} = do
     ch <- liftIO newTChanIO
 
     liftIO $ forkIO $ runM sig $ do
+
+        whenFlag params QuickSpecDebug $ rule $ event >>= execute . liftIO . prettyPrint
+
         rule $ do
             Found p <- event
             let prop = trProp params sig_info 0 p
