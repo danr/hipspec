@@ -14,7 +14,7 @@ import System.FilePath ((<.>))
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The names of the different supported theorem provers
-data ProverName = Z3 | Z3PP | CVC4 | CVC4i | CVC4ig | AltErgo | MonoAltErgo | Vampire | E | SPASS
+data ProverName = Z3 | Z3PP | CVC4 | CVC4i | CVC4ig | AltErgo | MonoAltErgo | Vampire | E | SPASS | Equinox
   deriving (Eq,Ord,Enum,Bounded,Show,Data,Typeable)
 
 defaultProverNames :: [ProverName]
@@ -28,6 +28,7 @@ proverFromName p = case p of
     Z3          -> z3
     Z3PP        -> z3pp
     E           -> eprover
+    Equinox     -> equinox
     SPASS       -> spass
     CVC4        -> mkCVC4 p "" []
     CVC4i       -> mkCVC4 p " with induction" ["--quant-ind"]
@@ -93,7 +94,7 @@ completeName fmt s = case fmt of
 
 outputSZS :: [(String,Maybe Bool)]
 outputSZS =
-    [ (" SZS status " ++ s,r)
+    [ ("SZS status " ++ s,r)
     | (s,r) <-
         [("Unsatisfiable",proven),("Theorem",proven)
         ,("Timeout",failure),("Satisfiable",failure),("ResourceOut",failure)
@@ -107,6 +108,20 @@ eprover = Prover
     , prover_name           = E
     , prover_cannot_stdin   = False
     , prover_args           = \ _f t -> ["--auto-schedule","--tptp3-format","--silent","--cpu-limit="++showCeil t]
+    , prover_process_output = searchOutput outputSZS
+    , prover_suppress_errs  = False
+    , prover_parse_lemmas   = Nothing
+    , prover_parse_proofs   = Nothing
+    , prover_input_format   = FOF
+    }
+
+equinox :: Prover
+equinox = Prover
+    { prover_cmd            = "equinox"
+    , prover_desc           = "Equinox"
+    , prover_name           = Equinox
+    , prover_cannot_stdin   = False
+    , prover_args           = \ _f t -> ["/dev/stdin","--tstp","--time",showCeil t,"--no-progress"]
     , prover_process_output = searchOutput outputSZS
     , prover_suppress_errs  = False
     , prover_parse_lemmas   = Nothing

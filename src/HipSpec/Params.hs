@@ -129,6 +129,8 @@ data Params = Params
     , techniques          :: [Technique]
     , provers             :: [ProverName]
 
+    , qspruner            :: Bool
+
 {-
     , interesting_cands   :: Bool
     , user_stated_first   :: Bool
@@ -237,6 +239,8 @@ defParams = Params
                                     &= name "a" &= help "Make signature with functions in user properties (def. on)"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
+
+    , qspruner            = False               &= help "Use the default QuickSpec pruner"
     {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
     , quick_check_size    = 20                  &= help "Set the withQuickCheckSize (default 20)"

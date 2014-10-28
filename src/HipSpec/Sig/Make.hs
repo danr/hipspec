@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns,CPP #-}
+{-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns,CPP,NamedFieldPuns #-}
 module HipSpec.Sig.Make (makeSignature) where
 
 import Data.List.Split (splitOn)
@@ -69,7 +69,7 @@ makeSignature p@Params{..} prop_ids = do
     return (maybeToList msig)
 
 makeSigFrom :: Params -> [Var] -> (Type -> Type)  -> Ghc (Maybe Signature)
-makeSigFrom p ids poly = do
+makeSigFrom p@Params{qspruner} ids poly = do
     liftIO $ whenFlag p PrintAutoSig $ putStrLn expr_str
     if null constants
         then return Nothing
@@ -104,7 +104,7 @@ makeSigFrom p ids poly = do
         , let tvs_ty = map mkTyVarTy tvs
         , let t = mkForAllTys tvs (tvs_ty `mkFunTys` mkTyConApp tc tvs_ty)
         , let (pre,post) = splitFunTys (poly t)
-        , cls <- ["Ord","Arbitrary"]
+        , cls <- ["Prelude.Ord","Test.QuickCheck.Arbitrary"]
         , let pp x = cls ++ " " ++ par (showOutputable x)
         ]
 
@@ -112,7 +112,7 @@ makeSigFrom p ids poly = do
         [ "signature" ] ++
         ind (["{ constants ="] ++ ind (list constants) ++
              [", instances ="] ++ ind (list instances) ++
---             [", extraPruner = Prelude.Just QuickSpec.Signature.None"] ++
+             [", extraPruner = Prelude.Just QuickSpec.Signature.None" | not qspruner ] ++
              ["}"])
 
 list :: [String] -> [String]
