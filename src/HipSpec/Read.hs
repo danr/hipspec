@@ -126,6 +126,7 @@ execute params@Params{..} = do
             [ IIDecl (simpleImportDecl (moduleName (ms_mod mod_sum)))
             , IIDecl (qualifiedImport "QuickSpec.Signature")
             , IIDecl (qualifiedImport "QuickSpec.Type")
+            , IIDecl (qualifiedImport "QuickSpec.Term")
             , IIDecl (qualifiedImport "Data.Constraint")
             , IIDecl (qualifiedImport "Test.QuickCheck")
             , IIDecl (qualifiedImport "GHC.Types")

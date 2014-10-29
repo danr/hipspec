@@ -142,6 +142,8 @@ data Params = Params
     , extra_trans         :: [String]
     , qspruner            :: Bool
     , termsize            :: Int
+    , consize             :: Int
+    , unarysize           :: Int
 
     {-
     , pvars               :: Bool
@@ -235,7 +237,9 @@ defParams = Params
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
     , qspruner            = False               &= help "Use the default QuickSpec pruner"
-    , termsize            = 7                   &= help "QuickSpec term size"
+    , termsize            = 7                   &= help "QuickSpec term size                     (def 7)"
+    , consize             = 1                   &= help "Size of non-unary constructor functions (def 1)"
+    , unarysize           = 2                   &= help "Size of unary functions                 (def 2)"
 
     {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"

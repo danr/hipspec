@@ -69,7 +69,7 @@ makeSignature p@Params{..} prop_ids = do
     return (maybeToList msig)
 
 makeSigFrom :: Params -> [Var] -> (Type -> Type)  -> Ghc (Maybe Signature)
-makeSigFrom p@Params{qspruner,termsize} ids poly = do
+makeSigFrom p@Params{..} ids poly = do
     liftIO $ whenFlag p PrintAutoSig $ putStrLn expr_str
     if null constants
         then return Nothing
@@ -79,7 +79,7 @@ makeSigFrom p@Params{qspruner,termsize} ids poly = do
     cs s = "Data.Constraint." ++ s
 
     constants =
-        [ unwords
+        [ set_size i $ unwords
             [ sg "constant"
             , show (varToString i)
             , par $
@@ -88,6 +88,12 @@ makeSigFrom p@Params{qspruner,termsize} ids poly = do
             ]
         | i <- ids
         ]
+      where
+        set_size i | varArity poly i == 1 = con_size unarysize
+                   | isDataConId i        = con_size consize
+                   | otherwise            = id
+
+        con_size x s = par s ++ " { QuickSpec.Term.conSize = " ++ show x ++ " }"
 
     instances =
         [ unwords
@@ -100,7 +106,6 @@ makeSigFrom p@Params{qspruner,termsize} ids poly = do
             ]
         | tc <- nub (concatMap (tycons . varType) ids)
         , let tvs = tyConTyVars tc
---        , not (null tvs)
         , let tvs_ty = map mkTyVarTy tvs
         , let t = mkForAllTys tvs (tvs_ty `mkFunTys` mkTyConApp tc tvs_ty)
         , let (pre,post) = splitFunTys (poly t)
@@ -112,10 +117,16 @@ makeSigFrom p@Params{qspruner,termsize} ids poly = do
         [ "signature" ] ++
         ind (["{ constants ="] ++ ind (list constants) ++
              [", instances ="] ++ ind (list instances) ++
-             [", extraPruner = Prelude.Just QuickSpec.Signature.None" | not qspruner] ++
+             [", extraPruner = Prelude.Just " ++
+                (if qspruner
+                    then par "QuickSpec.Signature.SPASS 1"
+                    else "QuickSpec.Signature.None")] ++
              [", maxTermSize = Prelude.Just " ++ show termsize] ++
-             [", testTimeout = Prelude.Just 400000"] ++
+             [", testTimeout = Prelude.Just 200000"] ++
              ["}"])
+
+varArity :: (Type -> Type) -> Var -> Int
+varArity poly = length . fst . splitFunTys . snd . splitForAllTys . poly . varType
 
 list :: [String] -> [String]
 list xs0 = case map oneliner xs0 of
