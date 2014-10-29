@@ -5,9 +5,10 @@ module HipSpec.GHC.Dicts (inlineDicts) where
 
 import HipSpec.GHC.Utils (showOutputable)
 import CoreSyn
+import CoreUtils()
 import IdInfo
 import Id
---import HipSpec.GHC.Unfoldings
+import Var
 import Data.List (elemIndex)
 
 import Data.Generics.Geniplate
@@ -24,7 +25,6 @@ instanceTransformBiT
     [ [t|Var|], [t|Coercion|] , [t|Tickish Id|], [t|Literal|], [t|Type|], [t|AltCon|] ]
     [t| forall a . (Expr a,[Bind a]) |]
 
--- | Maybe the unfolding of an Id
 maybeUnfolding :: Id -> Maybe CoreExpr
 maybeUnfolding v = case realIdUnfolding v of
     CoreUnfolding{uf_tmpl} -> Just uf_tmpl
@@ -35,10 +35,14 @@ inlineDicts = transformBi $ \ e0 -> case e0 of
     App (App (Var f) (Type t)) (Var d)
         | Just cl <- isClassOpId_maybe f
         , DFunId{} <- idDetails d
-        -> case (maybeUnfolding f,maybeUnfolding d) of
-            (Just (collectBinders -> (_,Case _ _ _ [(_,ss,Var s)])),
-             Just (collectArgs -> (_,ks)))
-               | Just i <- elemIndex s ss -> drop (length ks - length ss) ks !! i
-            x -> e0 -- error $ showOutputable x
+        -> case maybeUnfolding f of
+            Just (collectBinders -> (_,Case _ _ _ [(_,ss,Var s)]))
+              | Just i <- elemIndex s ss -> case realIdUnfolding d of
+                DFunUnfolding _ _ es -> drop (length es - length ss) es !! i
+                CoreUnfolding{uf_tmpl} ->
+                    let (_,es) = collectArgs uf_tmpl
+                    in  drop (length es - length ss) es !! i
+                x -> error $ showOutputable (e0,x)
+            x -> error $ showOutputable (e0,x)
     _ -> e0
 
