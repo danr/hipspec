@@ -70,7 +70,7 @@ polyname x0 = case x0 of
     SK a b   -> "sk" ++ polyname a ++ show b
 
 mononame :: IdInst LogicId LogicId -> String
-mononame (IdInst x xs) = polyname x ++ concatMap (\ u -> '_':ty u) xs
+mononame (IdInst x xs) = polyname x -- ++ short (concatMap (\ u -> '_':ty u) xs)
   where
     {-
     ty (P.TyCon TyFn [u,v]) = "q" ++ ty u ++ "_" ++ ty v ++ "p"
@@ -141,7 +141,7 @@ smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
-    , "abs", "min", "max"
+    , "abs", "min", "max", "const"
     -- CVC4:
     , "as"
     ]

@@ -137,6 +137,8 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
     | k == unitTyConKey      = "UnitTyCon"
     | k == genUnitDataConKey = "Unit"
     | otherwise = case getOccString nm of
+        "(,)"  -> "Tup"
+        "(,,)" -> "Trip"
         "+"   -> "plus"
         "-"   -> "minus"
         "/"   -> "div"
