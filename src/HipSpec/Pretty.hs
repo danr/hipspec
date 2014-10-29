@@ -143,7 +143,7 @@ smtKeywords = altErgoKeywords ++
     , "assert", "check-sat"
     , "abs", "min", "max", "const"
     -- CVC4:
-    , "as"
+    , "as", "concat"
     ]
 
 altErgoKeywords :: [String]
