@@ -38,9 +38,12 @@ import System.Process
 import System.FilePath
 import System.Directory
 
-
+import qualified Id as GHC
+import qualified CoreSubst as GHC
 import Var (Var)
 import Data.Map (Map)
+
+import Data.Maybe (isNothing)
 
 processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
 processFile cont = do
@@ -58,94 +61,93 @@ processFile cont = do
 
         callg = idCallGraph (varSetElems vars)
 
-{-
-    case isabelle_mode of
-        True -> runHS params (Env [] emptyArityMap (const Nothing) (const False))
-                   (cont callg sig_infos (error "properties: --isabelle-mode"))
+    us0 <- mkSplitUniqSupply 'h'
 
-        False -> do
-        -}
-    do
-            us0 <- mkSplitUniqSupply 'h'
+    let (binds,_us1) = initUs us0 $ sequence
+            [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
+            | v <- varSetElems vars
+            , isNothing (GHC.isClassOpId_maybe v)
+            , Just e <- [maybeUnfolding v]
+            ]
 
-            let (binds,_us1) = initUs us0 $ sequence
-                    [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
-                    | v <- varSetElems vars
-                    , Just e <- [maybeUnfolding v]
-                    ]
+        tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
+                     (bindsTyCons' binds `union` extra_tcs)
 
-                tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
-                             (bindsTyCons' binds `union` extra_tcs)
+        (am_tcs,data_thy,ty_env') = trTyCons tcs
 
-                (am_tcs,data_thy,ty_env') = trTyCons tcs
+        -- Now, split these into properties and non-properties
 
-                -- Now, split these into properties and non-properties
+        rich_fns = toRich binds
 
-                simp_fns :: [S.Function Id]
-                rich_fns = toRich binds
-                rich_fns_opt = S.simpFuns rich_fns
-                simp_fns = toSimp rich_fns_opt
+    whenFlag params PrintSimple $ putStrLn $
+        "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
 
-                is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
+    let rich_fns_opt = S.simpFuns rich_fns
 
-                (props,fns0) = partition is_prop simp_fns
+        simp_fns :: [S.Function Id]
+        simp_fns = toSimp rich_fns_opt
 
-                fns_fix = fixFunctions fns0
-                fns = fns0 ++ fns_fix
+        is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
-                is_recursive x = case [ fn | fn <- fns, S.fn_name fn == x ] of
-                    f:_ -> isRecursive f
-                    []  -> False
+        (props,fns0) = partition is_prop simp_fns
 
-                (am_fns,binds_thy) = trSimpFuns am_fin fns
-                am_fin = am_fns `combineArityMap` am_tcs
+        fns_fix = fixFunctions fns0
+        fns = fns0 ++ fns_fix
 
-                cls = sortClauses False (concatMap clauses thy)
+        is_recursive x = case [ fn | fn <- fns, S.fn_name fn == x ] of
+            f:_ -> isRecursive f
+            []  -> False
 
-                thy = appThy : data_thy ++ binds_thy
+        (am_fns,binds_thy) = trSimpFuns am_fin fns
+        am_fin = am_fns `combineArityMap` am_tcs
 
-                tr_props
-                    = sortOn prop_name
-                    $ either (error . show)
-                             (map (etaExpandProp{- . generaliseProp-}))
-                             (trProperties props)
+        cls = sortClauses False (concatMap clauses thy)
 
-                env = Env
-                    { theory = thy, arity_map = am_fin, ty_env = ty_env'
-                    , is_recursive = is_recursive
-                    }
+        thy = appThy : data_thy ++ binds_thy
 
-            runHS params env $ do
+        tr_props
+            = sortOn prop_name
+            $ either (error . show)
+                     (map (etaExpandProp{- . generaliseProp-}))
+                     (trProperties props)
 
-                debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
-                debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
+        env = Env
+            { theory = thy, arity_map = am_fin, ty_env = ty_env'
+            , is_recursive = is_recursive
+            }
 
-                debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable binds
+    runHS params env $ do
 
-                debugWhen PrintSimple $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
+        debugWhen PrintCore $ "\nInit prop_ids\n" ++ showOutputable prop_ids
+        debugWhen PrintCore $ "\nInit vars\n" ++ showOutputable vars
 
-                debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
+        debugWhen PrintCore $ "\nGHC Core\n" ++ showOutputable
+            [ (v,GHC.idType v, GHC.idDetails v, e)
+            | (v,e) <- binds
+            ]
 
-                debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
+        debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
-                debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
+        debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
-                debugWhen PrintProps $
-                    "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
-                    "\nProperties:\n" ++ unlines (map show tr_props)
+        debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
 
-                checkLint (lintSimple simp_fns)
-                mapM_ (checkLint . lintProperty) tr_props
+        debugWhen PrintProps $
+            "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
+            "\nProperties:\n" ++ unlines (map show tr_props)
 
-                whenFlag params LintPolyFOL $ liftIO $ do
-                    let mlw = replaceExtension file ".mlw"
-                    writeFile mlw (ppAltErgo cls)
-                    exc <- system $ "alt-ergo -type-only " ++ mlw
-                    case exc of
-                        ExitSuccess -> return ()
-                        ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
+        checkLint (lintSimple simp_fns)
+        mapM_ (checkLint . lintProperty) tr_props
 
-                when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
+        whenFlag params LintPolyFOL $ liftIO $ do
+            let mlw = replaceExtension file ".mlw"
+            writeFile mlw (ppAltErgo cls)
+            exc <- system $ "alt-ergo -type-only " ++ mlw
+            case exc of
+                ExitSuccess -> return ()
+                ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
 
-                cont callg sig_infos tr_props
+        when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
+
+        cont callg sig_infos tr_props
 

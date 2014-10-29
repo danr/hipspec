@@ -30,6 +30,7 @@ import System.FilePath
 import Var
 
 import HipSpec.GHC.Unfoldings
+import HipSpec.GHC.Dicts (inlineDicts)
 import HipSpec.GHC.Utils
 
 import HipSpec.Sig.Scope
@@ -40,6 +41,9 @@ import Data.Maybe
 import Data.List
 
 import Control.Monad
+
+import SimplCore
+import CoreSyn
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -54,7 +58,6 @@ data EntryResult = EntryResult
 data SigInfo = SigInfo
     { sig          :: Signature
     , resolve_map  :: ResolveMap
-    , cond_mono_ty :: Maybe Type
     }
 
 execute :: Params  -> IO EntryResult
@@ -114,9 +117,9 @@ execute params@Params{..} = do
 
         let modguts = dm_core_module d
 
-            binds = fixUnfoldings (mg_binds modguts)
+        let binds = inlineDicts (fixUnfoldings (inlineDicts (mg_binds modguts)))
 
-            fix_id :: Id -> Id
+        let fix_id :: Id -> Id
             fix_id = fixId binds
 
         whenFlag params PrintCore (liftIO (putStrLn (showOutputable binds)))

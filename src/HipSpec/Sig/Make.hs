@@ -12,6 +12,7 @@ import Data.Dynamic (fromDynamic)
 import Data.List
 import Data.Maybe
 
+import HipSpec.GHC.Unfoldings
 import HipSpec.GHC.Utils
 import HipSpec.Sig.Scope
 import HipSpec.ParseDSL
@@ -53,9 +54,10 @@ makeSignature p@Params{..} prop_ids = do
     ids_in_scope <- filterM in_scope ids
 
     liftIO $ whenFlag p DebugAutoSig $ do
-        let out :: Outputable a => String -> a -> IO ()
-            out lbl o = putStrLn $ lbl ++ " =\n " ++ showOutputable o
+        let out :: String -> [Id] -> IO ()
+            out lbl os = putStrLn $ lbl ++ " =\n " ++ showOutputable [ (o{-,maybeUnfolding o-}) | o <- os ]
 #define OUT(i) out "i" (i)
+        OUT(prop_ids)
         OUT(extra_trans_ids)
         OUT(extra_ids)
         OUT(ids)

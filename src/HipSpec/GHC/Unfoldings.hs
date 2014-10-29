@@ -15,6 +15,7 @@ import Id
 import Data.Maybe
 
 import HipSpec.GHC.Utils
+import HipSpec.GHC.Dicts
 
 -- | The unfolding of an Id
 unfolding :: Id -> CoreExpr
@@ -32,7 +33,7 @@ maybeUnfolding v = case realIdUnfolding v of
 -- | Fixes identifiers according to some core binds
 fixId :: [CoreBind] -> Id -> Id
 fixId bs = \ i -> case M.lookup i bind_map of
-    Just rhs -> i `setIdUnfoldingLazily` mkCompulsoryUnfolding rhs
+    Just rhs -> i `setIdUnfoldingLazily` mkCompulsoryUnfolding (inlineDicts rhs)
     Nothing -> i
   where
     bind_map = M.fromList (flattenBinds bs)
