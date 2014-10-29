@@ -12,6 +12,7 @@ hipspec Nat.hs    --extra-trans=*                           --success=NothingUnp
 hipspec Rotate.hs --only-user-stated                        --success=ProvesUserStated $COMMON || exit $?
 hipspec List.hs        --extra-trans=++,length,map,filter,. --success=NothingUnproved  $COMMON || exit $?
 hipspec Reverse.hs                  --only-user-stated      --success=ProvesUserStated $COMMON || exit $?
+hipspec ZipRev.hs --auto=False      --only-user-stated      --success=ProvesUserStated $COMMON || exit $?
 hipspec Concat.hs --extra-trans=+,++,length,map,sum,concat  --success=NothingUnproved  $COMMON || exit $?
 hipspec BinLists.hs                                         --success=NothingUnproved  $COMMON || exit $?
 # hipspec $PR                         --extra-trans=++,foldl,foldr --success=NothingUnproved  $COMMON || exit $?
