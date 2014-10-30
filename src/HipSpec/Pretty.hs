@@ -209,6 +209,8 @@ smtKeywords = altErgoKeywords ++
     [ "Bool", "Int", "Array", "List", "head", "tail", "nil", "insert"
     , "assert", "check-sat"
     , "abs", "min", "max", "const"
+    -- Z3:
+    , "isZero"
     -- CVC4:
     , "as", "concat"
     ]

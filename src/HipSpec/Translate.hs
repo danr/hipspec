@@ -29,6 +29,7 @@ import Var (Var)
 import TyCon (TyCon,isNewTyCon,tyConUnique)
 import qualified PrelNames
 import qualified TysPrim
+import qualified TysWiredIn
 
 import Control.Monad
 
@@ -100,7 +101,8 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
         ty_env :: TyEnv'
         ty_env t0 = do
             TyCon tc tc_args <- return t0
-            guard (tc /= idFromTyCon TysPrim.intPrimTyCon && tc /= idFromTyCon TysPrim.charPrimTyCon)
+-- -- we would like to have this, but CVC gets all confused:
+--          guard (tc `notElem` (map idFromTyCon [TysWiredIn.intTyCon,TysWiredIn.charTyCon]))
             Datatype{..} <- M.lookup tc m_tcs
             return
                 [ ( ( con_name

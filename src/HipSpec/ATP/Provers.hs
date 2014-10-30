@@ -138,7 +138,7 @@ spass = Prover
     , prover_args           = \ _f t -> ["-Auto","-TPTP","-PGiven=0","-PProblem=0","-DocProof=0","-PStatistic=0","-Stdin","-TimeLimit="++showCeil t]
     , prover_process_output = searchOutput
         [("SPASS beiseite: Proof found.",proven)
-        ,("SPASS beiseite: Completion found.",failure)
+        ,("SPASS beiseite: Completion found.",disproved)
         ,("SPASS beiseite: Ran out of time.",failure)
         ,("No formulae and clauses found in input file!",failure)
         ]
@@ -193,6 +193,7 @@ z3 = Prover
     , prover_process_output = searchOutput
         [("error",Just Error)
         ,("unsat",proven)
+        ,("sat",disproved)
         ,("unknown",failure)
         ]
     , prover_suppress_errs  = False
@@ -220,6 +221,7 @@ mkCVC4 name desc opts = Prover
         opts
     , prover_process_output = searchOutput
         [("unsat",proven)
+        ,("sat",disproved)
         ,("unknown",failure)
         ]
     , prover_suppress_errs  = False
@@ -228,11 +230,12 @@ mkCVC4 name desc opts = Prover
     , prover_input_format   = SMT_CVC4
     }
 
-data Res = Proven | SoftFailure | Error
+data Res = Proven | SoftFailure | Error | Disproved
 
-proven,failure :: Maybe Res
-proven  = Just Proven
-failure = Just SoftFailure
+proven,failure,disproved :: Maybe Res
+proven    = Just Proven
+failure   = Just SoftFailure
+disproved = Just Disproved
 
 showCeil :: Double -> String
 showCeil = show . (ceiling :: Double -> Integer)
