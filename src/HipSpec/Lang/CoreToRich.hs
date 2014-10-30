@@ -197,7 +197,7 @@ trExpr e0 = case e0 of
                                 tys' <- mapM (lift . trType) tys
                                 bs' <- forM bs $ \ b ->
                                     (,) (idFromVar b) <$> lift (trType (varType b))
-                                rhs' <- local ((x:) . (bs++)) (trExpr rhs)
+                                rhs' <- local (bs++) (trExpr rhs)
                                 dct <- lift (trPolyType (dataConType dc))
                                 return (ConPat (idFromDataCon dc {- ,dct -}) dct tys' bs',rhs')
                             Nothing -> throw (unif_err (Just u))
@@ -212,7 +212,7 @@ trExpr e0 = case e0 of
 
                 _                   -> fail "Default or LitAlt with variable bindings"
 
-        R.Case e' (Just (idFromVar x,t')) <$> mapM tr_alt alts
+        R.Case e' (Just (idFromVar x,t')) <$> local (x:) (mapM tr_alt alts)
 
     C.Tick _ e -> trExpr e
     C.Type{} -> throw (msgTypeExpr e0)
