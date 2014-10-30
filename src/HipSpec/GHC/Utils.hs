@@ -57,3 +57,9 @@ rmClass ty = case splitFunTy_maybe ty of
     Just (t1,t2) | isPredTy t1 -> rmClass t2
     _ -> ty
 
+-- Has class constraint?
+hasClass :: Type -> Bool
+hasClass ty = case splitFunTy_maybe (snd (splitForAllTys ty)) of
+    Just (t1,t2) -> isPredTy t1
+    _            -> False
+

@@ -14,6 +14,7 @@ length (_:xs) = 1 + length xs
 
 len_morph xs ys = length (xs ++ ys) =:= length xs + length ys
 
+{-
 take :: Int -> [a] -> [a]
 take n xs | n <= 0 = []
 take n []          = []
@@ -25,4 +26,5 @@ drop n (x:xs)      = drop (n-1) xs
 
 take_drop n xs = take n xs ++ drop n xs =:= xs
 
+-}
 

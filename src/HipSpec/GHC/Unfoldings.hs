@@ -15,7 +15,7 @@ import Id
 import Data.Maybe
 
 import HipSpec.GHC.Utils
-import HipSpec.GHC.Dicts
+-- import HipSpec.GHC.Dicts
 
 -- | The unfolding of an Id
 unfolding :: Id -> CoreExpr

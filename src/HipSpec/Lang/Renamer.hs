@@ -25,10 +25,11 @@ disambig :: (a -> String) -> Suggestor a String
 disambig f (f -> x) = x : [ x ++ show (i :: Int) | i <- [2..] ]
 
 evalRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> r
-evalRenameM f block m = fst (runRenameM f block m)
+evalRenameM f block m = fst (runRenameM f block M.empty m)
 
-runRenameM :: Ord b => Suggestor a b -> [b] -> RenameM a b r -> (r,Map a b)
-runRenameM f block m = second fst (runState (runReaderT m f) (M.empty,S.fromList block))
+runRenameM :: Ord b => Suggestor a b -> [b] -> Map a b -> RenameM a b r -> (r,Map a b)
+runRenameM f block alloc m = second fst (runState (runReaderT m f) s0)
+  where s0 = (alloc,S.fromList (block ++ M.elems alloc))
 
 insert :: (Ord a,Ord b) => a -> RenameM a b b
 insert n = go =<< asks ($ n)

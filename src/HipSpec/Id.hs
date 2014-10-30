@@ -4,6 +4,7 @@
 module HipSpec.Id where
 
 import Name hiding (varName)
+import OccName (occNameString)
 -- import BasicTypes (TupleSort(..))
 import PrelNames
 import HipSpec.GHC.Utils
@@ -21,9 +22,22 @@ import qualified QuickSpec.Base as QS -- (prettyShow)
 import Data.Aeson
 #endif
 import GHC.Generics
+import PrimOp
+
+import Data.Map (Map)
+import qualified Data.Map as M
+
+idFromPrimOp :: PrimOp -> Id
+idFromPrimOp = GHCPrim
 
 idFromName :: Name -> Id
-idFromName = GHCOrigin
+idFromName nm
+    | Just op <- M.lookup (nameOccName nm) primops = idFromPrimOp op
+    | otherwise = GHCOrigin nm
+
+primops :: Map OccName PrimOp
+primops = M.fromList [(primOpOcc o,o) | o <- allThePrimOps]
+
 
 idFromDataCon :: DataCon -> Id
 idFromDataCon = idFromName . dataConName
@@ -46,6 +60,7 @@ tryGetGHCName _              = Nothing
 
 data Id
     = GHCOrigin Name
+    | GHCPrim PrimOp
     | QSVariable QS.Variable
     | QSTyVar QS.TyVar
     | QSPropId Integer
@@ -55,6 +70,9 @@ data Id
 
 instance Show Name where
     show nm = show (showOutputable nm)
+
+deriving instance Show PrimOp
+deriving instance Show PrimOpVecCat
 
 data Derived
     = Id `LetFrom` Id
@@ -90,6 +108,7 @@ mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 originalId :: Id -> String
 originalId i = case i of
     GHCOrigin nm  -> getOccString nm
+    GHCPrim op    -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     QSVariable v  -> QS.prettyShow v
     QSTyVar tv    -> QS.prettyShow tv
     Const 0 2     -> "const"
@@ -111,6 +130,7 @@ originalId i = case i of
 ppId :: Id -> String
 ppId i = case i of
     GHCOrigin nm  -> ppName nm
+    GHCPrim op    -> show op
     QSVariable v  -> QS.prettyShow v
     QSTyVar tv    -> QS.prettyShow tv
     Derived d x   -> ppDerived x d

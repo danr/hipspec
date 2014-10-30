@@ -100,7 +100,7 @@ processFile cont = do
             []  -> False
 
         (am_fns,binds_thy) = trSimpFuns am_fin fns
-        am_fin = am_fns `combineArityMap` am_tcs
+        am_fin = am_fns `combineArityMap` am_tcs `combineArityMap` primOpArities
 
         cls = sortClauses False (concatMap clauses thy)
 

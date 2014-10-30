@@ -30,6 +30,8 @@ import HipSpec.Id
 
 import Data.Char
 
+import PrimOp
+
 type LogicId = Poly Id
 
 docId :: Id -> Doc
@@ -85,21 +87,24 @@ mononame (IdInst x xs) = polyname x -- ++ short (concatMap (\ u -> '_':ty u) xs)
 render' :: Doc -> String
 render' = renderStyle style { lineLength = 150 }
 
-renameCls :: (Ord a,Ord b) => [String] -> (a -> String) -> (b -> String) -> [Clause a b] -> ([Clause String String],Map (Either a b) String)
-renameCls kwds f g = runRenameM (disambig2 f g) kwds . mapM renameBi2
+renameCls :: (Ord a,Ord b) =>
+    [String] -> [(a,String)] -> (a -> String) -> (b -> String) -> [Clause a b] -> ([Clause String String],Map (Either a b) String)
+renameCls kwds alloc f g = runRenameM (disambig2 f g) kwds alloc' . mapM renameBi2
+  where alloc' = M.fromList [(Left x,s) | (x,s) <- alloc]
 
 prettyCls :: (Ord a,Ord b) => (PP String String -> Clause String String -> Doc) -> [String]
+             -> [(a,String)]
              -> (a -> String) -> (b -> String)
              -> [Clause a b] -> (String,Map String (Either a b))
-prettyCls pp kwds f g cls0 =
+prettyCls pp kwds alloc f g cls0 =
     ( render' . vcat . map (pp ppText) $ cls
     , M.fromList [ (s,i) | (i,s) <- M.toList rename_map ]
     )
   where
-    (cls,rename_map) = renameCls kwds f g cls0
+    (cls,rename_map) = renameCls kwds alloc f g cls0
 
-prettyTPTP :: (Show a,Ord a,Ord b) => (a -> String) -> (b -> String) -> [Clause a b] -> String
-prettyTPTP symb var = fst . prettyCls TFF.ppClause tptpKeywords symb' var'
+prettyTPTP :: (Show a,Ord a,Ord b) => [(a,String)] -> (a -> String) -> (b -> String) -> [Clause a b] -> String
+prettyTPTP prims symb var = fst . prettyCls TFF.ppClause tptpKeywords prims symb' var'
   where
     -- TPTP: A-Za-Z0-9_ are allowed,
     -- but initial has to be A-Z_ for variables, and a-z0-9 for symbols
@@ -119,19 +124,34 @@ ppText :: PP String String
 ppText = PP text text
 
 ppTHF :: [Clause LogicId LogicId] -> String
-ppTHF = prettyTPTP polyname polyname
+ppTHF = prettyTPTP thfPrims polyname polyname
 
 ppTFF :: [Clause (IdInst LogicId LogicId) LogicId] -> String
-ppTFF = prettyTPTP mononame polyname
+ppTFF = prettyTPTP tffPrims mononame polyname
 
 ppAltErgo :: [Clause LogicId LogicId] -> String
-ppAltErgo = fst . prettyCls AltErgo.ppClause altErgoKeywords (escape . polyname) (escape . polyname)
+ppAltErgo = fst . prettyCls AltErgo.ppClause altErgoKeywords altErgoPrims (escape . polyname) (escape . polyname)
 
 ppMonoAltErgo :: [Clause (IdInst LogicId LogicId) LogicId] -> String
-ppMonoAltErgo = fst . prettyCls AltErgo.ppClause altErgoKeywords (escape . mononame) (escape . polyname)
+ppMonoAltErgo = fst . prettyCls AltErgo.ppClause altErgoKeywords altErgoMonoPrims (escape . mononame) (escape . polyname)
 
 ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> (String,Map String LogicId)
-ppSMT = second (M.map (either forget_inst id)) . prettyCls SMT.ppClause smtKeywords (escape . mononame) (escape . polyname)
+ppSMT = second (M.map (either forget_inst id)) . prettyCls SMT.ppClause smtKeywords smtPrims (escape . mononame) (escape . polyname)
+
+altErgoPrims,thfPrims :: [(LogicId,String)]
+altErgoPrims = []
+thfPrims = []
+
+altErgoMonoPrims,tffPrims,smtPrims :: [(IdInst LogicId LogicId,String)]
+altErgoMonoPrims = []
+tffPrims = []
+smtPrims =
+    [ (IdInst (Id (GHCPrim op)) [],s)
+    | (op,s) <-
+        [ (IntAddOp,"+") ]
+    ]
+
+
 
 tptpKeywords :: [String]
 tptpKeywords = smtKeywords ++

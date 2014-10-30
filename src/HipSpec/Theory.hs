@@ -4,6 +4,7 @@ module HipSpec.Theory
     , ArityMap
     , combineArityMap
     , emptyArityMap
+    , primOpArities
     , Content(..)
     , Theory
     , Subtheory(..)
@@ -32,6 +33,8 @@ import qualified Data.Map as M
 import Data.List (sortBy)
 import Data.Ord (comparing)
 
+import PrimOp
+
 type ArityMap = Map Id Int
 
 combineArityMap :: ArityMap -> ArityMap -> ArityMap
@@ -39,6 +42,12 @@ combineArityMap = M.union
 
 emptyArityMap :: ArityMap
 emptyArityMap = M.empty
+
+primOpArities :: ArityMap
+primOpArities = M.fromList
+    [ (idFromPrimOp op,arity)
+    | op <- allThePrimOps, let (_,_,_,arity,_) = primOpSig op
+    ]
 
 data Content
     = Definition Id
