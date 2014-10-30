@@ -13,7 +13,8 @@ hipspec Int.hs --only= --extra-trans=plus,minus,eq,ne,lt,le,gt,ge --success=Noth
 hipspec Integer.hs --only-user-stated --success=ProvesUserStated $COMMON_INT || exit $?
 hipspec Integer.hs --only= --extra-trans=plus,minus,eq,ne,lt,le,gt,ge --success=NothingUnproved --termsize=3 $COMMON_INT || exit $?
 
-hipspec Char.hs --success=ProvesUserStated $COMMON_INT || exit $?
+hipspec Char.hs --only-user-stated --success=ProvesUserStated $COMMON_INT || exit $?
+hipspec Char.hs --only= --extra-trans=isA,eq,ne,lt,le,gt,ge --success=NothingUnproved --termsize=3 $COMMON_INT || exit $?
 
 hipspec HOF.hs         --auto=False                         --success=NothingUnproved  $COMMON || exit $?
 hipspec Properties.hs  --auto=False                         --success=NothingUnproved  $COMMON || exit $?

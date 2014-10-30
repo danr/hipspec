@@ -108,6 +108,13 @@ convertPrim op = case op of
     IntNeOp -> Just IntNe
     IntLtOp -> Just IntLt
     IntLeOp -> Just IntLe
+
+    CharGtOp -> Just IntGt
+    CharGeOp -> Just IntGe
+    CharEqOp -> Just IntEq
+    CharNeOp -> Just IntNe
+    CharLtOp -> Just IntLt
+    CharLeOp -> Just IntLe
     _       -> Nothing
 
 otherPrims :: [OtherPrim]

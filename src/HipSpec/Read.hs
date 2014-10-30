@@ -133,6 +133,7 @@ execute params@Params{..} = do
             , IIDecl (qualifiedImport "Data.Constraint")
             , IIDecl (qualifiedImport "Test.QuickCheck")
             , IIDecl (qualifiedImport "GHC.Types")
+            , IIDecl (qualifiedImport "GHC.Base")
             , IIDecl (qualifiedImport "Prelude")
             ]
             -- Also include the imports the module is importing

@@ -26,15 +26,17 @@ import Data.Generics.Geniplate
 import TysWiredIn (trueDataCon,falseDataCon,boolTyCon,nilDataCon,consDataCon)
 import DataCon (dataConWorkId)
 import PrimOp (PrimOp(TagToEnumOp))
-import PrelNames (unpackCStringName)
+import qualified PrelNames
 import Data.Char (ord)
 import HipSpec.Lang.CoreToRich as CTR
 import TysWiredIn
 
 unpackStrings :: TransformBi (Expr Id) t => t -> t
 unpackStrings = transformBi $ \ e0 -> case e0 of
+    Gbl (GHCOrigin x) _ _ | x == PrelNames.eqStringName ->
+        error "String patterns are not implemented, bug me if you need them"
     App (Gbl (GHCOrigin x) _ _) (String s)
-        | x == unpackCStringName ->
+        | x == PrelNames.unpackCStringName ->
             foldr (\ x xs -> apply cons [apply mkChar [Lit (toInteger (ord x))],xs]) nil s
     _ -> e0
   where
