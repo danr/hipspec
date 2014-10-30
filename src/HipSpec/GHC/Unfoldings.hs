@@ -31,18 +31,18 @@ maybeUnfolding v = case realIdUnfolding v of
     _                      -> Nothing
 
 -- | Fixes identifiers according to some core binds
-fixId :: [CoreBind] -> Id -> Id
+fixId :: [(Var,CoreExpr)] -> Id -> Id
 fixId bs = \ i -> case M.lookup i bind_map of
-    Just rhs -> i `setIdUnfoldingLazily` mkCompulsoryUnfolding (inlineDicts rhs)
+    Just rhs -> i `setIdUnfoldingLazily` mkCompulsoryUnfolding rhs
     Nothing -> i
   where
-    bind_map = M.fromList (flattenBinds bs)
+    bind_map = M.fromList bs
 
 -- | Ties the knot, fixes all the unfoldings in these core binds
-fixUnfoldings :: [CoreBind] -> [CoreBind]
+fixUnfoldings :: [(Var,CoreExpr)] -> [(Var,CoreExpr)]
 fixUnfoldings bs = map (idMap lkup) bs'
   where
-    bs' :: [CoreBind]
+    bs' :: [(Var,CoreExpr)]
     bs' = mapM (exprMap k) bs lkup
 
     lkup :: Id -> Id
@@ -57,6 +57,19 @@ fixUnfoldings bs = map (idMap lkup) bs'
     k = boringCases h k
 
 -- | Maps an expression fun over binds
+exprMap :: Applicative f => (CoreExpr -> f CoreExpr) -> (Var,CoreExpr) -> f (Var,CoreExpr)
+exprMap f (v,e) = (,) v <$> f e
+
+-- | Maps an identifier fun over binds
+idMap :: (Id -> Id) -> (Var,CoreExpr) -> (Var,CoreExpr)
+idMap f (v,e) = (f v,e)
+
+bindMap :: Applicative f => (CoreExpr -> f CoreExpr) -> CoreBind -> f CoreBind
+bindMap f (NonRec v e) = NonRec v <$> f e
+bindMap f (Rec vses)   = Rec <$> sequenceA [ (,) v <$> f e | (v,e) <- vses ]
+
+{-
+-- | Maps an expression fun over binds
 exprMap :: Applicative f => (CoreExpr -> f CoreExpr) -> CoreBind -> f CoreBind
 exprMap f (NonRec v e) = NonRec v <$> f e
 exprMap f (Rec vses)   = Rec <$> sequenceA [ (,) v <$> f e | (v,e) <- vses ]
@@ -65,6 +78,7 @@ exprMap f (Rec vses)   = Rec <$> sequenceA [ (,) v <$> f e | (v,e) <- vses ]
 idMap :: (Id -> Id) -> CoreBind -> CoreBind
 idMap f (NonRec v e) = NonRec (f v) e
 idMap f (Rec vses)   = Rec [ (f v,e) | (v,e) <- vses ]
+-}
 
 -- | Fills in all boring cases for you
 boringCases :: Applicative f => (Var -> f Var) -> (CoreExpr -> f CoreExpr) -> CoreExpr -> f CoreExpr
@@ -73,7 +87,7 @@ boringCases h f t = case t of
     Lit{} -> pure t
     App e1 e2 -> App <$> f e1 <*> f e2
     Lam x e -> Lam x <$> f e
-    Let bs e -> Let <$> exprMap f bs <*> f e
+    Let bs e -> Let <$> bindMap f bs <*> f e
     Case s ty w alts ->
         (\s' alts' -> Case s' ty w alts')
             <$> f s

@@ -25,6 +25,10 @@ instanceTransformBiT
     [ [t|Var|], [t|Coercion|] , [t|Tickish Id|], [t|Literal|], [t|Type|], [t|AltCon|] ]
     [t| forall a . (Expr a,[Bind a]) |]
 
+instanceTransformBiT
+    [ [t|Var|], [t|Coercion|] , [t|Tickish Id|], [t|Literal|], [t|Type|], [t|AltCon|] ]
+    [t| forall a . (Expr a,[(a,Expr a)]) |]
+
 maybeUnfolding :: Id -> Maybe CoreExpr
 maybeUnfolding v = case realIdUnfolding v of
     CoreUnfolding{uf_tmpl} -> Just uf_tmpl

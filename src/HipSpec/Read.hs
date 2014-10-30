@@ -117,7 +117,7 @@ execute params@Params{..} = do
 
         let modguts = dm_core_module d
 
-        let binds = inlineDicts (fixUnfoldings (inlineDicts (mg_binds modguts)))
+        let binds = fixUnfoldings (inlineDicts (flattenBinds (mg_binds modguts)))
 
         let fix_id :: Id -> Id
             fix_id = fixId binds
@@ -172,7 +172,7 @@ execute params@Params{..} = do
             let (ids,tcs) = (map fst (M.elems m),M.elems n)
             return (SigInfo{..},ids,tcs)
 
-        let toplvl_binds | tr_mod    = map (fix_id . fst) (flattenBinds binds)
+        let toplvl_binds | tr_mod    = map (fix_id . fst) binds
                          | otherwise = []
 
         whenFlag params PrintCore (liftIO (putStrLn (showOutputable toplvl_binds)))

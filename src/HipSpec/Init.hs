@@ -23,6 +23,7 @@ import HipSpec.GHC.Utils
 import HipSpec.GHC.FreeTyCons
 import HipSpec.Lang.RemoveDefault
 import HipSpec.GHC.Unfoldings
+import HipSpec.GHC.Dicts (inlineDicts)
 import HipSpec.Lang.Uniquify
 
 import HipSpec.Heuristics.CallGraph
@@ -64,7 +65,7 @@ processFile cont = do
     us0 <- mkSplitUniqSupply 'h'
 
     let (binds,_us1) = initUs us0 $ sequence
-            [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ e)
+            [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ inlineDicts e)
             | v <- varSetElems vars
             , isNothing (GHC.isClassOpId_maybe v)
             , Just e <- [maybeUnfolding v]
