@@ -15,7 +15,7 @@ import Id
 import Data.Maybe
 
 import HipSpec.GHC.Utils
--- import HipSpec.GHC.Dicts
+import HipSpec.GHC.Dicts
 
 -- | The unfolding of an Id
 unfolding :: Id -> CoreExpr
@@ -24,11 +24,6 @@ unfolding i  = fromMaybe (error err) . maybeUnfolding $ i
     err = "No unfolding for identifier " ++ showOutputable i ++
           " (possible solution: Remove *.hi files and try again)"
 
--- | Maybe the unfolding of an Id
-maybeUnfolding :: Id -> Maybe CoreExpr
-maybeUnfolding v = case realIdUnfolding v of
-    CoreUnfolding{uf_tmpl} -> Just uf_tmpl
-    _                      -> Nothing
 
 -- | Fixes identifiers according to some core binds
 fixId :: [(Var,CoreExpr)] -> Id -> Id

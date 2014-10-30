@@ -23,6 +23,7 @@ import Control.Applicative
 import HipSpec.Id as Id
 
 import Data.List (nub)
+import Data.Maybe (fromMaybe)
 
 type RTS = RWS
     Id              -- current derived position
@@ -95,7 +96,7 @@ rtsExpr e0 = case e0 of
               where
                 new_lambda = makeLambda free_vars body
 
-                new_type_body = R.exprType new_lambda
+                new_type_body = fromMaybe (error "rtsExpr type failure") (R.exprType new_lambda)
 
                 new_ty_vars = exprTyVars new_lambda
 
@@ -150,7 +151,7 @@ emitFun mkName body = do
 
         new_lambda = makeLambda args body
 
-        inner_type = R.exprType new_lambda
+        inner_type = fromMaybe (error "emitFun expr type failure") (R.exprType new_lambda)
 
         ty_vars    = exprTyVars new_lambda
 

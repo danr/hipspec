@@ -6,7 +6,7 @@ import HipSpec.Theory
 import qualified HipSpec.Lang.Rich as R
 --import HipSpec.Lang.Rich (Datatype(..),Constructor(..))
 
-import HipSpec.Lang.CoreToRich
+import HipSpec.Lang.CoreToRich as CTR
 import HipSpec.Lang.RichToSimple
 
 import HipSpec.Lang.Simple as S
@@ -26,7 +26,11 @@ import qualified Data.Set as S
 
 import Var (Var)
 
-import TyCon (TyCon,isNewTyCon)
+import TyCon (TyCon,isNewTyCon,tyConUnique)
+import qualified PrelNames
+import qualified TysPrim
+
+import Control.Monad
 
 import Induction.Structural
 
@@ -45,6 +49,9 @@ appThy = Subtheory
 --   in typed expressions
 type Con    = (Id,PolyType Id,[Type Id])
 type TyEnv' = TyEnv Con (Type Id)
+
+isAbstract :: TyCon -> Bool
+isAbstract tc = isNewTyCon tc || CTR.essentiallyInteger tc
 
 -- | Translates the type constructors
 trTyCons :: [TyCon] -> (ArityMap,[Subtheory],TyEnv')
@@ -71,7 +78,7 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
                   }
                 ]
               | (dc,dc_ptr_cls) <- dc_ptr_clss
-              , not (isNewTyCon tc)
+              , not (isAbstract tc)
               ]
             | (tc,dt@Datatype{..}) <- data_types
             , let (cls,dc_ptr_clss) = P.trDatatype dt
@@ -80,19 +87,20 @@ trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
         con_arities = M.fromList
             [ (R.con_name dc,length (R.con_args dc))
             | (tc,dt) <- data_types
-            , not (isNewTyCon tc)
+            , not (isAbstract tc)
             , dc <- data_cons dt
             ]
 
         m_tcs = M.fromList
             [ (data_ty_con,dt)
             | (tc,dt@Datatype{..}) <- data_types
-            , not (isNewTyCon tc)
+            , not (isAbstract tc)
             ]
 
         ty_env :: TyEnv'
         ty_env t0 = do
             TyCon tc tc_args <- return t0
+            guard (tc /= idFromTyCon TysPrim.intPrimTyCon && tc /= idFromTyCon TysPrim.charPrimTyCon)
             Datatype{..} <- M.lookup tc m_tcs
             return
                 [ ( ( con_name

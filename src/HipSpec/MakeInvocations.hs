@@ -85,13 +85,10 @@ tryProve prop lemmas0 = do
                 let tff = ppTFF mcls
 
                 debugWhen DebugMono $
-                    "\nInitial Monomorphising:\n" ++ ppShow cls_sk ++
                     "\nMonomorphising:\n" ++ ppTHF cls_sk ++
                     "\n\nResult:\n" ++ ppTFF mcls_sk ++
                     "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
-                    "\n\nRecords:\n" ++ render' (ppRecords pp recs) ++
-                    "\n\nRecords:\n" ++ ppShow recs ++
-                    "\nResult Monomorphising:\n" ++ ppShow mcls_sk
+                    "\n\nRecords:\n" ++ render' (ppRecords pp recs)
 
                 return $ LinTheory smt_rename_map $ \ t -> case t of
                     AltErgoFmt     -> return $ ppAltErgo (sortClauses False cls)

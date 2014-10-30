@@ -21,6 +21,8 @@ import HipSpec.Lang.Type as R
 import CoreUtils as C
 import CoreSyn as C
 
+import Data.Char (ord)
+
 import DataCon
 import Literal
 import Var hiding (Id)
@@ -228,6 +230,7 @@ trLit :: Literal -> TM Integer
 trLit (LitInteger x _type) = return x
 trLit (MachInt x)          = return x
 trLit (MachInt64 x)        = return x
+trLit (MachChar ch)        = return (toInteger (ord ch))
 trLit l                    = throw (msgUnsupportedLiteral l)
 
 trPolyType :: C.Type -> Either String (R.PolyType Id)
@@ -241,13 +244,17 @@ trPolyType t0 =
 throw :: String -> TM a
 throw = lift . throwError
 
+essentiallyInteger :: TyCon -> Bool
+essentiallyInteger tc = tc == TysPrim.intPrimTyCon || tc == TysPrim.charPrimTyCon ||
+                        tyConUnique tc == PrelNames.integerTyConKey
+
+
 trType :: C.Type -> Either String (R.Type Id)
 trType = go . expandTypeSynonyms
   where
     go t0
         | Just (t1,t2) <- splitFunTy_maybe t0    = ArrTy <$> go t1 <*> go t2
-        | Just (tc,[]) <- splitTyConApp_maybe t0, tc == TysPrim.intPrimTyCon = return Integer
-        | Just (tc,[]) <- splitTyConApp_maybe t0, tyConUnique tc == PrelNames.integerTyConKey = return Integer
+        | Just (tc,[]) <- splitTyConApp_maybe t0, essentiallyInteger tc = return Integer
         | Just (tc,ts) <- splitTyConApp_maybe t0 = TyCon (idFromTyCon tc) <$> mapM go ts
         | Just tv <- getTyVar_maybe t0           = return (TyVar (idFromTyVar tv))
         | otherwise                              = throwError (msgIllegalType t0)

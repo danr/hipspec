@@ -54,7 +54,7 @@ data Prover = Prover
     , prover_args           :: String -> Double -> [String]
     -- ^ Given file name (if prover_cannot_stdin)
     --   and timeout in secs, args to createProcess
-    , prover_process_output :: String -> Maybe Bool
+    , prover_process_output :: String -> Maybe Res
     -- ^ Processes the output and time and gives a result
     , prover_suppress_errs  :: Bool
     -- ^ Should we ignore standard error from this prover?
@@ -92,7 +92,7 @@ completeName fmt s = case fmt of
     SMT_PP         -> (s ++ "_pp") <.> "smt"
     FOF            -> s <.> "p"
 
-outputSZS :: [(String,Maybe Bool)]
+outputSZS :: [(String,Maybe Res)]
 outputSZS =
     [ ("SZS status " ++ s,r)
     | (s,r) <-
@@ -191,7 +191,8 @@ z3 = Prover
     , prover_cannot_stdin   = False
     , prover_args           = \ _f _t -> ["-smt2","-nw","/dev/stdin"]
     , prover_process_output = searchOutput
-        [("unsat",proven)
+        [("error",Just Error)
+        ,("unsat",proven)
         ,("unknown",failure)
         ]
     , prover_suppress_errs  = False
@@ -227,15 +228,17 @@ mkCVC4 name desc opts = Prover
     , prover_input_format   = SMT_CVC4
     }
 
-proven,failure :: Maybe Bool
-proven  = Just True
-failure = Just False
+data Res = Proven | SoftFailure | Error
+
+proven,failure :: Maybe Res
+proven  = Just Proven
+failure = Just SoftFailure
 
 showCeil :: Double -> String
 showCeil = show . (ceiling :: Double -> Integer)
 
 -- Should really use something more efficient than isInfixOf
-searchOutput :: [(String,Maybe Bool)] -> String -> Maybe Bool
+searchOutput :: [(String,Maybe Res)] -> String -> Maybe Res
 searchOutput []         _      = Nothing
 searchOutput ((s,r):xs) output
     | s `isInfixOf` output = r

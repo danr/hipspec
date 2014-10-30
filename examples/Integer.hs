@@ -1,19 +1,19 @@
-module Int where
+module Integer where
 
 import HipSpec
 
-plus,minus :: Int -> Int -> Int
+plus,minus :: Integer -> Integer -> Integer
 plus  x y = x + y
 minus x y = x - y
 
 plus_comm x y = plus x y =:= plus y x
 minus_zero x = isZero (minus x x) =:= True
 
-isZero :: Int -> Bool
+isZero :: Integer -> Bool
 isZero 0 = True
 isZero _ = False
 
-eq,ne,lt,le,gt,ge :: Int -> Int -> Bool
+eq,ne,lt,le,gt,ge :: Integer -> Integer -> Bool
 eq = (==)
 ne = (/=)
 lt = (<)

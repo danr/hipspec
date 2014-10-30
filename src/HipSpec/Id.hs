@@ -90,6 +90,8 @@ convertIntegerToInt x = case () of
     () | u == plusIntegerIdKey   -> Just IntAddOp
        | u == timesIntegerIdKey  -> Just IntMulOp
        | u == minusIntegerIdKey  -> Just IntSubOp
+       | u == eqIntegerPrimIdKey -> Just IntEqOp
+       | u == neqIntegerPrimIdKey -> Just IntNeOp
        | u == geIntegerPrimIdKey -> Just IntGeOp
        | u == gtIntegerPrimIdKey -> Just IntGtOp
        | u == leIntegerPrimIdKey -> Just IntLeOp
@@ -171,9 +173,13 @@ mkLetFrom :: Id -> Integer -> Id -> Id
 mkLetFrom x _ (Derived Unknown _) = x
 mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
+disambigPrim "Integer" = "ghc_Integer"
+disambigPrim "Bool"    = "ghc_Bool"
+disambigPrim s         = s
+
 originalId :: Id -> String
 originalId i = case i of
-    GHCOrigin nm   -> getOccString nm
+    GHCOrigin nm   -> disambigPrim (getOccString nm)
     GHCPrim op     -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     OtherPrim op   -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     FromProverBool -> "convert"
@@ -198,7 +204,7 @@ originalId i = case i of
 --   disabiguation.
 ppId :: Id -> String
 ppId i = case i of
-    GHCOrigin nm   -> ppName nm
+    GHCOrigin nm   -> disambigPrim (ppName nm)
     GHCPrim op     -> show op
     OtherPrim op   -> show op
     FromProverBool -> "convert"

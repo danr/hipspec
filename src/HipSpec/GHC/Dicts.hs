@@ -1,7 +1,7 @@
 {-# LANGUAGE PatternGuards, TypeSynonymInstances, FlexibleInstances, ViewPatterns, ExplicitForAll #-}
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, FlexibleContexts, NamedFieldPuns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module HipSpec.GHC.Dicts (inlineDicts) where
+module HipSpec.GHC.Dicts (inlineDicts,maybeUnfolding) where
 
 import HipSpec.GHC.Utils (showOutputable)
 import CoreSyn
@@ -29,10 +29,13 @@ instanceTransformBiT
     [ [t|Var|], [t|Coercion|] , [t|Tickish Id|], [t|Literal|], [t|Type|], [t|AltCon|] ]
     [t| forall a . (Expr a,[(a,Expr a)]) |]
 
+-- | Maybe the unfolding of an Id
 maybeUnfolding :: Id -> Maybe CoreExpr
-maybeUnfolding v = case realIdUnfolding v of
+maybeUnfolding v = case ri of
     CoreUnfolding{uf_tmpl} -> Just uf_tmpl
     _                      -> Nothing
+  where
+    ri = realIdUnfolding v
 
 inlineDicts :: TransformBi (Expr Id) t => t -> t
 inlineDicts = transformBi $ \ e0 -> case e0 of
@@ -46,8 +49,8 @@ inlineDicts = transformBi $ \ e0 -> case e0 of
                 CoreUnfolding{uf_tmpl} ->
                     let (_,es) = collectArgs uf_tmpl
                     in  drop (length es - length ss) es !! i
-                x -> error $ showOutputable (e0,x)
-            x -> error $ showOutputable (e0,x)
+                x -> e0 -- error $ showOutputable (e0,x)
+            x -> e0 -- error $ showOutputable (e0,x)
     _ -> e0
 
 

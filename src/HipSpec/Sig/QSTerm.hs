@@ -14,6 +14,7 @@ import HipSpec.Sig.Resolve
 import HipSpec.Utils
 import HipSpec.Property as P
 import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.CoreToRich as CTR
 
 import HipSpec.Params
 
@@ -38,9 +39,13 @@ trType :: ResolveMap -> QS.Type -> S.Type Id
 trType m = go
   where
     go t0 = case t0 of
-        Rewriting.Fun QS.Arrow [a,b]   -> go a `S.ArrTy` go b
-        Rewriting.Fun (QS.TyCon tc) as -> S.TyCon (idFromTyCon (lookupTyCon m tc)) (map go as)
         Rewriting.Var tv               -> S.TyVar (QSTyVar tv)
+        Rewriting.Fun QS.Arrow [a,b]   -> go a `S.ArrTy` go b
+        Rewriting.Fun (QS.TyCon tc) as ->
+            let tc' = lookupTyCon m tc
+            in if CTR.essentiallyInteger tc'
+                then S.Integer
+                else S.TyCon (idFromTyCon tc') (map go as)
 
 match :: Eq a => S.PolyType a -> S.Type a -> Maybe [S.Type a]
 match (S.Forall tvs t) t' = sequence [ findTv tv t t' | tv <- tvs ]

@@ -172,9 +172,13 @@ lintExpr e0 = chk_ret $ case e0 of
   where
     chk_ret m = do
         t <- m
-        let t' = exprType e0
-        unless (t `eqType` t') (report (msgExprTypeDisagrees e0 t t'))
-        return t
+        case exprType e0 of
+            Nothing -> do
+                report $ \ p -> ppExpr' p e0 <+> " is ill-formed wrt type!"
+                return Integer
+            Just t' -> do
+                unless (t `eqType` t') (report (msgExprTypeDisagrees e0 t t'))
+                return t
 
 lintAlt :: Ord v => Type v -> Alt v -> LintM v (Type v)
 lintAlt t0 (p,rhs) = lintPat t0 p >> lintExpr rhs

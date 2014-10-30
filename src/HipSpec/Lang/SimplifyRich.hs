@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards,ViewPatterns #-}
+{-# LANGUAGE PatternGuards, ViewPatterns #-}
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, ExplicitForAll #-}
 -- | Simplify pass over the rich language:
 --
@@ -23,8 +23,26 @@ import HipSpec.Id hiding (Derived(Case))
 
 import Data.Generics.Geniplate
 
-import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
+import TysWiredIn (trueDataCon,falseDataCon,boolTyCon,nilDataCon,consDataCon)
+import DataCon (dataConWorkId)
 import PrimOp (PrimOp(TagToEnumOp))
+import PrelNames (unpackCStringName)
+import Data.Char (ord)
+import HipSpec.Lang.CoreToRich as CTR
+import TysWiredIn
+
+unpackStrings :: TransformBi (Expr Id) t => t -> t
+unpackStrings = transformBi $ \ e0 -> case e0 of
+    App (Gbl (GHCOrigin x) _ _) (String s)
+        | x == unpackCStringName ->
+            foldr (\ x xs -> apply cons [apply mkChar [Lit (toInteger (ord x))],xs]) nil s
+    _ -> e0
+  where
+    Right (onChar -> nil)  = CTR.runTM (CTR.trVar (dataConWorkId nilDataCon))
+    Right (onChar -> cons) = CTR.runTM (CTR.trVar (dataConWorkId consDataCon))
+    Right mkChar           = CTR.runTM (CTR.trVar (dataConWorkId charDataCon))
+
+onChar (Gbl a t []) = Gbl a t [TyCon (idFromTyCon charTyCon) []]
 
 integerToInt :: TransformBi (Expr Id) t => t -> t
 integerToInt = transformBi $ \ e0 -> case e0 of
@@ -59,6 +77,17 @@ fromProverBoolType = proverBoolType `ArrTy` boolType
 
 q :: Type a -> PolyType a
 q = Forall []
+
+etaExpand :: Function Id -> Function Id
+etaExpand
+    (Function f ty@(Forall tvs (collectArrTy -> (arg_tys,body_ty)))
+                   (collectBinders -> (args,body)))
+    = Function f ty new_body
+  where
+    args'    = (map fst args ++ [ Lambda f `Derived` i | i <- [0..] ]) `zip` arg_tys
+    new_args = drop (length args) args'
+    new_body = makeLambda args' (apply body (map (uncurry Lcl) new_args))
+
 
 simpFuns :: Eq a => [Function a] -> [Function a]
 simpFuns = map (simpFun Global)

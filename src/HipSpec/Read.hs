@@ -180,7 +180,7 @@ execute params@Params{..} = do
         -- Wrapping up
         return EntryResult
             { sig_infos = sig_infos
-            , prop_ids  = props ++ concat extra_ids ++ toplvl_binds
+            , prop_ids  = props ++ map fix_id (concat extra_ids) ++ toplvl_binds
             , extra_tcs = concat extra_tcs
             }
 

@@ -32,6 +32,7 @@ import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
 import TyCon (isAlgTyCon)
+import TysWiredIn (boolTyCon)
 import UniqSupply
 
 import System.Exit
@@ -72,13 +73,13 @@ processFile cont = do
             ]
 
         tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
-                     (bindsTyCons' binds `union` extra_tcs)
+                     (bindsTyCons' binds `union` extra_tcs `union` [boolTyCon])
 
         (am_tcs,data_thy,ty_env') = trTyCons tcs
 
         rich_fns = toRich binds ++ [S.fromProverBoolDefn]
 
-    let rich_fns_opt = S.unTagToEnum (S.integerToInt (S.simpFuns rich_fns))
+    let rich_fns_opt = S.unTagToEnum (S.integerToInt (S.unpackStrings (S.simpFuns (map S.etaExpand rich_fns))))
 
         simp_fns :: [S.Function Id]
         simp_fns = toSimp rich_fns_opt

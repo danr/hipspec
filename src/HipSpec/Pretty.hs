@@ -148,12 +148,12 @@ altErgoPrims =
         , (OtherPrim IntGt,">")
         , (OtherPrim IntGe,">=")
         , (OtherPrim IntEq,"=")
-        , (OtherPrim IntNe,"!=")
+        , (OtherPrim IntNe,"<>")
         , (OtherPrim IntLt,"<")
         , (OtherPrim IntLe,"<=")
         , (OtherPrim ProverTrue,"true")
         , (OtherPrim ProverFalse,"false")
-        , (ProverBool,"Bool")
+        , (ProverBool,"bool")
         ]
     ]
 

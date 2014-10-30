@@ -40,10 +40,12 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Generics.Geniplate
 
+import Data.Maybe (fromMaybe)
+
 import Data.List (nub,union)
 
 -- Patterns are resued from the rich language
-import HipSpec.Lang.Rich (Pattern(..),anyRhs,Datatype(..),Constructor(..))
+import HipSpec.Lang.Rich (Pattern(..),Datatype(..),Constructor(..))
 import qualified HipSpec.Lang.Rich as R
 import HipSpec.Lang.Type
 
@@ -126,10 +128,10 @@ apply :: Expr a -> [Expr a] -> Expr a
 apply = foldl App
 
 bodyType :: Eq a => Body a -> Type a
-bodyType = R.exprType . injectBody
+bodyType = fromMaybe (error "Simple bodyType") . R.exprType . injectBody
 
 exprType :: Eq a => Expr a -> Type a
-exprType = R.exprType . injectExpr
+exprType = fromMaybe (error "Simple exprType") . R.exprType . injectExpr
 
 exprTySubst :: forall a . Eq a => a -> Type a -> Expr a -> Expr a
 exprTySubst x t = transformBi $ \ t0 -> case t0 of

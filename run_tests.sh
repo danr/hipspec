@@ -4,10 +4,17 @@ N=$(cat /proc/cpuinfo | grep processor | wc -l)
 echo "Using $N threads."
 PR=../testsuite/precision-recall/PrecisionRecall.hs
 COMMON="--cvc4 --alt-ergo --spass --verbosity=40  --lint-poly-fol -N$N +RTS -N4 -RTS"
+COMMON_INT="--cvc4 --verbosity=40 -N$N +RTS -N4 -RTS"
 
 cd examples
-hipspec Class.hs                                            --success=ProvesUserStated $COMMON || exit $?
-hipspec Int.hs                                              --success=ProvesUserStated $COMMON || exit $?
+
+hipspec Int.hs --only-user-stated --success=ProvesUserStated $COMMON_INT || exit $?
+hipspec Int.hs --only= --extra-trans=plus,minus,eq,ne,lt,le,gt,ge --success=NothingUnproved --termsize=3 $COMMON_INT || exit $?
+hipspec Integer.hs --only-user-stated --success=ProvesUserStated $COMMON_INT || exit $?
+hipspec Integer.hs --only= --extra-trans=plus,minus,eq,ne,lt,le,gt,ge --success=NothingUnproved --termsize=3 $COMMON_INT || exit $?
+
+hipspec Char.hs --success=ProvesUserStated $COMMON_INT || exit $?
+
 hipspec HOF.hs         --auto=False                         --success=NothingUnproved  $COMMON || exit $?
 hipspec Properties.hs  --auto=False                         --success=NothingUnproved  $COMMON || exit $?
 hipspec Nat.hs    --extra-trans=*                           --success=NothingUnproved  $COMMON || exit $?

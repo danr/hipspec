@@ -61,10 +61,11 @@ combinator = flip (fmap . flip ($))
 interpretResult :: RenameMap -> Prover -> ProcessResult -> Maybe ProverResult
 interpretResult rename_map Prover{..} pr@ProcessResult{..} = excode `seq`
     case prover_process_output stdout of
-        Just True  -> Just (Success (combinator prover_parse_lemmas stdout)
+        Just Proven  -> Just (Success (combinator prover_parse_lemmas stdout)
                                     (combinator (fmap uncurry prover_parse_proofs) ((rename_map M.!),stdout)))
         Nothing    | (not (null stdout) || not (null stderr)) &&
                      (excode /= (ExitFailure (-9))) -> Just (Unknown pr)
+        Just Error -> Just (Unknown pr)
         _ -> Nothing
 
 (?) :: Bool -> (a -> a) -> a -> a

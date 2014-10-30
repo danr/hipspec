@@ -111,22 +111,17 @@ transformExpr = transformBi
 exprTyVars :: Eq a => Expr a -> [a]
 exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
 
-exprType :: Eq a => Expr a -> Type a
+exprType :: Eq a => Expr a -> Maybe (Type a)
 exprType e0 = case e0 of
-    Lcl _ t                -> t
-    Gbl _ (Forall xs t) ts -> substManyTys (zip xs ts) t
-    App e _                -> arrowResult "Rich.exprType" (exprType e)
-    Lit{}                  -> Integer
-    String s               -> error $ "exprType: String: " ++ show s
-    Lam _ t e              -> ArrTy t (exprType e)
-    Case _ _ alts          -> exprType (anyRhs "Rich.exprType" alts)
+    Lcl _ t                -> Just t
+    Gbl _ (Forall xs t) ts -> Just (substManyTys (zip xs ts) t)
+    App e _                -> arrowResult =<< exprType e
+    Lit{}                  -> Just Integer
+    String s               -> Nothing
+    Lam _ t e              -> fmap (ArrTy t) (exprType e)
+    Case _ _ ((_,e):_)     -> exprType e
     Let _ e                -> exprType e
-
-
-anyRhs :: String -> [(b,a)] -> a
-anyRhs _ ((_,e):_) = e
-anyRhs s _         = error $ s ++ ": no alts in case"
-
+    _                      -> Nothing
 
 -- | Free (local) variables
 freeVars :: Eq a => Expr a -> [a]
