@@ -80,13 +80,20 @@ makeSigFrom p@Params{..} ids poly = do
     sg s = "QuickSpec.Signature." ++ s
     cs s = "Data.Constraint." ++ s
 
+    showy :: Outputable a => a -> String
+    showy = go . showOutputable
+      where
+        go ('G':'H':'C':'.':'I':'n':'t':'e':'g':'e':'r':'.':'T':'y':'p':'e':'.':'I':'n':'t':'e':'g':'e':'r':s) = "Prelude.Integer" ++ go s
+        go (x:xs) = x:go xs
+        go [] = []
+
     constants =
         [ set_size i $ unwords
             [ sg "constant"
             , show (varToString i)
             , par $
                 par (varToString i) ++ " :: " ++
-                showOutputable (poly (varType i))
+                showy (poly (varType i))
             ]
         | i <- ids
         ]
@@ -112,7 +119,7 @@ makeSigFrom p@Params{..} ids poly = do
         , let t = mkForAllTys tvs (tvs_ty `mkFunTys` mkTyConApp tc tvs_ty)
         , let (pre,post) = splitFunTys (poly t)
         , cls <- ["Prelude.Ord","Test.QuickCheck.Arbitrary"]
-        , let pp x = cls ++ " " ++ par (showOutputable x)
+        , let pp x = cls ++ " " ++ par (showy x)
         ]
 
     expr_str = unlines $

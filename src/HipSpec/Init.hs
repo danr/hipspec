@@ -78,7 +78,7 @@ processFile cont = do
 
         rich_fns = toRich binds ++ [S.fromProverBoolDefn]
 
-    let rich_fns_opt = S.simpFuns (S.unTagToEnum rich_fns)
+    let rich_fns_opt = S.unTagToEnum (S.integerToInt (S.simpFuns rich_fns))
 
         simp_fns :: [S.Function Id]
         simp_fns = toSimp rich_fns_opt

@@ -26,6 +26,11 @@ import Data.Generics.Geniplate
 import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
 import PrimOp (PrimOp(TagToEnumOp))
 
+integerToInt :: TransformBi (Expr Id) t => t -> t
+integerToInt = transformBi $ \ e0 -> case e0 of
+    Gbl (GHCOrigin x) ty [] | Just op <- convertIntegerToInt x -> Gbl (GHCPrim op) ty []
+    _ -> e0
+
 unTagToEnum :: TransformBi (Expr Id) t => t -> t
 unTagToEnum = transformBi $ \ e0 -> case e0 of
     App (Gbl (GHCPrim TagToEnumOp) _ty_tte [_int])
@@ -92,6 +97,8 @@ simpExpr = transformExpr $ \ e0 -> case e0 of
         | (Gbl u _ ts,args) <- collectArgs e
         , Just (ConPat _ _ _ bs,rhs) <- findAlt u ts alts
         -> simpExpr (substMany (maybe id (\ (x,_) -> ((x,e):)) mx (zip (map fst bs) args)) rhs)
+
+    Case e mx [(Default,rhs)] -> substMany (maybe [] (\ (x,_) -> [(x,e)]) mx) rhs
 
     Case (Let fns e) x alts -> simpExpr (Let fns (Case e x alts))
 

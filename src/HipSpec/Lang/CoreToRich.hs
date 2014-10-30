@@ -29,6 +29,7 @@ import Type as C
 import GHC (dataConType)
 
 import qualified TysPrim
+import qualified PrelNames
 
 import HipSpec.Lang.DataConPattern
 
@@ -246,6 +247,7 @@ trType = go . expandTypeSynonyms
     go t0
         | Just (t1,t2) <- splitFunTy_maybe t0    = ArrTy <$> go t1 <*> go t2
         | Just (tc,[]) <- splitTyConApp_maybe t0, tc == TysPrim.intPrimTyCon = return Integer
+        | Just (tc,[]) <- splitTyConApp_maybe t0, tyConUnique tc == PrelNames.integerTyConKey = return Integer
         | Just (tc,ts) <- splitTyConApp_maybe t0 = TyCon (idFromTyCon tc) <$> mapM go ts
         | Just tv <- getTyVar_maybe t0           = return (TyVar (idFromTyVar tv))
         | otherwise                              = throwError (msgIllegalType t0)

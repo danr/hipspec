@@ -85,6 +85,19 @@ data OtherPrim
     | ProverFalse
   deriving (Eq,Ord,Show,Generic,Enum,Bounded)
 
+convertIntegerToInt :: Name -> Maybe PrimOp
+convertIntegerToInt x = case () of
+    () | u == plusIntegerIdKey   -> Just IntAddOp
+       | u == timesIntegerIdKey  -> Just IntMulOp
+       | u == minusIntegerIdKey  -> Just IntSubOp
+       | u == geIntegerPrimIdKey -> Just IntGeOp
+       | u == gtIntegerPrimIdKey -> Just IntGtOp
+       | u == leIntegerPrimIdKey -> Just IntLeOp
+       | u == ltIntegerPrimIdKey -> Just IntLtOp
+       | otherwise               -> Nothing
+  where
+    u = nameUnique x
+
 convertPrim :: PrimOp -> Maybe OtherPrim
 convertPrim op = case op of
     IntGtOp -> Just IntGt
