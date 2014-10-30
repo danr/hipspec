@@ -146,9 +146,21 @@ altErgoMonoPrims,tffPrims,smtPrims :: [(IdInst LogicId LogicId,String)]
 altErgoMonoPrims = []
 tffPrims = []
 smtPrims =
-    [ (IdInst (Id (GHCPrim op)) [],s)
+    [ (IdInst (Id op) [],s)
     | (op,s) <-
-        [ (IntAddOp,"+") ]
+        [ (GHCPrim IntAddOp,"+")
+        , (GHCPrim IntSubOp,"-")
+        , (GHCPrim IntMulOp,"*")
+        , (OtherPrim IntGt,">")
+        , (OtherPrim IntGe,">=")
+        , (OtherPrim IntEq,"=")
+        , (OtherPrim IntNe,"distinct")
+        , (OtherPrim IntLt,"<")
+        , (OtherPrim IntLe,"<=")
+        , (OtherPrim ProverTrue,"true")
+        , (OtherPrim ProverFalse,"false")
+        , (ProverBool,"Bool")
+        ]
     ]
 
 
@@ -231,12 +243,12 @@ escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
             , ('#',"hash")
             , ('|',"pipe")
             , ('^',"hat")
-            , ('-',"dash")
+            , ('-',"minus")
             , ('&',"and")
             , ('.',"dot")
             , ('+',"plus")
             , ('?',"qmark")
-            , ('*',"star")
+            , ('*',"mul")
             , ('~',"twiggle")
             , ('/',"slash")
             , ('\\',"bslash")

@@ -93,6 +93,9 @@ data Pattern a
 instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
 instanceUniverseBi  [t| forall a . (Expr a,Type a) |]
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
+instanceTransformBi [t| forall a . (Expr a,[Function a]) |]
+instanceTransformBi [t| forall a . (Expr a,Function a) |]
+
 instanceUniverseBi  [t| forall a . (Datatype a,a) |]
 instanceUniverseBi  [t| forall a . (Datatype a,Type a) |]
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternGuards,ViewPatterns #-}
+{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, ExplicitForAll #-}
 -- | Simplify pass over the rich language:
 --
 --  * Inlines local non-recursive definitions,
@@ -17,6 +18,42 @@ module HipSpec.Lang.SimplifyRich where
 
 import HipSpec.Lang.Rich
 import HipSpec.Lang.Type
+
+import HipSpec.Id hiding (Derived(Case))
+
+import Data.Generics.Geniplate
+
+import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
+import PrimOp (PrimOp(TagToEnumOp))
+
+unTagToEnum :: TransformBi (Expr Id) t => t -> t
+unTagToEnum = transformBi $ \ e0 -> case e0 of
+    App (Gbl (GHCPrim TagToEnumOp) _ty_tte [_int])
+        (collectArgs -> (Gbl (GHCPrim x) _ty_op _tys,args))
+      | Just op <- convertPrim x
+        -> App (Gbl FromProverBool (q fromProverBoolType) [])
+               (Gbl (OtherPrim op) (q (otherPrimOpType op)) [] `apply` args)
+    _ -> e0
+
+fromProverBoolDefn :: Function Id
+fromProverBoolDefn = Function f (q ty)
+    (Lam x proverBoolType
+        (Case (Lcl x proverBoolType) Nothing
+            [ (ConPat true  (q proverBoolType) [] [],Gbl (idFromDataCon trueDataCon)  (q boolType) [])
+            , (ConPat false (q proverBoolType) [] [],Gbl (idFromDataCon falseDataCon) (q boolType) [])
+            ]))
+  where
+    f  = FromProverBool
+    ty = fromProverBoolType
+    x  = Lambda f `Derived` 0
+    true  = OtherPrim ProverTrue
+    false = OtherPrim ProverFalse
+
+fromProverBoolType :: Type Id
+fromProverBoolType = proverBoolType `ArrTy` boolType
+
+q :: Type a -> PolyType a
+q = Forall []
 
 simpFuns :: Eq a => [Function a] -> [Function a]
 simpFuns = map (simpFun Global)

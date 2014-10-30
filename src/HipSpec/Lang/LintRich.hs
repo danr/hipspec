@@ -192,5 +192,5 @@ lintPat t0 p = case p of
             | ((_,t1),t2) <- zip args args_ty
             ]
         unless (res_ty `eqType` t0) (report (msgIllTypedPattern t0 p))
-    LitPat{} -> when (Integer `eqType` t0) (report (msgIllTypedPattern t0 p))
+    LitPat{} -> unless (Integer `eqType` t0) (report (msgIllTypedPattern t0 p))
 

@@ -27,6 +27,10 @@ import PrimOp
 import Data.Map (Map)
 import qualified Data.Map as M
 
+import HipSpec.Lang.Type
+
+import TysWiredIn (trueDataCon,falseDataCon,boolTyCon)
+
 idFromPrimOp :: PrimOp -> Id
 idFromPrimOp = GHCPrim
 
@@ -37,7 +41,6 @@ idFromName nm
 
 primops :: Map OccName PrimOp
 primops = M.fromList [(primOpOcc o,o) | o <- allThePrimOps]
-
 
 idFromDataCon :: DataCon -> Id
 idFromDataCon = idFromName . dataConName
@@ -61,12 +64,62 @@ tryGetGHCName _              = Nothing
 data Id
     = GHCOrigin Name
     | GHCPrim PrimOp
+    | OtherPrim OtherPrim
     | QSVariable QS.Variable
     | QSTyVar QS.TyVar
     | QSPropId Integer
     | Derived Derived Integer
     | Const Int Int
+    | FromProverBool
+    | ProverBool
   deriving (Eq,Ord,Show,Generic)
+
+data OtherPrim
+    = IntGt
+    | IntGe
+    | IntEq
+    | IntNe
+    | IntLt
+    | IntLe
+    | ProverTrue
+    | ProverFalse
+  deriving (Eq,Ord,Show,Generic,Enum,Bounded)
+
+convertPrim :: PrimOp -> Maybe OtherPrim
+convertPrim op = case op of
+    IntGtOp -> Just IntGt
+    IntGeOp -> Just IntGe
+    IntEqOp -> Just IntEq
+    IntNeOp -> Just IntNe
+    IntLtOp -> Just IntLt
+    IntLeOp -> Just IntLe
+    _       -> Nothing
+
+otherPrims :: [OtherPrim]
+otherPrims = [minBound..maxBound]
+
+otherPrimOpType :: OtherPrim -> Type Id
+otherPrimOpType op = case op of
+    IntGt       -> intCmpType
+    IntGe       -> intCmpType
+    IntEq       -> intCmpType
+    IntNe       -> intCmpType
+    IntLt       -> intCmpType
+    IntLe       -> intCmpType
+    ProverTrue  -> proverBoolType
+    ProverFalse -> proverBoolType
+
+intCmpType :: Type Id
+intCmpType = [Integer,Integer] `makeArrows` proverBoolType
+
+boolType :: Type Id
+boolType = TyCon (idFromTyCon boolTyCon) []
+
+proverBoolType :: Type Id
+proverBoolType = TyCon ProverBool []
+
+otherPrimOpArity :: OtherPrim -> Int
+otherPrimOpArity = length . fst . collectArrTy . otherPrimOpType
 
 instance Show Name where
     show nm = show (showOutputable nm)
@@ -107,13 +160,16 @@ mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
 originalId :: Id -> String
 originalId i = case i of
-    GHCOrigin nm  -> getOccString nm
-    GHCPrim op    -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
-    QSVariable v  -> QS.prettyShow v
-    QSTyVar tv    -> QS.prettyShow tv
-    Const 0 2     -> "const"
-    Const i j     -> "const_" ++ show i ++ "_" ++ show j
-    Derived d _   -> case d of
+    GHCOrigin nm   -> getOccString nm
+    GHCPrim op     -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
+    OtherPrim op   -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
+    FromProverBool -> "convert"
+    ProverBool     -> "bool"
+    QSVariable v   -> QS.prettyShow v
+    QSTyVar tv     -> QS.prettyShow tv
+    Const 0 2      -> "const"
+    Const i j      -> "const_" ++ show i ++ "_" ++ show j
+    Derived d _    -> case d of
         _ `LetFrom` b -> originalId b ++ "_"
         Lambda a      -> originalId a ++ "_lambda"
         Case a        -> originalId a ++ "_case"
@@ -129,13 +185,16 @@ originalId i = case i of
 --   disabiguation.
 ppId :: Id -> String
 ppId i = case i of
-    GHCOrigin nm  -> ppName nm
-    GHCPrim op    -> show op
-    QSVariable v  -> QS.prettyShow v
-    QSTyVar tv    -> QS.prettyShow tv
-    Derived d x   -> ppDerived x d
-    Const 0 2     -> "const"
-    Const i j     -> "const_" ++ show i ++ "_" ++ show j
+    GHCOrigin nm   -> ppName nm
+    GHCPrim op     -> show op
+    OtherPrim op   -> show op
+    FromProverBool -> "convert"
+    ProverBool     -> "bool"
+    QSVariable v   -> QS.prettyShow v
+    QSTyVar tv     -> QS.prettyShow tv
+    Derived d x    -> ppDerived x d
+    Const 0 2      -> "const"
+    Const i j      -> "const_" ++ show i ++ "_" ++ show j
 
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of

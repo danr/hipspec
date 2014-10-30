@@ -265,8 +265,10 @@ trimDataDecls cls
 
 -- CVC4 cannot do declare-sort, so we change all occurences of abstract
 -- types to ints
-uninterpretedInts :: forall a b . Eq a => [Clause a b] -> [Clause a b]
-uninterpretedInts cls0 = catMaybes
+--
+-- We add skip so we don't consider the build in Bool type abstract
+uninterpretedInts :: forall a b . Eq a => (a -> Bool) -> [Clause a b] -> [Clause a b]
+uninterpretedInts skip cls0 = catMaybes
     [ case cl of
         SortSig{} -> Nothing
         _         -> Just (un cl)
@@ -275,8 +277,8 @@ uninterpretedInts cls0 = catMaybes
   where
     sorts = [ i | SortSig i _ <- cls0 ]
     un = transformBi $ \ t -> case t of
-      TyCon tc [] | tc `elem` sorts -> Integer :: Type a b
-      _                             -> t
+      TyCon tc [] | tc `elem` sorts && not (skip tc) -> Integer :: Type a b
+      _                                              -> t
 
 unlabel :: forall a b . [Clause a b] -> [Clause a b]
 unlabel = map un

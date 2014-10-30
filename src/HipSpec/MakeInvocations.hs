@@ -7,7 +7,7 @@ import HipSpec.ATP.Results
 
 import HipSpec.Property.Repr
 import HipSpec.Lang.Renamer
-import HipSpec.Id (originalId)
+import HipSpec.Id (originalId,Id(ProverBool))
 
 import HipSpec.Monad
 import HipSpec.MakeProofs
@@ -20,7 +20,7 @@ import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
 import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise,unlabel)
-import HipSpec.Lang.ToPolyFOL (Poly(SK))
+import HipSpec.Lang.ToPolyFOL (Poly(SK,Id))
 
 import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
 import HipSpec.Lang.PrettyUtils (PP(..))
@@ -79,8 +79,8 @@ tryProve prop lemmas0 = do
 
                 let pp = PP (text . polyname) (text . polyname)
 
-                let (smt_str,smt_rename_map) = ppSMT                             (sortClauses True (trimDataDecls mcls_sk))
-                let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (sortClauses True (trimDataDecls mcls))))
+                let (smt_str,smt_rename_map) = ppSMT                                                     (sortClauses True (trimDataDecls mcls_sk))
+                let (cvc4_str,_)             = ppSMT (uninterpretedInts (== (IdInst (Id ProverBool) [])) (unlabel (sortClauses True (trimDataDecls mcls))))
 
                 let tff = ppTFF mcls
 

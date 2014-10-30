@@ -20,6 +20,7 @@ import HipSpec.Pretty
 import HipSpec.Id
 
 import HipSpec.Lang.PolyFOL
+import HipSpec.Lang.Type
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 
 -- import Name
@@ -44,10 +45,9 @@ emptyArityMap :: ArityMap
 emptyArityMap = M.empty
 
 primOpArities :: ArityMap
-primOpArities = M.fromList
-    [ (idFromPrimOp op,arity)
-    | op <- allThePrimOps, let (_,_,_,arity,_) = primOpSig op
-    ]
+primOpArities = M.fromList $
+    [ (idFromPrimOp op,arity) | op <- allThePrimOps, let (_,_,_,arity,_) = primOpSig op ] ++
+    [ (OtherPrim op,otherPrimOpArity op) | op <- otherPrims ]
 
 data Content
     = Definition Id

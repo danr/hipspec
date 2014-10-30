@@ -77,7 +77,6 @@ collectArrTy (ArrTy t1 t2) =
     in  (t1:ts,t)
 collectArrTy t = ([],t)
 
-
 arrowResult :: String -> Type a -> Type a
 arrowResult _ (ArrTy _ t) = t
 arrowResult s _           = error $ s ++ ": not a function type"

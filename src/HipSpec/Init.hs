@@ -76,18 +76,14 @@ processFile cont = do
 
         (am_tcs,data_thy,ty_env') = trTyCons tcs
 
-        -- Now, split these into properties and non-properties
+        rich_fns = toRich binds ++ [S.fromProverBoolDefn]
 
-        rich_fns = toRich binds
-
-    whenFlag params PrintSimple $ putStrLn $
-        "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
-
-    let rich_fns_opt = S.simpFuns rich_fns
+    let rich_fns_opt = S.simpFuns (S.unTagToEnum rich_fns)
 
         simp_fns :: [S.Function Id]
         simp_fns = toSimp rich_fns_opt
 
+        -- Now, split these into properties and non-properties
         is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
 
         (props,fns0) = partition is_prop simp_fns
@@ -127,7 +123,9 @@ processFile cont = do
             | (v,e) <- binds
             ]
 
-        debugWhen PrintSimple $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
+        debugWhen PrintRich $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
+
+        debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
