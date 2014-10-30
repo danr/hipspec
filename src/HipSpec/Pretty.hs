@@ -139,12 +139,47 @@ ppSMT :: [Clause (IdInst LogicId LogicId) LogicId] -> (String,Map String LogicId
 ppSMT = second (M.map (either forget_inst id)) . prettyCls SMT.ppClause smtKeywords smtPrims (escape . mononame) (escape . polyname)
 
 altErgoPrims,thfPrims :: [(LogicId,String)]
-altErgoPrims = []
-thfPrims = []
+altErgoPrims =
+    [ (Id op,s)
+    | (op,s) <-
+        [ (GHCPrim IntAddOp,"+")
+        , (GHCPrim IntSubOp,"-")
+        , (GHCPrim IntMulOp,"*")
+        , (OtherPrim IntGt,">")
+        , (OtherPrim IntGe,">=")
+        , (OtherPrim IntEq,"=")
+        , (OtherPrim IntNe,"!=")
+        , (OtherPrim IntLt,"<")
+        , (OtherPrim IntLe,"<=")
+        , (OtherPrim ProverTrue,"true")
+        , (OtherPrim ProverFalse,"false")
+        , (ProverBool,"Bool")
+        ]
+    ]
+
+thfPrims =
+    [ (Id op,s)
+    | (op,s) <-
+        [ (GHCPrim IntAddOp,"$sum")
+        , (GHCPrim IntSubOp,"$difference")
+        , (GHCPrim IntMulOp,"$product")
+        , (OtherPrim IntGt,"$greater")
+        , (OtherPrim IntGe,"$greatereq")
+        , (OtherPrim IntEq,"=")
+        , (OtherPrim IntNe,"~=")
+        , (OtherPrim IntLt,"$less")
+        , (OtherPrim IntLe,"$lesseq")
+        , (OtherPrim ProverTrue,"$true")
+        , (OtherPrim ProverFalse,"$false")
+        , (ProverBool,"$o")
+        ]
+    ]
 
 altErgoMonoPrims,tffPrims,smtPrims :: [(IdInst LogicId LogicId,String)]
-altErgoMonoPrims = []
-tffPrims = []
+altErgoMonoPrims = [ (IdInst i [],s) | (i,s) <- altErgoPrims ]
+
+tffPrims = [ (IdInst i [],s) | (i,s) <- thfPrims ]
+
 smtPrims =
     [ (IdInst (Id op) [],s)
     | (op,s) <-
@@ -167,7 +202,7 @@ smtPrims =
 
 tptpKeywords :: [String]
 tptpKeywords = smtKeywords ++
-    [ "fof", "cnf", "tff" ]
+    [ "fof", "cnf", "tff", "$int", "$rat", "$real", "$i" ]
 
 smtKeywords :: [String]
 smtKeywords = altErgoKeywords ++

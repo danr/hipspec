@@ -74,21 +74,24 @@ tryProve prop lemmas0 = do
                 let cls = sortClauses False (concatMap clauses sthys)
                 let cls_sk = skolemise SK SK cls
 
-                let (mcls_sk,(ils,recs)) = first (sortClauses False) (monoClauses cls_sk)
-                let (mcls,(_ils,_recs)) = first (sortClauses False) (monoClauses cls)
+                let (mcls_sk,(ils,recs)) = first (sortClauses False) (monoClauses (== Id ProverBool) cls_sk)
+                let (mcls,(_ils,_recs))  = first (sortClauses False) (monoClauses (== Id ProverBool) cls)
 
                 let pp = PP (text . polyname) (text . polyname)
 
-                let (smt_str,smt_rename_map) = ppSMT                                                     (sortClauses True (trimDataDecls mcls_sk))
-                let (cvc4_str,_)             = ppSMT (uninterpretedInts (== (IdInst (Id ProverBool) [])) (unlabel (sortClauses True (trimDataDecls mcls))))
+                let (smt_str,smt_rename_map) = ppSMT                    (sortClauses True (trimDataDecls mcls_sk))
+                let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (sortClauses True (trimDataDecls mcls))))
 
                 let tff = ppTFF mcls
 
                 debugWhen DebugMono $
+                    "\nInitial Monomorphising:\n" ++ ppShow cls_sk ++
                     "\nMonomorphising:\n" ++ ppTHF cls_sk ++
                     "\n\nResult:\n" ++ ppTFF mcls_sk ++
                     "\n\nLemmas:\n" ++ render' (vcat (map (ppLemma pp) ils)) ++
-                    "\n\nRecords:\n" ++ render' (ppRecords pp recs)
+                    "\n\nRecords:\n" ++ render' (ppRecords pp recs) ++
+                    "\n\nRecords:\n" ++ ppShow recs ++
+                    "\nResult Monomorphising:\n" ++ ppShow mcls_sk
 
                 return $ LinTheory smt_rename_map $ \ t -> case t of
                     AltErgoFmt     -> return $ ppAltErgo (sortClauses False cls)

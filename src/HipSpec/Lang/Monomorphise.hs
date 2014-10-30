@@ -228,8 +228,12 @@ data IdInst a b = IdInst { forget_inst :: a, inst_type :: [Type a b] }
 
 -- | Second pass monomorphisation: remove all type applications and change
 --   the identifier names instead
-monoClauses2 :: (Ord a,Ord b) => ([Clause a b],[Clause a b]) -> [Clause (IdInst a b) b]
-monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
+--
+--   We add skip so we can consider the built-in Bool type abstract
+monoClauses2 :: (Ord a,Ord b) => (a -> Bool) -> ([Clause a b],[Clause a b]) -> [Clause (IdInst a b) b]
+monoClauses2 skip (cls,sigs)
+    = map (`SortSig` 0) (filter (not . skip . forget_inst) (S.toList sorts))
+    ++ ty_sigs ++ cls'
   where
     cls' =
         [ Clause
@@ -247,7 +251,6 @@ monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
 
     (sorts1,ty_apps) = clsDeps cls'
 
-
     sig_map = M.fromList [ (f,(tvs,args,res)) | TypeSig f tvs args res <- sigs ]
 
     ty_sigs =
@@ -264,6 +267,6 @@ monoClauses2 (cls,sigs) = map (`SortSig` 0) (S.toList sorts) ++ ty_sigs ++ cls'
     sorts = sorts1 `S.union` sorts2
 
 -- | Monomorphise clauses
-monoClauses :: (Ord a,Ord b) => [Clause a b] -> ([Clause (IdInst a b) b],([Lemma a b],Records a b))
-monoClauses = first monoClauses2 . monoClauses1
+monoClauses :: (Ord a,Ord b) => (a -> Bool) -> [Clause a b] -> ([Clause (IdInst a b) b],([Lemma a b],Records a b))
+monoClauses skip = first (monoClauses2 skip) . monoClauses1
 

@@ -87,10 +87,14 @@ ppTOp op = case op of
     Equal   -> "="
     Unequal -> "<>"
 
+opSyms :: String
+opSyms = ":!#$%&*+./<=>?@|^-~\\{}"
+
 ppTerm :: PP a b -> Term a b -> Doc
 ppTerm p = go
   where
     go tm0 = case tm0 of
+        Apply f _ts [a,b] | all (`elem` opSyms) (render (pp_symb p f)) -> parens ((go a <+> pp_symb p f) $\ go b)
         Apply f _ts as -> pp_symb p f <> empty {- ("(*" <+> csv (map (ppType p) ts) <+> "*)") -} <> csv (map go as)
         Lit x          -> integer x
         Var v          -> pp_var p v
