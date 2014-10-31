@@ -38,14 +38,14 @@ import HipSpec.GHC.Utils
 import HipSpec.Sig.Scope
 import HipSpec.Utils
 import HipSpec.Id as HS
-import HipSpec.Lang.Type
+import HipSpec.Lang.Type as R
 import HipSpec.Lang.CoreToRich
 import qualified HipSpec.Lang.Rich as R
 
 -- | Mappings for QuickSpec symbols and Typeable Tycons to GHC and HipSpec structures
 data ResolveMap = ResolveMap
-    { con_map   :: Map Constant (GHC.Id,PolyType HS.Id)
-    , tycon_map :: Map Typeable.TyCon GHC.TyCon
+    { con_map   :: Map Constant (HS.Id,PolyType HS.Id)
+    , tycon_map :: Map Typeable.TyCon (R.Type HS.Id)
     }
 
 makeResolveMap :: Params -> Signature -> Ghc ResolveMap
@@ -56,9 +56,8 @@ makeResolveMap p@Params{..} sig = do
         things <- lookupString (conName x)
         case mapJust thingToId things of
             Just v  -> case runTM (trVar v) of
-                Right (R.Gbl _hs_id hs_polytype []) ->
-                    -- assert (_hs_id == idFromVar i)
-                    return (x,(v,hs_polytype))
+                Right (R.Gbl hs_id hs_polytype []) ->
+                    return (x,(hs_id,hs_polytype))
                 _ -> error $ "Not a global variable: " ++ show x
             Nothing -> error $ "Not in scope: " ++ show x
 
@@ -69,18 +68,18 @@ makeResolveMap p@Params{..} sig = do
         let getTc (ATyCon tc') = Just tc'
             getTc _            = Nothing
         case mapJust getTc things of
-            Just ghc_tc -> return (tc,ghc_tc)
+            Just ghc_tc -> return (tc,R.TyCon (HS.idFromTyCon ghc_tc) [])
             Nothing     -> error $ "Type constructor not in scope:" ++ Typeable.tyConName tc
 
     whenFlag p DebugStrConv $ liftIO $ do
         putStrLn "Constant translation"
         mapM_ putStrLn
-            [ " " ++ show s ++ " -> " ++ showOutputable i ++ "," ++ show pt
+            [ " " ++ show s ++ " -> " ++ show i ++ "," ++ show pt
             | (s,(i,pt)) <- syms
             ]
         putStrLn "Type constructor translation"
         mapM_ putStrLn
-            [ " " ++ show tc ++ " -> " ++ showOutputable ts
+            [ " " ++ show tc ++ " -> " ++ show ts
             | (tc,ts) <- tcs
             ]
 
@@ -89,10 +88,10 @@ makeResolveMap p@Params{..} sig = do
         , tycon_map = M.fromList tcs
         }
 
-maybeLookupCon :: ResolveMap -> Constant -> Maybe (GHC.Id,PolyType HS.Id)
+maybeLookupCon :: ResolveMap -> Constant -> Maybe (HS.Id,PolyType HS.Id)
 maybeLookupCon sm s = M.lookup s (con_map sm)
 
-maybeLookupTyCon :: ResolveMap -> Typeable.TyCon -> Maybe GHC.TyCon
+maybeLookupTyCon :: ResolveMap -> Typeable.TyCon -> Maybe (R.Type HS.Id)
 maybeLookupTyCon sm t = M.lookup t (tycon_map sm)
 
 debugStr :: String
@@ -100,14 +99,14 @@ debugStr =
     "\nDebug the conversions between QuickSpec signatures and GHC Core " ++
     "structures with --debug-str-conv."
 
-lookupCon :: ResolveMap -> Constant -> (GHC.Id,PolyType HS.Id)
+lookupCon :: ResolveMap -> Constant -> (HS.Id,PolyType HS.Id)
 lookupCon m s = fromMaybe (error err_str) (maybeLookupCon m s)
   where
     err_str =
         "Cannot translate QuickSpec's " ++ show s ++
         " to Core representation! " ++ debugStr
 
-lookupTyCon :: ResolveMap -> Typeable.TyCon -> GHC.TyCon
+lookupTyCon :: ResolveMap -> Typeable.TyCon -> R.Type HS.Id
 lookupTyCon m s = fromMaybe (error err_str) (maybeLookupTyCon m s)
   where
     err_str =

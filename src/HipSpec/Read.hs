@@ -15,6 +15,10 @@ import HipSpec.Sig.Get
 
 import HipSpec.Params
 
+import HipSpec.Id (tryGetGHCVar,tryGetGHCTyCon)
+
+import qualified Data.Foldable as F
+
 import CoreSyn (flattenBinds)
 import CoreMonad (liftIO)
 import DynFlags
@@ -32,6 +36,7 @@ import Var
 import HipSpec.GHC.Unfoldings
 import HipSpec.GHC.Dicts (inlineDicts)
 import HipSpec.GHC.Utils
+import HipSpec.Utils
 
 import HipSpec.Sig.Scope
 
@@ -181,8 +186,8 @@ execute params@Params{..} = do
         -- Wrapping up
         return EntryResult
             { sig_infos = sig_infos
-            , prop_ids  = props ++ map fix_id (concat extra_ids) ++ toplvl_binds
-            , extra_tcs = concat extra_tcs
+            , prop_ids  = props ++ map fix_id (mapMaybe tryGetGHCVar (concat extra_ids)) ++ toplvl_binds
+            , extra_tcs = nubSorted (mapMaybe tryGetGHCTyCon (concatMap F.toList (concat extra_tcs)))
             }
 
 {-

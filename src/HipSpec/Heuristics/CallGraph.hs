@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns,ScopedTypeVariables #-}
+{-# LANGUAGE NamedFieldPuns,ScopedTypeVariables,ViewPatterns #-}
 -- Sort functions according to the call graph
 module HipSpec.Heuristics.CallGraph where
 
@@ -18,6 +18,7 @@ import Data.Maybe
 import Data.Graph hiding (edges)
 
 import HipSpec.Utils
+import qualified HipSpec.Id as HS
 
 sortByCallGraph :: ResolveMap -> (a -> [Constant]) -> [a] -> [[a]]
 sortByCallGraph = sortByGraph . transitiveCallGraph
@@ -66,7 +67,7 @@ transitiveCallGraph (ResolveMap si _) = M.fromList
     ]
   where
     is :: [(Id,Constant)]
-    is = [ (i,s) | (s,(i,_pt)) <- M.toList si, not (isDataConId i) ]
+    is = [ (i,s) | (s,(HS.tryGetGHCVar -> Just i,_pt)) <- M.toList si, not (isDataConId i) ]
 
     ism :: Map Id Constant
     ism = M.fromList is

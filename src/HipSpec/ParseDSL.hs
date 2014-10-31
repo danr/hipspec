@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 -- | A hacky way of parsing the property language DSL
 module HipSpec.ParseDSL where
 
@@ -24,8 +25,8 @@ isPropTyCon :: TyCon -> Bool
 isPropTyCon = isPropId . idFromTyCon
 
 ghcName :: (String -> Bool) -> Id -> Bool
-ghcName k (GHCOrigin n) = k (showOutputable n)
-ghcName _ _             = False
+ghcName k (tryGetGHCName -> Just n) = k (showOutputable n)
+ghcName _ _               = False
 
 isPropId :: Id -> Bool
 isPropId = ghcName (isInfixOf "HipSpec.Prop")

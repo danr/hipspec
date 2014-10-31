@@ -31,11 +31,88 @@ import Data.Char (ord)
 import HipSpec.Lang.CoreToRich as CTR
 import TysWiredIn
 
+import HipSpec.Utils
+
+import Data.Map (Map)
+import qualified Data.Map as M
+import Control.Monad.State
+
+import Debug.Trace
+
+optimise :: [Datatype Id] -> [Function Id] -> ([Function Id],(Map (Type Id) (Type Id),Map Id (Type Id)))
+optimise data_types
+    = first simpFuns
+    . removeSingles mk_id data_types
+
+    . unTagToEnum . integerToInt . unpackStrings
+
+    . simpFuns
+    . map etaExpand
+  where
+    mk_id x i = Lambda x `Derived` i
+
+-- | Removes data types like
+--     data Int = I# Int#
+--   by replacing
+--      Int => Int#                  (in types)
+--
+--      I# => (\ (x : Int# -> Int#)) (in expressions)
+--
+--      case e :: Int of y
+--          I# x -> rhs[x,y]
+--      => rhs[e,e]                  (in patterns)
+--
+-- Since we introduce beta redexes from the silly identity functions, run
+-- simpFuns afterwards, too.
+--
+-- Sound in a total language.  (TODO: type var: data Box a = MkBox a)
+removeSingles ::
+    ( Ord id , Show id
+    , TransformBiM (State Integer) (Expr id) t
+    , TransformBi (Type id) t
+    ) =>
+    (id -> Integer -> id) -> [Datatype id] -> t -> (t,(Map (Type id) (Type id),Map id (Type id)))
+removeSingles mk_id tcs s0 =
+    ( (transformBiM mod_expr . transformBi mod_type $ s0) `evalState` 0
+    , repls
+    )
+  where
+    mod_expr e0 = case e0 of
+
+        Gbl i_hash _ [] | Just int_hash <- M.lookup i_hash cons_repl -> do
+            u <- unique
+            let x = mk_id i_hash u
+            return (Lam x int_hash (Lcl x int_hash))
+
+        Case e my [(ConPat i_hash _ [] [(x,_)],rhs)] | i_hash `M.member` cons_repl ->
+            return (substMany (maybe id (\ (y,_) -> ((y,e):)) my [(x,e)]) rhs)
+
+        _ -> return e0
+
+    mod_type t0 = case M.lookup t0 type_repl of
+        Just int_hash -> int_hash
+        _             -> t0
+
+    repls@(type_repl,cons_repl) =
+        (M.fromList *** M.fromList) $ unzip
+        [ ((TyCon int [],int_hash),(i_hash,int_hash))
+        | Datatype int [] [Constructor i_hash [int_hash]] <- tcs
+        , case int_hash of
+            Integer -> True
+            TyCon int_hash_tc [] -> int_hash_tc /= int
+            _ -> False
+        ]
+
+    unique = state (\ x -> (x+1,x+1))
+
+logg x = trace (ppShow x) x
+
+-- | Replaces string literals to applications of cons of the chars
 unpackStrings :: TransformBi (Expr Id) t => t -> t
 unpackStrings = transformBi $ \ e0 -> case e0 of
-    Gbl (GHCOrigin x) _ _ | x == PrelNames.eqStringName ->
+    Gbl (tryGetGHCName -> Just x) _ _ | x == PrelNames.eqStringName ->
         error "String patterns are not implemented, bug me if you need them"
-    App (Gbl (GHCOrigin x) _ _) (String s)
+    App (Gbl (tryGetGHCName -> Just x) _ _) (String s)
         | x == PrelNames.unpackCStringName ->
             foldr (\ x xs -> apply cons [apply mkChar [Lit (toInteger (ord x))],xs]) nil s
     _ -> e0
@@ -46,9 +123,10 @@ unpackStrings = transformBi $ \ e0 -> case e0 of
 
 onChar (Gbl a t []) = Gbl a t [TyCon (idFromTyCon charTyCon) []]
 
+-- | Replaces
 integerToInt :: TransformBi (Expr Id) t => t -> t
 integerToInt = transformBi $ \ e0 -> case e0 of
-    Gbl (GHCOrigin x) ty [] | Just op <- convertIntegerToInt x -> Gbl (GHCPrim op) ty []
+    Gbl (tryGetGHCName -> Just x) ty [] | Just op <- convertIntegerToInt x -> Gbl (GHCPrim op) ty []
     _ -> e0
 
 unTagToEnum :: TransformBi (Expr Id) t => t -> t

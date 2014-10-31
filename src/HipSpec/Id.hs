@@ -37,7 +37,7 @@ idFromPrimOp = GHCPrim
 idFromName :: Name -> Id
 idFromName nm
     | Just op <- M.lookup (nameOccName nm) primops = idFromPrimOp op
-    | otherwise = GHCOrigin nm
+    | otherwise = GHCOrigin nm Nothing Nothing
 
 primops :: Map OccName PrimOp
 primops = M.fromList [(primOpOcc o,o) | o <- allThePrimOps]
@@ -49,20 +49,35 @@ idFromVar :: Var -> Id
 idFromVar i = case idDetails i of
     DataConWorkId dc -> idFromDataCon dc
     DataConWrapId dc -> idFromDataCon dc
-    _                -> idFromName (varName i)
+    _                -> idFromName (varName i) `withVar` i
 
 idFromTyVar :: TyVar -> Id
 idFromTyVar = idFromName . tyVarName
 
 idFromTyCon :: TyCon -> Id
-idFromTyCon = idFromName . tyConName
+idFromTyCon tc = idFromName (tyConName tc) `withTyCon` tc
 
 tryGetGHCName :: Id -> Maybe Name
-tryGetGHCName (GHCOrigin nm) = Just nm
-tryGetGHCName _              = Nothing
+tryGetGHCName (GHCOrigin nm _ _) = Just nm
+tryGetGHCName _                  = Nothing
+
+GHCOrigin nm _ _ `withVar` v = GHCOrigin nm (Just v) Nothing
+i                `withVar` _ = i
+
+GHCOrigin nm _ _ `withTyCon` tc = GHCOrigin nm Nothing (Just tc)
+i                `withTyCon` _ = i
+
+tryGetGHCVar :: Id -> Maybe Var
+tryGetGHCVar (GHCOrigin _ mv _) = mv
+tryGetGHCVar _                  = Nothing
+
+tryGetGHCTyCon :: Id -> Maybe TyCon
+tryGetGHCTyCon (GHCOrigin _ _ mtc) = mtc
+tryGetGHCTyCon _                   = Nothing
 
 data Id
-    = GHCOrigin Name
+    = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
+                     (Maybe TyCon) -- There might come more tycons from the signature
     | GHCPrim PrimOp
     | OtherPrim OtherPrim
     | QSVariable QS.Variable
@@ -96,6 +111,12 @@ convertIntegerToInt x = case () of
        | u == gtIntegerPrimIdKey -> Just IntGtOp
        | u == leIntegerPrimIdKey -> Just IntLeOp
        | u == ltIntegerPrimIdKey -> Just IntLtOp
+{-
+       | u == divIntegerIdKey    -> error "Use quot instead of div"
+       | u == modIntegerIdKey    -> error "Use rem instead of mod"
+       | u == remIntegerIdKey    -> Just IntRemOp
+       | u == quotIntegerIdKey   -> Just IntQuotOp
+-}
        | otherwise               -> Nothing
   where
     u = nameUnique x
@@ -146,6 +167,12 @@ otherPrimOpArity = length . fst . collectArrTy . otherPrimOpType
 instance Show Name where
     show nm = show (showOutputable nm)
 
+instance Show Var where
+    show _ = "<Var>"
+
+instance Show TyCon where
+    show _ = "<TyCon>"
+
 deriving instance Show PrimOp
 deriving instance Show PrimOpVecCat
 
@@ -174,6 +201,8 @@ instance ToJSON BW
 instance ToJSON QS.TyVar where toJSON _ = Null
 instance ToJSON QS.Variable where toJSON _ = Null
 instance ToJSON Name where toJSON _ = Null
+instance ToJSON Var where toJSON _ = Null
+instance ToJSON TyCon where toJSON _ = Null
 #endif
 
 mkLetFrom :: Id -> Integer -> Id -> Id
@@ -186,7 +215,7 @@ disambigPrim s         = s
 
 originalId :: Id -> String
 originalId i = case i of
-    GHCOrigin nm   -> disambigPrim (getOccString nm)
+    GHCOrigin nm _ _ -> disambigPrim (getOccString nm)
     GHCPrim op     -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     OtherPrim op   -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     FromProverBool -> "convert"
@@ -211,7 +240,7 @@ originalId i = case i of
 --   disabiguation.
 ppId :: Id -> String
 ppId i = case i of
-    GHCOrigin nm   -> disambigPrim (ppName nm)
+    GHCOrigin nm _ _ -> disambigPrim (ppName nm)
     GHCPrim op     -> show op
     OtherPrim op   -> show op
     FromProverBool -> "convert"

@@ -55,9 +55,9 @@ isAbstract :: TyCon -> Bool
 isAbstract tc = isNewTyCon tc || CTR.essentiallyInteger tc
 
 -- | Translates the type constructors
-trTyCons :: [TyCon] -> (ArityMap,[Subtheory],TyEnv')
+trTyCons :: [TyCon] -> (ArityMap,[Subtheory],TyEnv',[Datatype Id])
 trTyCons tcs = case sequence [ fmap ((,) tc) (trTyCon tc) | tc <- tcs ] of
-    Right data_types -> (con_arities,subthys,ty_env)
+    Right data_types -> (con_arities,subthys,ty_env,map snd data_types)
       where
         subthys = concat
             [ calcDeps subtheory

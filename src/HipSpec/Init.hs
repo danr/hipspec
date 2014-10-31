@@ -17,6 +17,8 @@ import HipSpec.Lint
 import HipSpec.Utils
 import HipSpec.Id
 
+import HipSpec.Sig.Resolve
+
 import HipSpec.FixpointInduction
 
 import HipSpec.GHC.Utils
@@ -44,6 +46,7 @@ import qualified Id as GHC
 import qualified CoreSubst as GHC
 import Var (Var)
 import Data.Map (Map)
+import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
 
@@ -75,11 +78,25 @@ processFile cont = do
         tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
                      (bindsTyCons' binds `union` extra_tcs `union` [boolTyCon])
 
-        (am_tcs,data_thy,ty_env') = trTyCons tcs
+        (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
 
         rich_fns = toRich binds ++ [S.fromProverBoolDefn]
 
-    let rich_fns_opt = S.unTagToEnum (S.integerToInt (S.unpackStrings (S.simpFuns (map S.etaExpand rich_fns))))
+    let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types rich_fns
+
+        -- After optimisation, then I# and Int are removed, and replaced
+        -- with internal Integer. This cleans up the quick spec resolve maps:
+        adjust_sig_info (SigInfo s (ResolveMap cm tm)) = SigInfo s (ResolveMap cm' tm')
+          where
+            tm' = M.map
+                (\ ty -> case M.lookup ty type_repl_map of
+                    Just ty2 -> ty2
+                    Nothing  -> ty) tm
+
+            cm' = M.map
+                (\ (v,pt) -> case M.lookup v dead_constructors of
+                    Just ty2 -> error $ "Dead constructor in signature:" ++ ppShow (v,pt,ty2)
+                    Nothing -> (v,pt)) cm
 
         simp_fns :: [S.Function Id]
         simp_fns = toSimp rich_fns_opt
@@ -149,5 +166,5 @@ processFile cont = do
 
         when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
-        cont callg sig_infos tr_props
+        cont callg (map adjust_sig_info sig_infos) tr_props
 

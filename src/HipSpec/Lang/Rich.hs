@@ -12,6 +12,8 @@ import Data.Traversable (Traversable)
 
 import HipSpec.Lang.Type
 
+import Control.Monad.State
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 data Program a = Program
@@ -92,9 +94,18 @@ data Pattern a
 
 instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
 instanceUniverseBi  [t| forall a . (Expr a,Type a) |]
+
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Expr a,[Function a]) |]
 instanceTransformBi [t| forall a . (Expr a,Function a) |]
+
+instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,Expr a) |]
+instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,[Function a]) |]
+instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,Function a) |]
+
+instanceTransformBi [t| forall a . (Type a,Expr a) |]
+instanceTransformBi [t| forall a . (Type a,[Function a]) |]
+instanceTransformBi [t| forall a . (Type a,Function a) |]
 
 instanceUniverseBi  [t| forall a . (Datatype a,a) |]
 instanceUniverseBi  [t| forall a . (Datatype a,Type a) |]

@@ -186,6 +186,10 @@ smtPrims =
         [ (GHCPrim IntAddOp,"+")
         , (GHCPrim IntSubOp,"-")
         , (GHCPrim IntMulOp,"*")
+{-
+        , (GHCPrim IntRemOp,"rem")
+        , (GHCPrim IntQuotOp,"quot")
+-}
         , (OtherPrim IntGt,">")
         , (OtherPrim IntGe,">=")
         , (OtherPrim IntEq,"=")

@@ -30,22 +30,26 @@ trTerm m = go
     go t = case t of
         Rewriting.Var v    -> S.Lcl (QSVariable v) (trType m (typ v))
         Rewriting.Fun c as ->
-            let (ghc_var,pt) = lookupCon m c
+            let (f,pt) = lookupCon m c
             in  case match pt (trType m (typ c)) of
-                    Just ts -> S.Gbl (idFromVar (ghc_var)) pt ts `S.apply` map go as
+                    Just ts -> S.Gbl f pt ts `S.apply` map go as
                     Nothing -> error $ "Incorrect type application " ++ show t
 
 trType :: ResolveMap -> QS.Type -> S.Type Id
-trType m = go
+trType m t00 = go t00
   where
     go t0 = case t0 of
         Rewriting.Var tv               -> S.TyVar (QSTyVar tv)
         Rewriting.Fun QS.Arrow [a,b]   -> go a `S.ArrTy` go b
-        Rewriting.Fun (QS.TyCon tc) as ->
-            let tc' = lookupTyCon m tc
-            in if CTR.essentiallyInteger tc'
-                then S.Integer
-                else S.TyCon (idFromTyCon tc') (map go as)
+        Rewriting.Fun (QS.TyCon tc) as -> inty (lookupTyCon m tc `apply_type` map go as)
+
+    inty (S.TyCon (tryGetGHCTyCon -> Just tc) []) | CTR.essentiallyInteger tc = S.Integer
+    inty t = t
+
+    apply_type :: S.Type a -> [S.Type a] -> S.Type a
+    apply_type (S.TyCon x xs) as = S.TyCon x (xs ++ as)
+    apply_type t              [] = t
+    apply_type _              _  = error $ "QSTerm trType apply_type:" ++ show t00
 
 match :: Eq a => S.PolyType a -> S.Type a -> Maybe [S.Type a]
 match (S.Forall tvs t) t' = sequence [ findTv tv t t' | tv <- tvs ]
