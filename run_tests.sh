@@ -25,7 +25,7 @@ hipspec List.hs        --extra-trans=++,length,map,filter,. --success=NothingUnp
 hipspec Reverse.hs                  --only-user-stated      --success=ProvesUserStated $COMMON || exit $?
 hipspec ZipRev.hs --auto=False      --only-user-stated      --success=ProvesUserStated $COMMON || exit $?
 hipspec Concat.hs --extra-trans=+,++,length,map,sum,concat  --success=NothingUnproved  $COMMON || exit $?
-hipspec BinLists.hs                                         --success=NothingUnproved  $COMMON || exit $?
+hipspec BinLists.hs                                         --success=ProvesUserStated $COMMON || exit $?
 # hipspec $PR                         --extra-trans=++,foldl,foldr --success=NothingUnproved  $COMMON || exit $?
 # hipspec $PR                         --extra-trans=++,map,reverse --success=NothingUnproved  $COMMON || exit $?
 cd ..
