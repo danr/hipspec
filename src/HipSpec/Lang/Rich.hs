@@ -7,12 +7,12 @@ module HipSpec.Lang.Rich where
 
 import Data.Generics.Geniplate
 import Data.List (nub)
+import Data.Maybe (fromMaybe)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
-import HipSpec.Lang.Type
 
-import Control.Monad.State
+import HipSpec.Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -99,9 +99,11 @@ instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Expr a,[Function a]) |]
 instanceTransformBi [t| forall a . (Expr a,Function a) |]
 
-instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,Expr a) |]
-instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,[Function a]) |]
-instanceTransformBiM [t| State Integer |] [t| forall a . (Expr a,Function a) |]
+instance Monad m => TransformBiM m (Expr a) (Expr a) where
+    transformBiM = $(genTransformBiM' [t| forall m a . (Expr a -> m (Expr a)) -> Expr a -> m (Expr a) |])
+
+instance Monad m => TransformBiM m (Expr a) [Function a] where
+    transformBiM = $(genTransformBiM' [t| forall m a . (Expr a -> m (Expr a)) -> [Function a] -> m [Function a] |])
 
 instanceTransformBi [t| forall a . (Type a,Expr a) |]
 instanceTransformBi [t| forall a . (Type a,[Function a]) |]
@@ -122,13 +124,16 @@ transformExpr = transformBi
 exprTyVars :: Eq a => Expr a -> [a]
 exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
 
+exprType' :: Eq a => String -> Expr a -> Type a
+exprType' s = fromMaybe (error $ "exprType: " ++ show s) . exprType
+
 exprType :: Eq a => Expr a -> Maybe (Type a)
 exprType e0 = case e0 of
     Lcl _ t                -> Just t
     Gbl _ (Forall xs t) ts -> Just (substManyTys (zip xs ts) t)
     App e _                -> arrowResult =<< exprType e
     Lit{}                  -> Just Integer
-    String s               -> Nothing
+    String{}               -> Nothing
     Lam _ t e              -> fmap (ArrTy t) (exprType e)
     Case _ _ ((_,e):_)     -> exprType e
     Let _ e                -> exprType e

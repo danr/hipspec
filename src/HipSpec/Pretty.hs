@@ -41,7 +41,10 @@ showSimp :: S.Function Id -> String
 showSimp = render . R.ppFun Show docId . S.injectFn
 
 showRich :: R.Function Id -> String
-showRich = render . R.ppFun Show docId
+showRich = render . R.ppFun Don'tShow docId
+
+showRexpr :: R.Expr Id -> String
+showRexpr = render . R.ppExpr 0 Don'tShow docId
 
 showExpr :: S.Expr Id -> String
 showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr

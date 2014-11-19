@@ -33,6 +33,9 @@ import HipSpec.Heuristics.CallGraph
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
+import HipSpec.Lang.HBMCPass
+import Control.Monad.State
+
 import TyCon (isAlgTyCon)
 import TysWiredIn (boolTyCon)
 import UniqSupply
@@ -144,6 +147,10 @@ processFile cont = do
         debugWhen PrintRich $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
+
+        liftIO $ forM_ rich_fns_opt $ \ fn -> do
+            let fns = evalState (hbmc fn) 0
+            putStrLn (unlines (map showRich fns))
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 

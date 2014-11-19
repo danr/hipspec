@@ -75,6 +75,10 @@ tryGetGHCTyCon :: Id -> Maybe TyCon
 tryGetGHCTyCon (GHCOrigin _ _ mtc) = mtc
 tryGetGHCTyCon _                   = Nothing
 
+ghcTrueId,ghcFalseId :: Id
+ghcTrueId  = idFromDataCon trueDataCon
+ghcFalseId = idFromDataCon falseDataCon
+
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
                      (Maybe TyCon) -- There might come more tycons from the signature
@@ -87,6 +91,14 @@ data Id
     | Const Int Int
     | FromProverBool
     | ProverBool
+
+
+    -- for HBMC:
+    | The
+    | UNR
+    | Peek
+    | Lift
+    | LiftTV
   deriving (Eq,Ord,Show,Generic)
 
 data OtherPrim
@@ -186,6 +198,11 @@ data Derived
     | Unknown
     | GenTyVar
     | Id `Fix` BW
+
+    -- For hbmc:
+    | Arg
+    | Res
+    | Caser
   deriving (Eq,Ord,Show,Generic)
 
 -- we turn {f = .. f ..}
@@ -224,7 +241,14 @@ originalId i = case i of
     QSTyVar tv     -> QS.prettyShow tv
     Const 0 2      -> "const"
     Const i j      -> "const_" ++ show i ++ "_" ++ show j
-    Derived d _    -> case d of
+
+    The     -> "The"
+    UNR     -> "UNR"
+    Peek    -> "peek"
+    Lift    -> "Lift"
+    LiftTV  -> "a"
+
+    Derived d i    -> case d of
         _ `LetFrom` b -> originalId b ++ "_"
         Lambda a      -> originalId a ++ "_lambda"
         Case a        -> originalId a ++ "_case"
@@ -234,6 +258,9 @@ originalId i = case i of
         Unknown       -> "u"
         GenTyVar      -> "a"
         f `Fix` _bw   -> "{" ++ originalId f ++ "}"
+        Arg           -> "arg" ++ show i
+        Res           -> "res" ++ show i
+        Caser         -> "caser" ++ show i
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
@@ -251,6 +278,12 @@ ppId i = case i of
     Const 0 2      -> "const"
     Const i j      -> "const_" ++ show i ++ "_" ++ show j
 
+    The     -> "The"
+    UNR     -> "UNR"
+    Peek    -> "peek"
+    Lift    -> "Lift"
+    LiftTV  -> "a"
+
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of
     f `LetFrom` g -> (case ppId g of { [] -> ""; s -> s ++ "_" }) ++ ppId f
@@ -262,6 +295,9 @@ ppDerived i d = case d of
     GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
     f `Fix` bw    -> ppId f ++ show bw
+    Arg           -> "arg" ++ show i
+    Res           -> "res" ++ show i
+    Caser         -> "caser" ++ show i
 
 ppName :: Name -> String
 ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}

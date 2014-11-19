@@ -32,6 +32,7 @@ import Control.Monad.Error
 import HipSpec.Lang.Simple as S
 -- import HipSpec.Lang.RichToSimple as S
 -- import HipSpec.Lang.PrettyRich as R
+import HipSpec.Lang.SimplifyRich (ghcTrue)
 import HipSpec.Lang.Renamer
 import HipSpec.Lint
 
@@ -214,7 +215,7 @@ boolifyProperty prop@Property{..} = case prop_goal of
     _ -> [prop]
 
 notConstant :: S.Expr Id -> Bool
-notConstant (Gbl a _ []) = a `notElem` map idFromDataCon [trueDataCon,falseDataCon]
+notConstant (Gbl a _ []) = a `notElem` [ghcTrueId,ghcFalseId]
 notConstant _            = True
 
 copyReprToName :: Property -> Property
@@ -237,9 +238,7 @@ parseProperty e = case collectArgs e of
     _ -> throwError (CannotParse e)
 
 equalsTrue :: S.Expr Id -> Literal
-equalsTrue l = l :=: true
-  where
-    true = Gbl (idFromDataCon trueDataCon) (Forall [] (TyCon (idFromTyCon boolTyCon) [])) []
+equalsTrue l = l :=: S.Gbl (ghcTrueId) (S.Forall [] boolType) []
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore

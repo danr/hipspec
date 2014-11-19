@@ -138,12 +138,16 @@ unTagToEnum = transformBi $ \ e0 -> case e0 of
                (Gbl (OtherPrim op) (q (otherPrimOpType op)) [] `apply` args)
     _ -> e0
 
+ghcTrue,ghcFalse :: Expr Id
+ghcTrue  = Gbl ghcTrueId  (q boolType) []
+ghcFalse = Gbl ghcFalseId (q boolType) []
+
 fromProverBoolDefn :: Function Id
 fromProverBoolDefn = Function f (q ty)
     (Lam x proverBoolType
         (Case (Lcl x proverBoolType) Nothing
-            [ (ConPat true  (q proverBoolType) [] [],Gbl (idFromDataCon trueDataCon)  (q boolType) [])
-            , (ConPat false (q proverBoolType) [] [],Gbl (idFromDataCon falseDataCon) (q boolType) [])
+            [ (ConPat true  (q proverBoolType) [] [],ghcTrue)
+            , (ConPat false (q proverBoolType) [] [],ghcFalse)
             ]))
   where
     f  = FromProverBool
@@ -196,37 +200,44 @@ simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
     _ -> b
 
 simpExpr :: Eq a => Expr a -> Expr a
-simpExpr = transformExpr $ \ e0 -> case e0 of
+simpExpr = simpExpr' True
+
+simpExpr' :: Eq a => Bool -> Expr a -> Expr a
+simpExpr' inline = transformExpr $ \ e0 -> case e0 of
 
     -- Beta reduction
-    App (Lam x _ body) arg -> simpExpr ((arg // x) body)
+    App (Lam x _ body) arg -> rec ((arg // x) body)
 
     -- Known case on a constructor
     Case e mx alts
         | (Gbl u _ ts,args) <- collectArgs e
         , Just (ConPat _ _ _ bs,rhs) <- findAlt u ts alts
-        -> simpExpr (substMany (maybe id (\ (x,_) -> ((x,e):)) mx (zip (map fst bs) args)) rhs)
+        -> rec (substMany (maybe id (\ (x,_) -> ((x,e):)) mx (zip (map fst bs) args)) rhs)
 
     Case e mx [(Default,rhs)] -> substMany (maybe [] (\ (x,_) -> [(x,e)]) mx) rhs
 
-    Case (Let fns e) x alts -> simpExpr (Let fns (Case e x alts))
+    Case (Let fns e) x alts -> rec (Let fns (Case e x alts))
 
     Case e x alts -> Case e Nothing
-                        [ (p,simpExpr (removeScrutinee e x alt))
+                        [ (p,rec (removeScrutinee e x alt))
                         | alt@(p,_) <- alts
                         ]
+
+    _ | not inline -> e0
 
     -- Inlining local non-recursive functions
     -- TODO: Handle several functions, handle polymorphic functions (no examples yet)
     -- Cannot inline this to several occasions if e contains a let
     Let [Function f (Forall [] _) b] e
         | not (f `occursIn` b)
-        , letFree b {- || occurrences f e <= 1 -} -> simpExpr ((b // f) e)
+        , letFree b {- || occurrences f e <= 1 -} -> rec ((b // f) e)
 
 
-    Let fns e -> Let (map (simpFun Local) fns) (simpExpr e)
+    Let fns e -> Let (map (simpFun Local) fns) (rec e)
 
     _ -> e0
+  where
+    rec = simpExpr' inline
 
 -- | Removes the scrutinee variable (and also the expression if it is a variable),
 --   by inlining the pattern or the expression again (if it is a Default alt)
