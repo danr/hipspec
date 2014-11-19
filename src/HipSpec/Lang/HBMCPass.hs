@@ -80,9 +80,11 @@ lifter var tmpl def combine = go
         brs' <- mapM (\ (p,e) -> do e' <- go e; return (p,e')) brs
         return (Case a mx brs')
 
+{-
     go (Let [Function f t b] e) | findExpr (isJust . tmpl) b = do
         b' <- go b
         return (Let [Function f t b'] e)
+        -}
 
     go (Let fns e) = Let fns <$> go e
 
@@ -104,6 +106,32 @@ common f arg_ty = lifter
     (\ _ -> mkLet)
 
 commonLong :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
+commonLong s0 f arg_tys e0 = foldM
+    (\ e i -> do
+        let tmpl a = case collectArgs a of
+                (fg@(Gbl g _ _),args)
+                    | g == f
+                    , length arg_tys == length args
+                    , not (any (argExprSat (< s0)) args)
+                    , not (any (findExpr (isJust . tmpl)) args)
+                    -> Just
+                        ( the (args !! i)
+                        , ( \ x -> apply fg (replaceAt args i x)
+                          , arg_tys !! i
+                          )
+                        )
+                _ -> Nothing
+        lifter newArg tmpl (unr (arg_tys !! i)) (\ _ -> mkLet) e)
+    e0
+    [0..length arg_tys-1]
+
+replaceAt :: [a] -> Int -> a -> [a]
+replaceAt xs i x = case splitAt i xs of
+    (l,_:r) -> l ++ [x] ++ r
+    _       -> error "replaceAt"
+
+{-
+commonLong :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
 commonLong s0 f arg_tys e0 = fst <$> foldM
     (\ (e,tmpl) arg_ty -> do
         let tmpl' a = case a of
@@ -122,6 +150,7 @@ commonLong s0 f arg_tys e0 = fst <$> foldM
         _                  -> Nothing
     )
     arg_tys
+    -}
 
 expensive :: (Expr Id -> Bool) -> Expr Id -> Fresh (Expr Id)
 expensive p = lifter
@@ -148,11 +177,9 @@ replaceTop :: (a ~ Id) => (Expr a -> Maybe (Expr a)) -> (Expr a -> Maybe (Expr a
 replaceTop tmpl handle_arm = go
   where
     go e0 = case e0 of
-        Let [Function c t b] e -> case go b of
-            (_,[]) ->
-                let (e',ess) = go e
-                in  (Let [Function c t b] e',ess)
-            r -> r
+        Let fns e ->
+            let (e',ess) = go e
+            in  (Let fns e',ess)
 
         Case e mx brs ->
             let (brs',ess) = unzip [ ((p,br'),es) | (p,br) <- brs, let (br',es) = go br ]
