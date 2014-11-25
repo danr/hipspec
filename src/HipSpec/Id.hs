@@ -79,6 +79,45 @@ ghcTrueId,ghcFalseId :: Id
 ghcTrueId  = idFromDataCon trueDataCon
 ghcFalseId = idFromDataCon falseDataCon
 
+{-
+ghcTupleTyCon :: Id
+ghcTupleTyCon = idFromTyCon (tupleTyCon BoxedTuple 2)
+
+ghcTupleCon :: Id
+ghcTupleCon = idFromDataCon (tupleCon BoxedTuple 2)
+
+fstId :: Id
+fstId = idFromDataCon
+-}
+
+data HBMCId
+    = The
+    | UNR
+    | Peek
+    | Lift
+    | LiftTV
+    | TupleTyCon Int
+    | TupleCon Int
+    | Select Int Int
+    | Arg
+    | Res
+    | Caser
+  deriving (Eq,Ord,Show,Generic)
+
+showHBMCId :: HBMCId -> String
+showHBMCId hi = case hi of
+    The     -> "The"
+    UNR     -> "UNR"
+    Peek    -> "peek"
+    Lift    -> "Lift"
+    LiftTV  -> "a"
+    TupleTyCon i -> "TT" ++ show i
+    TupleCon   i -> "T" ++ show i
+    Select i j   -> "proj" ++ show j
+    Arg     -> "arg"
+    Res     -> "res"
+    Caser   -> "caser"
+
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
                      (Maybe TyCon) -- There might come more tycons from the signature
@@ -91,14 +130,8 @@ data Id
     | Const Int Int
     | FromProverBool
     | ProverBool
-
-
     -- for HBMC:
-    | The
-    | UNR
-    | Peek
-    | Lift
-    | LiftTV
+    | HBMCId HBMCId
   deriving (Eq,Ord,Show,Generic)
 
 data OtherPrim
@@ -199,10 +232,7 @@ data Derived
     | GenTyVar
     | Id `Fix` BW
 
-    -- For hbmc:
-    | Arg
-    | Res
-    | Caser
+    | Refresh Id
   deriving (Eq,Ord,Show,Generic)
 
 -- we turn {f = .. f ..}
@@ -231,7 +261,7 @@ disambigPrim "Bool"    = "ghc_Bool"
 disambigPrim s         = s
 
 originalId :: Id -> String
-originalId i = case i of
+originalId ii = case ii of
     GHCOrigin nm _ _ -> disambigPrim (getOccString nm)
     GHCPrim op     -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
     OtherPrim op   -> show op -- "PRIM_" ++ occNameString (primOpOcc op)
@@ -241,12 +271,7 @@ originalId i = case i of
     QSTyVar tv     -> QS.prettyShow tv
     Const 0 2      -> "const"
     Const i j      -> "const_" ++ show i ++ "_" ++ show j
-
-    The     -> "The"
-    UNR     -> "UNR"
-    Peek    -> "peek"
-    Lift    -> "Lift"
-    LiftTV  -> "a"
+    HBMCId hi      -> showHBMCId hi
 
     Derived d i    -> case d of
         _ `LetFrom` b -> originalId b ++ "_"
@@ -258,15 +283,13 @@ originalId i = case i of
         Unknown       -> "u"
         GenTyVar      -> "a"
         f `Fix` _bw   -> "{" ++ originalId f ++ "}"
-        Arg           -> "arg" ++ show i
-        Res           -> "res" ++ show i
-        Caser         -> "caser" ++ show i
+        Refresh x     -> originalId x ++ show i
 
 -- | Pretty prints an Id.
 --   Not necessarily to a unique String, the Renamer takes care of proper
 --   disabiguation.
 ppId :: Id -> String
-ppId i = case i of
+ppId ii = case ii of
     GHCOrigin nm _ _ -> disambigPrim (ppName nm)
     GHCPrim op     -> show op
     OtherPrim op   -> show op
@@ -277,12 +300,7 @@ ppId i = case i of
     Derived d x    -> ppDerived x d
     Const 0 2      -> "const"
     Const i j      -> "const_" ++ show i ++ "_" ++ show j
-
-    The     -> "The"
-    UNR     -> "UNR"
-    Peek    -> "peek"
-    Lift    -> "Lift"
-    LiftTV  -> "a"
+    HBMCId hi      -> showHBMCId hi
 
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of
@@ -295,11 +313,14 @@ ppDerived i d = case d of
     GenTyVar      -> [['a'..'z'] !! (fromInteger i `mod` 26)]
     Unknown       -> "unknown"
     f `Fix` bw    -> ppId f ++ show bw
-    Arg           -> "arg" ++ show i
-    Res           -> "res" ++ show i
-    Caser         -> "caser" ++ show i
+    Refresh x     -> ppId x ++ show i
 
 ppName :: Name -> String
+{-
+ppName nm = case getOccString nm of
+     ":" -> "(:)"
+     s   -> s
+     -}
 ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
     | k == listTyConKey      = "List"
     | k == nilDataConKey     = "Nil"

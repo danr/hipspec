@@ -16,40 +16,7 @@ import Data.Generics.Geniplate
 import HipSpec.Utils
 
 import Data.Maybe
-import Control.Monad.State
-
-type Fresh = State Integer
-
-fresh :: Fresh Integer
-fresh = state (\ s -> (s,succ s))
-
-newArg :: Fresh Id
-newArg = Derived Arg <$> fresh
-
-newRes :: Fresh Id
-newRes = Derived Res <$> fresh
-
-newCaser :: Fresh Id
-newCaser = Derived Caser <$> fresh
-
-unr :: Type Id -> Expr Id
-unr t = Gbl UNR (Forall [x] (TyCon Lift [TyVar x])) [t]
-  where
-    x = LiftTV
-
-the :: Expr Id -> Expr Id
-the e = Gbl The (Forall [x] (TyVar x `ArrTy` TyCon Lift [TyVar x])) [t] `App` e
-  where
-    x = LiftTV
-    t = exprType' "the" e
-
-peek :: Expr Id -> Expr Id
-peek e = Gbl Peek (Forall [x] (TyCon Lift [TyVar x] `ArrTy` TyVar x)) [t] `App` e
-  where
-    x = LiftTV
-    t = case exprType' "peek" e of
-        TyCon Lift [t] -> t
-        t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
+import Control.Monad.State hiding (lift)
 
 -- Transforms
 --    case e of brs
@@ -67,6 +34,30 @@ caseOnVars = transformBiM tr
             tr (Case e (Just (x,t)) brs)
         _ -> return e0
 
+{-
+
+    case x of
+        K1 x1 -> C1[e]
+        K2 x2 -> C2[e]
+        K3 x3 -> C3
+
+    is transformed to
+
+    combine e var
+        (case x of
+            K1 x1 -> fst (fromJust (tmpl e))
+            K2 x2 -> fst (fromJust (tmpl e))
+            K3 x3 -> def)
+        (case x of
+            K1 x1 -> C1[snd (fromJust (tmpl e)) (Lcl var)]
+            K2 x2 -> C2[snd (fromJust (tmpl e)) (Lcl var)]
+            K3 x3 -> C3)
+
+    Future optimisation: save values bound by lets from the first argument
+    to the second argument to avoid recomputation.
+    This could be done in a separate pass
+
+-}
 lifter :: forall a . (Eq a,a ~ Id) => Fresh a
        -> (Expr a -> Maybe (Expr a,(Expr a -> Expr a,Type a))) -> Expr a
        -> ([Expr a] -> a -> Expr a -> Expr a -> Expr a)
@@ -80,98 +71,61 @@ lifter var tmpl def combine = go
         brs' <- mapM (\ (p,e) -> do e' <- go e; return (p,e')) brs
         return (Case a mx brs')
 
+    go e0@(Let [Function f t b] e)
+        | findExpr (isJust . tmpl) b
+        = error $ "Case on recursive call not supported yet: " ++ showRexpr e0
 {-
-    go (Let [Function f t b] e) | findExpr (isJust . tmpl) b = do
         b' <- go b
         return (Let [Function f t b'] e)
         -}
 
     go (Let fns e) = Let fns <$> go e
 
-    -- always lift, since we create new variable names as arguments
+    -- always lift, since we create new variable names as arguments and use
+    -- this as termination criterion (!)
     go c = do
-        let repl u v = replaceTop (fmap u . tmpl) v c
+        let repl tmpl_proj handle_arm = replaceTop (fmap tmpl_proj . tmpl) handle_arm c
         x <- var
         let (before,ess) = repl fst (\ _ e -> case e of Just e' -> e'; Nothing -> def)
         let (after,_)    = repl (\ (_,(k,xt)) -> k (Lcl x xt)) (\ a _ -> a)
         return (combine ess x before after)
 
-common :: Expr Id -> Type Id -> Expr Id -> Fresh (Expr Id)
-common f arg_ty = lifter
-    newArg
-    (\ e0 -> case e0 of
-        App g x | f == g && not (findExpr (== f) x) -> Just (the x,(\ e -> App g e,exprType' "common" x))
-        _ -> Nothing)
-    (unr arg_ty)
-    (\ _ -> mkLet)
+commonAll :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
+commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
+  where
+    n = length arg_tys
 
-commonLong :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
-commonLong s0 f arg_tys e0 = foldM
-    (\ e i -> do
-        let tmpl a = case collectArgs a of
-                (fg@(Gbl g _ _),args)
-                    | g == f
-                    , length arg_tys == length args
-                    , not (any (argExprSat (< s0)) args)
-                    , not (any (findExpr (isJust . tmpl)) args)
-                    -> Just
-                        ( the (args !! i)
-                        , ( \ x -> apply fg (replaceAt args i x)
-                          , arg_tys !! i
-                          )
-                        )
-                _ -> Nothing
-        lifter newArg tmpl (unr (arg_tys !! i)) (\ _ -> mkLet) e)
-    e0
-    [0..length arg_tys-1]
+    t = TyCon (hid $ TupleTyCon n) arg_tys
 
-replaceAt :: [a] -> Int -> a -> [a]
-replaceAt xs i x = case splitAt i xs of
-    (l,_:r) -> l ++ [x] ++ r
-    _       -> error "replaceAt"
+    tmpl e = case collectArgs e of
+        (fg@(Gbl g _ _),args)
+            | g == f
+            , length arg_tys == length args
+            , not (any (argOk (< s0)) args)
+            , not (any (findExpr (isJust . tmpl)) args)
+            -> Just
+                ( the (Gbl (hid $ TupleCon n) (tupleType n) arg_tys `apply` args)
+                , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` x | j <- [0..n-1] ]
+                  , t
+                  )
+                )
+        _ -> Nothing
 
-{-
-commonLong :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
-commonLong s0 f arg_tys e0 = fst <$> foldM
-    (\ (e,tmpl) arg_ty -> do
-        let tmpl' a = case a of
-                App g x
-                    | Just{} <- tmpl g
-                    , not (argExprSat (< s0) x) -- not already lifted
---                    , not (findExpr (isJust . tmpl) x)
-                    -> Just (the x,(App g,exprType' "commonLong" x))
-                _ -> Nothing
-        e' <- lifter newArg tmpl' (unr arg_ty) (\ _ -> mkLet) e
-        return (e',tmpl')
-    )
-    ( e0
-    , \ a -> case a of
-        Gbl g _ _ | g == f -> Just (error "commonLong: init")
-        _                  -> Nothing
-    )
-    arg_tys
-    -}
+-- We have already processed arguments that are (projX argZ) if p Z
+argOk :: (Integer -> Bool) -> Expr Id -> Bool
+argOk p e = case e of
+    Gbl{} `App` arg -> argExprSat p arg
+    _ -> False
 
 expensive :: (Expr Id -> Bool) -> Expr Id -> Fresh (Expr Id)
 expensive p = lifter
     newRes
-    (\ e -> if p e then Just (ghcTrue,(peek,TyCon Lift [exprType' "expensive" e])) else Nothing)
+    (\ e -> if p e then Just (ghcTrue,(peek,TyCon lift [exprType' "expensive" e])) else Nothing)
     ghcFalse
     (\ ess x tf e -> case ess of
         a:as | any (/= a) as -> error "different expensive"
         [] -> error "empty expensive"
         a:_ -> mkLet x (ite tf (the a) (unr (exprType' "expensive" a))) e)
-
-mkLet :: Eq a => a -> Expr a -> Expr a -> Expr a
-mkLet x ls e = Let [Function x (q (exprType' "mkLet" ls)) ls] e
-
-ite :: Expr Id -> Expr Id -> Expr Id -> Expr Id
-ite e t f = Case e Nothing [(pat ghcTrueId,t),(pat ghcFalseId,f)]
-  where
-    pat i = ConPat i (q boolType) [] []
-
-findExpr :: (Expr a -> Bool) -> Expr a -> Bool
-findExpr p = any p . universe
 
 replaceTop :: (a ~ Id) => (Expr a -> Maybe (Expr a)) -> (Expr a -> Maybe (Expr a) -> Expr a) -> Expr a -> (Expr a,[Expr a])
 replaceTop tmpl handle_arm = go
@@ -201,13 +155,109 @@ replaceFirst tmpl e0 = (`runState` Nothing) . transformBiM tr $ e0
             (orig  ,Nothing,Just r)  -> put (Just (orig,r)) >> return r
             (_     ,Nothing,Nothing) -> return e
 
+hbmc :: Function Id -> Fresh [Function Id]
+hbmc (Function f pty@(Forall tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
+    = fmap ret . go =<< (caseOnVars `underLambda` b0)
+  where
+    ret xs = [Function f pty b | b <- b0:xs ]
+
+
+    continue = findExpr $ \ e -> case collectArgs e of
+        (Gbl g _ _,args) | f == g, length args >= length arg_tys -> any (not . argOk (const True)) args
+        _ -> False
+
+    go :: Expr Id -> Fresh [Expr Id]
+    go b | continue b = do
+
+        s0 <- get
+
+        b' <-  commonAll s0 f arg_tys `underLambda` b
+
+        let new_f e = case collectArgs e of
+                (Gbl f _ _,args) ->
+                    length args == length arg_tys && all (argOk (>= s0)) args
+                _ -> False
+
+        b_res <- expensive new_f `underLambda` b'
+
+        res <- go b_res
+
+        return (b:b':res)
+
+    go b = return [b]
+
+-- utilities
+--
+mkLet :: Eq a => a -> Expr a -> Expr a -> Expr a
+mkLet x ls e = Let [Function x (q (exprType' "mkLet" ls)) ls] e
+
+ite :: Expr Id -> Expr Id -> Expr Id -> Expr Id
+ite e t f = Case e Nothing [(pat ghcTrueId,t),(pat ghcFalseId,f)]
+  where
+    pat i = ConPat i (q boolType) [] []
+
+findExpr :: (Expr a -> Bool) -> Expr a -> Bool
+findExpr p = any p . universe
+
 underLambda :: Functor m => (Expr a -> m (Expr a)) -> Expr a -> m (Expr a)
 underLambda k b = makeLambda xs `fmap` k e
   where (xs,e) = collectBinders b
 
+type Fresh = State Integer
+
+fresh :: Fresh Integer
+fresh = state (\ s -> (s,succ s))
+
+hid :: HBMCId -> Id
+hid = HBMCId
+
+lift,liftTV :: Id
+lift   = hid Lift
+liftTV = hid LiftTV
+
+newArg :: Fresh Id
+newArg = Derived (Refresh $ hid Arg) <$> fresh
+
+newRes :: Fresh Id
+newRes = Derived (Refresh $ hid Res) <$> fresh
+
+newCaser :: Fresh Id
+newCaser = Derived (Refresh $ hid Caser) <$> fresh
+
+unr :: Type Id -> Expr Id
+unr t = Gbl (hid UNR) (Forall [x] (TyCon lift [TyVar x])) [t]
+  where
+    x = liftTV
+
+the :: Expr Id -> Expr Id
+the e = Gbl (hid The) (Forall [x] (TyVar x `ArrTy` TyCon lift [TyVar x])) [t] `App` e
+  where
+    x = liftTV
+    t = exprType' "the" e
+
+peek :: Expr Id -> Expr Id
+peek e = Gbl (hid Peek) (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t] `App` e
+  where
+    x = liftTV
+    t = case exprType' "peek" e of
+        TyCon (HBMCId Lift) [t] -> t
+        t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
+
+tupleType :: Int -> PolyType Id
+tupleType i = Forall tvs (tvs' `makeArrows` TyCon (hid $ TupleTyCon i) tvs')
+  where
+    tvs  = [ Lambda (hid $ TupleTyCon i) `Derived` fromIntegral z | z <- [0..i-1] ]
+    tvs' = map TyVar tvs
+
+selectType :: Int -> Int -> PolyType Id
+selectType i j = Forall tvs (TyCon (hid $ TupleTyCon i) tvs' `ArrTy` (tvs' !! j))
+  where
+    tvs  = [ Lambda (hid $ TupleTyCon i) `Derived` fromIntegral z | z <- [0..i-1] ]
+    tvs' = map TyVar tvs
+
 argSat :: (Integer -> Bool) -> Id -> Bool
-argSat p (Derived Arg i) = p i
-argSat _ _               = False
+argSat p (Derived (Refresh (HBMCId Arg)) i) = p i
+argSat _ _                                  = False
 
 argId :: Id -> Bool
 argId = argSat (const True)
@@ -219,44 +269,4 @@ argExpr _         = False
 argExprSat :: (Integer -> Bool) -> Expr Id -> Bool
 argExprSat p (Lcl i _) = argSat p i
 argExprSat _ _         = False
-
-resExpr :: Expr Id -> Bool
-resExpr (Lcl (Derived Res _) _) = True
-resExpr _                       = False
-
-hbmc :: Function Id -> Fresh [Function Id]
-hbmc (Function f pty@(Forall tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
-    = fmap ret . go =<< (caseOnVars `underLambda` b0)
-
-{-
-        b' <- caseOnVars `underLambda` b
-        b'' <- common (Gbl f pty (map TyVar tvs)) ty_arg `underLambda` b'
-    _ -> return []
-    -}
-  where
-    ret xs = [Function f pty b | b <- b0:xs ]
-
-    continue = findExpr $ \ e -> case collectArgs e of
-        (Gbl g _ _,args) | f == g, length args >= length arg_tys -> any (not . argExpr) args
-        _ -> False
-
-    go :: Expr Id -> Fresh [Expr Id]
-    go b | continue b = do
-
-        s0 <- get
-
-        b' <- commonLong s0 f arg_tys `underLambda` b
-
-        let new_f e = case collectArgs e of
-                (Gbl f _ _,args) ->
-                    length args == length arg_tys && all (argExprSat (>= s0)) args
-                _ -> False
-
-        b_res <- expensive new_f `underLambda` b'
-
-        res <- go b_res
-
-        return (b:b':res)
-
-    go b = return [b]
 

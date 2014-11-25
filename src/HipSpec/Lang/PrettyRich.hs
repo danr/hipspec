@@ -21,7 +21,8 @@ ppExpr :: Int -> Types -> P a -> Expr a -> Doc
 ppExpr i t p e0 = case e0 of
     Lcl x ty    -> ppId x ty
     Gbl x ty ts -> parensIf (not (null ts) && i > 1) $
-        "*" <> ppPolyId x ty $\ sep [ "@" <+> ppType 2 p t' | t' <- ts ]
+        --"*" <> ppPolyId x ty $\ sep [ "@" <+> ppType 2 p t' | t' <- ts ]
+        ppPolyId x ty
     App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0
             pp_args    = map (ppExpr 2 t p) args
@@ -52,7 +53,8 @@ ppPat t p pat = case pat of
     Default           -> "_"
     ConPat c ty ts bs ->
         ppPolyId c ty $\
-        sep ([ "@" <+> ppType 1 p t' | t' <- ts ] ++
+        sep (
+    --        ([ "@" <+> ppType 1 p t' | t' <- ts ] ++
         map (uncurry ppId) bs)
     LitPat i          -> integer i
   where
