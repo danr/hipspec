@@ -322,6 +322,7 @@ ppDerived i d = case d of
     Refresh x     -> ppId x ++ show i
 
 ppName :: Name -> String
+ppName nm = getOccString nm
 {-
 ppName nm = case getOccString nm of
      ":" -> "(:)"

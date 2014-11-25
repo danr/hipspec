@@ -32,6 +32,7 @@ import HipSpec.Heuristics.CallGraph
 
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.Rich as R
 
 import HipSpec.HBMC
 import Control.Monad.State
@@ -148,16 +149,29 @@ processFile cont = do
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
+        let is_pure = \ f i -> case f of
+                HBMCId (Select ii j) -> i == ii
+                HBMCId (TupleCon ii) -> i == ii
+                _                    -> (f,i) `elem` dc_and_arity
+              where
+                dc_and_arity =
+                    [ (HBMCId The,1) ] ++
+                    [ (HBMCId UNR,0) ] ++
+                    [ (dc,length args)
+                    | R.Datatype _tc _ cons <- data_types
+                    , R.Constructor dc args <- cons
+                    ]
+
         liftIO $ putStrLn "Initial to Monadic"
         liftIO $ forM_ rich_fns {- _opt -} $ \ fn -> do
-            putStrLn $ unlines $ map showRich [fn,monadic fn `evalState` 0]
+            putStrLn $ unlines $ map showRich [fn,(monadic fn `runMon` is_pure) `evalState` 0]
 
         liftIO $ putStrLn "Lifted to Monadic"
         liftIO $ forM_ rich_fns_opt $ \ fn -> do
             let fns = evalState (liftFunction_trace fn) 0
             putStrLn (unlines (map showRich fns))
-            let mf = evalState (monadic (last fns)) 0
-            putStrLn (showRich mf)
+            let mf = evalState (monadic (last fns) `runMon` is_pure) 0
+            putStrLn (unlines (map showRich [mf]))
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 

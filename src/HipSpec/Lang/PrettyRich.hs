@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings,RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings,RecordWildCards,PatternGuards #-}
 -- | Pretty-printing the rich language, parameterised on whether to print
 --   types of variables.
 module HipSpec.Lang.PrettyRich where
@@ -20,12 +20,14 @@ ppFun t pk (Function f ty e) = ppId f ty <+> "=" $\ ppExpr 0 t pk e
 
 ppExpr :: Int -> Types -> P a -> Expr a -> Doc
 ppExpr i t pk e0 = case e0 of
-    Lcl x ty    -> ppId x ty
-    Gbl x ty ts -> parensIf (not (null ts) && i > 1) $
+    Lcl x ty    -> parensIf (pp_infix x) (ppId x ty)
+    Gbl x ty ts -> parensIf (not (null ts) && i > 2 || pp_infix x) $
         --"*" <> ppPolyId x ty $\ sep [ "@" <+> ppType 2 pk t' | t' <- ts ]
         ppPolyId x ty
+    App{} | (Gbl x _ _,[e1,Lam y _t e2]) <- collectArgs e0, pp_infix x ->
+        parensIf (i > 1) $ sep [ppExpr 1 t pk e1 $\ (p x $\ "\\" <+> p y <+> "->"), ppExpr 1 t pk e2]
     App{} | (Gbl x _ _,[e1,e2]) <- collectArgs e0, pp_infix x ->
-        parensIf (i > 1) $ (ppExpr 2 t pk e1 $\ p x) $\ ppExpr 2 t pk e2
+        parensIf (i > 1) $ sep [ppExpr 2 t pk e1 $\ p x, ppExpr 2 t pk e2]
     App{} -> parensIf (i > 1) $
         let (fun,args) = collectArgs e0
             pp_args    = map (ppExpr 2 t pk) args
@@ -63,8 +65,8 @@ ppPat t pk pat = case pat of
     LitPat i          -> integer i
   where
     PK{..} = pk
-    ppId     x ty = ppTyped t (p x) (ppType 0 pk ty)
-    ppPolyId x ty = ppTyped t (p x) (ppPolyType pk ty)
+    ppId     x ty = ppTyped t (parensIf (pp_infix x) (p x)) (ppType 0 pk ty)
+    ppPolyId x ty = ppTyped t (parensIf (pp_infix x) (p x)) (ppPolyType pk ty)
 
 ppPolyType :: P a -> PolyType a -> Doc
 ppPolyType pk (Forall [] ty) = ppType 0 pk ty

@@ -32,15 +32,15 @@ import Data.Char
 
 import PrimOp
 
+import HipSpec.Property.Repr (oper)
+
 type LogicId = Poly Id
 
 docId :: Id -> Doc
 docId = text . ppId
 
 pkId :: P Id
-pkId = PK docId $ \ i -> case i of
-    HBMCId Bind -> True
-    _           -> False
+pkId = PK docId (oper . ppId)
 
 showSimp :: S.Function Id -> String
 showSimp = render . R.ppFun Show pkId . S.injectFn
