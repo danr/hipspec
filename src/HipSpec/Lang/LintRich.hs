@@ -14,10 +14,10 @@ import qualified Data.Map as M
 
 import Text.PrettyPrint
 import HipSpec.Lang.PrettyRich
-import HipSpec.Lang.PrettyUtils (Types(..),P)
+import HipSpec.Lang.PrettyUtils (Types(..),P(..))
 
 data LintEnv v = Env
-    { pp   :: v -> Doc
+    { pp   :: P v
     , gbls :: Map v (PolyType v)
     , lcls :: Map v (Type v)
     }
@@ -30,11 +30,11 @@ withLcls k e = e { lcls = k (lcls e) }
 
 type LintM v a = WriterT [Doc] (Reader (LintEnv v)) a
 
-lint :: Ord v => (v -> Doc) -> LintM v a -> [Doc]
+lint :: Ord v => P v -> LintM v a -> [Doc]
 lint = lintWithScope []
 
-lintWithScope :: Ord v => [(v,Type v)] -> (v -> Doc) -> LintM v a -> [Doc]
-lintWithScope sc p m = runReader (execWriterT m') (Env p M.empty M.empty)
+lintWithScope :: Ord v => [(v,Type v)] -> P v -> LintM v a -> [Doc]
+lintWithScope sc pk m = runReader (execWriterT m') (Env pk M.empty M.empty)
   where m' = insertLcls sc m
 
 msgAlreadyBound :: a -> Type a -> Type a -> P a -> Doc
@@ -51,38 +51,38 @@ msgAltsRHSIllTyped :: Expr a -> [Type a] -> P a -> Doc
 msgConstructorIncorrectlyApplied :: Pattern a -> P a -> Doc
 msgIllTypedPattern :: Type a -> Pattern a -> P a -> Doc
 
-msgAlreadyBound v t1 t2 p = sep
-       [p v,"is bound as:",ppType 0 p t1,", but rebound as:",ppType 0 p t2]
-msgBoundAsOtherType v t1 t2 p = sep
-       [p v,"is bound as:",ppType 0 p t1,", but used as:",ppType 0 p t2]
+msgAlreadyBound v t1 t2 pk@PK{..} = sep
+       [p v,"is bound as:",ppType 0 pk t1,", but rebound as:",ppType 0 pk t2]
+msgBoundAsOtherType v t1 t2 pk@PK{..} = sep
+       [p v,"is bound as:",ppType 0 pk t1,", but used as:",ppType 0 pk t2]
 
-msgAlreadyBound' v t1 t2 p = sep
-       [p v,"is bound as:",ppPolyType p t1,", but rebound as:",ppPolyType p t2]
-msgBoundAsOtherType' v t1 t2 p = sep
-       [p v,"is bound as:",ppPolyType p t1,", but used as:",ppPolyType p t2]
+msgAlreadyBound' v t1 t2 pk@PK{..} = sep
+       [p v,"is bound as:",ppPolyType pk t1,", but rebound as:",ppPolyType pk t2]
+msgBoundAsOtherType' v t1 t2 pk@PK{..} = sep
+       [p v,"is bound as:",ppPolyType pk t1,", but used as:",ppPolyType pk t2]
 
-msgExprTypeDisagrees e t1 t2 p = sep
-       [ppExpr' p e,"has type:",ppType 0 p t1,", but exprType thinks:",ppType 0 p t2]
-msgVarIncorrectlyApplied e p = "Variable incorrectly applied: " <+> ppExpr' p e
-msgNotFunctionType e t p = sep
-       [ppExpr' p e,"should be of function type, but is:",ppType 0 p t]
-msgIncorrectApplication e t1 t2 p = sep
-       [ppExpr' p e,"incorrectly applied. Argument should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-msgScrutineeVarIllTyped e t1 t2 p = sep
-       [ppExpr' p e,"scurutinee should be:",ppType 0 p t1,"but is:",ppType 0 p t2]
-msgCaseWithoutAlts e p = "Case without alternatives: " <+> ppExpr' p e
-msgAltsRHSIllTyped e ts p = sep $
-       "Alternatives in case differ in type:":ppExpr' p e:map (ppType 0 p) ts
-msgConstructorIncorrectlyApplied pat p = "Constructor incorrectly applied:" <+> ppPat Show p pat
-msgIllTypedPattern t pat p = ppPat Show p pat <+> "pattern illtyped, has type:" <+> ppType 0 p t
+msgExprTypeDisagrees e t1 t2 pk@PK{..} = sep
+       [ppExpr' pk e,"has type:",ppType 0 pk t1,", but exprType thinks:",ppType 0 pk t2]
+msgVarIncorrectlyApplied e pk@PK{..} = "Variable incorrectly applied: " <+> ppExpr' pk e
+msgNotFunctionType e t pk@PK{..} = sep
+       [ppExpr' pk e,"should be of function type, but is:",ppType 0 pk t]
+msgIncorrectApplication e t1 t2 pk@PK{..} = sep
+       [ppExpr' pk e,"incorrectly applied. Argument should be:",ppType 0 pk t1,"but is:",ppType 0 pk t2]
+msgScrutineeVarIllTyped e t1 t2 pk@PK{..} = sep
+       [ppExpr' pk e,"scurutinee should be:",ppType 0 pk t1,"but is:",ppType 0 pk t2]
+msgCaseWithoutAlts e pk@PK{..} = "Case without alternatives: " <+> ppExpr' pk e
+msgAltsRHSIllTyped e ts pk@PK{..} = sep $
+       "Alternatives in case differ in type:":ppExpr' pk e:map (ppType 0 pk) ts
+msgConstructorIncorrectlyApplied pat pk@PK{..} = "Constructor incorrectly applied:" <+> ppPat Show pk pat
+msgIllTypedPattern t pat pk@PK{..} = ppPat Show pk pat <+> "pattern illtyped, has type:" <+> ppType 0 pk t
 
 ppExpr' :: P a -> Expr a -> Doc
 ppExpr' = ppExpr 0 Show
 
-report :: ((v -> Doc) -> Doc) -> LintM v ()
+report :: (P v -> Doc) -> LintM v ()
 report k = do
-    p <- asks pp
-    tell [k p]
+    pk <- asks pp
+    tell [k pk]
 
 insertGbl :: Ord v => (v,PolyType v) -> LintM v a -> LintM v a
 insertGbl (v,t) m = do

@@ -11,7 +11,6 @@ import Data.Maybe (fromMaybe)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
-
 import HipSpec.Lang.Type
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -189,8 +188,17 @@ tySubst x k = transformExpr $ \ e0 -> case e0 of
     Gbl y _ tys | x == y -> k tys
     _                    -> e0
 
-apply :: Expr a -> [Expr a] -> Expr a
-apply = foldl App
+app :: Eq a => Expr a -> Expr a -> Expr a
+u `app` v = case (etaRed u,etaRed v) of
+    (Lam x _ b,a) | occurrences x b <= 1 -> (a // x) b
+    (a,b)                                -> a `App` b
+
+etaRed :: Eq a => Expr a -> Expr a
+etaRed (Lam x _ (f `App` Lcl y _)) | x == y && occurrences x f == 0 = f
+etaRed e = e
+
+apply :: Eq a => Expr a -> [Expr a] -> Expr a
+apply = foldl app
 
 collectArgs :: Expr a -> (Expr a,[Expr a])
 collectArgs (App e1 e2) =

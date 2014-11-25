@@ -15,13 +15,16 @@ ppTyped Show e t = parens (e <+> "::" $\ t)
 ppTyped _    e _ = e
 
 -- | Pretty printing kit.
-type P a = a -> Doc
+data P a = PK
+    { p :: a -> Doc
+    , pp_infix :: a -> Bool
+    }
 
 -- | Pretty printing kit for polymorphic FOL
 --   Here, we want to differentiate between symbols and variables in tff
 data PP a b = PP
-    { pp_symb :: a -> Doc
-    , pp_var  :: b -> Doc
+    { pp_symb  :: a -> Doc
+    , pp_var   :: b -> Doc
     }
 
 parensIf :: Bool -> Doc -> Doc

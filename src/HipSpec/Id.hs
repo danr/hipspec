@@ -102,6 +102,9 @@ data HBMCId
     | Arg
     | Res
     | Caser
+    | Tmp
+    | Return
+    | Bind
   deriving (Eq,Ord,Show,Generic)
 
 showHBMCId :: HBMCId -> String
@@ -117,6 +120,9 @@ showHBMCId hi = case hi of
     Arg     -> "arg"
     Res     -> "res"
     Caser   -> "caser"
+    Tmp     -> "tmp"
+    Return  -> "return"
+    Bind    -> ">>="
 
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph

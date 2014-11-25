@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts, ViewPatterns, PatternGuards, GADTs #-}
-module HipSpec.Lang.HBMCPass where
+module HipSpec.HBMC.Lifter (liftFunction, liftFunction_trace) where
 
+import HipSpec.HBMC.Utils
 -- import qualified Data.Foldable as F
 
 import HipSpec.Pretty
@@ -26,7 +27,7 @@ caseOnVars :: TransformBiM Fresh (Expr Id) t => t -> Fresh t
 caseOnVars = transformBiM tr
   where
     tr e0 = case e0 of
-        Case Lcl{} _        brs -> return e0
+        Case Lcl{} _        _   -> return e0
         Case e (Just (x,t)) brs -> return $ Let [Function x (q t) e] (Case (Lcl x t) Nothing brs)
         Case e Nothing      brs -> do
             let t = exprType' "caseOnVars" e
@@ -71,7 +72,7 @@ lifter var tmpl def combine = go
         brs' <- mapM (\ (p,e) -> do e' <- go e; return (p,e')) brs
         return (Case a mx brs')
 
-    go e0@(Let [Function f t b] e)
+    go e0@(Let [Function _f _t b] _e)
         | findExpr (isJust . tmpl) b
         = error $ "Case on recursive call not supported yet: " ++ showRexpr e0
 {-
@@ -155,8 +156,11 @@ replaceFirst tmpl e0 = (`runState` Nothing) . transformBiM tr $ e0
             (orig  ,Nothing,Just r)  -> put (Just (orig,r)) >> return r
             (_     ,Nothing,Nothing) -> return e
 
-hbmc :: Function Id -> Fresh [Function Id]
-hbmc (Function f pty@(Forall tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
+liftFunction :: Function Id -> Fresh (Function Id)
+liftFunction = fmap last . liftFunction_trace
+
+liftFunction_trace :: Function Id -> Fresh [Function Id]
+liftFunction_trace (Function f pty@(Forall _tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
     = fmap ret . go =<< (caseOnVars `underLambda` b0)
   where
     ret xs = [Function f pty b | b <- b0:xs ]
@@ -174,8 +178,8 @@ hbmc (Function f pty@(Forall tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
         b' <-  commonAll s0 f arg_tys `underLambda` b
 
         let new_f e = case collectArgs e of
-                (Gbl f _ _,args) ->
-                    length args == length arg_tys && all (argOk (>= s0)) args
+                (Gbl g _ _,args) ->
+                    g == f && length args == length arg_tys && all (argOk (>= s0)) args
                 _ -> False
 
         b_res <- expensive new_f `underLambda` b'
@@ -185,88 +189,4 @@ hbmc (Function f pty@(Forall tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
         return (b:b':res)
 
     go b = return [b]
-
--- utilities
---
-mkLet :: Eq a => a -> Expr a -> Expr a -> Expr a
-mkLet x ls e = Let [Function x (q (exprType' "mkLet" ls)) ls] e
-
-ite :: Expr Id -> Expr Id -> Expr Id -> Expr Id
-ite e t f = Case e Nothing [(pat ghcTrueId,t),(pat ghcFalseId,f)]
-  where
-    pat i = ConPat i (q boolType) [] []
-
-findExpr :: (Expr a -> Bool) -> Expr a -> Bool
-findExpr p = any p . universe
-
-underLambda :: Functor m => (Expr a -> m (Expr a)) -> Expr a -> m (Expr a)
-underLambda k b = makeLambda xs `fmap` k e
-  where (xs,e) = collectBinders b
-
-type Fresh = State Integer
-
-fresh :: Fresh Integer
-fresh = state (\ s -> (s,succ s))
-
-hid :: HBMCId -> Id
-hid = HBMCId
-
-lift,liftTV :: Id
-lift   = hid Lift
-liftTV = hid LiftTV
-
-newArg :: Fresh Id
-newArg = Derived (Refresh $ hid Arg) <$> fresh
-
-newRes :: Fresh Id
-newRes = Derived (Refresh $ hid Res) <$> fresh
-
-newCaser :: Fresh Id
-newCaser = Derived (Refresh $ hid Caser) <$> fresh
-
-unr :: Type Id -> Expr Id
-unr t = Gbl (hid UNR) (Forall [x] (TyCon lift [TyVar x])) [t]
-  where
-    x = liftTV
-
-the :: Expr Id -> Expr Id
-the e = Gbl (hid The) (Forall [x] (TyVar x `ArrTy` TyCon lift [TyVar x])) [t] `App` e
-  where
-    x = liftTV
-    t = exprType' "the" e
-
-peek :: Expr Id -> Expr Id
-peek e = Gbl (hid Peek) (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t] `App` e
-  where
-    x = liftTV
-    t = case exprType' "peek" e of
-        TyCon (HBMCId Lift) [t] -> t
-        t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
-
-tupleType :: Int -> PolyType Id
-tupleType i = Forall tvs (tvs' `makeArrows` TyCon (hid $ TupleTyCon i) tvs')
-  where
-    tvs  = [ Lambda (hid $ TupleTyCon i) `Derived` fromIntegral z | z <- [0..i-1] ]
-    tvs' = map TyVar tvs
-
-selectType :: Int -> Int -> PolyType Id
-selectType i j = Forall tvs (TyCon (hid $ TupleTyCon i) tvs' `ArrTy` (tvs' !! j))
-  where
-    tvs  = [ Lambda (hid $ TupleTyCon i) `Derived` fromIntegral z | z <- [0..i-1] ]
-    tvs' = map TyVar tvs
-
-argSat :: (Integer -> Bool) -> Id -> Bool
-argSat p (Derived (Refresh (HBMCId Arg)) i) = p i
-argSat _ _                                  = False
-
-argId :: Id -> Bool
-argId = argSat (const True)
-
-argExpr :: Expr Id -> Bool
-argExpr (Lcl i _) = argId i
-argExpr _         = False
-
-argExprSat :: (Integer -> Bool) -> Expr Id -> Bool
-argExprSat p (Lcl i _) = argSat p i
-argExprSat _ _         = False
 

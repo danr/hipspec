@@ -13,7 +13,7 @@ import HipSpec.Lang.Monomorphise
 import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
-import HipSpec.Lang.PrettyUtils (Types(..),PP(..))
+import HipSpec.Lang.PrettyUtils (Types(..),PP(..),P(..))
 
 import HipSpec.Lang.ToPolyFOL (Poly(..))
 import HipSpec.Lang.PolyFOL (Clause(..))
@@ -37,29 +37,34 @@ type LogicId = Poly Id
 docId :: Id -> Doc
 docId = text . ppId
 
+pkId :: P Id
+pkId = PK docId $ \ i -> case i of
+    HBMCId Bind -> True
+    _           -> False
+
 showSimp :: S.Function Id -> String
-showSimp = render . R.ppFun Show docId . S.injectFn
+showSimp = render . R.ppFun Show pkId . S.injectFn
 
 showRich :: R.Function Id -> String
-showRich = render . R.ppFun Don'tShow docId
+showRich = render . R.ppFun Don'tShow pkId
 
 showRexpr :: R.Expr Id -> String
-showRexpr = render . R.ppExpr 0 Don'tShow docId
+showRexpr = render . R.ppExpr 0 Don'tShow pkId
 
 showExpr :: S.Expr Id -> String
-showExpr = render . R.ppExpr 0 Don'tShow docId . S.injectExpr
+showExpr = render . R.ppExpr 0 Don'tShow pkId . S.injectExpr
 
 showBody :: S.Body Id -> String
-showBody = render . R.ppExpr 0 Don'tShow docId . S.injectBody
+showBody = render . R.ppExpr 0 Don'tShow pkId . S.injectBody
 
 showType :: S.Type Id -> String
-showType = render . R.ppType 0 docId
+showType = render . R.ppType 0 pkId
 
 showPolyType :: S.PolyType Id -> String
-showPolyType = render . R.ppPolyType docId
+showPolyType = render . R.ppPolyType pkId
 
 showTyped :: (Id,S.Type Id) -> String
-showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 docId t))
+showTyped (v,t) = render (hang (docId v <+> "::") 2 (R.ppType 0 pkId t))
 
 -- | Printing names
 polyname :: LogicId -> String

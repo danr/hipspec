@@ -33,7 +33,7 @@ import HipSpec.Heuristics.CallGraph
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
-import HipSpec.Lang.HBMCPass
+import HipSpec.HBMC
 import Control.Monad.State
 
 import TyCon (isAlgTyCon)
@@ -148,9 +148,16 @@ processFile cont = do
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
+        liftIO $ putStrLn "Initial to Monadic"
+        liftIO $ forM_ rich_fns {- _opt -} $ \ fn -> do
+            putStrLn $ unlines $ map showRich [fn,monadic fn `evalState` 0]
+
+        liftIO $ putStrLn "Lifted to Monadic"
         liftIO $ forM_ rich_fns_opt $ \ fn -> do
-            let fns = evalState (hbmc fn) 0
+            let fns = evalState (liftFunction_trace fn) 0
             putStrLn (unlines (map showRich fns))
+            let mf = evalState (monadic (last fns)) 0
+            putStrLn (showRich mf)
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 

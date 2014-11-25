@@ -12,18 +12,20 @@ import CoreLint
 import SrcLoc
 
 import HipSpec.Id
+import HipSpec.Pretty (pkId)
+import HipSpec.Lang.PrettyUtils (P)
 
 coreExprLint :: CoreExpr -> Maybe String
 coreExprLint = fmap portableShowSDoc . lintUnfolding noSrcLoc []
 
-lintRich :: Ord v => (v -> String) -> [(v,Type v)] -> LintM v a -> Maybe String
-lintRich p sc m = case lintWithScope sc (text . p) m of
+lintRich :: Ord v => P v -> [(v,Type v)] -> LintM v a -> Maybe String
+lintRich pk sc m = case lintWithScope sc pk m of
     []   -> Nothing
     errs -> Just (render . vcat $ errs)
 
 lintSimple :: [S.Function Id] -> Maybe String
-lintSimple = lintRich ppId [] . lintFns . map injectFn
+lintSimple = lintRich pkId [] . lintFns . map injectFn
 
 lintSimpleExpr :: [(Id,Type Id)] -> S.Expr Id -> Maybe String
-lintSimpleExpr sc = lintRich ppId sc . R.lintExpr . injectExpr
+lintSimpleExpr sc = lintRich pkId sc . R.lintExpr . injectExpr
 
