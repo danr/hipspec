@@ -98,3 +98,23 @@ argExprSat :: (Integer -> Bool) -> Expr Id -> Bool
 argExprSat p (Lcl i _) = argSat p i
 argExprSat _ _         = False
 
+unpty :: PolyType Id
+unpty = error "Polytype destroyed by HBMC pass"
+
+unty :: Type Id
+unty = error "Type destroyed by HBMC pass"
+
+ret ::  Expr Id -> Expr Id
+ret e = Gbl (hid Return) unpty [unty] `app` e
+
+tmp :: Fresh Id
+tmp = (Derived (Refresh (hid Tmp))) <$> fresh
+
+bind :: Expr Id -> Expr Id -> Fresh (Expr Id)
+((Gbl (HBMCId Bind) _ _ `App` m) `App` f) `bind` g = do
+    x <- tmp
+    r <- (f `app` Lcl x unty) `bind` g
+    m `bind` Lam x unty r
+
+(Gbl (HBMCId Return) _ _ `App` a) `bind` (Lam x _ b) | occurrences x b <= 1 = return ((a // x) b)
+m `bind` f = return (Gbl (hid Bind) unpty [unty,unty] `apply` [m,f])
