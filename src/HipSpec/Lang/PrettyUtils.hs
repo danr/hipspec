@@ -44,3 +44,10 @@ inside l p r (x:xs) = cat (go (l <> x) xs)
     go y []     = [y,r]
     go y (z:zs) = y : go (p <> z) zs
 
+sepWith :: Doc -> [Doc] -> Doc
+sepWith _ []     = empty
+sepWith p (x:xs) = sep (go x xs)
+  where
+    go y []     = [y]
+    go y (z:zs) = y : go (p <+> z) zs
+

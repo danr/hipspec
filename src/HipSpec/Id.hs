@@ -105,6 +105,13 @@ data HBMCId
     | Tmp
     | Return
     | Bind
+    | Data
+    | Con
+    | Val
+    | Switch
+    | D Id
+    | Label Id
+    | Construct Id -- the constructor functions that puts UNR/The at the correct places
   deriving (Eq,Ord,Show,Generic)
 
 showHBMCId :: HBMCId -> String
@@ -123,6 +130,14 @@ showHBMCId hi = case hi of
     Tmp     -> "tmp"
     Return  -> "return"
     Bind    -> ">>="
+    Data    -> "Data"
+    Con     -> "Con"
+    Val     -> "val"
+    Switch  -> "switch"
+    D i     -> "D_" ++ ppId i
+    Label i -> "Label_" ++ ppId i
+    Construct i -> "con" ++ ppId i
+    _       -> "Add_to_show_function_" ++ show hi
 
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
@@ -219,10 +234,10 @@ instance Show Name where
     show nm = show (showOutputable nm)
 
 instance Show Var where
-    show _ = "<Var>"
+    show _ = "GHC_Var"
 
 instance Show TyCon where
-    show _ = "<TyCon>"
+    show _ = "GHC_TyCon"
 
 deriving instance Show PrimOp
 deriving instance Show PrimOpVecCat

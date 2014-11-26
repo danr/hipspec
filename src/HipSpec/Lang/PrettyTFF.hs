@@ -4,7 +4,7 @@ module HipSpec.Lang.PrettyTFF where
 import Text.PrettyPrint
 
 import HipSpec.Lang.PolyFOL
-import HipSpec.Lang.PrettyUtils
+import HipSpec.Lang.PrettyUtils hiding (p)
 import HipSpec.Lang.Monomorphise
 
 import qualified Data.Map as M

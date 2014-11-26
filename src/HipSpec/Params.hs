@@ -287,7 +287,7 @@ defParams = Params
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]
          &= groupname "\nDebugging"
     }
-    &= summary (logo ++ "\n v3.1 by Dan Rosén, danr@chalmers.se")
+    &= summary (logo ++ "\n v3.hbmc by Dan Rosén, danr@chalmers.se")
     &= program "hipspec"
 
 enumerate :: (Show val,Data val) => [(val,String)] -> [val]

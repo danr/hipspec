@@ -10,7 +10,16 @@ import HipSpec.Lang.PrettyUtils
 import HipSpec.Lang.Type
 
 ppProg :: Types -> P a -> Program a -> Doc
-ppProg t pk (Program _ds fs) = vcat (map (ppFun t pk) fs)
+ppProg t pk (Program ds fs) = vcat (map (ppData pk) ds ++ map (ppFun t pk) fs)
+
+ppData :: P a -> Datatype a -> Doc
+ppData pk (Datatype tc tvs cons) =
+    ("data" $\ (p tc $\ sep (map p tvs)) <+> "=") $\ sepWith "|"
+        [ p c $\ sep (map (ppType 2 pk) args)
+        | Constructor c args <- cons
+        ]
+  where
+    PK{..} = pk
 
 ppFun :: Types -> P a -> Function a -> Doc
 ppFun t pk (Function f ty e) = ppId f ty <+> "=" $\ ppExpr 0 t pk e
@@ -78,7 +87,7 @@ ppType :: Int -> P a -> Type a -> Doc
 ppType i pk t0 = case t0 of
     TyVar x     -> p x
     ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 pk t1 <+> "->" $\ ppType 0 pk t2
-    TyCon tc ts -> parensIf (i > 1) $ p tc $\ sep (map (ppType 1 pk) ts)
+    TyCon tc ts -> parensIf (i > 1) $ p tc $\ sep (map (ppType 2 pk) ts)
     Integer     -> "Integer"
   where
     PK{..} = pk

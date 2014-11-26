@@ -28,6 +28,10 @@ flag JSON
     default: False
     manual: True
 
+flag HBMC
+    default: False
+    manual: True
+
 library
     hs-source-dirs: src
 
@@ -49,6 +53,9 @@ executable hipspec
 
     main-is:         HipSpec/Main.hs
 
+    if flag(HBMC)
+        buildable:   False
+
     if flag(JSON)
         cpp-options: -DSUPPORT_JSON
         build-depends:
@@ -56,7 +63,7 @@ executable hipspec
 
     if flag(Werror)
         ghc-options: -Werror
-    ghc-options:     -threaded -Wall -rtsopts -package ghc -auto-all -dynamic
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -dynamic
 
     build-depends:
         base                 >= 4 && < 5,
@@ -104,3 +111,54 @@ executable hipspec
         jukebox              >= 0.1 && < 1,
         SHA                  >= 1.6 && < 2
 
+executable hbmc
+    hs-source-dirs: src
+
+    main-is:         HipSpec/HBMC/Main.hs
+
+    if flag(JSON)
+        cpp-options: -DSUPPORT_JSON
+        build-depends:
+            aeson >= 0.6
+
+    if flag(Werror)
+        ghc-options: -Werror
+
+    if !flag(HBMC)
+        buildable:   True
+
+    ghc-options:     -threaded -Wall -rtsopts -package ghc -dynamic
+
+    build-depends:
+        base                 >= 4 && < 5,
+        ghc-paths            == 0.1.*,
+        containers           >= 0.4,
+        template-haskell,
+        bytestring,
+        -- mtl-2.1 contains a severe bug
+        mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.3,
+        pretty               >= 1.1,
+        pretty-show          >= 1.5 && < 2,
+        geniplate            >= 0.6,
+        genifunctors         >= 0.2 && <= 0.3,
+        bifunctors,
+        -- void                 >= 0.6 && <= 1,
+        transformers         >= 0.3,
+        split                >= 0.1,
+
+        -- unification-fd       >= 0.9 && < 1.0,
+
+        ghc-prim,
+
+        -- QuickSpec
+        quickspec            == 0.9.6,
+        term-rewriting       >= 0.1.1 && < 0.2,
+
+        -- Printing messages
+        time                 >= 1.4,
+
+        -- Command-line arguments
+        cmdargs              >= 0.9,
+
+        directory            >= 1.0,
+        filepath             >= 1.0

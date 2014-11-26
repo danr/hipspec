@@ -1,25 +1,23 @@
-{-# LANGUAGE RecordWildCards, DisambiguateRecordFields, NamedFieldPuns #-}
-module HipSpec.Init (processFile,SigInfo(..)) where
+{-# LANGUAGE RecordWildCards #-}
+module Main where
 
 import Control.Monad
 
-import Data.List (partition,union)
+import Data.List (union)
 
 import HipSpec.GHC.Calls
 import HipSpec.Monad
 import HipSpec.ParseDSL
-import HipSpec.Property
+-- import HipSpec.Property
 import HipSpec.Read
-import HipSpec.Theory
 import HipSpec.Translate
 import HipSpec.Params
-import HipSpec.Lint
+-- import HipSpec.Lint
 import HipSpec.Utils
 import HipSpec.Id
+import HipSpec.Pretty
 
 import HipSpec.Sig.Resolve
-
-import HipSpec.FixpointInduction
 
 import HipSpec.GHC.Utils
 import HipSpec.GHC.FreeTyCons
@@ -30,9 +28,13 @@ import HipSpec.Lang.Uniquify
 
 import HipSpec.Heuristics.CallGraph
 
+import HipSpec.Lang.PrettyRich
+import HipSpec.Lang.PrettyUtils
 import qualified HipSpec.Lang.SimplifyRich as S
-import qualified HipSpec.Lang.Simple as S
+-- import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.Rich as R
+
+import HipSpec.HBMC
 
 import Control.Monad.State
 
@@ -41,20 +43,20 @@ import TysWiredIn (boolTyCon)
 import UniqSupply
 
 import System.Exit
-import System.Process
-import System.FilePath
+-- import System.Process
+-- import System.FilePath
 import System.Directory
 
 import qualified Id as GHC
-import qualified CoreSubst as GHC
+-- import qualified CoreSubst as GHC
 import Var (Var)
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
 
-processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
-processFile cont = do
+main :: IO ()
+main = do
 
     params@Params{..} <- fmap sanitizeParams (cmdArgs defParams)
 
@@ -101,38 +103,7 @@ processFile cont = do
                     Just ty2 -> error $ "Dead constructor in signature:" ++ ppShow (v,pt,ty2)
                     Nothing -> (v,pt)) cm
 
-        simp_fns :: [S.Function Id]
-        simp_fns = toSimp rich_fns_opt
-
-        -- Now, split these into properties and non-properties
-        is_prop (S.Function _ (S.Forall _ t) _ _) = isPropType t
-
-        (props,fns0) = partition is_prop simp_fns
-
-        fns_fix = fixFunctions fns0
-        fns = fns0 ++ fns_fix
-
-        is_recursive x = case [ fn | fn <- fns, S.fn_name fn == x ] of
-            f:_ -> isRecursive f
-            []  -> False
-
-        (am_fns,binds_thy) = trSimpFuns am_fin fns
-        am_fin = am_fns `combineArityMap` am_tcs `combineArityMap` primOpArities
-
-        cls = sortClauses False (concatMap clauses thy)
-
-        thy = appThy : data_thy ++ binds_thy
-
-        tr_props
-            = sortOn prop_name
-            $ either (error . show)
-                     (map (etaExpandProp{- . generaliseProp-}))
-                     (trProperties props)
-
-        env = Env
-            { theory = thy, arity_map = am_fin, ty_env = ty_env'
-            , is_recursive = is_recursive
-            }
+        env = error "hbmc undefined env"
 
     runHS params env $ do
 
@@ -148,7 +119,6 @@ processFile cont = do
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
-{-
         let is_pure = \ f i -> case f of
                 HBMCId (Select ii j) -> i == ii
                 HBMCId (TupleCon ii) -> i == ii
@@ -166,37 +136,23 @@ processFile cont = do
         liftIO $ forM_ rich_fns {- _opt -} $ \ fn -> do
             putStrLn $ unlines $ map showRich [fn,(monadic fn `runMon` is_pure) `evalState` 0]
 
-        liftIO $ putStrLn "Lifted to Monadic"
+        liftIO $ putStrLn "Datatypes"
+        ixss <- liftIO $ forM data_types $ \ dt -> do
+            let (ixs,(ds,dfns)) = mergeDatatype dt
+            putStrLn (ppShow ixs)
+            putStrLn (render' (ppProg Don'tShow pkId (R.Program ds dfns)))
+            return ixs
+
+        let data_info = concat ixss
+
+        liftIO $ putStrLn "Lifted to Monadic to Switches"
         liftIO $ forM_ rich_fns_opt $ \ fn -> do
             let fns = evalState (liftFunction_trace fn) 0
             putStrLn (unlines (map showRich fns))
             let mf = evalState (monadic (last fns) `runMon` is_pure) 0
             putStrLn (unlines (map showRich [mf]))
+            let sf = evalState (addSwitches data_info mf) 0
+            putStrLn (unlines (map showRich [sf]))
 
-        liftIO $ putStrLn "Datatypes"
-        liftIO $ forM_ data_types $ \ dt -> putStrLn (ppShow (allocateDatatype dt))
 
--}
-        debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
-
-        debugWhen PrintPolyFOL $ "\nPoly FOL Definitions\n" ++ ppAltErgo cls
-
-        debugWhen PrintProps $
-            "\nProperties in Simple Definitions:\n" ++ unlines (map showSimp props) ++
-            "\nProperties:\n" ++ unlines (map show tr_props)
-
-        checkLint (lintSimple simp_fns)
-        mapM_ (checkLint . lintProperty) tr_props
-
-        whenFlag params LintPolyFOL $ liftIO $ do
-            let mlw = replaceExtension file ".mlw"
-            writeFile mlw (ppAltErgo cls)
-            exc <- system $ "alt-ergo -type-only " ++ mlw
-            case exc of
-                ExitSuccess -> return ()
-                ExitFailure n -> error $ "PolyFOL-linting by alt-ergo exited with exit code" ++ show n
-
-        when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
-
-        cont callg (map adjust_sig_info sig_infos) tr_props
 

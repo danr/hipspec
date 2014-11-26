@@ -43,14 +43,31 @@ lift,liftTV :: Id
 lift   = hid Lift
 liftTV = hid LiftTV
 
+liftTy :: Type Id -> Type Id
+liftTy t = TyCon lift [t]
+
+refresh :: Id -> Integer -> Id
+refresh = Derived . Refresh
+
 newArg :: Fresh Id
-newArg = Derived (Refresh $ hid Arg) <$> fresh
+newArg = refresh (hid Arg) <$> fresh
 
 newRes :: Fresh Id
-newRes = Derived (Refresh $ hid Res) <$> fresh
+newRes = refresh (hid Res) <$> fresh
 
 newCaser :: Fresh Id
-newCaser = Derived (Refresh $ hid Caser) <$> fresh
+newCaser = refresh (hid Caser) <$> fresh
+
+label,d,constructor :: Id -> Id
+label = hid . Label
+d = hid . D
+constructor = hid . Construct
+
+hdata,con,val :: Id
+hdata = hid Data
+con = hid Con
+val = hid Val
+switch = hid Switch
 
 unr :: Type Id -> Expr Id
 unr t = Gbl (hid UNR) (Forall [x] (TyCon lift [TyVar x])) [t]

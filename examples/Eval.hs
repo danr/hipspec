@@ -1,6 +1,7 @@
 module Eval where
 
 data Nat = S Nat | Z
+  deriving Show
 
 index :: [a] -> Nat -> a
 index (x:xs) Z     = x
@@ -12,6 +13,7 @@ data Expr
     | Case Nat Expr Expr
     | Nil
     | Var Nat
+  deriving Show
 
 eval :: [Expr] -> [[Nat]] -> Expr -> [Nat]
 eval prog env e0 = case e0 of

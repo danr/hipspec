@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP,TemplateHaskell #-}
 module HipSpec.Utils
     (
     -- * Convenience reexports
@@ -34,6 +34,12 @@ module HipSpec.Utils
     -- * Pretty Show
     , ppShow
 
+    -- * Allocation
+    , allocate
+
+    -- * Tests
+    , tests
+
     ) where
 
 import Control.Arrow       ((***),(&&&),first,second)
@@ -44,6 +50,10 @@ import Control.Monad (liftM)
 import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
+
+import Data.List
+import Test.QuickCheck
+import Test.QuickCheck.All
 
 import qualified Text.Show.Pretty as Pretty
 
@@ -127,4 +137,37 @@ intersects = (not . null) .: intersect
 -- | Pretty show
 ppShow :: Show a => a -> String
 ppShow = Pretty.ppShow
+
+-- | Merging
+allocate :: Eq a => [[a]] -> [a]
+allocate []       = []
+allocate (xs:xss) = merge xs (allocate xss)
+
+merge :: Eq a => [a] -> [a] -> [a]
+merge xs (y:ys) = y:merge (delete y xs) ys
+merge xs []     = xs
+
+prop_merge_extends :: [Int] -> [Int] -> Bool
+prop_merge_extends xs ys = ys `isPrefixOf` merge xs ys
+
+prop_merge_idem :: [Int] -> Bool
+prop_merge_idem xs = xs `merge` xs == xs
+
+isSubsetOf :: Eq a => [a] -> [a] -> Bool
+[]     `isSubsetOf` ys = True
+(x:xs) `isSubsetOf` ys = x `elem` ys && xs `isSubsetOf` delete x ys
+
+prop_merge_adds :: [Int] -> [Int] -> Bool
+prop_merge_adds xs ys = xs `isSubsetOf` merge xs ys
+
+prop_merge_lengths :: [Int] -> [Int] -> Bool
+prop_merge_lengths xs ys = length (xs `merge` ys) == length ys + length (xs \\ ys)
+
+prop_allocate :: [[Int]] -> Bool
+prop_allocate xss = all (`isSubsetOf` allocate xss) xss
+
+return []
+
+tests :: IO Bool
+tests = $quickCheckAll
 
