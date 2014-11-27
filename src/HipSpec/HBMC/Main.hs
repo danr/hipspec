@@ -157,15 +157,18 @@ main = do
 
         let data_info = concat ixss
 
+        let gbl_size = 10
+
         let (fns,insts) = (`evalState` 0) $ do
                 get_insts <- mapM mkGet data_types
                 arg_insts <- mapM mkArgument data_types
+                new_fns <- mapM (mkNew gbl_size) data_types
                 fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
                     ulfn <- uniquify lfn
                     mf <- monadic ulfn `runMon` is_pure
                     addSwitches data_info mf
-                return (fns,get_insts++arg_insts)
+                return (new_fns++fns,get_insts++arg_insts)
 
         liftIO $ do
 

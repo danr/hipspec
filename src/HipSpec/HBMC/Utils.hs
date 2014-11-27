@@ -27,6 +27,19 @@ lcl i = Lcl i unty
 pat :: Id -> [Id] -> Pattern Id
 pat p as = ConPat p unpty [] (as `zip` repeat unty)
 
+nonZero :: Expr Id -> Expr Id
+nonZero e = gbl (raw "/=") `apply` [e,Lit 0]
+
+singletonIf :: Expr Id -> Expr Id -> Expr Id
+singletonIf b e = ite b (listLit [e]) (listLit [])
+
+append :: Expr Id -> Expr Id -> Expr Id
+append e1 e2 = gbl (raw "++") `apply` [e1,e2]
+
+concats :: [Expr Id] -> Expr Id
+concats [] = listLit []
+concats xs = foldr1 append xs
+
 mkLet :: Eq a => a -> Expr a -> Expr a -> Expr a
 mkLet x ls e = Let [Function x (q (exprType' "mkLet" ls)) ls] e
 
@@ -118,12 +131,14 @@ __ = raw "_"
 tupleStruct :: Id
 tupleStruct = raw "Tuple"
 
-label,d,constructor,getForTyCon,argumentForTyCon :: Id -> Id
+label,d,constructor,getForTyCon,argumentForTyCon,new :: Id -> Id
 label = rawFor "Label"
 d = rawFor "D"
 constructor = rawFor "con"
 getForTyCon = rawFor "get"
 argumentForTyCon = rawFor "argument"
+new = rawFor "new"
+
 
 hdata,con,val,switch,genericGet,genericArgument :: Id
 hdata = raw "Data"
