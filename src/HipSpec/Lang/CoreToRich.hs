@@ -89,6 +89,7 @@ trTyCon tc = do
         { data_ty_con = idFromTyCon tc
         , data_tvs    = map idFromTyVar tc_tvs
         , data_cons   = dcs
+        , data_insts  = []
         }
   where
     tc_tvs = tyConTyVars tc

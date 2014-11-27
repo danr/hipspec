@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards,PatternGuards,ScopedTypeVariables,ViewPatterns,CPP,NamedFieldPuns #-}
-module HipSpec.Sig.Make (makeSignature) where
+module HipSpec.Sig.Make (makeSignature,paramIds) where
 
 import Data.List.Split (splitOn)
 
@@ -25,17 +25,8 @@ import QuickSpec.Signature
 import Control.Monad
 import Outputable
 
-parseToId :: String -> Ghc Id
-parseToId s = do
-    t <- lookupString s
-    case mapMaybe thingToId t of
-        []  -> error $ s ++ " not in scope!"
-        [x] -> return x
-        xs  -> error $ s ++ " in scope as too many things: " ++ showOutputable xs
-
-makeSignature :: Params -> [Var] -> Ghc [Signature]
-makeSignature p@Params{..} prop_ids = do
-
+paramIds :: Params -> [Var] -> Ghc [Id]
+paramIds p@Params{..} prop_ids = do
     extra_trans_ids <- mapM parseToId (concatMap (splitOn ",") extra_trans)
 
     let trans_ids :: VarSet
@@ -63,10 +54,24 @@ makeSignature p@Params{..} prop_ids = do
         OUT(ids)
         OUT(ids_in_scope)
 #undef OUT
+    return ids_in_scope
+
+parseToId :: String -> Ghc Id
+parseToId s = do
+    t <- lookupString s
+    case mapMaybe thingToId t of
+        []  -> error $ s ++ " not in scope!"
+        [x] -> return x
+        xs  -> error $ s ++ " in scope as too many things: " ++ showOutputable xs
+
+makeSignature :: Params -> [Var] -> Ghc [Signature]
+makeSignature p@Params{..} prop_ids = do
+
+    ids <- paramIds p prop_ids
 
     tyvars <- magicTyVars
 
-    msig <- makeSigFrom p ids_in_scope (polymorphise tyvars)
+    msig <- makeSigFrom p ids (polymorphise tyvars)
 
     return (maybeToList msig)
 
@@ -123,15 +128,15 @@ makeSigFrom p@Params{..} ids poly = do
         ]
 
     expr_str = unlines $
-        [ "signature" ] ++
-        ind (["{ constants ="] ++ ind (list constants) ++
-             [", instances ="] ++ ind (list instances) ++
-             [", extraPruner = Prelude.Just " ++
+        [ "QuickSpec.Signature.signature" ] ++
+        ind (["{ QuickSpec.Signature.constants ="] ++ ind (list constants) ++
+             [", QuickSpec.Signature.instances ="] ++ ind (list instances) ++
+             [", QuickSpec.Signature.extraPruner = Prelude.Just " ++
                 (if qspruner
                     then par "QuickSpec.Signature.SPASS 1"
                     else "QuickSpec.Signature.None")] ++
-             [", maxTermSize = Prelude.Just " ++ show termsize] ++
-             [", testTimeout = Prelude.Just 200000"] ++
+             [", QuickSpec.Signature.maxTermSize = Prelude.Just " ++ show termsize] ++
+             [", QuickSpec.Signature.testTimeout = Prelude.Just 200000"] ++
              ["}"])
 
 varArity :: (Type -> Type) -> Var -> Int

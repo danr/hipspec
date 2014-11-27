@@ -169,6 +169,11 @@ execute params@Params{..} = do
             then makeSignature params props
             else fmap maybeToList getSignature
 
+        translate_only_extra_ids <-
+            if TranslateOnly `elem` debug_flags
+            then paramIds params props
+            else return []
+
         -- Make signature map
         --
         -- The extra_ids comes from --extra and --extra-trans fields from
@@ -186,7 +191,12 @@ execute params@Params{..} = do
         -- Wrapping up
         return EntryResult
             { sig_infos = sig_infos
-            , prop_ids  = props ++ map fix_id (mapMaybe tryGetGHCVar (concat extra_ids)) ++ toplvl_binds
+            , prop_ids  = concat
+                [ props
+                , map fix_id translate_only_extra_ids
+                , map fix_id (mapMaybe tryGetGHCVar (concat extra_ids))
+                , toplvl_binds
+                ]
             , extra_tcs = nubSorted (mapMaybe tryGetGHCTyCon (concatMap F.toList (concat extra_tcs)))
             }
 

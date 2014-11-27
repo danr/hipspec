@@ -92,58 +92,31 @@ fstId = idFromDataCon
 -}
 
 data HBMCId
-    = The
-    | UNR
-    | Peek
-    | Lift
-    | LiftTV
+    = Raw String
+    | RawFor String Id
     | TupleTyCon Int
     | TupleCon Int
     | Select Int Int
-    | Arg
-    | Res
-    | Caser
-    | Tmp
-    | Return
-    | Bind
-    | Data
-    | Con
-    | Val
-    | Switch
-    | D Id
-    | Label Id
-    | Construct Id -- the constructor functions that puts UNR/The at the correct places
+    | HBMC Id
   deriving (Eq,Ord,Show,Generic)
 
 showHBMCId :: HBMCId -> String
 showHBMCId hi = case hi of
-    The     -> "The"
-    UNR     -> "UNR"
-    Peek    -> "peek"
-    Lift    -> "Lift"
-    LiftTV  -> "a"
+    HBMC i       -> "hbmc_" ++ escape (ppId i)
+    Raw s        -> s
+    RawFor s i   -> s ++ "_" ++ escape (ppId i)
     TupleTyCon i -> tup i
     TupleCon i   -> tup i
+    Select 1 0   -> ""
+    Select 2 0   -> "fst"
+    Select 2 1   -> "snd"
+    Select i j   -> "proj" ++ show j ++ "_" ++ show i
     -- TupleTyCon i -> "TT" ++ show i
     -- TupleCon   i -> "T" ++ show i
-    Select i j   -> "proj" ++ show j
-    Arg     -> "arg"
-    Res     -> "res"
-    Caser   -> "caser"
-    Tmp     -> "tmp"
-    Return  -> "return"
-    Bind    -> ">>="
-    Data    -> "Data"
-    Con     -> "Con"
-    Val     -> "val"
-    Switch  -> "switch"
-    D i     -> "D_" ++ escape (ppId i)
-    Label i -> "Label_" ++ escape (ppId i)
-    Construct i -> "con" ++ escape (ppId i)
     _       -> "Add_to_show_function_" ++ show hi
   where
     tup 1 = ""
-    tup n = "(" ++ replicate n ',' ++ ")"
+    tup n = "(" ++ replicate (n-1) ',' ++ ")"
 
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
@@ -284,7 +257,7 @@ mkLetFrom x _ (Derived Unknown _) = x
 mkLetFrom x i y                   = Derived (x `LetFrom` y) i
 
 disambigPrim "Integer" = "ghc_Integer"
-disambigPrim "Bool"    = "ghc_Bool"
+disambigPrim "Bool"    = "Bool" -- NB: changed from ghc_Bool for HBMC
 disambigPrim s         = s
 
 originalId :: Id -> String

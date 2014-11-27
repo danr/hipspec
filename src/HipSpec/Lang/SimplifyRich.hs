@@ -96,7 +96,7 @@ removeSingles mk_id tcs s0 =
     repls@(type_repl,cons_repl) =
         (M.fromList *** M.fromList) $ unzip
         [ ((TyCon int [],int_hash),(i_hash,int_hash))
-        | Datatype int [] [Constructor i_hash [int_hash]] <- tcs
+        | Datatype int [] [Constructor i_hash [int_hash]] _ <- tcs
         , case int_hash of
             Integer -> True
             TyCon int_hash_tc [] -> int_hash_tc /= int

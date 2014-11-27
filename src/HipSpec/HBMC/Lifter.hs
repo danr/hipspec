@@ -96,7 +96,7 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
   where
     n = length arg_tys
 
-    t = TyCon (hid $ TupleTyCon n) arg_tys
+    t = liftTy $ TyCon (hid $ TupleTyCon n) arg_tys
 
     tmpl e = case collectArgs e of
         (fg@(Gbl g _ _),args)
@@ -106,16 +106,17 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
             , not (any (findExpr (isJust . tmpl)) args)
             -> Just
                 ( the (Gbl (hid $ TupleCon n) (tupleType n) arg_tys `apply` args)
-                , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` x | j <- [0..n-1] ]
+                , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` peek x | j <- [0..n-1] ]
+                                        -- if you change the line above, also change argOk!
                   , t
                   )
                 )
         _ -> Nothing
 
--- We have already processed arguments that are (projX argZ) if p Z
+-- We have already processed arguments that are (peek (projX argZ)) if p Z
 argOk :: (Integer -> Bool) -> Expr Id -> Bool
 argOk p e = case e of
-    Gbl{} `App` arg -> argExprSat p arg
+    Gbl{} `App` (Gbl{} `App` arg) -> argExprSat p arg
     _ -> False
 
 expensive :: (Expr Id -> Bool) -> Expr Id -> Fresh (Expr Id)
@@ -161,10 +162,9 @@ liftFunction = fmap last . liftFunction_trace
 
 liftFunction_trace :: Function Id -> Fresh [Function Id]
 liftFunction_trace (Function f pty@(Forall _tvs (collectArrTy -> (arg_tys,_res_ty))) b0)
-    = fmap ret . go =<< (caseOnVars `underLambda` b0)
+    = fmap wrap . go =<< (caseOnVars `underLambda` b0)
   where
-    ret xs = [Function f pty b | b <- b0:xs ]
-
+    wrap xs = [Function f pty b | b <- b0:xs ]
 
     continue = findExpr $ \ e -> case collectArgs e of
         (Gbl g _ _,args) | f == g, length args >= length arg_tys -> any (not . argOk (const True)) args

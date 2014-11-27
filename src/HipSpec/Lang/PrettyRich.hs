@@ -12,14 +12,33 @@ import HipSpec.Lang.Type
 ppProg :: Types -> P a -> Program a -> Doc
 ppProg t pk (Program ds fs) = vcat (map (ppData pk) ds ++ map (ppFun t pk) fs)
 
+ppInst :: P a -> Instance a -> Doc
+ppInst pk (Instance ctx hd assoc fns) =
+    ((("instance" $\ pp_ctx) $\ ppType 0 pk hd) $\ "where") $\
+        vcat (map pp_assoc assoc ++ map (ppFun Don'tShow pk) fns)
+  where
+    PK{..} = pk
+    pp_ctx
+        | null ctx = empty
+        | otherwise = inside "(" "," ")" (map (ppType 0 pk) ctx) <+> "=>"
+
+    pp_assoc (a,b,c) = ("type" <+> p a <+> ppType 2 pk b <+> "=") $\ ppType 0 pk c
+
 ppData :: P a -> Datatype a -> Doc
-ppData pk (Datatype tc tvs cons) =
-    ("data" $\ (p tc $\ sep (map p tvs)) <+> "=") $\ sepWith "|"
+ppData pk (Datatype tc tvs cons insts) =
+    (d_or_n $\ (p tc $\ sep (map p tvs)) <+> "=") $\ sepWith "|"
         [ p c $\ sep (map (ppType 2 pk) args)
         | Constructor c args <- cons
         ]
+        $\ pp_insts
   where
+    d_or_n
+        | [Constructor _ [_]] <- cons = "newtype"
+        | otherwise = "data"
     PK{..} = pk
+    pp_insts
+        | null insts = empty
+        | otherwise  = "deriving" $\ csv (map (ppType 0 pk) insts)
 
 ppFun :: Types -> P a -> Function a -> Doc
 ppFun t pk (Function f ty e) = ppId f ty <+> "=" $\ ppExpr 0 t pk e
@@ -87,7 +106,7 @@ ppType :: Int -> P a -> Type a -> Doc
 ppType i pk t0 = case t0 of
     TyVar x     -> p x
     ArrTy t1 t2 -> parensIf (i > 0) $ ppType 1 pk t1 <+> "->" $\ ppType 0 pk t2
-    TyCon tc ts -> parensIf (i > 1) $ p tc $\ sep (map (ppType 2 pk) ts)
+    TyCon tc ts -> parensIf (i > 1 && not (null ts)) $ p tc $\ sep (map (ppType 2 pk) ts)
     Integer     -> "Integer"
   where
     PK{..} = pk

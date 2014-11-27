@@ -26,6 +26,7 @@ data Datatype a = Datatype
     { data_ty_con :: a
     , data_tvs    :: [a]
     , data_cons   :: [Constructor a]
+    , data_insts  :: [Type a] -- instances, hacked in for HBMC
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
@@ -44,6 +45,14 @@ data Function a = Function
     , fn_body    :: Expr a
     }
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+-- | Instances, hacked in for HBMC
+data Instance a = Instance
+    { inst_ctx   :: [Type a]
+    , inst_head  :: Type a
+    , inst_assoc :: [(a,Type a,Type a)] -- associated types
+    , inst_fns   :: [Function a]
+    }
 
 mapFnBody :: (Expr a -> Expr a) -> Function a -> Function a
 mapFnBody f fn = fn { fn_body = f (fn_body fn) }

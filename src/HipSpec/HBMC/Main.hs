@@ -35,6 +35,7 @@ import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Rich as R
 
 import HipSpec.HBMC
+import HipSpec.HBMC.Utils as H
 
 import Control.Monad.State
 
@@ -44,7 +45,7 @@ import UniqSupply
 
 import System.Exit
 -- import System.Process
--- import System.FilePath
+import System.FilePath
 import System.Directory
 
 import qualified Id as GHC
@@ -85,7 +86,7 @@ main = do
 
         (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
 
-        rich_fns = toRich binds ++ [S.fromProverBoolDefn]
+        rich_fns = toRich binds -- ++ [S.fromProverBoolDefn] -- removing convert for now
 
     let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types rich_fns
 
@@ -120,39 +121,41 @@ main = do
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
         let is_pure = \ f i -> case f of
-                HBMCId (Select ii j) -> i == ii
+                HBMCId (Select _ _)  -> i == 1
                 HBMCId (TupleCon ii) -> i == ii
                 _                    -> (f,i) `elem` dc_and_arity
               where
                 dc_and_arity =
-                    [ (HBMCId The,1) ] ++
-                    [ (HBMCId UNR,0) ] ++
+                    [ (H.raw "The",1) ] ++
+                    [ (H.raw "UNR",0) ] ++
                     [ (dc,length args)
-                    | R.Datatype _tc _ cons <- data_types
+                    | R.Datatype _tc _ cons _ <- data_types
                     , R.Constructor dc args <- cons
                     ]
 
-        liftIO $ putStrLn "Initial to Monadic"
-        liftIO $ forM_ rich_fns {- _opt -} $ \ fn -> do
-            putStrLn $ unlines $ map showRich [fn,(monadic fn `runMon` is_pure) `evalState` 0]
-
-        liftIO $ putStrLn "Datatypes"
-        ixss <- liftIO $ forM data_types $ \ dt -> do
-            let (ixs,(ds,dfns)) = mergeDatatype dt
-            putStrLn (ppShow ixs)
-            putStrLn (render' (ppProg Don'tShow pkId (R.Program ds dfns)))
-            return ixs
+        let (ixss,dt_progs) = unzip (map mergeDatatype data_types)
 
         let data_info = concat ixss
 
-        liftIO $ putStrLn "Lifted to Monadic to Switches"
-        liftIO $ forM_ rich_fns_opt $ \ fn -> do
-            let fns = evalState (liftFunction_trace fn) 0
-            putStrLn (unlines (map showRich fns))
-            let mf = evalState (monadic (last fns) `runMon` is_pure) 0
-            putStrLn (unlines (map showRich [mf]))
-            let sf = evalState (addSwitches data_info mf) 0
-            putStrLn (unlines (map showRich [sf]))
+        let (fns,insts) = (`evalState` 0) $ do
+                get_insts <- mapM mkGet data_types
+                arg_insts <- mapM mkArgument data_types
+                fns <- forM (renameFunctions rich_fns_opt) $ \ fn -> do
+                    lfn <- liftFunction fn
+                    ulfn <- uniquify lfn
+                    mf <- monadic ulfn `runMon` is_pure
+                    addSwitches data_info mf
+                return (fns,get_insts++arg_insts)
 
+        liftIO $ do
 
+            putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction #-}"
+            putStrLn "import Symbolic hiding (L(..),Nat(..))"
+            putStrLn $ "import " ++ takeBaseName file
+
+            mapM_ (putStrLn . render' . ppProg Don'tShow pkId . uncurry R.Program) dt_progs
+
+            mapM_ (putStrLn . render' . ppInst pkId) insts
+
+            mapM_ (putStrLn . showRich) fns
 

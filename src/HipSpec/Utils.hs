@@ -114,7 +114,7 @@ withPrevious xs = zip xs (inits xs)
 --
 -- > uniqueCartesian "abc" = [('a','b'),('a','c'),('b','c')]
 uniqueCartesian :: [a] -> [(a,a)]
-uniqueCartesian as = concat [ zip (repeat x) xs | (x:xs) <- inits as ]
+uniqueCartesian as = concat [ zip (repeat x) xs | (x:xs) <- tails as ]
 
 sortOn :: Ord b => (a -> b) -> [a] -> [a]
 sortOn = sortBy . comparing
