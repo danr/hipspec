@@ -105,7 +105,7 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
             , not (any (argOk (< s0)) args)
             , not (any (findExpr (isJust . tmpl)) args)
             -> Just
-                ( the (Gbl (hid $ TupleCon n) (tupleType n) arg_tys `apply` args)
+                ( the (tuple args)
                 , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` peek x | j <- [0..n-1] ]
                                         -- if you change the line above, also change argOk!
                   , t

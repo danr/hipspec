@@ -3,12 +3,12 @@ module Main where
 
 import Control.Monad
 
-import Data.List (union)
+import Data.List (union,partition,intercalate)
 
 import HipSpec.GHC.Calls
 import HipSpec.Monad
 import HipSpec.ParseDSL
--- import HipSpec.Property
+import HipSpec.Property
 import HipSpec.Read
 import HipSpec.Translate
 import HipSpec.Params
@@ -33,6 +33,7 @@ import HipSpec.Lang.PrettyUtils
 import qualified HipSpec.Lang.SimplifyRich as S
 -- import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.Rich as R
+import qualified HipSpec.Lang.Type as R
 
 import HipSpec.HBMC
 import HipSpec.HBMC.Utils as H
@@ -91,23 +92,43 @@ main = do
 
         rich_fns = toRich binds -- ++ [S.fromProverBoolDefn] -- removing convert for now
 
+
+
+
+
+    -- Remove dictionaries tycons
+    let data_types =
+            [ dt
+            | dt <- data_types_d
+            , case tryGetGHCTyCon (R.data_ty_con dt) of
+                Just tc -> case TyCon.tyConParent tc of
+                    TyCon.ClassTyCon{} -> False -- remove it
+                    _                  -> True
+                Nothing -> True
+            ]
+
+    let isn't_dict_fun x = case tryGetGHCVar x of
+            Just i  -> not (GHC.isDictId i)
+            Nothing -> True
+
+
     let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types_d rich_fns
 
-        -- After optimisation, then I# and Int are removed, and replaced
-        -- with internal Integer. This cleans up the quick spec resolve maps:
-        adjust_sig_info (SigInfo s (ResolveMap cm tm)) = SigInfo s (ResolveMap cm' tm')
-          where
-            tm' = M.map
-                (\ ty -> case M.lookup ty type_repl_map of
-                    Just ty2 -> ty2
-                    Nothing  -> ty) tm
+    let renamed_fns = renameFunctions (filter (isn't_dict_fun . R.fn_name) rich_fns_opt)
 
-            cm' = M.map
-                (\ (v,pt) -> case M.lookup v dead_constructors of
-                    Just ty2 -> error $ "Dead constructor in signature:" ++ ppShow (v,pt,ty2)
-                    Nothing -> (v,pt)) cm
+        -- Now, split these into properties and non-properties
+        is_prop (R.Function _ (R.Forall _ t) _) = isPropType t
+
+        (props_as_rich,hbmc_fns) = partition is_prop renamed_fns
 
         env = error "hbmc undefined env"
+
+        props
+            = sortOn prop_name
+            $ either (error . show)
+                     (map (etaExpandProp{- . generaliseProp-}))
+                     (trProperties (toSimp props_as_rich))
+
 
     runHS params env $ do
 
@@ -123,6 +144,10 @@ main = do
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
+        debugWhen PrintProps $
+            "\nProperties in Simple Definitions:\n" ++ unlines (map showRich props_as_rich) ++
+            "\nProperties:\n" ++ unlines (map show props)
+
         let is_pure = \ f i -> case f of
                 HBMCId (Select _ _)  -> i == 1
                 HBMCId (TupleCon ii) -> i == ii
@@ -135,23 +160,6 @@ main = do
                     | R.Datatype _tc _ cons _ <- data_types_d
                     , R.Constructor dc args <- cons
                     ]
-
-        -- Remove dictionaries tycons
-        let data_types =
-                [ dt
-                | dt <- data_types_d
-                , case tryGetGHCTyCon (R.data_ty_con dt) of
-                    Just tc -> case TyCon.tyConParent tc of
-                        TyCon.ClassTyCon{} -> False -- remove it
-                        _                  -> True
-                    Nothing -> True
-                ]
-
-        let isn't_dict_fun x = case tryGetGHCVar x of
-                Just i  -> not (GHC.isDictId i)
-                Nothing -> True
-
-        let hbmc_fns = renameFunctions (filter (isn't_dict_fun . R.fn_name) rich_fns_opt)
 
         let (ixss,dt_progs) = unzip (map mergeDatatype data_types)
 
@@ -168,7 +176,8 @@ main = do
                     ulfn <- uniquify lfn
                     mf <- monadic ulfn `runMon` is_pure
                     addSwitches data_info mf
-                return (new_fns++fns,get_insts++arg_insts)
+                prop_fns <- mapM (hbmcProp data_info gbl_size) props `runMon` is_pure
+                return (new_fns++fns++prop_fns,get_insts++arg_insts)
 
         liftIO $ do
 
@@ -181,4 +190,11 @@ main = do
             mapM_ (putStrLn . render' . ppInst pkId) insts
 
             mapM_ (putStrLn . showRich) fns
+
+
+            putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
+                [ "putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++
+                  "; print =<< runH " ++ name
+                | prop <- props, let name = ppId (prop_id prop)
+                ]
 

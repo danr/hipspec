@@ -175,8 +175,7 @@ mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructor
             gbl (d tc) `App`
             (gbl con `apply`
                 [ gbl val `App` gbl (label c)
-                , gbl (hid (TupleCon n)) `apply`
-                    [ maybe (unr unty) (the . lcl) a | a <- names ]
+                , tuple [ maybe (unr unty) (the . lcl) a | a <- names ]
                 ])
         | Constructor c _cargs <- cons
         , let name  = constructor c

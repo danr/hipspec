@@ -167,6 +167,13 @@ peek e = Gbl (raw "peek") (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t
         TyCon (HBMCId (Raw "Lift")) [it] -> it
         t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
 
+tuple :: [Expr Id] -> Expr Id
+tuple args =
+    Gbl (hid $ TupleCon n) (tupleType n)
+        (map (exprType' "tuple") args) `apply` args
+  where
+    n = length args
+
 tupleType :: Int -> PolyType Id
 tupleType i = Forall tvs (tvs' `makeArrows` TyCon (hid $ TupleTyCon i) tvs')
   where

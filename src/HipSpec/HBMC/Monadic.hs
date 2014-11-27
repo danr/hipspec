@@ -7,7 +7,7 @@
 -- Has an environment to understand when a function is pure, and slaps on
 -- an extra return after calling it.
 {-# LANGUAGE PatternGuards,FlexibleContexts #-}
-module HipSpec.HBMC.Monadic (monadic,runMon) where
+module HipSpec.HBMC.Monadic (monadic,runMon,monExpr,Mon) where
 
 import HipSpec.HBMC.Utils hiding (lift)
 
