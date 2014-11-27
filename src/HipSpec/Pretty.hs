@@ -93,7 +93,7 @@ mononame (IdInst x xs) = polyname x -- ++ short (concatMap (\ u -> '_':ty u) xs)
     ty P.TType        = "type"
 
 render' :: Doc -> String
-render' = renderStyle style { lineLength = 150 }
+render' = renderStyle style { lineLength = 100 }
 
 renameCls :: (Ord a,Ord b) =>
     [String] -> [(a,String)] -> (a -> String) -> (b -> String) -> [Clause a b] -> ([Clause String String],Map (Either a b) String)

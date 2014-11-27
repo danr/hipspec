@@ -39,6 +39,7 @@ import HipSpec.HBMC.Utils as H
 
 import Control.Monad.State
 
+import qualified TyCon
 import TyCon (isAlgTyCon)
 import TysWiredIn (boolTyCon)
 import UniqSupply
@@ -55,6 +56,8 @@ import Var (Var)
 import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
+
+import Debug.Trace
 
 main :: IO ()
 main = do
@@ -84,11 +87,11 @@ main = do
         tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
                      (bindsTyCons' binds `union` extra_tcs `union` [boolTyCon])
 
-        (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
+        (am_tcs,data_thy,ty_env',data_types_d) = trTyCons tcs
 
         rich_fns = toRich binds -- ++ [S.fromProverBoolDefn] -- removing convert for now
 
-    let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types rich_fns
+    let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types_d rich_fns
 
         -- After optimisation, then I# and Int are removed, and replaced
         -- with internal Integer. This cleans up the quick spec resolve maps:
@@ -129,9 +132,26 @@ main = do
                     [ (H.raw "The",1) ] ++
                     [ (H.raw "UNR",0) ] ++
                     [ (dc,length args)
-                    | R.Datatype _tc _ cons _ <- data_types
+                    | R.Datatype _tc _ cons _ <- data_types_d
                     , R.Constructor dc args <- cons
                     ]
+
+        -- Remove dictionaries tycons
+        let data_types =
+                [ dt
+                | dt <- data_types_d
+                , case tryGetGHCTyCon (R.data_ty_con dt) of
+                    Just tc -> case TyCon.tyConParent tc of
+                        TyCon.ClassTyCon{} -> False -- remove it
+                        _                  -> True
+                    Nothing -> True
+                ]
+
+        let isn't_dict_fun x = case tryGetGHCVar x of
+                Just i  -> not (GHC.isDictId i)
+                Nothing -> True
+
+        let hbmc_fns = renameFunctions (filter (isn't_dict_fun . R.fn_name) rich_fns_opt)
 
         let (ixss,dt_progs) = unzip (map mergeDatatype data_types)
 
@@ -140,7 +160,7 @@ main = do
         let (fns,insts) = (`evalState` 0) $ do
                 get_insts <- mapM mkGet data_types
                 arg_insts <- mapM mkArgument data_types
-                fns <- forM (renameFunctions rich_fns_opt) $ \ fn -> do
+                fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
                     ulfn <- uniquify lfn
                     mf <- monadic ulfn `runMon` is_pure

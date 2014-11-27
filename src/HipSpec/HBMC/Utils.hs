@@ -20,8 +20,6 @@ import Control.Monad.State hiding (lift)
 
 import qualified Data.Foldable as F
 
-import Debug.Trace
-
 gbl,lcl :: Id -> Expr Id
 gbl i = Gbl i unpty []
 lcl i = Lcl i unty
@@ -207,7 +205,7 @@ rename tbl = fmap (\ v -> fromMaybe v (lookup v tbl))
 
 uniquifyWrt :: (Show a,Show b,Functor f,Monad m,F.Foldable f,Eq a,Eq b) => (a -> Maybe b) -> (a -> m a) -> f a -> m (f a)
 uniquifyWrt surj new e
-    | trace (ppShow (vars,map surj vars,dups)) (null dups) = return e
+    | null dups = return e
     | otherwise = do
         new_names <- sequence [ (,) v `liftM` new v | v <- dups ]
         let new_e = rename new_names e
