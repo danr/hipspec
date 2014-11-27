@@ -22,6 +22,8 @@ module HipSpec.Utils
     , withPrevious
     , uniqueCartesian
 
+    , replace
+
     -- * Efficient nub and group
     , nubSorted
     , groupSortedOn
@@ -125,6 +127,11 @@ nubSorted = map head . group . sort
 groupSortedOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupSortedOn f = groupBy ((==) `on` f)
                 . sortBy (comparing f)
+
+replace :: [a] -> Int -> a -> [a]
+replace xs i x = case splitAt i xs of
+    (l,_:r) -> l ++ [x] ++ r
+    _       -> xs
 
 -- | /O(n log n)/ nub by a comparison function. Destroys ordering
 nubSortedOn :: Ord b => (a -> b) -> [a] -> [a]

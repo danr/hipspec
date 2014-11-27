@@ -12,7 +12,8 @@ import Var (Var,varName,idDetails,TyVar,tyVarName)
 import IdInfo (IdDetails(..))
 import TyCon (tyConName,TyCon)
 import DataCon (dataConName,DataCon)
-import Data.Char (toUpper)
+import Data.Char (toUpper,isDigit)
+import Data.Maybe (fromMaybe)
 
 import qualified QuickSpec.Term as QS
 import qualified QuickSpec.Type as QS
@@ -121,8 +122,10 @@ showHBMCId hi = case hi of
     Peek    -> "peek"
     Lift    -> "Lift"
     LiftTV  -> "a"
-    TupleTyCon i -> "TT" ++ show i
-    TupleCon   i -> "T" ++ show i
+    TupleTyCon i -> tup i
+    TupleCon i   -> tup i
+    -- TupleTyCon i -> "TT" ++ show i
+    -- TupleCon   i -> "T" ++ show i
     Select i j   -> "proj" ++ show j
     Arg     -> "arg"
     Res     -> "res"
@@ -134,10 +137,13 @@ showHBMCId hi = case hi of
     Con     -> "Con"
     Val     -> "val"
     Switch  -> "switch"
-    D i     -> "D_" ++ ppId i
-    Label i -> "Label_" ++ ppId i
-    Construct i -> "con" ++ ppId i
+    D i     -> "D_" ++ escape (ppId i)
+    Label i -> "Label_" ++ escape (ppId i)
+    Construct i -> "con" ++ escape (ppId i)
     _       -> "Add_to_show_function_" ++ show hi
+  where
+    tup 1 = ""
+    tup n = "(" ++ replicate n ',' ++ ")"
 
 data Id
     = GHCOrigin Name (Maybe Var)   -- The Var is there to look at the call graph
@@ -380,4 +386,50 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
         s     -> s
   where
     k = getUnique nm
+
+escape :: String -> String
+escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
+  where
+    escapes = M.fromList
+        [ (from,'_':to++"_")
+        | (from,to) <-
+            [ ('(',"rpar")
+            , (')',"lpar")
+            , (':',"cons")
+            , ('[',"rbrack")
+            , (']',"lbrack")
+            , (',',"comma")
+            , ('`',"tick")
+
+            , ('}',"rbrace")
+            , ('{',"lbrace")
+
+            , ('\'',"prime")
+            , ('@',"at")
+            , ('!',"bang")
+            , ('%',"percent")
+            , ('$',"dollar")
+            , ('=',"equal")
+            , (' ',"space")
+            , ('>',"gt")
+            , ('#',"hash")
+            , ('|',"pipe")
+            , ('^',"hat")
+            , ('-',"minus")
+            , ('&',"and")
+            , ('.',"dot")
+            , ('+',"plus")
+            , ('?',"qmark")
+            , ('*',"mul")
+            , ('~',"twiggle")
+            , ('/',"slash")
+            , ('\\',"bslash")
+            , ('<',"lt")
+            ]
+        ]
+
+    leading :: String -> String
+    leading xs@(x:_) | isDigit x = '_':xs
+                     | otherwise = xs
+    leading []                   = "_"
 

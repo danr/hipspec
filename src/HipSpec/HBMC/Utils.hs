@@ -135,3 +135,4 @@ bind :: Expr Id -> Expr Id -> Fresh (Expr Id)
 
 (Gbl (HBMCId Return) _ _ `App` a) `bind` (Lam x _ b) | occurrences x b <= 1 = return ((a // x) b)
 m `bind` f = return (Gbl (hid Bind) unpty [unty,unty] `apply` [m,f])
+

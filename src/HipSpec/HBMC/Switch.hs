@@ -37,7 +37,7 @@ Makes new instances for getting the values and arguments:
    instance Value D_Ty where
      type Type D_Ty = Ty
 
-     get (DTyp (Con cn args)) =
+     get (D_Ty (Con cn args)) =
        do l <- get cn
           case (l, args) of
             (Lbl_Arrow, T2 (The a) (The b)) ->
@@ -45,6 +45,18 @@ Makes new instances for getting the values and arguments:
                 get b >>= \ y ->
                 return (x :-> y)
             (Lbl_A, _) -> return A
+
+     get = \ s -> case s of
+        D_Ty d -> case d of
+            Con cn args ->
+                get cn >>= \ l ->
+                case args of
+                    T2 u v -> case l of
+                        Lbl_Arrow ->
+                            peek u >>= \ a ->
+                            peek v >>= \ b ->
+                            return (a :-> b)
+                        Lbl_A -> return A
 
    instance Argument Ty where
      argument Lbl_Arrow (Tuple [a,b]) = [a,b]
@@ -150,6 +162,56 @@ mergeDatatype dc@(Datatype tc tvs cons) = (indexes,([labels,ndata],constructors)
                 ]
         ]
 
+-- unD tc e k = case e of { D_tc s -> k s }
+unD :: Id -> Expr Id -> (Expr Id -> Fresh (Expr Id)) -> Fresh (Expr Id)
+unD tc e k = do
+    s <- tmp
+    rhs <- k (lcl s)
+    return (Case e Nothing [(pat (d tc) [s],rhs)])
+
+-- dataCase arg_tuple lbl_var
+--    (K1 (x1,) -> C1
+--     K2 (y1,y2) -> C2)
+-- =>
+-- case arg_tuple of
+--    T2 a1 a2 -> case lbl_var of
+--      Lbl_K1 -> peek a1 >>= \ x1 -> C1
+--      Lbl_K2 -> peek a1 >>= \ y1 -> peek a2 >>= \ y2 -> C1
+dataCase :: Id -> Id -> [(Id,[Maybe Id],Expr Id)] -> Fresh (Expr Id)
+dataCase arg_tuple lbl_var brs@((_,specimen,_):_) = do
+    bound <- sequence [ tmp | _ <- specimen ]
+
+    brs' <- sequence
+        [ do rhs' <- foldM
+                (\ acc (b,maybe_real) -> case maybe_real of
+                    Just real -> peek (lcl b) `bind` Lam real unty acc
+                    Nothing   -> return acc
+                )
+                rhs
+                (bound `zip` real_bound)
+             return (pat (label k) [],rhs')
+        | (k,real_bound,rhs) <- brs
+        ]
+
+
+    return $ Case (lcl arg_tuple) Nothing
+        [ ( pat (hid $ TupleCon (length bound)) bound
+          , Case (lcl lbl_var) Nothing brs'
+          )
+        ]
+
+-- indexed [(x,2)] = Nothing:Nothing:Just x:Nothing:...
+indexed :: [(a,Int)] -> [Maybe a]
+indexed []         = repeat Nothing
+indexed ((x,i):xs) = replace (indexed xs) i (Just x)
+
+maximumIndex :: DataInfo -> [Alt Id] -> Int
+maximumIndex indexes brs = maximum . (0 :) . map succ . concat $
+    [ ixs
+    | (ConPat k _ _ _,_) <- brs
+    , let Just (_,ixs) = lookup k indexes
+    ]
+
 addSwitches :: TransformBiM Fresh (Expr Id) t => DataInfo -> t -> Fresh t
 addSwitches indexes = transformBiM $ \ e0 -> case e0 of
 
@@ -160,44 +222,25 @@ addSwitches indexes = transformBiM $ \ e0 -> case e0 of
     Case e _mx brs@((ConPat k0 _ _ _,_):_)
         | Just (tc,_) <- lookup k0 indexes -> do
 
-        let n = maximum . (0 :) . map succ . concat $
-                [ ixs
-                | (ConPat k _ _ _,_) <- brs
+        let n = maximumIndex indexes brs
+
+        let brs' :: [(Id,[Maybe Id],Expr Id)]
+            brs' =
+                [ (k,take n (indexed (map fst real_args `zip` ixs)),rhs)
+                | (ConPat k _ _ real_args,rhs) <- brs
                 , let Just (_,ixs) = lookup k indexes
                 ]
 
-        args :: [Id] <- replicateM n tmp
+        lbl_var <- tmp
+        arg_tuple <- tmp
 
-        brs' :: [Alt Id] <- sequence
-            [ do rhs' <- foldM
-                    (\ acc ((real_arg,_arg_ty),arg_ix) ->
-                        peek (lcl (args !! arg_ix)) `bind` Lam real_arg unty acc
-                    )
-                    rhs
-                    (real_args `zip` ixs)
-                 return (pat (label k) [],rhs')
-            | (ConPat k _ _ real_args,rhs) <- brs
-            , let Just (_,ixs) = lookup k indexes
-            ]
+        inner <- dataCase arg_tuple lbl_var brs'
 
-        s :: Id <- tmp
-        lbl_var :: Id <- tmp
-        arg_tuple :: Id <- tmp
-
-        return $ Case e _mx
-            [ ( pat (d tc) [s]
-              , gbl switch `apply`
-                [ lcl s
-                , makeLambda [(lbl_var,unty),(arg_tuple,unty)]
-                    (Case (lcl arg_tuple) Nothing
-                        [ ( pat (hid $ TupleCon n) args
-                          , Case (lcl lbl_var) Nothing brs'
-                          )
-                        ]
-                    )
+        unD tc e $ \ e' -> return $
+            gbl switch `apply`
+                [ e'
+                , makeLambda ([lbl_var,arg_tuple] `zip` repeat unty) inner
                 ]
-              )
-            ]
 
     _ -> return e0
 
