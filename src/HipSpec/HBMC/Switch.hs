@@ -260,15 +260,19 @@ mkArgument dc@(Datatype tc tvs _cons _) = do
 
 mkNew :: Datatype Id -> Fresh (Function Id)
 mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
+
     s <- newTmp "s"
     arg_new <- sequence [ newTmp "mk" | _ <- tvs ]
+
     let labels = concats
             [ (if any (tc `F.elem`) args then singletonIf (nonZero (lcl s)) else listLit . return)
               (gbl (label c))
             | Constructor c args <- cons
             ]
+
     cn <- newTmp "cn"
-    c <- newTmp "c"
+
+    let (indexes,types) = allocateDatatype dc
 
     let new_ty t@(_ `ArrTy` _) = error $ "Cannot handle exponential data types" ++ show t
         new_ty Integer         = gbl (raw "newNat") `App` gbl_size
@@ -278,22 +282,28 @@ mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
             size | tc' == tc = gbl (raw "pred") `App` lcl s
                  | otherwise = gbl_size
 
-    let new_top c args = do
-            named_args <- sequence [ (,) arg <$> newTmp "r" | arg <- args ]
-            foldM
-                (\ e (arg_ty,r) -> new_ty arg_ty `bind` Lam r unty e)
-                (ret (gbl (constructor c) `apply` map (lcl . snd) named_args))
-                named_args
+    let args =
+            [ (if tc `F.elem` t
+                then \ x -> gbl (raw "bara") `apply` [nonZero (lcl s),x]
+                else \ x -> gbl (raw "fmap") `apply` [gbl (raw "The"),x])
+              (new_ty t)
+            | t <- types
+            ]
 
-    brs <- sequence
-        [ (,) (pat (label c) []) <$> new_top c args
-        | Constructor c args <- cons
-        ]
+    arg_named <- sequence [ (,) a <$> newTmp "r" | a <- args ]
+
+    let result =
+            ret (gbl (d tc) `App`
+                     (gbl con `apply` [lcl cn,tuple (map (lcl . snd) arg_named)]))
+
+    make_arguments <- foldM
+        (\ e (arg_mk,name) -> arg_mk `bind` Lam name unty e)
+        result
+        arg_named
 
     makeLambda ((s:arg_new) `zip` repeat unty) <$> do
-        (gbl (raw "newVal") `App` labels) `bind`
-            Lam cn unty (gbl (raw "choose") `apply`
-                [lcl cn,Lam c unty (Case (lcl c) Nothing brs)])
+        (gbl (raw "newVal") `App` labels) `bind` Lam cn unty make_arguments
+        --        [lcl cn,Lam c unty (Case (lcl c) Nothing brs)])
 
 
 -- unD tc e k = case e of { D_tc s -> k s }

@@ -234,8 +234,10 @@ renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns 
 
 checkFunctions :: [Function Id] -> [Function Id]
 checkFunctions fns =
-    [ Function f t $ (gbl (raw "check") >>>) `underLambda'` a
+    [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
+    , let check | or [ g == f | Gbl g _ _ <- universeBi a ] = (gbl (raw "check") >>>)
+                | otherwise    = id
     ]
 
 infixr >>>

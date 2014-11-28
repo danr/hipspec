@@ -18,6 +18,6 @@ $(TARGET): $(SOURCE)
 	hbmc $(HBMC_OPTS) $< > $@
 
 $(EXE): $(TARGET)
-	ghc --make $< -i. -i/home/dan/code/hbmc
+	ghc -O2 --make $< -i. -i/home/dan/code/hbmc
 
 .PHONY: run all clean
