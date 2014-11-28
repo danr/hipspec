@@ -17,22 +17,27 @@ import TyCon
 
 import HipSpec.GHC.Utils
 import HipSpec.GHC.Unfoldings
+import HipSpec.GHC.Dicts
 import HipSpec.GHC.FreeTyCons
 
 import qualified Data.Set as S
+
+import Debug.Trace
 
 data Constructors = With | Without deriving Eq
 
 -- | The vars this expression calls
 exprCalls :: Constructors -> CoreExpr -> VarSet
-exprCalls cons = exprSomeFreeVars $ \ v ->
+exprCalls cons e = (`exprSomeFreeVars` e) $ \ v -> dbg v $
           (isLocalId v || isGlobalId v || (cons == With && isDataConId v && not (isNewtypeConId v)))
        && (cons == With || not (isDataConId v))
+  where
+    dbg v r = r -- trace (showOutputable (e,v,r)) r
 
 -- | The functions this functions calls (not transitively)
 calls :: Constructors -> Id -> VarSet
 calls c v = cons `unionVarSet` case maybeUnfolding v of
-    Just e -> exprCalls c e
+    Just e -> exprCalls c (inlineDicts e) -- grr!!
     _      -> emptyVarSet
   where
     cons | c == With = mkVarSet (concatMap (map dataConWorkId . tyConDataCons)

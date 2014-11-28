@@ -31,10 +31,10 @@ import Control.Monad.State
 
 psl s = gbl (raw "io") `App` (gbl (raw "putStrLn") `App` String s)
 
-newValue :: Integer -> Type Id -> Expr Id
-newValue gbl_size t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
-newValue gbl_size (TyCon tc' args) = gbl (new tc') `apply` (Lit gbl_size:map (newValue gbl_size)args)
-newValue gbl_size _                = gbl (raw "newNat") `App` Lit gbl_size
+newValue :: Type Id -> Expr Id
+newValue t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
+newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_size:map newValue args)
+newValue _                = gbl (raw "newNat") `App` gbl_size
 
 hbmcLiteral :: DataInfo -> Literal -> Mon (Expr Id)
 hbmcLiteral indexes (e1 :=: e2) = do
@@ -64,9 +64,9 @@ addBit b = addClause [b]
 addClause :: [Expr Id] -> Expr Id
 addClause bs = gbl (raw "addClause") `App` listLit bs
 
-hbmcProp :: DataInfo -> Integer -> Property -> Mon (Function Id)
-hbmcProp indexes gbl_size Property{..} = Function prop_id unpty <$> do
-    let values e = lift $ foldM (\ acc (x,t) -> newValue gbl_size t `bind` Lam x unty acc) e prop_vars
+hbmcProp :: DataInfo -> Property -> Mon (Function Id)
+hbmcProp indexes Property{..} = Function prop_id unpty <$> do
+    let values e = lift $ foldM (\ acc (x,t) -> newValue t `bind` Lam x unty acc) e prop_vars
 
     let lits = (prop_goal,nt):(prop_assums `zip` repeat id)
 

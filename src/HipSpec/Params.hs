@@ -131,6 +131,7 @@ data Params = Params
     , techniques          :: [Technique]
     , provers             :: [ProverName]
 
+
 {-
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
@@ -154,6 +155,8 @@ data Params = Params
     , indvars             :: Int
     , indhyps             :: Int
     , indobligs           :: Int
+
+    , symbolic_size       :: Integer
 
     , debug_flags         :: [DebugFlag]
     }
@@ -282,6 +285,9 @@ defParams = Params
     , indvars             = 2       &= name "v" &= help "Maximum variables   (default 2)"
     , indhyps             = 200     &= name "H" &= help "Maximum hypotheses  (default 200)"
     , indobligs           = 25      &= name "O" &= help "Maximum obligations (default 25)"
+
+    , symbolic_size       = 10      &= name "s" &= groupname "\nHBMC Settings"
+                                                &= help "Symbolic size (default 10)"
 
     , debug_flags = enumerate
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]

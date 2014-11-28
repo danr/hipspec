@@ -1,6 +1,7 @@
 module HipSpec.Property.Repr where
 
 import HipSpec.Lang.Simple
+import HipSpec.Utils
 
 import Text.PrettyPrint
 
@@ -28,11 +29,4 @@ exprRepr = render . exprRepr' 0
 parensIf :: Bool -> Doc -> Doc
 parensIf True = parens
 parensIf _    = id
-
-oper :: String -> Bool
-oper s = not (null s') && all (`elem` opSyms) s'
-  where s' = filter (`notElem` ('_':['0'..'9'])) s
-
-opSyms :: String
-opSyms = ":!#$%&*+./<=>?@|^-~\\{}"
 

@@ -165,18 +165,16 @@ main = do
 
         let data_info = concat ixss
 
-        let gbl_size = 10
-
         let (fns,insts) = (`evalState` 0) $ do
                 get_insts <- mapM mkGet data_types
                 arg_insts <- mapM mkArgument data_types
-                new_fns <- mapM (mkNew gbl_size) data_types
+                new_fns <- mapM mkNew data_types
                 fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
                     ulfn <- uniquify lfn
                     mf <- monadic ulfn `runMon` is_pure
                     addSwitches data_info mf
-                prop_fns <- mapM (hbmcProp data_info gbl_size) props `runMon` is_pure
+                prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
                 return (new_fns++fns++prop_fns,get_insts++arg_insts)
 
         liftIO $ do
@@ -191,6 +189,7 @@ main = do
 
             mapM_ (putStrLn . showRich) fns
 
+            putStrLn $ gbl_size_name ++ " = " ++ show symbolic_size ++ " :: Int"
 
             putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
                 [ "putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++

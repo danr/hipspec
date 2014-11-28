@@ -258,8 +258,8 @@ mkArgument dc@(Datatype tc tvs _cons _) = do
             unaryCase (lcl tuple) tupleStruct [list] <$>
                 listCase (lcl list) args (Case (lcl lbl) Nothing brs)
 
-mkNew :: Integer -> Datatype Id -> Fresh (Function Id)
-mkNew gbl_size dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
+mkNew :: Datatype Id -> Fresh (Function Id)
+mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
     s <- newTmp "s"
     arg_new <- sequence [ newTmp "mk" | _ <- tvs ]
     let labels = concats
@@ -271,12 +271,12 @@ mkNew gbl_size dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
     c <- newTmp "c"
 
     let new_ty t@(_ `ArrTy` _) = error $ "Cannot handle exponential data types" ++ show t
-        new_ty Integer         = gbl (raw "newNat") `App` Lit gbl_size
+        new_ty Integer         = gbl (raw "newNat") `App` gbl_size
         new_ty (TyVar a) | Just i <- elemIndex a tvs = lcl (arg_new !! i)
         new_ty (TyCon tc' args) = gbl (new tc') `apply` (size:map new_ty args)
           where
             size | tc' == tc = gbl (raw "pred") `App` lcl s
-                 | otherwise = Lit gbl_size
+                 | otherwise = gbl_size
 
     let new_top c args = do
             named_args <- sequence [ (,) arg <$> newTmp "r" | arg <- args ]

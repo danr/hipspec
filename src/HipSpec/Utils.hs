@@ -23,6 +23,7 @@ module HipSpec.Utils
     , uniqueCartesian
 
     , replace
+    , oper
 
     -- * Efficient nub and group
     , nubSorted
@@ -144,6 +145,15 @@ intersects = (not . null) .: intersect
 -- | Pretty show
 ppShow :: Show a => a -> String
 ppShow = Pretty.ppShow
+
+-- | Is this an operator?
+oper :: String -> Bool
+oper s = not (null s') && all (`elem` opSyms) s'
+  where s' = filter (`notElem` ('_':['0'..'9'])) s
+
+opSyms :: String
+opSyms = ":!#$%&*+./<=>?@|^-~\\{}[]"
+
 
 -- | Merging
 allocate :: Eq a => [[a]] -> [a]

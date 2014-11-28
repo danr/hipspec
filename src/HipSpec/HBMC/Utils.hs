@@ -20,6 +20,12 @@ import Control.Monad.State hiding (lift)
 
 import qualified Data.Foldable as F
 
+gbl_size_name :: String
+gbl_size_name = "gbl_size"
+
+gbl_size :: Expr Id
+gbl_size = gbl (raw gbl_size_name)
+
 gbl,lcl :: Id -> Expr Id
 gbl i = Gbl i unpty []
 lcl i = Lcl i unty

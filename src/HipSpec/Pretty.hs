@@ -10,6 +10,8 @@ import HipSpec.Lang.Renamer
 
 import HipSpec.Lang.Monomorphise
 
+import HipSpec.Utils (oper)
+
 import qualified HipSpec.Lang.Rich as R
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.PrettyRich as R
@@ -31,8 +33,6 @@ import HipSpec.Id
 import Data.Char
 
 import PrimOp
-
-import HipSpec.Property.Repr (oper)
 
 type LogicId = Poly Id
 
