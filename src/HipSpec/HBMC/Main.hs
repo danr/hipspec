@@ -175,7 +175,7 @@ main = do
                     mf <- monadic ulfn `runMon` is_pure
                     addSwitches data_info mf
                 prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
-                return (new_fns++fns++prop_fns,get_insts++arg_insts)
+                return (new_fns++checkFunctions fns++prop_fns,get_insts++arg_insts)
 
         liftIO $ do
 

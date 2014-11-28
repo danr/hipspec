@@ -89,6 +89,10 @@ underLambda :: Functor m => (Expr a -> m (Expr a)) -> Expr a -> m (Expr a)
 underLambda k b = makeLambda xs `fmap` k e
   where (xs,e) = collectBinders b
 
+underLambda' :: (Expr a -> Expr a) -> Expr a -> Expr a
+underLambda' k b = makeLambda xs (k e)
+  where (xs,e) = collectBinders b
+
 type Fresh = State Integer
 
 fresh :: Fresh Integer
@@ -227,6 +231,27 @@ m `bind` f = return (Gbl (raw ">>=") unpty [unty,unty] `apply` [m,f])
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
+
+checkFunctions :: [Function Id] -> [Function Id]
+checkFunctions fns =
+    [ Function f t $ (gbl (raw "check") >>>) `underLambda'` a
+    | Function f t a <- fns
+    ]
+
+infixr >>>
+
+(>>>),(==>) :: Expr Id -> Expr Id -> Expr Id
+e1 >>> e2 = gbl (raw ">>") `apply` [e1,e2]
+e1 ==> e2 = gbl (raw "==>") `apply` [e1,listLit [e2]]
+
+nt :: Expr Id -> Expr Id
+nt e = gbl (raw "nt") `App` e
+
+addBit :: Expr Id -> Expr Id
+addBit b = addClause [b]
+
+addClause :: [Expr Id] -> Expr Id
+addClause bs = gbl (raw "addClause") `App` listLit bs
 
 rename :: (Eq a,Functor f) => [(a,a)] -> f a -> f a
 rename tbl = fmap (\ v -> fromMaybe v (lookup v tbl))

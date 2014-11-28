@@ -49,20 +49,6 @@ hbmcLiteral indexes (e1 :=: e2) = do
 
     lift $ bind m1 (Lam l unty o)
 
-infixr >>>
-
-(>>>),(==>) :: Expr Id -> Expr Id -> Expr Id
-e1 >>> e2 = gbl (raw ">>") `apply` [e1,e2]
-e1 ==> e2 = gbl (raw "==>") `apply` [e1,listLit [e2]]
-
-nt :: Expr Id -> Expr Id
-nt e = gbl (raw "nt") `App` e
-
-addBit :: Expr Id -> Expr Id
-addBit b = addClause [b]
-
-addClause :: [Expr Id] -> Expr Id
-addClause bs = gbl (raw "addClause") `App` listLit bs
 
 hbmcProp :: DataInfo -> Property -> Mon (Function Id)
 hbmcProp indexes Property{..} = Function prop_id unpty <$> do
