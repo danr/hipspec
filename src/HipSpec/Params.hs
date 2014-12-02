@@ -103,6 +103,7 @@ data SuccessOpt = CleanRun | NothingUnproved | ProvesUserStated
 -- | Parameters
 data Params = Params
     { file                :: FilePath
+    , include             :: [FilePath]
     , verbosity           :: Int
     , output              :: Maybe FilePath
     , reverse_video       :: Bool
@@ -215,6 +216,7 @@ sanitizeParams
 defParams :: Params
 defParams = Params
     { file                = ""      &= argPos 0  &= typFile
+    , include             = []      &= name "i"  &= help "Extra include directories"
     , output              = Nothing &= name "o"  &= opt "proving" &= typDir &= help "Save files from obligations in a directory"
     , verbosity           = 100                  &= help "Verbosity (default 100)"
     , no_colour           = False                &= help "Do not print in colour"

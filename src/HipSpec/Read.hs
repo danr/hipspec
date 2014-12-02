@@ -89,6 +89,7 @@ execute params@Params{..} = do
                      dflags0 { ghcMode = CompManager
                              , optLevel = 1
                              , profAuto = NoProfAuto
+                             , importPaths = include ++ includePaths dflags0
                              }
                         `wopt_unset` Opt_WarnOverlappingPatterns
 #if __GLASGOW_HASKELL__ >= 708
