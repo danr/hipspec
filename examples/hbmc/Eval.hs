@@ -27,3 +27,4 @@ eval prog env e0 = case e0 of
 
 zhead []    = Z
 zhead (x:_) = x
+
