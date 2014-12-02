@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module CFG6 where
 
-import Prelude hiding ((++),(+))
+import Prelude hiding ((++))
 import Control.Monad
 import HipSpec hiding (A,B)
 
@@ -39,46 +39,22 @@ data A = SA A | ZA deriving (Typeable,Eq,Ord,Show)
 
 data B = SB B | ZB deriving (Typeable,Eq,Ord,Show)
 
-data Tok = X | Y | Z
-  deriving (Typeable,Eq,Ord,Show)
-
-data Nat = S Nat | Zero deriving (Eq,Show,Typeable,Ord)
-
-(+) :: Nat -> Nat -> Nat
-S n  + m = S (n + m)
-Zero + m = m
-
-nonZero :: Nat -> Bool
-nonZero Zero = False
-nonZero _    = True
-
-count :: Tok -> [Tok] -> Nat
-count t (x:xs) | t `eqTok` x = S (count t xs)
+count :: Char -> [Char] -> Integer
+count t (x:xs) | t == x    = 1 + count t xs
                | otherwise = count t xs
-count t [] = Zero
+count t [] = 0
 
-{-# NOINLINE eqTok #-}
-eqTok :: Tok -> Tok -> Bool
-eqTok X X = True
-eqTok Y Y = True
-eqTok Z Z = True
-eqTok _ _ = False
-
-double :: Nat -> Nat
-double Zero  = Zero
-double (S x) = S (S (double x))
-
-linS :: S -> [Tok]
+linS :: S -> [Char]
 linS (A a) = linA a
 linS (B b) = linB b
 
-linA :: A -> [Tok]
-linA ZA     = [X,Z,Y]
-linA (SA a) = [X] ++ linA a ++ [Y]
+linA :: A -> [Char]
+linA ZA     = "xzy"
+linA (SA a) = "x" ++ linA a ++ "y"
 
-linB :: B -> [Tok]
-linB ZB     = [X,Z,Y,Y]
-linB (SB b) = [X] ++ linB b ++ [Y,Y]
+linB :: B -> [Char]
+linB ZB     = "xzyy"
+linB (SB b) = "x" ++ linB b ++ "yy"
 
 unambigS u v = linS u =:= linS v ==> u =:= v
 unambigA u v = linA u =:= linA v ==> u =:= v
@@ -91,6 +67,16 @@ injL u v w = u ++ v =:= u ++ w ==> v =:= w
 lemmaA_L v w s t = linA v ++ s =:= linA w ++ t ==> (v,s) =:= (w,t)
 lemmaB_L v w s t = linB v ++ s =:= linB w ++ t ==> (v,s) =:= (w,t)
 
+xx = 'x'
+yy = 'y'
+zz = 'z'
+
+plus :: Integer -> Integer -> Integer
+plus x y = x + y
+
+positive :: Integer -> Bool
+positive x = x > 0
+
 {-
 lemmaAB a b = linA a =:= linB b ==> A a =:= B b {- i.e: false -}
 
@@ -101,18 +87,6 @@ countMorph x xs ys = count x (xs ++ ys) =:= count x xs + count x ys
 
 nonZeroA x a = nonZero (count x (linA a)) =:= True
 nonZeroB x b = nonZero (count x (linB b)) =:= True
--}
-
--- after either of these (because commutativity), all the lemmas about double below follow
-plusInjL x y z = y + x =:= z + x ==> y =:= z
-plusInjR x y z = x + y =:= x + z ==> y =:= z
-
-{-
-lemmaDouble x = double (S x) =:= S x ==> x =:= S x
-lemmaDouble2 x = double x =:= x ==> x =:= Zero
-
-lemmaPlus x  = S x + S x =:= S x ==> x =:= S x
-lemmaPlus2 x = x + x =:= x ==> x =:= Zero
 -}
 
 
@@ -137,12 +111,4 @@ instance Arbitrary B where
       [ (1,return ZB)
       , (s,liftM SB (arb (s-1)))
       ]
-
-instance Arbitrary Tok where
-  arbitrary = elements [X,Y,Z]
-
-instance Arbitrary Nat where
-    arbitrary =
-        let nats = iterate S Zero
-        in  (nats !!) `fmap` choose (0,5)
 
