@@ -5,11 +5,11 @@ import HipSpec.Monad
 import HipSpec.Property
 import HipSpec.ThmLib
 import HipSpec.MakeInvocations
--- import HipSpec.Utils
+import HipSpec.Utils
 
 -- import Data.List
 -- import Data.Ord
--- import Data.Maybe
+import Data.Maybe
 
 -- import Control.Monad
 import Control.Concurrent.STM
@@ -34,8 +34,9 @@ mainLoop Params{only_user_stated} ch props0 thms0 = go False props0 thms0
     go True  unproved thms = proveloop unproved [] thms
     go False unproved thms = do
         mprops <- liftIO (readEntireChan ch)
+        -- liftIO $ putStrLn ("go: " ++ ppShow mprops)
         (thms',unproved') <- proveloop ([ p | Just p <- mprops ] ++ unproved ) [] thms
-        go (not (null [ () | Nothing <- mprops ])) unproved' thms'
+        go (any isNothing mprops) unproved' thms'
 
     proveloop []     stash thms = return (thms,stash)
     proveloop (u:us) stash thms = do

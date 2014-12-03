@@ -13,6 +13,7 @@ import Data.List (elemIndex)
 
 import Data.Generics.Geniplate
 
+import Outputable
 import Type
 import Literal
 import Coercion

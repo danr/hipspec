@@ -118,24 +118,24 @@ isFromQS p = case prop_origin p of
 
 instance Show Origin where
     show o = case o of
-        QSProp{}   -> "property from QuickSpec"
-        UserStated -> "user stated"
+        QSProp{}   -> "QSProp"
+        UserStated -> "UserStated"
 
 instance Show (Property) where
     show Property{..} = concatMap (++ "\n    ")
         [ "Property"
-        , "{ prop_name = " ++ prop_name
+        , "{ prop_name = " ++ show prop_name
         , ", prop_origin = " ++ show prop_origin
         , ", prop_tvs = " ++ comma (map ppId prop_tvs)
         , ", prop_vars = " ++ comma (map showTyped prop_vars)
-        , ", prop_goal = " ++ show prop_goal
+        , ", prop_goal = " ++ show (show prop_goal)
         , ", prop_assums = " ++ comma (map show prop_assums)
-        , ", prop_repr = " ++ prop_repr
+        , ", prop_repr = " ++ show prop_repr
         , ", prop_var_repr = " ++ comma prop_var_repr
         , "}"
         ]
      where
-       comma = intercalate ","
+       comma xs = "[" ++ intercalate "," (map show xs) ++ "]"
 
 -- TODO: remove this junk
 data Err

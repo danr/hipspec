@@ -123,15 +123,15 @@ makeSigFrom p@Params{..} ids poly = do
         ]
 
     expr_str = unlines $
-        [ "signature" ] ++
-        ind (["{ constants ="] ++ ind (list constants) ++
-             [", instances ="] ++ ind (list instances) ++
-             [", extraPruner = Prelude.Just " ++
+        [ "QuickSpec.Signature.signature" ] ++
+        ind (["{ QuickSpec.Signature.constants ="] ++ ind (list constants) ++
+             [", QuickSpec.Signature.instances ="] ++ ind (list instances) ++
+             [", QuickSpec.Signature.extraPruner = Prelude.Just " ++
                 (if qspruner
                     then par "QuickSpec.Signature.SPASS 1"
                     else "QuickSpec.Signature.None")] ++
-             [", maxTermSize = Prelude.Just " ++ show termsize] ++
-             [", testTimeout = Prelude.Just 200000"] ++
+             [", QuickSpec.Signature.maxTermSize = Prelude.Just " ++ show termsize] ++
+             [", QuickSpec.Signature.testTimeout = Prelude.Just 200000"] ++
              ["}"])
 
 varArity :: (Type -> Type) -> Var -> Int

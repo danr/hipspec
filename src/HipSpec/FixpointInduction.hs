@@ -43,7 +43,7 @@ white :: Id -> Id
 white f = Derived (f `Fix` W) 0
 
 isRecursive :: Eq a => Function a -> Bool
-isRecursive Function{..} = maybe False (fn_name `F.elem`) fn_body
+isRecursive Function{..} = True -- maybe False (fn_name `F.elem`) fn_body
 
 fixFunction :: Function Id -> [Function Id]
 fixFunction fn@Function{..} =
@@ -83,7 +83,7 @@ callConst i ts = Gbl name ty ts
 type Rec a = (a,PolyType a,[Type a])
 
 fixpointInduction :: Params -> ArityMap -> (Id -> Bool) -> Property -> [[ProofObligation]]
-fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,ignore)) =
+fixpointInduction _p am is_recursive0 (tvSkolemProp -> (prop@Property{..},sorts,ignore)) =
     [ [ Obligation
         { ob_prop = prop
         , ob_info = ObFixpointInduction
@@ -102,6 +102,8 @@ fixpointInduction _p am is_recursive (tvSkolemProp -> (prop@Property{..},sorts,i
     | sel <- yes_no
     ]
   where
+    is_recursive i = originalId i `elem` ["msort","split","ssort"]
+
     (recs,replace) = replaceLit is_recursive prop_goal
 
     yes_no :: [[(Bool,Rec Id)]]
