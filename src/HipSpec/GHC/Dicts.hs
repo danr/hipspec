@@ -37,8 +37,13 @@ maybeUnfolding v = case ri of
   where
     ri = realIdUnfolding v
 
-inlineDicts :: TransformBi (Expr Id) t => t -> t
-inlineDicts = transformBi $ \ e0 -> case e0 of
+inlineDicts :: ({- Outputable t, -}TransformBi (Expr Id) t) => t -> t
+inlineDicts th0 = (`transformBi` th0) $ \ e0 -> case e0 of
+{-
+    Var f
+        | d@(DFunUnfolding _ _ es) <- realIdUnfolding f -> trace (showOutputable (f,d)) e0
+        -}
+
     App (App (Var f) (Type t)) (Var d)
         | Just cl <- isClassOpId_maybe f
         , DFunId{} <- idDetails d

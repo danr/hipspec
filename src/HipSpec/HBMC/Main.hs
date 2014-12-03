@@ -119,7 +119,9 @@ main = do
         -- Now, split these into properties and non-properties
         is_prop (R.Function _ (R.Forall _ t) _) = isPropType t
 
-        (props_as_rich,hbmc_fns) = partition is_prop renamed_fns
+        (props_as_rich,hbmc_fns0) = partition is_prop renamed_fns
+
+        hbmc_fns = replaceEquality hbmc_fns0
 
         env = error "hbmc undefined env"
 
@@ -196,4 +198,5 @@ main = do
                   "; print =<< runH " ++ name
                 | prop <- props, let name = ppId (prop_id prop)
                 ]
+
 

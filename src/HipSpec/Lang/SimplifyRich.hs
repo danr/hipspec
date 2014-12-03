@@ -37,6 +37,8 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad.State
 
+import qualified Data.Foldable as F
+
 import Debug.Trace
 
 optimise :: [Datatype Id] -> [Function Id] -> ([Function Id],(Map (Type Id) (Type Id),Map Id (Type Id)))
@@ -208,6 +210,14 @@ simpExpr' inline = transformExpr $ \ e0 -> case e0 of
     -- Beta reduction
     App (Lam x _ body) arg -> rec ((arg // x) body)
 
+    -- Case returning all the same arguments
+    Case _ _ alts
+        | let (rhs1:rhss) = [ e | (_p,e) <- alts ]
+        , let intro_vars  = [ a | (ConPat _ _ _ as,_) <- alts, (a,_) <- as ]
+        , all (== rhs1) rhss
+        , not (F.any (`elem` intro_vars) rhs1)
+        -> rhs1
+
     -- Known case on a constructor
     Case e mx alts
         | (Gbl u _ ts,args) <- collectArgs e
@@ -222,6 +232,9 @@ simpExpr' inline = transformExpr $ \ e0 -> case e0 of
                         [ (p,rec (removeScrutinee e x alt))
                         | alt@(p,_) <- alts
                         ]
+
+    -- Remove unnused lets
+    Let [Function f _ _] e | not (f `occursIn` e) -> e
 
     _ | not inline -> e0
 

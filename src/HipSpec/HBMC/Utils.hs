@@ -20,6 +20,11 @@ import Control.Monad.State hiding (lift)
 
 import qualified Data.Foldable as F
 
+import qualified Id as GHC
+import qualified GHC as GHC
+import qualified IdInfo as GHC
+import HipSpec.GHC.Utils
+
 gbl_size_name :: String
 gbl_size_name = "gbl_size"
 
@@ -233,7 +238,7 @@ renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
 
 checkFunctions :: [Function Id] -> [Function Id]
-checkFunctions fns =
+checkFunctions fns = const fns
     [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
     , let check | or [ g == f | Gbl g _ _ <- universeBi a ] = (gbl (raw "check") >>>)
@@ -279,4 +284,26 @@ uniquify = uniquifyWrt pp_id (\ x -> refresh x <$> fresh)
         | isJust (tryGetGHCTyCon i) = Nothing
         | HBMCId _ <- i = Nothing
         | otherwise = Just (ppId i)
+
+replaceEquality :: TransformBi (Expr Id) t => t -> t
+replaceEquality = transformBi $ \ e0 -> case e0 of
+    (Gbl (HBMCId (HBMC x)) _ _ `App` e1) `App` e2 -> case originalId x of
+        "$c==" -> Gbl (raw "ifeq")
+                    (q (makeArrows [proverBoolType,proverBoolType,exprType' "$c==" e1,exprType' "$c==" e2]
+                                   proverBoolType))
+                    [] `apply` [ghcTrue,ghcFalse,e1,e2]
+        _      -> e0
+         {-
+        case tryGetGHCVar x of
+            Just i  -> do
+                print i
+                print (GHC.isDictonaryId i)
+                print (GHC.isDictId i)
+                print (GHC.isDictId i)
+--                putStrLn (showOutputable (GHC.idInfo i))
+                putStrLn (showOutputable (GHC.idDetails i))
+            Nothing -> return ()
+        return e0
+        -}
+    _ -> e0
 

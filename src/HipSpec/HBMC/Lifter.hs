@@ -182,11 +182,13 @@ liftFunction_trace (Function f pty@(Forall _tvs (collectArrTy -> (arg_tys,_res_t
                     g == f && length args == length arg_tys && all (argOk (>= s0)) args
                 _ -> False
 
-        b_res <- expensive new_f `underLambda` b'
+        b_unopt <- expensive new_f `underLambda` b'
+
+        let b_res = simpExpr' False b_unopt
 
         res <- go b_res
 
-        return (b:b':res)
+        return (b:b':b_unopt:res)
 
     go b = return [b]
 
