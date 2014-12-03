@@ -1,17 +1,17 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Sorting where
+module InsertionSort where
 
-import Prelude (Bool(..),undefined,Ordering(..), (&&), otherwise, not, fmap, Eq, Ord)
+import Prelude (Bool(..),undefined,Ordering(..), (&&), otherwise, not, fmap, Eq, Ord, Show)
 import HipSpec
 import Nat
-import QuickSpec.Signature
-import QuickSpec
-import QuickSpec.Prelude
+--import QuickSpec.Signature
+--import QuickSpec
+--import QuickSpec.Prelude
 import Test.QuickCheck hiding ((==>))
 import GHC.Types
 import Data.Typeable
 
-data List = Nil | Cons Nat List deriving (Typeable, Eq, Ord)
+data List = Nil | Cons Nat List deriving (Typeable, Eq, Ord, Show)
 
 instance Arbitrary List where
   arbitrary = fmap fromList arbitrary
