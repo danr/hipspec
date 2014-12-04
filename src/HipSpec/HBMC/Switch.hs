@@ -156,7 +156,7 @@ mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructor
         [ Constructor (label c) []
         | Constructor c _args <- cons
         ]
-        (derive ["Ord","Eq","Show"])
+        (derive (map ("Prelude." ++) ["Ord","Eq","Show"]))
 
     ndata = Datatype (d tc) tvs
         [ Constructor (d tc)
@@ -166,7 +166,7 @@ mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructor
                 ]
             ]
         ]
-        (derive ["Show","Choice","Equal"])
+        (derive ["Prelude.Show","Symbolic.Choice","Symbolic.Equal"])
 
     n = length args
 
@@ -188,8 +188,8 @@ mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructor
                 ]
         ]
 
-valueClass x = TyCon (raw "Value") [x]
-argumentClass x = TyCon (raw "Argument") [x]
+valueClass x = TyCon (api "Value") [x]
+argumentClass x = TyCon (api "Argument") [x]
 
 mkGet :: Datatype Id -> Fresh (Instance Id)
 mkGet dc@(Datatype tc tvs _cons _) = do
@@ -201,14 +201,14 @@ mkGet dc@(Datatype tc tvs _cons _) = do
     return $ Instance
         (map valueClass tvs')
         (valueClass (TyCon (d tc) tvs'))
-        [(raw "Type",TyCon (d tc) tvs',TyCon tc (map (\ tv -> TyCon (raw "Type") [tv]) tvs'))]
+        [(raw "Type",TyCon (d tc) tvs',TyCon tc (map (\ tv -> TyCon (api "Type") [tv]) tvs'))]
         [fn]
   where
     (indexes,_) = allocateDatatype dc
 
     n = maximumIndex indexes
 
-    mk_fn = Function genericGet unpty <$> do
+    mk_fn = Function (raw "get") unpty <$> do
         s <- tmp
         Lam s unty <$> do
             unD tc (lcl s) $ \ e' -> do
@@ -243,7 +243,7 @@ mkArgument dc@(Datatype tc tvs _cons _) = do
 
     n = maximumIndex indexes
 
-    mk_fn = Function genericArgument unpty <$> do
+    mk_fn = Function (raw "argument") unpty <$> do
 
         lbl   <- newTmp "lbl"
         tuple <- newTmp "tuple"
@@ -275,17 +275,17 @@ mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
     let (indexes,types) = allocateDatatype dc
 
     let new_ty t@(_ `ArrTy` _) = error $ "Cannot handle exponential data types" ++ show t
-        new_ty Integer         = gbl (raw "newNat") `App` gbl_size
+        new_ty Integer         = gbl (api "newNat") `App` gbl_size
         new_ty (TyVar a) | Just i <- elemIndex a tvs = lcl (arg_new !! i)
         new_ty (TyCon tc' args) = gbl (new tc') `apply` (size:map new_ty args)
           where
-            size | tc' == tc = gbl (raw "pred") `App` lcl s
+            size | tc' == tc = gbl (prelude "pred") `App` lcl s
                  | otherwise = gbl_size
 
     let args =
             [ (if tc `F.elem` t
-                then \ x -> gbl (raw "bara") `apply` [nonZero (lcl s),x]
-                else \ x -> gbl (raw "fmap") `apply` [gbl (raw "The"),x])
+                then \ x -> gbl (api "bara") `apply` [nonZero (lcl s),x]
+                else \ x -> gbl (prelude "fmap") `apply` [gbl (api "The"),x])
               (new_ty t)
             | t <- types
             ]
@@ -302,7 +302,7 @@ mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
         arg_named
 
     makeLambda ((s:arg_new) `zip` repeat unty) <$> do
-        (gbl (raw "newVal") `App` labels) `bind` Lam cn unty make_arguments
+        (gbl (api "newVal") `App` labels) `bind` Lam cn unty make_arguments
         --        [lcl cn,Lam c unty (Case (lcl c) Nothing brs)])
 
 

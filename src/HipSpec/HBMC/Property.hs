@@ -29,12 +29,12 @@ import Data.Maybe
 import Control.Monad
 import Control.Monad.State
 
-psl s = gbl (raw "io") `App` (gbl (raw "putStrLn") `App` String s)
+psl s = gbl (api "io") `App` (gbl (prelude "putStrLn") `App` String s)
 
 newValue :: Type Id -> Expr Id
 newValue t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
 newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_size:map newValue args)
-newValue _                = gbl (raw "newNat") `App` gbl_size
+newValue _                = gbl (api "newNat") `App` gbl_size
 
 hbmcLiteral :: DataInfo -> Literal -> Mon (Expr Id)
 hbmcLiteral indexes (e1 :=: e2) = do
@@ -45,7 +45,7 @@ hbmcLiteral indexes (e1 :=: e2) = do
     m1 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e1)
     m2 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e2)
 
-    o <- lift $ bind m2 (Lam r unty $ gbl (raw "equal") `apply` map lcl [l,r])
+    o <- lift $ bind m2 (Lam r unty $ gbl (api "equal") `apply` map lcl [l,r])
 
     lift $ bind m1 (Lam l unty o)
 
@@ -66,7 +66,7 @@ hbmcProp indexes Property{..} = Function prop_id unpty <$> do
 
 
     let body = psl "Running solver..."
-           >>> gbl (raw "check")
+           >>> gbl (api "check")
            >>> psl "Done!"
            >>> (gbl genericGet `App` (tuple (map (lcl . fst) prop_vars)))
 

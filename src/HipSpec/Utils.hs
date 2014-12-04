@@ -54,6 +54,8 @@ import Data.List
 import Data.Function (on)
 import Data.Ord      (comparing)
 
+import Data.Char (isAlphaNum)
+
 import Data.List
 import Test.QuickCheck
 import Test.QuickCheck.All
@@ -148,7 +150,11 @@ ppShow = Pretty.ppShow
 
 -- | Is this an operator?
 oper :: String -> Bool
-oper s = not (null s') && all (`elem` opSyms) s'
+oper s | (l,'.':r) <- break (== '.') s, all isAlphaNum l = operSyms r
+oper s = operSyms s
+
+operSyms :: String -> Bool
+operSyms s = not (null s') && all (`elem` opSyms) s'
   where s' = filter (`notElem` ('_':['0'..'9'])) s
 
 opSyms :: String

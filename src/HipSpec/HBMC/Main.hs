@@ -156,8 +156,8 @@ main = do
                 _                    -> (f,i) `elem` dc_and_arity
               where
                 dc_and_arity =
-                    [ (H.raw "The",1) ] ++
-                    [ (H.raw "UNR",0) ] ++
+                    [ (H.api "The",1) ] ++
+                    [ (H.api "UNR",0) ] ++
                     [ (dc,length args)
                     | R.Datatype _tc _ cons _ <- data_types_d
                     , R.Constructor dc args <- cons
@@ -182,7 +182,9 @@ main = do
         liftIO $ do
 
             putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction #-}"
-            putStrLn "import Symbolic hiding (L(..),Nat(..))"
+            putStrLn "import qualified Symbolic"
+            putStrLn "import qualified Prelude"
+            putStrLn "import Prelude (Bool(..))"
             putStrLn $ "import " ++ takeBaseName file
 
             mapM_ (putStrLn . render' . ppProg Don'tShow pkId . uncurry R.Program) dt_progs
@@ -191,11 +193,11 @@ main = do
 
             mapM_ (putStrLn . showRich) fns
 
-            putStrLn $ gbl_size_name ++ " = " ++ show symbolic_size ++ " :: Int"
+            putStrLn $ gbl_size_name ++ " = " ++ show symbolic_size ++ " :: Prelude.Int"
 
             putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
-                [ "putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++
-                  "; print =<< runH " ++ name
+                [ "Prelude.putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++
+                  "; Prelude.print Prelude.=<< Symbolic.runH " ++ name
                 | prop <- props, let name = ppId (prop_id prop)
                 ]
 

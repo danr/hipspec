@@ -109,15 +109,15 @@ showHBMCId hi = case hi of
     RawFor s i   -> s ++ "_" ++ escape (ppId i)
     TupleTyCon i -> tup i
     TupleCon i   -> tup i
-    Select 1 0   -> "one"
-    Select 2 0   -> "fst"
-    Select 2 1   -> "snd"
-    Select i j   -> "proj" ++ show j ++ "_" ++ show i
+    Select 1 0   -> "Symbolic.one"
+    Select 2 0   -> "Prelude.fst"
+    Select 2 1   -> "Prelude.snd"
+    Select i j   -> "Symbolic.proj" ++ show j ++ "_" ++ show i
     -- TupleTyCon i -> "TT" ++ show i
     -- TupleCon   i -> "T" ++ show i
     _       -> "Add_to_show_function_" ++ show hi
   where
-    tup 1 = "One"
+    tup 1 = "Symbolic.One"
     tup n = "(" ++ replicate (n-1) ',' ++ ")"
 
 data Id

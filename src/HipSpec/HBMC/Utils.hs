@@ -25,6 +25,12 @@ import qualified GHC as GHC
 import qualified IdInfo as GHC
 import HipSpec.GHC.Utils
 
+prelude :: String -> Id
+prelude s = raw ("Prelude." ++ s)
+
+api :: String -> Id
+api s = raw ("Symbolic." ++ s)
+
 gbl_size_name :: String
 gbl_size_name = "gbl_size"
 
@@ -39,13 +45,13 @@ pat :: Id -> [Id] -> Pattern Id
 pat p as = ConPat p unpty [] (as `zip` repeat unty)
 
 nonZero :: Expr Id -> Expr Id
-nonZero e = gbl (raw "/=") `apply` [e,Lit 0]
+nonZero e = gbl (prelude "/=") `apply` [e,Lit 0]
 
 singletonIf :: Expr Id -> Expr Id -> Expr Id
 singletonIf b e = ite b (listLit [e]) (listLit [])
 
 append :: Expr Id -> Expr Id -> Expr Id
-append e1 e2 = gbl (raw "++") `apply` [e1,e2]
+append e1 e2 = gbl (prelude "++") `apply` [e1,e2]
 
 concats :: [Expr Id] -> Expr Id
 concats [] = listLit []
@@ -113,7 +119,7 @@ hid :: HBMCId -> Id
 hid = HBMCId
 
 lift,liftTV :: Id
-lift   = raw "Lift"
+lift   = api "Lift"
 liftTV = raw "a"
 
 liftTy :: Type Id -> Type Id
@@ -140,11 +146,11 @@ tmp = newTmp "tmp"
 realCons,realNil,realUndefined,__ :: Id
 realCons = raw ":"
 realNil  = raw "[]"
-realUndefined = raw "undefined"
+realUndefined = prelude "undefined"
 __ = raw "_"
 
 tupleStruct :: Id
-tupleStruct = raw "Tuple"
+tupleStruct = api "Tuple"
 
 label,d,constructor,getForTyCon,argumentForTyCon,new :: Id -> Id
 label = rawFor "Label"
@@ -156,30 +162,30 @@ new = rawFor "new"
 
 
 hdata,con,val,switch,genericGet,genericArgument :: Id
-hdata = raw "Data"
-con = raw "Con"
-val = raw "val"
-switch = raw "switch"
-genericGet = raw "get"
-genericArgument = raw "argument"
+hdata = api "Data"
+con = api "Con"
+val = api "val"
+switch = api "switch"
+genericGet = api "get"
+genericArgument = api "argument"
 
 unr :: Type Id -> Expr Id
-unr t = Gbl (raw "UNR") (Forall [x] (TyCon lift [TyVar x])) [t]
+unr t = Gbl (api "UNR") (Forall [x] (TyCon lift [TyVar x])) [t]
   where
     x = liftTV
 
 the :: Expr Id -> Expr Id
-the e = Gbl (raw "The") (Forall [x] (TyVar x `ArrTy` TyCon lift [TyVar x])) [t] `App` e
+the e = Gbl (api "The") (Forall [x] (TyVar x `ArrTy` TyCon lift [TyVar x])) [t] `App` e
   where
     x = liftTV
     t = exprType' "the" e
 
 peek :: Expr Id -> Expr Id
-peek e = Gbl (raw "peek") (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t] `App` e
+peek e = Gbl (api "peek") (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t] `App` e
   where
     x = liftTV
     t = case exprType' "peek" e of
-        TyCon (HBMCId (Raw "Lift")) [it] -> it
+        TyCon i [it] | i == lift -> it
         t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
 
 tuple :: [Expr Id] -> Expr Id
@@ -223,16 +229,20 @@ unty :: Type Id
 unty = error "Type destroyed by HBMC pass"
 
 ret ::  Expr Id -> Expr Id
-ret e = Gbl (raw "return") unpty [unty] `app` e
+ret e = Gbl (prelude "return") unpty [unty] `app` e
 
 bind :: Expr Id -> Expr Id -> Fresh (Expr Id)
-((Gbl (HBMCId (Raw ">>=")) _ _ `App` m) `App` f) `bind` g = do
+((Gbl i _ _ `App` m) `App` f) `bind` g
+    | i == prelude ">>=" = do
     x <- tmp
     r <- (f `app` Lcl x unty) `bind` g
     m `bind` Lam x unty r
 
-(Gbl (HBMCId (Raw "return")) _ _ `App` a) `bind` (Lam x _ b) | occurrences x b <= 1 = return ((a // x) b)
-m `bind` f = return (Gbl (raw ">>=") unpty [unty,unty] `apply` [m,f])
+(Gbl i _ _ `App` a) `bind` (Lam x _ b)
+    | i == prelude "return"
+    , occurrences x b <= 1
+    = return ((a // x) b)
+m `bind` f = return (Gbl (prelude ">>=") unpty [unty,unty] `apply` [m,f])
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
@@ -241,24 +251,24 @@ checkFunctions :: [Function Id] -> [Function Id]
 checkFunctions fns = const fns
     [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
-    , let check | or [ g == f | Gbl g _ _ <- universeBi a ] = (gbl (raw "check") >>>)
+    , let check | or [ g == f | Gbl g _ _ <- universeBi a ] = (gbl (api "check") >>>)
                 | otherwise    = id
     ]
 
 infixr >>>
 
 (>>>),(==>) :: Expr Id -> Expr Id -> Expr Id
-e1 >>> e2 = gbl (raw ">>") `apply` [e1,e2]
-e1 ==> e2 = gbl (raw "==>") `apply` [e1,listLit [e2]]
+e1 >>> e2 = gbl (prelude ">>") `apply` [e1,e2]
+e1 ==> e2 = gbl (api "==>") `apply` [e1,listLit [e2]]
 
 nt :: Expr Id -> Expr Id
-nt e = gbl (raw "nt") `App` e
+nt e = gbl (api "nt") `App` e
 
 addBit :: Expr Id -> Expr Id
 addBit b = addClause [b]
 
 addClause :: [Expr Id] -> Expr Id
-addClause bs = gbl (raw "addClause") `App` listLit bs
+addClause bs = gbl (api "addClause") `App` listLit bs
 
 rename :: (Eq a,Functor f) => [(a,a)] -> f a -> f a
 rename tbl = fmap (\ v -> fromMaybe v (lookup v tbl))
@@ -288,7 +298,7 @@ uniquify = uniquifyWrt pp_id (\ x -> refresh x <$> fresh)
 replaceEquality :: TransformBi (Expr Id) t => t -> t
 replaceEquality = transformBi $ \ e0 -> case e0 of
     (Gbl (HBMCId (HBMC x)) _ _ `App` e1) `App` e2 -> case originalId x of
-        "$c==" -> Gbl (raw "ifeq")
+        "$c==" -> Gbl (api "ifeq")
                     (q (makeArrows [proverBoolType,proverBoolType,exprType' "$c==" e1,exprType' "$c==" e2]
                                    proverBoolType))
                     [] `apply` [ghcTrue,ghcFalse,e1,e2]
