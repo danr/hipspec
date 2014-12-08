@@ -184,7 +184,7 @@ main = do
             putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction #-}"
             putStrLn "import qualified Symbolic"
             putStrLn "import qualified Prelude"
-            putStrLn "import Prelude (Bool(..))"
+            putStrLn "import Prelude (Bool(..),Maybe(..))"
             putStrLn $ "import " ++ takeBaseName file
 
             mapM_ (putStrLn . render' . ppProg Don'tShow pkId . uncurry R.Program) dt_progs
