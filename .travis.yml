@@ -18,6 +18,7 @@ before_install:
     - sudo apt-get install alt-ergo spass
     - git clone https://github.com/nick8325/quickcheck.git
     - git clone https://github.com/nick8325/quickspec.git --branch v2
+    - (cd quickspec; git checkout f9581c269c2b1cd6cb7288bf7ee74b09650108d3)
     - cabal install quickspec/ quickcheck/ . --only-dependencies -f-z3
     - cabal install quickspec/ quickcheck/ -f-z3
 
