@@ -1,23 +1,29 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module HipSpec.Lang.CollapseSimp (collapseSimp) where
 
+import Data.Traversable
+import Data.Generics.Geniplate
 import HipSpec.Lang.Simple
-import Control.Monad
+import HipSpec.Utils
 import Control.Monad.State
+import Data.Either
 
 renameVars :: Traversable f => (a -> Bool) -> f a -> f (Either a Int)
-renameVars is_var = flip evalState 0 $ traverse $ \ x ->
-    if is_var x then
+renameVars is_var t = traverse rename t `evalState` 0
+  where
+    rename x | is_var x = do
         s <- get
         put (s+1)
         return (Right s)
-    else return (Left x)
+    rename x = return (Left x)
 
 isLocal :: Eq a => Function a -> a -> Bool
 isLocal fn y = or $
     [ y == fn_name fn ] ++
+    [ y == x | x <- fn_args fn ] ++
     [ y == x | Lcl x _ <- universeBi fn ] ++
     [ y == x | TyVar x <- universeBi fn ] ++
-    [ y == x | ForAll tvs _ <- universeBi fn, x <- tvs ]
+    [ y == x | Forall tvs _ <- universeBi fn, x <- tvs ]
 
 renameFn :: Eq a => Function a -> Function (Either a Int)
 renameFn fn = renameVars (isLocal fn) fn
@@ -26,18 +32,22 @@ renameFn fn = renameVars (isLocal fn) fn
 --   f x = E[x]
 --   g y = E[y]
 -- then we remove g (!) and replace it with f everywhere
-collapseSimp :: Eq a => [Function a] -> [Function a]
-collapseSimp fs0 = map (fmap rename) fs0
+collapseSimp :: forall a . Eq a => [Function a] -> [Function a]
+collapseSimp fs0 = map (fmap rename) survivors
   where
+    rfs :: [(Function a,Function (Either a Int))]
     rfs = [ (f,renameFn f) | f <- fs0 ]
 
-    renamings =
-        [ (f,g)
+    renamings :: [(a,a)]
+    survivors :: [Function a]
+    (renamings,survivors) = partitionEithers
+        [ case [ (fn_name f,fn_name g) | (g,rg) <- prev , rf == rg ] of
+            []   -> Right f -- f is better
+            fg:_ -> Left fg -- g is better
         | ((f,rf),prev) <- withPrevious rfs
-        , (g,rg) <- prev
-        , rf == rg
         ]
 
+    rename :: a -> a
     rename x = case lookup x renamings of
         Just y  -> y
         Nothing -> x

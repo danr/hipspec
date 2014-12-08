@@ -90,6 +90,8 @@ instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
 
 instanceUniverseBi  [t| forall a . (Function a,a) |]
 instanceUniverseBi  [t| forall a . (Function a,Type a) |]
+instanceUniverseBi  [t| forall a . (Function a,Expr a) |]
+instanceUniverseBi  [t| forall a . (Function a,PolyType a) |]
 
 fnIds :: Function a -> [a]
 fnIds = universeBi
