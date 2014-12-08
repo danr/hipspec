@@ -8,6 +8,8 @@ COMMON_INT="--cvc4 --verbosity=40 -N$N +RTS -N4 -RTS"
 
 cd examples
 
+hipspec Collapse.hs --only-user-stated --success=ProvesUserStated --auto=False --plain $COMMON_INT || exit $?
+
 hipspec Int.hs --only-user-stated --success=ProvesUserStated $COMMON_INT || exit $?
 hipspec Int.hs --only= --extra-trans=plus,minus,eq,ne,lt,le,gt,ge --success=NothingUnproved --termsize=3 $COMMON_INT || exit $?
 
