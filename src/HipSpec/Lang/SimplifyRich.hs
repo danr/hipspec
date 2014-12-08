@@ -142,8 +142,8 @@ fromProverBoolDefn :: Function Id
 fromProverBoolDefn = Function f (q ty)
     (Lam x proverBoolType
         (Case (Lcl x proverBoolType) Nothing
-            [ (ConPat true  (q proverBoolType) [] [],Gbl (idFromDataCon trueDataCon)  (q boolType) [])
-            , (ConPat false (q proverBoolType) [] [],Gbl (idFromDataCon falseDataCon) (q boolType) [])
+            [ (ConPat true  (q proverBoolType) [] [],Gbl ghcTrue  (q boolType) [])
+            , (ConPat false (q proverBoolType) [] [],Gbl ghcFalse (q boolType) [])
             ]))
   where
     f  = FromProverBool

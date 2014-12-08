@@ -51,6 +51,7 @@ instanceTransformBi [t| forall a b . (Term a b,Term a b) |]
 instanceTransformBi [t| forall a b . (Term a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Clause a b) |]
 instanceTransformBi [t| forall a b . (Formula a b,Clause a b) |]
+instanceTransformBi [t| forall a b . (Formula a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Formula a b) |]
 instanceTransformBi [t| forall a b . (Type a b,Type a b) |]
 
@@ -234,6 +235,46 @@ tyMod f ty0 = case ty0 of
     TType      -> TType
     Integer    -> Integer
 
+replaceBooleans :: forall a b . Eq a => a -> a -> a -> a -> a -> a -> [Clause a b] -> [Clause a b]
+replaceBooleans ghc_bool ghc_true ghc_false smt_bool smt_true smt_false = mapMaybe tr
+  where
+    tr cl = case cl of
+        SortSig x _
+            | x == ghc_bool -> Nothing
+            | otherwise     -> Just cl
+        TypeSig x tvs ts t
+            | x `elem` [ghc_false,ghc_true] -> Nothing
+            | otherwise                     ->
+                let zt = transformBi zap_top_type
+                in  Just (TypeSig x tvs (map zt ts) (zt t))
+        Clause n tr k tvs fm -> Just (Clause n tr k tvs (zap fm))
+        Comment s -> Just (Comment s)
+
+    zap = zap_bool_terms . zap_bool_types  . zap_bool_data
+
+    zap_bool_data :: Formula a b -> Formula a b
+    zap_bool_data = transformBi $ \ (fm0 :: Formula a b) -> case fm0 of
+        DataDecl ds fm -> data_decl [ d | d@(Data tc _ _) <- ds , tc /= ghc_bool ] fm
+        _ -> fm0
+
+    data_decl [] fm = fm
+    data_decl ds fm = DataDecl ds fm
+
+    zap_top_type :: Type a b -> Type a b
+    zap_top_type t0 = case t0 of
+        TyCon x [] | x == ghc_bool -> TyCon smt_bool []
+        _ -> t0
+
+    zap_bool_types :: Formula a b -> Formula a b
+    zap_bool_types = transformBi zap_top_type
+
+    zap_bool_terms :: Formula a b -> Formula a b
+    zap_bool_terms = transformBi $ \ (tm0 :: Term a b) -> case tm0 of
+        Apply x [] []
+            | x == ghc_true  -> Apply smt_true [] []
+            | x == ghc_false -> Apply smt_false [] []
+        _ -> tm0
+
 trimDataDecls :: forall a b . (Ord a,Ord b) => [Clause a b] -> [Clause a b]
 trimDataDecls cls
     = Clause
@@ -241,7 +282,7 @@ trimDataDecls cls
         , cl_ty_triggers = []
         , cl_type        = Axiom
         , ty_vars        = []
-        , cl_formula     = DataDecl ds' (Lit 1 === Lit 1)
+        , cl_formula     = DataDecl ds' (Lit 1 === Lit 1 {- not to be printed -})
         }
     : filter (not . ignore) cls'
   where

@@ -156,7 +156,21 @@ intCmpType :: Type Id
 intCmpType = [Integer,Integer] `makeArrows` proverBoolType
 
 boolType :: Type Id
-boolType = TyCon (idFromTyCon boolTyCon) []
+boolType = TyCon ghcBool []
+
+ghcBool :: Id
+ghcBool = idFromTyCon boolTyCon
+
+ghcTrue, ghcFalse :: Id
+ghcTrue  = idFromDataCon trueDataCon
+ghcFalse = idFromDataCon falseDataCon
+
+proverBool :: Id
+proverBool = ProverBool
+
+proverTrue,proverFalse :: Id
+proverTrue  = OtherPrim ProverTrue
+proverFalse = OtherPrim ProverFalse
 
 proverBoolType :: Type Id
 proverBoolType = TyCon ProverBool []

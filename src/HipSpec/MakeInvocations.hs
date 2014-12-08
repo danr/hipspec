@@ -7,7 +7,7 @@ import HipSpec.ATP.Results
 
 import HipSpec.Property.Repr
 import HipSpec.Lang.Renamer
-import HipSpec.Id (originalId,Id(ProverBool))
+import HipSpec.Id (originalId,proverBool,proverTrue,proverFalse,ghcTrue,ghcFalse,ghcBool)
 
 import HipSpec.Monad
 import HipSpec.MakeProofs
@@ -19,7 +19,7 @@ import HipSpec.Trim
 import HipSpec.Utils
 
 import HipSpec.Lang.Monomorphise
-import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise,unlabel)
+import HipSpec.Lang.PolyFOL (trimDataDecls,uninterpretedInts,skolemise,unlabel,replaceBooleans)
 import HipSpec.Lang.ToPolyFOL (Poly(SK,Id))
 
 import HipSpec.Lang.PrettyTFF (ppLemma,ppRecords)
@@ -74,13 +74,22 @@ tryProve prop lemmas0 = do
                 let cls = sortClauses False (concatMap clauses sthys)
                 let cls_sk = skolemise SK SK cls
 
-                let (mcls_sk,(ils,recs)) = first (sortClauses False) (monoClauses (== Id ProverBool) cls_sk)
-                let (mcls,(_ils,_recs))  = first (sortClauses False) (monoClauses (== Id ProverBool) cls)
+                let (mcls_sk,(ils,recs)) = first (sortClauses False) (monoClauses (== Id proverBool) cls_sk)
+                let (mcls,(_ils,_recs))  = first (sortClauses False) (monoClauses (== Id proverBool) cls)
 
                 let pp = PP (text . polyname) (text . polyname)
 
-                let (smt_str,smt_rename_map) = ppSMT                    (sortClauses True (trimDataDecls mcls_sk))
-                let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (sortClauses True (trimDataDecls mcls))))
+                let i = (`IdInst` []) . Id
+
+                let smt_pass
+                        = sortClauses True
+                        . replaceBooleans
+                            (i ghcBool)    (i ghcTrue)    (i ghcFalse)
+                            (i proverBool) (i proverTrue) (i proverFalse)
+                        . trimDataDecls
+
+                let (smt_str,smt_rename_map) = ppSMT                             (smt_pass mcls_sk)
+                let (cvc4_str,_)             = ppSMT (uninterpretedInts (unlabel (smt_pass mcls)))
 
                 let tff = ppTFF mcls
 
