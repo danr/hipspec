@@ -39,7 +39,7 @@ maybeUnfolding v = case ri of
     ri = realIdUnfolding v
 
 inlineDicts :: TransformBi (Expr Id) t => t -> t
-inlineDicts = transformBi $ \ e0 -> case e0 of
+inlineDicts = id {- transformBi $ \ e0 -> case e0 of
     App (App (Var f) (Type t)) (Var d)
         | Just cl <- isClassOpId_maybe f
         , DFunId{} <- idDetails d
@@ -53,5 +53,6 @@ inlineDicts = transformBi $ \ e0 -> case e0 of
                 x -> e0 -- error $ showOutputable (e0,x)
             x -> e0 -- error $ showOutputable (e0,x)
     _ -> e0
+    -}
 
 

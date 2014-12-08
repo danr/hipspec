@@ -44,7 +44,7 @@ makeSignature p@Params{..} prop_ids = do
 
     extra_ids <- mapM parseToId (concatMap (splitOn ",") extra)
 
-    let ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x) && not (hasClass (varType x)))
+    let ids = varSetElems $ filterVarSet (\ x -> not (varFromPrelude x || varWithPropType x) {- && not (hasClass (varType x))-})
             trans_ids `unionVarSet` mkVarSet extra_ids
 
     -- Filters out silly things like

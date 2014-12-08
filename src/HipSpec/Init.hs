@@ -33,7 +33,10 @@ import HipSpec.Heuristics.CallGraph
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 
-import TyCon (isAlgTyCon)
+import TyCon -- (isAlgTyCon,tyConParent,TyConParent(..))
+import Class
+import Id (realIdUnfolding)
+import CoreSyn
 import TysWiredIn (boolTyCon)
 import UniqSupply
 
@@ -75,12 +78,22 @@ processFile cont = do
             , Just e <- [maybeUnfolding v]
             ]
 
-        tcs = filter (\ x -> isAlgTyCon x && not (isPropTyCon x))
+        all_tcs = filter (not . isPropTyCon)
                      (bindsTyCons' binds `union` extra_tcs `union` [boolTyCon])
 
-        (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
+        (tcs,other_tcs) = partition isAlgTyCon all_tcs
 
-        rich_fns = toRich binds ++ [S.fromProverBoolDefn]
+    let dict_binds =
+            [ (m,uf_tmpl unf)
+            | tc <- all_tcs
+            , ClassTyCon cls <- [tyConParent tc]
+            , m <- classMethods cls
+            , unf@CoreUnfolding{} <- [realIdUnfolding m]
+            ]
+
+    let (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
+
+        rich_fns = toRich (binds ++ dict_binds) ++ [S.fromProverBoolDefn]
 
     let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types rich_fns
 

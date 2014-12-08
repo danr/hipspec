@@ -132,7 +132,7 @@ toRich = map (uncurry to_rich)
   where
     to_rich v e = case runTM (trDefn v e) of
         Right fn -> fn
-        Left err -> error $ "toRich: " ++ show err
+        Left err -> error $ "toRich: " ++ err
 
 toSimp :: [R.Function Id] -> [S.Function Id]
 toSimp = collapseSimp . uncurry (++) . runRTS . mapM rtsFun
