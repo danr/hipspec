@@ -131,7 +131,7 @@ makeSigFrom p@Params{..} ids poly = do
                     then par "QuickSpec.Signature.SPASS 1"
                     else "QuickSpec.Signature.None")] ++
              [", QuickSpec.Signature.maxTermSize = Prelude.Just " ++ show termsize] ++
-             [", QuickSpec.Signature.testTimeout = Prelude.Just 200000"] ++
+             [", QuickSpec.Signature.testTimeout = Prelude.Just " ++ show (round (test_timeout * 1000000))] ++
              ["}"])
 
 varArity :: (Type -> Type) -> Var -> Int

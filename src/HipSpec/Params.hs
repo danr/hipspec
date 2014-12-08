@@ -95,7 +95,7 @@ data Technique = Induction | Plain | FixpointInduction
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
 
 defaultTechs :: [Technique]
-defaultTechs = [Induction,Plain]
+defaultTechs = [Induction,Plain,FixpointInduction]
 
 data SuccessOpt = CleanRun | NothingUnproved | ProvesUserStated
   deriving (Eq,Ord,Show,Enum,Bounded,Data,Typeable)
@@ -132,6 +132,8 @@ data Params = Params
     , techniques          :: [Technique]
     , provers             :: [ProverName]
 
+    , fpi_functions       :: [String]
+
 {-
     , user_stated_first   :: Bool
     , explore_theory      :: Bool
@@ -145,6 +147,7 @@ data Params = Params
     , termsize            :: Int
     , consize             :: Int
     , unarysize           :: Int
+    , test_timeout        :: Double
 
     {-
     , pvars               :: Bool
@@ -242,6 +245,7 @@ defParams = Params
     , termsize            = 7                   &= help "QuickSpec term size                     (def 7)"
     , consize             = 1                   &= help "Size of non-unary constructor functions (def 1)"
     , unarysize           = 2                   &= help "Size of unary functions                 (def 2)"
+    , test_timeout        = 0.2                 &= help "Timeout                               (def 0.2)"
 
     {-
     , pvars               = False               &= help "Use pvars instead of vars in the auto signature"
@@ -259,6 +263,8 @@ defParams = Params
          [ (t,show t ++ defStr t defaultTechs)
          | t <- [minBound..maxBound]
          ]
+
+    , fpi_functions = [] &= name "f" &= help "Functions to apply fixed point induction on"
 
     , provers = enumerate
         [ (pn,prover_desc p ++ defStr pn defaultProverNames)
@@ -289,7 +295,7 @@ defParams = Params
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]
          &= groupname "\nDebugging"
     }
-    &= summary (logo ++ "\n v3.1 by Dan Rosén, danr@chalmers.se")
+    &= summary (logo ++ "\n v3.1fpi by Dan Rosén, danr@chalmers.se")
     &= program "hipspec"
 
 enumerate :: (Show val,Data val) => [(val,String)] -> [val]

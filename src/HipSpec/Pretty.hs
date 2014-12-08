@@ -215,6 +215,7 @@ smtKeywords = altErgoKeywords ++
     , "abs", "min", "max", "const"
     -- Z3:
     , "isZero"
+    , "map"
     -- CVC4:
     , "as", "concat"
     ]

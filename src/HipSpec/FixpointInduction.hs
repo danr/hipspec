@@ -21,6 +21,8 @@ import HipSpec.Literal
 import HipSpec.Property
 import HipSpec.Property.Repr
 
+import Data.List.Split (splitOn)
+
 -- import HipSpec.Pretty
 
 import HipSpec.Id
@@ -83,7 +85,7 @@ callConst i ts = Gbl name ty ts
 type Rec a = (a,PolyType a,[Type a])
 
 fixpointInduction :: Params -> ArityMap -> (Id -> Bool) -> Property -> [[ProofObligation]]
-fixpointInduction _p am is_recursive0 (tvSkolemProp -> (prop@Property{..},sorts,ignore)) =
+fixpointInduction p am is_recursive0 (tvSkolemProp -> (prop@Property{..},sorts,ignore)) =
     [ [ Obligation
         { ob_prop = prop
         , ob_info = ObFixpointInduction
@@ -102,7 +104,7 @@ fixpointInduction _p am is_recursive0 (tvSkolemProp -> (prop@Property{..},sorts,
     | sel <- yes_no
     ]
   where
-    is_recursive i = originalId i `elem` ["msort","split","ssort"]
+    is_recursive i = originalId i `elem` concatMap (splitOn ",") (fpi_functions p)
 
     (recs,replace) = replaceLit is_recursive prop_goal
 
