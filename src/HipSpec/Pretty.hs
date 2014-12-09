@@ -261,7 +261,7 @@ escape :: String -> String
 escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
   where
     escapes = M.fromList
-        [ (from,'_':to++"_")
+        [ (from,"") -- '_':to++"_")
         | (from,to) <-
             [ ('(',"rpar")
             , (')',"lpar")

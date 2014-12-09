@@ -74,7 +74,7 @@ processFile cont = do
     let (binds,_us1) = initUs us0 $ sequence
             [ fmap ((,) v) (runUQ . uqExpr <=< rmdExpr $ inlineDicts e)
             | v <- varSetElems vars
-            , isNothing (GHC.isClassOpId_maybe v)
+--            , isNothing (GHC.isClassOpId_maybe v)
             , Just e <- [maybeUnfolding v]
             ]
 
@@ -84,11 +84,11 @@ processFile cont = do
         (tcs,other_tcs) = partition isAlgTyCon all_tcs
 
     let dict_binds =
-            [ (m,uf_tmpl unf)
+            [ (m,unf)
             | tc <- all_tcs
             , ClassTyCon cls <- [tyConParent tc]
             , m <- classMethods cls
-            , unf@CoreUnfolding{} <- [realIdUnfolding m]
+            , Just unf <- [maybeUnfolding m]
             ]
 
     let (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs

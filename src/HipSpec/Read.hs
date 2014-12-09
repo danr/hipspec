@@ -50,6 +50,13 @@ import Control.Monad
 import SimplCore
 import CoreSyn
 
+-- int stuff
+import TcRnTypes
+import InstEnv
+import TysWiredIn
+import TyCon
+import Id (realIdUnfolding)
+
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | The result from calling GHC
@@ -144,6 +151,33 @@ execute params@Params{..} = do
             ]
             -- Also include the imports the module is importing
             ++ map (IIDecl . unLoc) (ms_textual_imps mod_sum)
+
+{-
+        (insts,_fm_insts) <- getInsts
+
+        liftIO $ putStrLn ("insts:" ++ showOutputable insts)
+
+        hsc_env <- getSession
+
+        eps <- liftIO (hscEPS hsc_env)
+
+        let inst_env = eps_inst_env eps
+
+        -- liftIO $ putStrLn ("gbl inst env:" ++ showOutputable inst_env)
+
+        [ATyCon num_tc] <- lookupString "Prelude.Num"
+        let ClassTyCon num_cls = tyConParent num_tc
+
+        let (im,ci) = lookupInstEnv' inst_env num_cls [intTy]
+
+        liftIO $ putStrLn (showOutputable (num_tc, num_cls, im, ci))
+
+        let [(num_int,[])] = im
+
+            dict_id = is_dfun num_int
+
+        liftIO $ putStrLn ("dfun: " ++ showOutputable (dict_id,maybeUnfolding dict_id))
+        -}
 
         -- Get ids in scope to find the properties (fix their unfoldings, too)
         ids_in_scope <- getIdsInScope fix_id

@@ -5,6 +5,7 @@ module HipSpec.GHC.Dicts (inlineDicts,maybeUnfolding) where
 
 import HipSpec.GHC.Utils (showOutputable)
 import CoreSyn
+import MkCore
 import CoreUtils()
 import IdInfo
 import Id
@@ -17,6 +18,8 @@ import Outputable
 import Type
 import Literal
 import Coercion
+
+import Debug.Trace
 
 instanceTransformBiT
     [ [t|Var|], [t|Coercion|] , [t|Tickish Id|], [t|Literal|], [t|Type|], [t|AltCon|] ]
@@ -32,11 +35,13 @@ instanceTransformBiT
 
 -- | Maybe the unfolding of an Id
 maybeUnfolding :: Id -> Maybe CoreExpr
-maybeUnfolding v = case ri of
+maybeUnfolding v = dbg $ case ri of
     CoreUnfolding{uf_tmpl} -> Just uf_tmpl
+    DFunUnfolding bndrs dc args -> Just (mkCoreLams bndrs (dc `mkCoreConApps` args))
     _                      -> Nothing
   where
     ri = realIdUnfolding v
+    dbg res = trace (showOutputable (v,ri,res)) res
 
 inlineDicts :: TransformBi (Expr Id) t => t -> t
 inlineDicts = id {- transformBi $ \ e0 -> case e0 of

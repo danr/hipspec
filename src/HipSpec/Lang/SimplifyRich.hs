@@ -198,6 +198,9 @@ simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
 simpExpr :: Eq a => Expr a -> Expr a
 simpExpr = transformExpr $ \ e0 -> case e0 of
 
+    -- Case blarf
+    Case s mx alts `App` e -> simpExpr (Case s mx [ (pat,rhs `App` e) | (pat,rhs) <- alts ])
+
     -- Beta reduction
     App (Lam x _ body) arg -> simpExpr ((arg // x) body)
 
