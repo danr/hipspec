@@ -48,20 +48,17 @@ isMain      = ghcName (isInfixOf "main")
 isEquals    :: Id -> Bool
 isEquals    = ghcName (isInfixOfs [":=:","=:="])
 
+isNotEquals :: Id -> Bool
+isNotEquals = ghcName (isInfixOfs [":/:","=/="])
+
 isGiven     :: Id -> Bool
-isGiven     = ghcName (isInfixOfs ["Given","given","==>"])
+isGiven     = ghcName (isInfixOfs [":==>","==>"])
 
-isTotal     :: Id -> Bool
-isTotal     = ghcName (isInfixOfs ["Total","total"])
+isOr        :: Id -> Bool
+isOr        = ghcName (isInfixOfs [":|:","\\/"])
 
-isGivenBool :: Id -> Bool
-isGivenBool = ghcName (isInfixOf "givenBool")
-
-isProveBool :: Id -> Bool
-isProveBool = ghcName (isInfixOf "proveBool")
-
-isOops      :: Id -> Bool
-isOops      = ghcName (isInfixOfs ["Oops","oops"])
+isAnd      :: Id -> Bool
+isAnd       = ghcName (isInfixOfs [":&:","/\\"])
 
 isInfixOfs :: [String] -> String -> Bool
 isInfixOfs ss s = any (`isInfixOf` s) ss

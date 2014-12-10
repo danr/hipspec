@@ -3,7 +3,7 @@ module Main where
 
 import Control.Monad
 
-import Data.List (union,partition,intercalate)
+import Data.List (union,partition,intercalate,isInfixOf)
 
 import HipSpec.GHC.Calls
 import HipSpec.Monad
@@ -26,6 +26,7 @@ import HipSpec.GHC.Unfoldings
 import HipSpec.GHC.Dicts (inlineDicts)
 import HipSpec.Lang.Uniquify
 
+import Data.List.Split (splitOn)
 import HipSpec.Heuristics.CallGraph
 
 import HipSpec.Lang.PrettyRich
@@ -127,8 +128,7 @@ main = do
 
         props
             = sortOn prop_name
-            $ either (error . show)
-                     (map (etaExpandProp{- . generaliseProp-}))
+            $ either (error . show) id
                      (trProperties (toSimp props_as_rich))
 
 
@@ -177,7 +177,8 @@ main = do
                     mf <- monadic ulfn `runMon` is_pure
                     addSwitches data_info mf
                 prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
-                return (new_fns++checkFunctions fns++prop_fns,get_insts++arg_insts)
+                let add_check i = any (`isInfixOf` originalId i) (concatMap (splitOn ".") check)
+                return (new_fns++checkFunctions add_check fns++prop_fns,get_insts++arg_insts)
 
         liftIO $ do
 
@@ -193,7 +194,7 @@ main = do
 
             mapM_ (putStrLn . showRich) fns
 
-            putStrLn $ gbl_size_name ++ " = " ++ show symbolic_size ++ " :: Prelude.Int"
+            putStrLn $ gbl_depth_name ++ " = " ++ show symbolic_depth ++ " :: Prelude.Int"
 
             putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
                 [ "Prelude.putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++

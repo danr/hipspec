@@ -31,11 +31,11 @@ prelude s = raw ("Prelude." ++ s)
 api :: String -> Id
 api s = raw ("Symbolic." ++ s)
 
-gbl_size_name :: String
-gbl_size_name = "gbl_size"
+gbl_depth_name :: String
+gbl_depth_name = "gbl_depth"
 
-gbl_size :: Expr Id
-gbl_size = gbl (raw gbl_size_name)
+gbl_depth :: Expr Id
+gbl_depth = gbl (raw gbl_depth_name)
 
 gbl,lcl :: Id -> Expr Id
 gbl i = Gbl i unpty []
@@ -247,11 +247,12 @@ m `bind` f = return (Gbl (prelude ">>=") unpty [unty,unty] `apply` [m,f])
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
 
-checkFunctions :: [Function Id] -> [Function Id]
-checkFunctions fns = const fns
+checkFunctions :: (Id -> Bool) -> [Function Id] -> [Function Id]
+checkFunctions p fns =
     [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
-    , let check | or [ g == f | Gbl g _ _ <- universeBi a ] = (gbl (api "check") >>>)
+    , let check | p f {- or [ g == f | Gbl g _ _ <- universeBi a ] -}
+                = (gbl (api "check") >>>)
                 | otherwise    = id
     ]
 

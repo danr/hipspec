@@ -156,7 +156,8 @@ data Params = Params
     , indhyps             :: Int
     , indobligs           :: Int
 
-    , symbolic_size       :: Integer
+    , symbolic_depth      :: Integer
+    , check               :: [String]
 
     , debug_flags         :: [DebugFlag]
     }
@@ -286,8 +287,9 @@ defParams = Params
     , indhyps             = 200     &= name "H" &= help "Maximum hypotheses  (default 200)"
     , indobligs           = 25      &= name "O" &= help "Maximum obligations (default 25)"
 
-    , symbolic_size       = 10      &= name "s" &= groupname "\nHBMC Settings"
-                                                &= help "Symbolic size (default 10)"
+    , symbolic_depth      = 10      &= name "s" &= groupname "\nHBMC Settings"
+                                                &= help "Symbolic depth (default 10)"
+    , check               = []      &= help "Functions to add checks on"
 
     , debug_flags = enumerate
          [ (f,debugDesc f) | f <- [minBound..maxBound] ]

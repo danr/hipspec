@@ -275,12 +275,12 @@ mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
     let (indexes,types) = allocateDatatype dc
 
     let new_ty t@(_ `ArrTy` _) = error $ "Cannot handle exponential data types" ++ show t
-        new_ty Integer         = gbl (api "newNat") `App` gbl_size
+        new_ty Integer         = gbl (api "newNat") `App` gbl_depth
         new_ty (TyVar a) | Just i <- elemIndex a tvs = lcl (arg_new !! i)
         new_ty (TyCon tc' args) = gbl (new tc') `apply` (size:map new_ty args)
           where
             size | tc' == tc = gbl (prelude "pred") `App` lcl s
-                 | otherwise = gbl_size
+                 | otherwise = gbl_depth
 
     let args =
             [ (if tc `F.elem` t

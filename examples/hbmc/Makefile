@@ -1,10 +1,10 @@
 
 TARGET=$(basename $(SOURCE))_HBMC.hs
 EXE=$(basename $(TARGET))
-ifndef SIZE
-SIZE=10
+ifndef DEPTH
+DEPTH=10
 endif
-HBMC_OPTS=--symbolic-size $(SIZE) --auto=False --translate-only $(HBMC_EXTRA_OPTS)
+HBMC_OPTS=--symbolic-depth $(DEPTH) --auto=False --translate-only --check $(CHECK) $(HBMC_EXTRA_OPTS)
 
 run: $(EXE)
 	./$(EXE)

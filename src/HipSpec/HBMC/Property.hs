@@ -33,11 +33,15 @@ psl s = gbl (api "io") `App` (gbl (prelude "putStrLn") `App` String s)
 
 newValue :: Type Id -> Expr Id
 newValue t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
-newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_size:map newValue args)
-newValue _                = gbl (api "newNat") `App` gbl_size
+newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_depth:map newValue args)
+newValue _                = gbl (api "newNat") `App` gbl_depth
 
 hbmcLiteral :: DataInfo -> Literal -> Mon (Expr Id)
-hbmcLiteral indexes (e1 :=: e2) = do
+hbmcLiteral indexes (e1 :=: e2) = literal indexes e1 e2 True
+hbmcLiteral indexes (e1 :/: e2) = literal indexes e1 e2 False
+
+literal :: DataInfo -> S.Expr Id -> S.Expr Id -> Bool -> Mon (Expr Id)
+literal indexes e1 e2 positive = do
 
     l <- lift (newTmp "l")
     r <- lift (newTmp "r")
@@ -45,16 +49,17 @@ hbmcLiteral indexes (e1 :=: e2) = do
     m1 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e1)
     m2 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e2)
 
-    o <- lift $ bind m2 (Lam r unty $ gbl (api "equal") `apply` map lcl [l,r])
+    o <- lift $ bind m2 $ Lam r unty $
+        (if positive then id else \ a -> gbl (prelude "fmap") `apply` [gbl (api "nt"),a]) $
+        (gbl (api "equal") `apply` map lcl [l,r])
 
     lift $ bind m1 (Lam l unty o)
-
 
 hbmcProp :: DataInfo -> Property -> Mon (Function Id)
 hbmcProp indexes Property{..} = Function prop_id unpty <$> do
     let values e = lift $ foldM (\ acc (x,t) -> newValue t `bind` Lam x unty acc) e prop_vars
 
-    let lits = (prop_goal,nt):(prop_assums `zip` repeat id)
+    let lits = (prop_goal `zip` repeat nt) ++ (prop_assums `zip` repeat id)
 
     let literals e = foldM
             (\ acc (lit,litf) -> do

@@ -3,14 +3,7 @@ module HipSpec
     ( module Test.QuickCheck
     , module QuickSpec.Signature
     , module Data.Typeable
-    , Prop
-    , (=:=)
-    , proveBool
-    , given
-    , givenBool
-    , total
-    , (==>)
-    , oops
+    , module HipSpec
     ) where
 
 import Test.QuickCheck hiding ((==>))
@@ -19,79 +12,35 @@ import QuickSpec.Signature
     (names,Literal(..),Prop(..),typeOf,typeRep,Result,subterms,generate,TyCon,cast) -}
 import Data.Typeable
 
-infix 1 =:=
-
+infix 3 =:=
+infix 3 =/=
+infix 3 :=:
+infix 3 :/:
+infixr 2 /\
+infixr :&:
+infixr 1 \/
+infixr :|:
 infixr 0 ==>
 
-data Prop a where
-    Given :: Prop b -> Prop a -> Prop a
-    (:=:) :: a -> a -> Prop a
-    Oops  :: Prop a -> Prop a
-    Total :: a -> Prop a
+data Prop where
+    (:=:)  :: a -> a -> Prop
+    (:/:)  :: a -> a -> Prop
+    (:==>) :: Prop -> Prop -> Prop
+    (:&:)  :: Prop -> Prop -> Prop
+    (:|:)  :: Prop -> Prop -> Prop
 
-total :: a -> Prop a
-total = Total
+(==>) :: Prop -> Prop -> Prop
+(==>) = (:==>)
 
-given :: Prop b -> Prop a -> Prop a
-given = Given
-
-givenBool :: Bool -> Prop a -> Prop a
-givenBool b = Given (b =:= True)
-
-(==>) :: Prop b -> Prop a -> Prop a
-(==>) = Given
-
-proveBool :: Bool -> Prop Bool
-proveBool lhs = lhs =:= True
-
-oops :: Prop a -> Prop a
-oops = Oops
-
-(=:=) :: a -> a -> Prop a
+(=:=) :: a -> a -> Prop
 (=:=) = (:=:)
 
-instance (Eq a,Show a,Show (a -> b),Arbitrary a,Testable (Prop b)) => Testable (Prop (a -> b)) where
-  property (lhs :=: rhs) = forAll arbitrary $ \x -> property (lhs x :=: rhs x)
-  property (Oops p)      = expectFailure (property p)
-  property _             = error "Cannot test"
+(=/=) :: a -> a -> Prop
+(=/=) = (:/:)
 
-instance Eq a => Testable (Prop a) where
-  property (lhs :=: rhs) = property (lhs == rhs)
-  property (Oops p)      = expectFailure (property p)
-  property _             = error "Cannot test"
+(\/) :: Prop -> Prop -> Prop
+(\/) = (:|:)
 
-{-
-class Names a where
-    -- | Suggest three names for variables of this type in generated signatures
-    names :: a -> [String]
+(/\) :: Prop -> Prop -> Prop
+(/\) = (:&:)
 
-instance Names a => Names [a] where
-    names ~[x] = map (++ "s") (names x)
-
-{-
-instance Names A where
-    names _ = ["x","y","z"]
-
-instance Names B where
-    names _ = ["u","v","w"]
-
-instance Names C where
-    names _ = ["r","s","t"]
-    -}
-
-instance Names Bool where
-    names _ = ["a","b","c"]
-
-instance (Names a,Names b) => Names (a,b) where
-    names ~(x,y) = [ n ++ m | (n,m) <- zip (names x) (names y) ]
-
-instance (Names a,Names b) => Names (Either a b) where
-    names u = [ n ++ "_" ++ m | (n,m) <- zip (names x) (names y) ]
-      where
-        ~(Left x) = u
-        ~(Right y) = u
-
-instance Names a => Names (Maybe a) where
-    names ~(Just x) = map ("m_" ++) (names x)
-
--}

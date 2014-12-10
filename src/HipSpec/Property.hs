@@ -1,27 +1,6 @@
 -- | Properties, represented with the simple language
---
---   TODO: Make nicer pretty printers representations
 {-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor, CPP #-}
-module HipSpec.Property
-    ( Literal(..)
-    , Origin(..)
-    , mapLiteral
-    , Property(..)
---    , propEquation
-    , isUserStated
-    , isFromQS
-    , trProperty
-    , trProperties
-    , tvSkolemProp
-    , etaExpandProp
-    , varsFromCoords
-    , lintProperty
---    , generaliseProp
-    , maybePropRepr
-    , cgSortProps
-    , equalsTrue
-    , boolifyProperty
-    ) where
+module HipSpec.Property where
 
 import qualified QuickSpec.Prop as QS
 
@@ -66,7 +45,13 @@ literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Literals in propreties
-data Literal = S.Expr Id :=: S.Expr Id
+data Literal
+    = S.Expr Id :=: S.Expr Id
+    | S.Expr Id :/: S.Expr Id
+
+negLiteral :: Literal -> Literal
+negLiteral (a :=: b) = a :/: b
+negLiteral (a :/: b) = a :=: b
 
 mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
 mapLiteral f (a :=: b) = f a :=: f b
@@ -97,7 +82,7 @@ data Property = Property
     -- ^ Type variables
     , prop_vars     :: [(Id,Type Id)]
     -- ^ Quantified variables (typed)
-    , prop_goal     :: Literal
+    , prop_goal     :: [Literal]
     -- ^ Goal
     , prop_assums   :: [Literal]
     -- ^ Assumptions
@@ -129,7 +114,7 @@ instance Show (Property) where
         , ", prop_origin = " ++ show prop_origin
         , ", prop_tvs = " ++ comma (map ppId prop_tvs)
         , ", prop_vars = " ++ comma (map showTyped prop_vars)
-        , ", prop_goal = " ++ show prop_goal
+        , ", prop_goal = " ++ comma (map show prop_goal)
         , ", prop_assums = " ++ comma (map show prop_assums)
         , ", prop_repr = " ++ prop_repr
         , ", prop_var_repr = " ++ comma prop_var_repr
@@ -165,13 +150,13 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
     Nothing         -> error "Inconceivable, property with abstract body"
     Just (Body e)   -> do
 
-        (assums,goal) <- parseProperty e
+        (assums,goal) <- parseProperty T e
 
         let err = error "trProperty: initalize fields with initFields"
 
             (arg_tys,_) = collectArrTy ty
 
-        return $ initFields Property
+        return $ Property
             { prop_name     = originalId p
             , prop_id       = p
             , prop_origin   = UserStated
@@ -183,11 +168,37 @@ trProperty (S.Function p (Forall tvs ty) args b) = case b of
             , prop_var_repr = err
             }
 
+data Side = L | T | R deriving Eq
+
+-- | Tries to "parse" a property in the simple expression format
+parseProperty :: Side -> S.Expr Id -> Either Err ([Literal],[Literal])
+parseProperty side e = case collectArgs e of
+    (Gbl x _ _,args)
+        | isEquals x,    [l,r] <- args -> return ([],[l :=: r])
+        | isNotEquals x, [l,r] <- args -> return ([],[l :/: r])
+        | isAnd x,       [a,b] <- args, side == L -> do
+            ([],as) <- parseProperty L a
+            ([],bs) <- parseProperty L b
+            return ([],as++bs)
+        | isOr x,       [a,b] <- args, side /= L -> do
+            ([],as) <- parseProperty R a
+            ([],bs) <- parseProperty R b
+            return ([],as++bs)
+        | isGiven x,    [a,b] <- args, side == T -> do
+            ([],as) <- parseProperty L a
+            (bs,cs) <- parseProperty T b
+            return (as++bs,cs)
+    _ -> throwError (CannotParse e)
+
+equalsTrue :: S.Expr Id -> Literal
+equalsTrue l = l :=: S.Gbl (ghcTrueId) (S.Forall [] boolType) []
+
+{-
 -- | Initialises the prop_repr and prop_var_repr fields
 initFields :: Property -> Property
 initFields p@Property{..} = evalRenameM (disambig originalId) [] $ do
     vars' <- insertMany (map fst prop_vars)
-    goal:assums <- mapM show_lit (prop_goal:prop_assums)
+    goal:assums <- mapM show_lit (prop_goal++prop_assums)
     return p
         { prop_var_repr = vars'
         , prop_repr     = intercalate " => " (assums ++ [goal])
@@ -220,25 +231,6 @@ notConstant _            = True
 
 copyReprToName :: Property -> Property
 copyReprToName p@Property{..} = p { prop_name = prop_repr }
-
--- | Tries to "parse" a property in the simple expression format
-parseProperty :: S.Expr Id -> Either Err ([Literal],Literal)
-parseProperty e = case collectArgs e of
-    (Gbl x _ _,args)
-        | isEquals x,    [l,r] <- args -> return ([],l :=: r)
-        | isProveBool x, [l]   <- args -> return ([],equalsTrue l)
-        | isGivenBool x, [l,q] <- args -> do
-            (as,gl) <- parseProperty q
-            return (equalsTrue l:as,gl)
-        | isGiven x,     [p,q] <- args -> do
-            (nested_as,a) <- parseProperty p
-            unless (null nested_as) (throwError (NestedAssumptions e))
-            (as,gl) <- parseProperty q
-            return (a:as,gl)
-    _ -> throwError (CannotParse e)
-
-equalsTrue :: S.Expr Id -> Literal
-equalsTrue l = l :=: S.Gbl (ghcTrueId) (S.Forall [] boolType) []
 
 -- | Removes the type variables in a property, returns clauses defining the
 --   sorts and content to ignore
@@ -281,7 +273,6 @@ etaExpandProp p@Property{..}
                 { prop_vars = prop_vars ++ new_vars
                 , prop_goal = mapLiteral (`S.apply` new_exprs) prop_goal
                 }
-etaExpandProp p = p
 
 -- | String representation of the variables at these coordinates
 varsFromCoords :: Property -> [Int] -> [String]
@@ -372,4 +363,4 @@ cgSortProps :: Map Var [Var] -> [Property] -> [Property]
 cgSortProps callg = concat . sortByGraph callg' propertyGbls
   where
     callg' = M.fromList [ (idFromVar i,map idFromVar is) | (i,is) <- M.toList callg ]
-
+-}
