@@ -10,7 +10,7 @@ index (x:xs) Z       = Just x
 index (x:xs) (Suc n) = index xs n
 index []     _       = Nothing
 
-data Term = Term :$ Term | TheVar | S | K | I -- | B | C | W
+data Term = Term :$ Term | TheVar | S | K | I | B -- | C | W
 
 instance Show Term where
   show = showTerm
@@ -20,7 +20,7 @@ showTerm (a :$ b) = "(" ++ showTerm a ++ " " ++ showTerm b ++ ")"
 showTerm S        = "S"
 showTerm K        = "K"
 showTerm I        = "I"
--- showTerm B        = "B"
+showTerm B        = "B"
 -- showTerm C        = "C"
 -- showTerm W        = "W"
 
@@ -35,7 +35,7 @@ step :: Term -> Maybe Term
 step (S :$ f :$ g :$ x) = Just (f :$ x :$ (g :$ x))
 step (K :$ x :$ _)      = Just x
 step (I :$ x)           = Just x
--- step (B :$ f :$ g :$ x) = Just (f :$ (g :$ x))
+step (B :$ f :$ g :$ x) = Just (f :$ (g :$ x))
 -- step (C :$ f :$ x :$ y) = Just (f :$ y :$ x)
 -- step (W :$ f :$ x)      = Just (f :$ x :$ x)
 step (t :$ u)           = par t u (step t) (step u)

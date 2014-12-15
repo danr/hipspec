@@ -1,6 +1,9 @@
 
 TARGET=$(basename $(SOURCE))_HBMC.hs
 EXE=$(basename $(TARGET))
+ifndef CHECK
+CHECK=''
+endif
 ifndef DEPTH
 DEPTH=10
 endif
