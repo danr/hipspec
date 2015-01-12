@@ -98,7 +98,7 @@ executable hipspec
         cmdargs              >= 0.9,
 
         -- Structural induction
-        structural-induction == 0.1,
+        structural-induction == 0.1.1,
 
         -- Running Theorem Provers
         stm-promise          == 0.0.2,
