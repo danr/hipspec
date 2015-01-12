@@ -96,7 +96,6 @@ ppName nm -- = getOccString nm {- ++ '_': showOutputable (getUnique nm) -}
     | k == consDataConKey    = "Cons"
     | k == unitTyConKey      = "UnitTyCon"
     | k == genUnitDataConKey = "Unit"
-    | Just (ns, ts, n) <- isTupleOcc_maybe (getOccName nm) = name_tuple ns ts n
     | otherwise = case getOccString nm of
         "+"   -> "plus"
         "-"   -> "minus"
