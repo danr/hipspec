@@ -47,7 +47,7 @@ library
     build-depends:
         base                 >= 4    && < 5,
         QuickCheck           >= 2.5,
-        quickspec            == 0.9.4
+        quickspec            == 0.9.6
 
 executable hipspec
     hs-source-dirs: src
@@ -89,7 +89,7 @@ executable hipspec
         ghc-prim,
 
         -- QuickSpec
-        quickspec            == 0.9.4,
+        quickspec            == 0.9.6,
 
         -- Printing messages
         time                 >= 1.4,
