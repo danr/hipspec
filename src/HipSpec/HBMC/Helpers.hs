@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts, ViewPatterns, PatternGuards, GADTs, RecordWildCards #-}
-module HipSpec.HBMC.Switch where
+module HipSpec.HBMC.Helpers where
 
 import qualified Data.Foldable as F
 
@@ -28,12 +28,12 @@ Makes new data types:
 
    data Lbl_Ty = Lbl_Arrow | Lbl_A
 
-   data D_Ty = D_Ty (Data Lbl_Ty (T2 (Lift D_Ty) (Lift D_Ty)))
+   data D_Ty = D_Ty (Data Lbl_Ty (T2 (Thunk D_Ty) (Thunk D_Ty)))
 
 Makes new constructor functions:
 
-   conArrow = \ a b -> D_Ty (Con (val Lbl_Arrow) (T2 (The a) (The b)))
-   conA     = D_Ty (Con (val Lbl_A) (T2 UNR UNR))
+   conArrow = \ a b -> this (D_Ty (Con (val Lbl_Arrow) (T2 a b)))
+   conA     = D_Ty (Con (val Lbl_A) (T2 (err "conA") (err "conA")))
 
 Makes new instances for getting the values and arguments:
 
@@ -43,7 +43,7 @@ Makes new instances for getting the values and arguments:
      get (D_Ty (Con cn args)) =
        do l <- get cn
           case (l, args) of
-            (Lbl_Arrow, T2 (The a) (The b)) ->
+            (Lbl_Arrow, T2 (a) (b)) ->
                 get a >>= \ x ->
                 get b >>= \ y ->
                 return (x :-> y)
@@ -61,10 +61,12 @@ Makes new instances for getting the values and arguments:
                             return (a :-> b)
                         Lbl_A -> return A
 
+{-
    instance Argument Ty where
      argument Lbl_Arrow (Tuple [a,b]) = [a,b]
      argument Lbl_A     (Tuple [_,_]) = []
      argument _         _             = error "Argument T"
+     -}
 
 Makes a creation function for values up to a size:
 
@@ -92,30 +94,6 @@ Makes a creation function for values up to a size:
 
     (parameterised on creation functions of polymorphic components)
 
-When we case on something:
-
-     case ty of
-        a :-> b -> C1[a,b]
-        A       -> C2
-
-    ==>
-
-     case ty of
-        D_ty tmp -> switch tmp $ \ lbl args ->
-            case args of
-                T2 arg1 arg2 -> case lbl of
-                    Lbl_Ty ->
-                        peek arg1 >>= \ a ->
-                        peek arg2 >>= \ b ->
-                        C1[a,b]
-                    Lbl_A -> C2
-
-When we construct something:
-
-    e1 :-> e2 ==> conArrow e1 e2
-
-Since we have zapped the types at this stage, we check for matches in the
-list of constructors.
 -}
 
 type DataInfo = [(Id,(Id,[Int]))]
@@ -137,9 +115,9 @@ allocateDatatype (Datatype tc _tvs cons _) = (indexes,types)
       where
         (l,(_,i):r) = break ((a ==) . fst) ts
 
--- Changes type constructors to D_
+-- Changes type constructors to Thunk (D_ ..)
 typeReplace :: Type Id -> Type Id
-typeReplace (TyCon tc ts) = TyCon (d tc) (map typeReplace ts)
+typeReplace (TyCon tc ts) = thunkTy (TyCon (d tc) (map typeReplace ts))
 typeReplace (ArrTy t1 t2) = typeReplace t1 `ArrTy` typeReplace t2
 typeReplace (TyVar a)     = TyVar a
 typeReplace Integer       = Integer
@@ -166,23 +144,35 @@ mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructor
                 ]
             ]
         ]
-        (derive ["Prelude.Show","Symbolic.Choice","Symbolic.Equal"])
+        [] -- (derive ["Prelude.Show","Symbolic.Choice","Symbolic.Equal"])
 
     n = length args
 
-    constructors =
-        [ Function name unpty $ makeLambda [ (n,unty) | Just n <- names ] $
-            gbl (d tc) `App`
-            (gbl con `apply`
-                [ gbl val `App` gbl (label c)
-                , tuple [ maybe (unr unty) (the . lcl) a | a <- names ]
-                ])
+    constructors = concat
+        [ [ Function (constructor c) unpty $ makeLambda [ (n,unty) | Just n <- names ] $
+              gbl this `App`
+              gbl (d tc) `App`
+              (gbl con `apply`
+                  [ gbl val `App` gbl (label c)
+                  , tuple [ maybe (errorf (show c)) lcl a | a <- names ]
+                  ])
+          , Function (isA c) unpty $ makeLambda [(xs,unty),(h,unty)] $
+              (gbl force `App` lcl xs) `rawBind`
+              (makeLambda [(i,unty)] $
+                unaryCase (lcl i) (d tc) [lbl,args] $
+                   (gbl must `App` (lcl lbl =? c)) `App`
+                   (lcl h `apply` [ gbl (HBMCId $ Select j n) `App` lcl args | j <- ixs {-??-} ]))
+          ]
         | Constructor c _cargs <- cons
-        , let name  = constructor c
         , let Just ixs = fmap snd (lookup c indexes)
+        , let xs = refresh c (-1)
+        , let h   = raw "h"
+        , let i   = raw "i"
+        , let lbl = raw "l"
+        , let args = raw "args"
         , let names =
                 [ if i `elem` ixs
-                    then Just (refresh name (fromIntegral i))
+                    then Just (refresh c (fromIntegral i))
                     else Nothing
                 | i <- [0..n-1]
                 ]
@@ -232,6 +222,7 @@ mkGet dc@(Datatype tc tvs _cons _) = do
                 unaryCase e' con [cn,args] <$>
                     (gbl genericGet `App` lcl cn) `bind` Lam label unty lambda_body
 
+{-
 mkArgument :: Datatype Id -> Fresh (Instance Id)
 mkArgument dc@(Datatype tc tvs _cons _) = do
     fn <- mk_fn
@@ -257,7 +248,9 @@ mkArgument dc@(Datatype tc tvs _cons _) = do
         makeLambda ([lbl,tuple] `zip` repeat unty) .
             unaryCase (lcl tuple) tupleStruct [list] <$>
                 listCase (lcl list) args (Case (lcl lbl) Nothing brs)
+                -}
 
+{-
 mkNew :: Datatype Id -> Fresh (Function Id)
 mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
 
@@ -305,6 +298,7 @@ mkNew dc@(Datatype tc tvs cons _) = Function (new tc) unpty <$> do
         (gbl (api "newVal") `App` labels) `bind` Lam cn unty make_arguments
         --        [lcl cn,Lam c unty (Case (lcl c) Nothing brs)])
 
+-}
 
 -- unD tc e k = case e of { D_tc s -> k s }
 unD :: Id -> Expr Id -> (Expr Id -> Fresh (Expr Id)) -> Fresh (Expr Id)
@@ -328,7 +322,7 @@ dataCase arg_tuple lbl_var brs@((_,specimen,_):_) = do
     brs' <- sequence
         [ do rhs' <- foldM
                 (\ acc (b,maybe_real) -> case maybe_real of
-                    Just real -> peek (lcl b) `bind` Lam real unty acc
+                    Just real -> lcl b `bind` Lam real unty acc
                     Nothing   -> return acc
                 )
                 rhs
@@ -354,36 +348,4 @@ maximumIndex = maximum . (0 :) . map succ . concatMap (snd . snd)
 
 projTC :: Id -> DataInfo -> DataInfo
 projTC tc indexes = [ i | i@(_,(tc',_)) <- indexes, tc' == tc ]
-
-addSwitches :: TransformBiM Fresh (Expr Id) t => DataInfo -> t -> Fresh t
-addSwitches indexes = transformBiM $ \ e0 -> case e0 of
-
-    Gbl c _ _
-        | Just (_tc,_ix) <- lookup c indexes
-        -> return (gbl (constructor c))
-
-    Case e _mx brs@((ConPat k0 _ _ _,_):_)
-        | Just (tc,_) <- lookup k0 indexes -> do
-
-        let n = maximumIndex (projTC tc indexes)
-
-        let brs' :: [(Id,[Maybe Id],Expr Id)]
-            brs' =
-                [ (k,take n (indexed (map fst real_args `zip` ixs)),rhs)
-                | (ConPat k _ _ real_args,rhs) <- brs
-                , let Just (_,ixs) = lookup k indexes
-                ]
-
-        lbl_var <- newTmp "lbl"
-        arg_tuple <- newTmp "args"
-
-        inner <- dataCase arg_tuple lbl_var brs'
-
-        unD tc e $ \ e' -> return $
-            gbl switch `apply`
-                [ e'
-                , makeLambda ([lbl_var,arg_tuple] `zip` repeat unty) inner
-                ]
-
-    _ -> return e0
 

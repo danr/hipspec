@@ -96,7 +96,7 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
   where
     n = length arg_tys
 
-    t = liftTy $ TyCon (hid $ TupleTyCon n) arg_tys
+    t = TyCon (hid $ TupleTyCon n) arg_tys
 
     tmpl e = case collectArgs e of
         (fg@(Gbl g _ _),args)
@@ -105,8 +105,8 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
             , not (any (argOk (< s0)) args)
             , not (any (findExpr (isJust . tmpl)) args)
             -> Just
-                ( the (tuple args)
-                , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` peek x | j <- [0..n-1] ]
+                ( tuple args
+                , ( \ x -> fg `apply` [ Gbl (hid $ Select n j) (selectType n j) arg_tys `App` x | j <- [0..n-1] ]
                                         -- if you change the line above, also change argOk!
                   , t
                   )
@@ -116,18 +116,18 @@ commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
 -- We have already processed arguments that are (peek (projX argZ)) if p Z
 argOk :: (Integer -> Bool) -> Expr Id -> Bool
 argOk p e = case e of
-    Gbl{} `App` (Gbl{} `App` arg) -> argExprSat p arg
+    Gbl{} `App` arg -> argExprSat p arg
     _ -> False
 
 expensive :: (Expr Id -> Bool) -> Expr Id -> Fresh (Expr Id)
 expensive p = lifter
     newRes
-    (\ e -> if p e then Just (ghcTrue,(peek,TyCon lift [exprType' "expensive" e])) else Nothing)
+    (\ e -> if p e then Just (ghcTrue,(id,exprType' "expensive" e)) else Nothing)
     ghcFalse
     (\ ess x tf e -> case ess of
         a:as | any (/= a) as -> error "different expensive"
         [] -> error "empty expensive"
-        a:_ -> mkLet x (ite tf (the a) (unr (exprType' "expensive" a))) e)
+        a:_ -> mkLet x (ite tf a (unr (exprType' "expensive" a))) e)
 
 replaceTop :: (a ~ Id) => (Expr a -> Maybe (Expr a)) -> (Expr a -> Maybe (Expr a) -> Expr a) -> Expr a -> (Expr a,[Expr a])
 replaceTop tmpl handle_arm = go

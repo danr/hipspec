@@ -9,8 +9,8 @@ import HipSpec.Pretty
 
 import HipSpec.Property
 
-import HipSpec.HBMC.Monadic
-import HipSpec.HBMC.Switch
+import HipSpec.HBMC.Prolog
+import HipSpec.HBMC.Helpers
 
 import qualified HipSpec.Lang.Simple as S
 
@@ -32,9 +32,12 @@ import Control.Monad.State
 psl s = gbl (api "io") `App` (gbl (prelude "putStrLn") `App` String s)
 
 newValue :: Type Id -> Expr Id
+newValue _ = gbl new
+{-
 newValue t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
 newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_depth:map newValue args)
 newValue _                = gbl (api "newNat") `App` gbl_depth
+-}
 
 hbmcLiteral :: DataInfo -> Literal -> Mon (Expr Id)
 hbmcLiteral indexes (e1 :=: e2) = literal indexes e1 e2 True
@@ -46,36 +49,37 @@ literal indexes e1 e2 positive = do
     l <- lift (newTmp "l")
     r <- lift (newTmp "r")
 
-    m1 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e1)
-    m2 <- lift . addSwitches indexes =<< monExpr (S.injectExpr e2)
+    m1 <- {- lift . addSwitches indexes =<< -} monExpr (lcl l) (S.injectExpr e1)
+    m2 <- {- lift . addSwitches indexes =<< -} monExpr (lcl r) (S.injectExpr e2)
 
-    o <- lift $ bind m2 $ Lam r unty $
-        (if positive then id else \ a -> gbl (prelude "fmap") `apply` [gbl (api "nt"),a]) $
-        (gbl (api "equal") `apply` map lcl [l,r])
-
-    lift $ bind m1 (Lam l unty o)
+    return
+      (inSequence [m1,m2]
+        (gbl
+          (api
+              (if positive then "equalHere" else "notEqualHere"))
+            `apply`
+              map lcl [l,r]))
 
 hbmcProp :: DataInfo -> Property -> Mon (Function Id)
 hbmcProp indexes Property{..} = Function prop_id unpty <$> do
-    let values e = lift $ foldM (\ acc (x,t) -> newValue t `bind` Lam x unty acc) e prop_vars
 
     let lits = (prop_goal `zip` repeat nt) ++ (prop_assums `zip` repeat id)
 
-    let literals e = foldM
-            (\ acc (lit,litf) -> do
-                lexpr <- hbmcLiteral indexes lit
-                lname <- lift (newTmp "l")
-                lift $ lexpr `bind` Lam lname unty (addBit (litf (lcl lname)) >>> acc)
-            )
-            e lits
+    literals <- sequence
+            [ hbmcLiteral indexes lit
+            | (lit,litf) <- lits
+            ]
 
+    let values e =
+          do e' <- lift $ foldM (\ acc (x,t) -> newValue t `bind` Lam x unty acc) e prop_vars
+             return (psl "Generating symbolic values..." >>> e')
 
-    let body = psl "Running solver..."
-           >>> gbl (api "check")
-           >>> psl "Done!"
-           >>> (gbl genericGet `App` (tuple (map (lcl . fst) prop_vars)))
-
-    l <- (psl "Running functions..." >>>) <$> literals body
-
-    (psl "Generating symbolic values..." >>>) <$> values l
+    values $ inSequence
+        ( [ psl "Generating problem..." ]
+          ++ literals ++
+          [ psl "Solving..."
+          , gbl (api "solve")
+          , psl "Done!"
+          ])
+        (gbl genericGet `App` (tuple (map (lcl . fst) prop_vars)))
 

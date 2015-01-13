@@ -25,11 +25,13 @@ import qualified GHC as GHC
 import qualified IdInfo as GHC
 import HipSpec.GHC.Utils
 
+import Debug.Trace
+
 prelude :: String -> Id
-prelude s = raw ("Prelude." ++ s)
+prelude s = raw s -- ("Prelude." ++ s)
 
 api :: String -> Id
-api s = raw ("Symbolic." ++ s)
+api s = raw s -- ("Prolog." ++ s)
 
 gbl_depth_name :: String
 gbl_depth_name = "gbl_depth"
@@ -152,14 +154,25 @@ __ = raw "_"
 tupleStruct :: Id
 tupleStruct = api "Tuple"
 
-label,d,constructor,getForTyCon,argumentForTyCon,new :: Id -> Id
+label,d,constructor,getForTyCon,argumentForTyCon :: Id -> Id
 label = rawFor "Label"
 d = rawFor "D"
 constructor = rawFor "con"
+isA = rawFor "is"
 getForTyCon = rawFor "get"
 argumentForTyCon = rawFor "argument"
-new = rawFor "new"
 
+new,choice :: Id
+new = api "new"
+choice = api "choice"
+
+equalHere,notEqualHere :: Id
+equalHere = api "equalHere"
+notEqualHere = api "notEqualHere"
+
+(===),(=/=) :: Expr Id -> Expr Id -> Expr Id
+u === v = gbl equalHere `apply` [u,v]
+u =/= v = gbl notEqualHere `apply` [u,v]
 
 hdata,con,val,switch,genericGet,genericArgument :: Id
 hdata = api "Data"
@@ -169,11 +182,30 @@ switch = api "switch"
 genericGet = api "get"
 genericArgument = api "argument"
 
-unr :: Type Id -> Expr Id
-unr t = Gbl (api "UNR") (Forall [x] (TyCon lift [TyVar x])) [t]
-  where
-    x = liftTV
+(=?) :: Expr Id -> Id -> Expr Id
+label =? con = gbl (api "=?") `apply` [label,gbl (d con)]
 
+thunk,force,peek,delay,this :: Id
+thunk = api "Thunk"
+delay = api "delay"
+this  = api "this"
+peek  = api "peek"
+force = api "force"
+must  = api "must"
+
+thunkTy :: Type Id -> Type Id
+thunkTy t = TyCon thunk [t]
+
+errorf :: String -> Expr Id
+errorf s = gbl (prelude "error") `App` String s
+
+unrId :: Id
+unrId = api "UNR"
+
+unr :: Type Id -> Expr Id
+unr t = Gbl unrId (Forall [] t) []
+
+{-
 the :: Expr Id -> Expr Id
 the e = Gbl (api "The") (Forall [x] (TyVar x `ArrTy` TyCon lift [TyVar x])) [t] `App` e
   where
@@ -187,6 +219,7 @@ peek e = Gbl (api "peek") (Forall [x] (TyCon lift [TyVar x] `ArrTy` TyVar x)) [t
     t = case exprType' "peek" e of
         TyCon i [it] | i == lift -> it
         t' -> error $ "peek on " ++ ppShow e ++ " with type " ++ ppShow t'
+-}
 
 tuple :: [Expr Id] -> Expr Id
 tuple args =
@@ -242,7 +275,10 @@ bind :: Expr Id -> Expr Id -> Fresh (Expr Id)
     | i == prelude "return"
     , occurrences x b <= 1
     = return ((a // x) b)
-m `bind` f = return (Gbl (prelude ">>=") unpty [unty,unty] `apply` [m,f])
+m `bind` f = return (m `rawBind` f)
+
+rawBind :: Expr Id -> Expr Id -> Expr Id
+m `rawBind` f = Gbl (prelude ">>=") unpty [unty,unty] `apply` [m,f]
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
@@ -252,14 +288,20 @@ checkFunctions p fns =
     [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
     , let check | p f {- or [ g == f | Gbl g _ _ <- universeBi a ] -}
-                = (gbl (api "check") >>>)
+                = (gbl (api "postpone") `App`)
                 | otherwise    = id
     ]
 
 infixr >>>
 
+inSequence :: [Expr Id] -> Expr Id -> Expr Id
+inSequence as a = foldr (>>>) a as
+
+thenId :: Id
+thenId = prelude ">>"
+
 (>>>),(==>) :: Expr Id -> Expr Id -> Expr Id
-e1 >>> e2 = gbl (prelude ">>") `apply` [e1,e2]
+e1 >>> e2 = gbl thenId `apply` [e1,e2]
 e1 ==> e2 = gbl (api "==>") `apply` [e1,listLit [e2]]
 
 nt :: Expr Id -> Expr Id
@@ -317,4 +359,92 @@ replaceEquality = transformBi $ \ e0 -> case e0 of
         return e0
         -}
     _ -> e0
+
+mkLets :: [((Id,Type Id),Expr Id)] -> Expr Id -> Expr Id
+mkLets (((i,t),b@Lcl{}):es) e = mkLets es ((b // i) e)
+mkLets (((i,t),b)      :es) e = Let [Function i (Forall [] t) b] (mkLets es e)
+mkLets [] e = e
+
+-- Removes dead lets and inlines silly lets
+simpleLetOpt :: TransformBi (Expr Id) t => t -> t
+simpleLetOpt = transformBi $
+  \ (e0 :: Expr Id) ->
+    case e0 of
+      Let [Function f _ b] e
+        | occurrences f e == 0 -> e
+        | Lcl f' _ <- e, f == f' -> b
+
+      _ -> e0
+
+
+-- let t = T2 e1 e2 in E[proj1 t, proj2 t, t]
+-- ~>
+-- let u = e1
+-- let v = e2
+-- in  E[u,v,T2 u v]
+untuple :: TransformBiM Fresh (Expr Id) t => t -> Fresh t
+untuple = transformBiM $
+  \ e0 ->
+    case e0 of
+      Let [Function t _ b] e
+        | Just cs <- tupleCase b
+        -> do us <- sequence
+                [ do u <- newTmp "u"
+                     return ((u,exprType' "untuple" c),c)
+                | c <- cs
+                ]
+              let uvs = [ Lcl u ty | ((u,ty),_) <- us ]
+              return $ mkLets us ((tuple uvs // t) (unproj t uvs e))
+      _ -> return e0
+
+-- case should be only variable for this to be effective
+--
+-- case a of
+--   ...
+--   case b of
+--     ...
+--     case c of
+--     ... -> T2 e1 e2
+--
+--  (all branches return a tuple ... or UNR)
+--
+--  =>
+--
+-- case a of
+--   ...
+--   case b of
+--     ...
+--     case c of
+--     ... -> ei
+--
+--  for i=1 and i=2
+--
+tupleCase :: Expr Id -> Maybe [Expr Id]
+
+tupleCase e0@(Gbl hid (Forall [] (TyCon (HBMCId (TupleTyCon _)) ts)) _)
+  | hid == unrId
+  = Just (map unr ts)
+
+tupleCase (collectArgs -> (Gbl (HBMCId (TupleCon n)) _ tys,es))
+  | n == length tys
+  , n == length es
+  = Just es
+
+tupleCase (Case es mx alts) =
+  do altss <- sequence
+       [ do es <- tupleCase e
+            return [ (p,e') | e' <- es ]
+       | (p,e) <- alts
+       ]
+     return [ Case es mx alts | alts <- transpose altss ]
+
+tupleCase _ = Nothing
+
+-- unproj t [u1,u2] (fst t) = u1
+unproj :: Id -> [Expr Id] -> Expr Id -> Expr Id
+unproj t us = transform $
+  \ e0 ->
+    case e0 of
+      Gbl (HBMCId (Select _ i)) _ _ `App` Lcl t' _ | t == t' -> us !! i
+      _ -> e0
 

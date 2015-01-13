@@ -122,7 +122,7 @@ main = do
 
         (props_as_rich,hbmc_fns0) = partition is_prop renamed_fns
 
-        hbmc_fns = replaceEquality hbmc_fns0
+        hbmc_fns = {- replaceEquality -} hbmc_fns0
 
         env = error "hbmc undefined env"
 
@@ -169,16 +169,21 @@ main = do
 
         let (fns,insts) = (`evalState` 0) $ do
                 get_insts <- mapM mkGet data_types
-                arg_insts <- mapM mkArgument data_types
-                new_fns <- mapM mkNew data_types
+                -- arg_insts <- mapM mkArgument data_types
+                -- new_fns <- mapM mkNew data_types
                 fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
-                    ulfn <- uniquify lfn
+                    trace (showRich lfn) (return ())
+                    pfn <- simpleLetOpt <$> untuple lfn
+                    trace (showRich pfn) (return ())
+                    ulfn <- uniquify pfn
                     mf <- monadic ulfn `runMon` is_pure
-                    addSwitches data_info mf
+                    -- sf <- addSwitches data_info mf
+                    trace (showRich mf) (return ())
+                    return mf
                 prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
                 let add_check i = any (`isInfixOf` originalId i) (concatMap (splitOn ".") check)
-                return (new_fns++checkFunctions add_check fns++prop_fns,get_insts++arg_insts)
+                return ({- new_fns++-}checkFunctions add_check fns++prop_fns,get_insts{-++arg_insts-})
 
         liftIO $ do
 

@@ -236,7 +236,7 @@ defParams = Params
     , add_stupid_lemmas   = False                &= help "Also use theorems proved without induction as lemmas"
     , success             = CleanRun             &= help "Specify what to give exit code 0"
 
-    , auto                = True    &= groupname "\nSignature generation settings"
+    , auto                = False   &= groupname "\nSignature generation settings"
                                     &= name "a" &= help "Make signature with functions in user properties (def. on)"
     , extra               = []                  &= help "Additional functions to add to the signature"
     , extra_trans         = []                  &= help "Like --extra, but transitively"
