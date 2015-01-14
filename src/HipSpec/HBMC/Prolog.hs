@@ -7,7 +7,7 @@
 -- Has an environment to understand when a function is pure, and slaps on
 -- an extra return after calling it.
 {-# LANGUAGE PatternGuards,ViewPatterns #-}
-module HipSpec.HBMC.Prolog (monadic,runMon,monExpr,Mon) where
+module HipSpec.HBMC.Prolog (monadic,runMon,monExpr,Mon,IdType(..)) where
 
 import HipSpec.HBMC.Utils hiding (lift)
 
@@ -29,7 +29,9 @@ import Data.Maybe (listToMaybe)
 
 runMon = runReaderT
 
-type Mon = ReaderT (Id -> Int -> Bool) Fresh
+data IdType = IsCon | IsRec | IsOk
+
+type Mon = ReaderT (Id -> IdType) Fresh
 
 monadic :: Function Id -> Mon (Function Id)
 monadic (Function f _t (collectBinders -> (args,body))) =
@@ -44,8 +46,14 @@ monExpr res e0 =
     (Gbl x _ _,args) ->
       makeNews (length args) $
         \ xs ->
-          do es <- zipWithM monExpr xs args
-             return (inSequence es (gbl x `apply` (xs ++ [res])))
+          do id_type <- asks ($ x)
+             let f args = case id_type of
+                   _ | x == noopId -> gbl x `apply` args
+                   IsCon -> gbl (predCon x) `apply` args
+                   IsRec -> gbl postpone `App` (gbl x `apply` args)
+                   IsOk  -> gbl x `apply` args
+             es <- zipWithM monExpr xs args
+             return (inSequence es (f (xs ++ [res])))
          -- pure?
 
     -- base cases
@@ -114,18 +122,4 @@ rmRefl = transformBi $
 makeNews :: Int -> ([Expr Id] -> Mon (Expr Id)) -> Mon (Expr Id)
 makeNews 0 k = k []
 makeNews n k = makeNew True $ \ x -> makeNews (n-1) $ \ xs -> k (x:xs)
-
-
-{-
-bindExpr :: Expr Id -> (Expr Id -> Mon (Expr Id)) -> Mon (Expr Id)
-bindExpr e k = do
-    e' <- monExpr x e
-    x <- lift tmp
-    e'' <- k (Lcl x unty)
-    lift (bind e' (Lam x unty e''))
-
-bindExprs :: [Expr Id] -> ([Expr Id] -> Mon (Expr Id)) -> Mon (Expr Id)
-bindExprs []     k = k []
-bindExprs (e:es) k = bindExpr e $ \ x -> bindExprs es $ \ xs -> k (x:xs)
--}
 

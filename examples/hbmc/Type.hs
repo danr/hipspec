@@ -11,19 +11,20 @@ infixr :->
 
 tc :: [Ty] -> Expr -> Ty -> Bool
 tc env (Var x)      t | Just tx <- env `index` x = tx == t
-tc env (App f x tx) t = tc env f (tx :-> t) && tc env x tx
+tc env (App f x tx) t          = tc env f (tx :-> t)
+                              && tc env x tx
 tc env (Lam e)      (tx :-> t) = tc (tx:env) e t
 tc _   _            _ = False
 
 prop_B e  = tc [] e ((B :-> C) :-> (A :-> B) :-> (A :-> C)) =:= False
+--
+-- prop_I e  = tc [] e (A :-> A) =:= False
+--
+-- prop_K e  = tc [] e (A :-> B :-> A) =:= False
+--
+-- prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =:= False
 
-prop_I e  = tc [] e (A :-> A) =:= False
-
-prop_K e  = tc [] e (A :-> B :-> A) =:= False
-
-prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =:= False
-
-prop_W e  = tc [] e ((A :-> A :-> B) :-> (A :-> B)) =:= False
+-- prop_W e  = tc [] e ((A :-> A :-> B) :-> (A :-> B)) =:= False
 
 -- nats --
 

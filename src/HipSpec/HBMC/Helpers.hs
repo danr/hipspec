@@ -154,33 +154,91 @@ mergeDatatype dc@(Datatype tc tvs cons _) =
                --      case et of
                --        D_Expr t ->
                --          isCon Lbl_App t
-               --            (\ arg ->
-               --               case arg of
-               --                 (unused,rest) ->
+               --            (\ v ->
+               --               case v of
+               --                 (u,rest) ->
                --                   case rest of
                --                     (p,q) -> h p q)
-               --
-               , do h <- newTmp "h"
+               , do et <- newTmp "et"
+                    h <- newTmp "h"
                     t <- newTmp "t"
-                    et <- newTmp "et"
-                    arg <- newTmp "arg"
+                    v <- newTmp "v"
                     names' <- sequence
                       [ case mn of
-                         Just mn -> return mn
-                         Nothing -> newTmp "unused"
+                         Just n  -> return n
+                         Nothing -> newTmp "u"
                       | mn <- names
                       ]
-                    lambda <- binTupleCase (lcl arg) names' (lcl h `apply` [ lcl n | Just n <- names ])
+                    lambda <- binTupleCase (lcl v) names' (lcl h `apply` [ lcl n | Just n <- names ])
                     return $ Function (isCon c) unpty $ makeLambda [(et,unty),(h,unty)] $
                       unaryCase (lcl et) (d tc) [t] $
-                        gbl (api "isCon") `apply` [ gbl (label c) , lcl t , Lam arg unty lambda ]
+                        gbl (api "isCon") `apply` [gbl (label c), lcl t, Lam v unty lambda]
                ]
         | Constructor c _cargs <- cons
         , let Just ixs = fmap snd (lookup c indexes)
         ]
 
 valueClass x = TyCon (api "Value") [x]
-argumentClass x = TyCon (api "Argument") [x]
+equalClass x = TyCon (api "Equal") [x]
+equalDataClass lbl args = TyCon (api "EqualData") [lbl,binTupleType args]
+constructiveDataClass x = TyCon (api "ConstructiveData") [x]
+
+mkConstructive :: Datatype Id -> Instance Id
+mkConstructive (Datatype tc _ cons _)
+  = Instance
+      []
+      (constructiveDataClass (TyCon (label tc) []))
+      []
+      [Function (raw "constrs") unpty
+        (listLit
+          [ gbl (label c)
+          | Constructor c _ <- cons
+          ])
+      ]
+
+mkEqual :: Datatype Id -> Fresh (Instance Id)
+mkEqual dc@(Datatype tc tvs _cons _) = do
+    fn <- mk_fn
+    let tvs' = map TyVar tvs
+    -- instance Equal a => EqualData Lbl_List (a,List a) where
+    --   equalData h = ...
+    return $ Instance
+        (map equalClass tvs')
+        (equalDataClass (TyCon (label tc) []) (map typeReplace args))
+        []
+        [fn]
+  where
+    (indexes,args) = allocateDatatype dc
+
+    n = maximumIndex indexes
+
+    mk_fn = Function (raw "equalData") unpty <$> do
+        h <- newTmp "h"
+
+        -- equalData h =
+        --   [ ([Lbl_Var],        \ (x1,(_,_)) (x2,(_,_)) -> h x1 x2)
+        --   , ([Lbl_Lam,Lbl_App], \(_,(p1,_)) (_,(p2,_)) -> h p1 p2)
+        --   ...
+        --   ]
+
+        l <- newTmp "u"
+        r <- newTmp "v"
+        ls <- replicateM n (newTmp "a")
+        rs <- replicateM n (newTmp "b")
+
+        let labels i = [ label con | (con,(_,pos)) <- indexes, i `elem` pos ]
+
+        let call i
+              = makeLambda [(l,unty),(r,unty)]
+                  <$> do binTupleCase (lcl l) ls
+                           =<< binTupleCase (lcl r) rs
+                                 (lcl h `apply` [lcl (ls !! i), lcl (rs !! i)])
+
+        let row i =
+              do c <- call i
+                 return (tuple [listLit (map gbl (labels i)),c])
+
+        Lam h unty . listLit <$> do sequence [ row i | i <- [0..n-1] ]
 
 mkGet :: Datatype Id -> Fresh (Instance Id)
 mkGet dc@(Datatype tc tvs _cons _) = do
@@ -195,61 +253,52 @@ mkGet dc@(Datatype tc tvs _cons _) = do
         [(raw "Type",TyCon (d tc) tvs',TyCon tc (map (\ tv -> TyCon (api "Type") [tv]) tvs'))]
         [fn]
   where
-    (indexes,_) = allocateDatatype dc
+    (indexes,args) = allocateDatatype dc
 
     n = maximumIndex indexes
 
     mk_fn = Function (raw "get") unpty <$> do
-        s <- tmp
-        Lam s unty <$> do
-            unD tc (lcl s) $ \ e' -> do
-                cn <- newTmp "cn"
-                args <- newTmp "args"
-                label <- newTmp "lbl"
-                lambda_body <- dataCase args label =<< sequence
-                    [ do vars <- replicateM n (newTmp "v")
-                         let locs = take n (indexed (vars `zip` ixs))
-                         get_names <- sequence [ (,) i <$> newTmp "z" | i <- catMaybes locs ]
-                         rhs <- foldM
-                            (\ inner (i,z) -> bind z (gbl (genericGet) `App` lcl i) inner)
-                            (ret (gbl c `apply` map (lcl . snd) get_names))
-                            get_names
-                         return (c,locs,rhs)
 
-                    | (c,(_tc,ixs)) <- indexes
-                    -- assert tc == _tc
-                    , let Just ixs = fmap snd (lookup c indexes)
-                    ]
-                unaryCase e' con [cn,args] <$>
-                    bind label (gbl genericGet `App` lcl cn) lambda_body
+        {-
+          get = \ et -> case et of
+            D_Expr t ->
+                 getData
+                   (\ lbl args -> case args of
+                      (x,(p,q)) -> case lbl of
+                        Lbl_Var -> do n <- get x; return (Var x)
+                        ...
+                        Lbl_App -> do a <- get p; b <- get q; return (App a b))
+                   (Var (dflt undefined))
+                   t
+        -}
 
-{-
-mkArgument :: Datatype Id -> Fresh (Instance Id)
-mkArgument dc@(Datatype tc tvs _cons _) = do
-    fn <- mk_fn
-    -- instance Argument Lbl_List where
-    --   argument = ...
-    return $ Instance [] (argumentClass (TyCon (label tc) [])) [] [fn]
-  where
-    (indexes,_) = allocateDatatype dc
+        et <- newTmp "et"
+        t <- newTmp "t"
 
-    n = maximumIndex indexes
+        Lam et unty . unaryCase (lcl et) (d tc) [t] <$> do
 
-    mk_fn = Function (raw "argument") unpty <$> do
+          lbl <- newTmp "lbl"
+          xs  <- newTmp "xs"
+          names <- replicateM n (newTmp "x")
 
-        lbl   <- newTmp "lbl"
-        tuple <- newTmp "tuple"
-        list  <- newTmp "list"
-        args  <- replicateM n (newTmp "arg")
-
-        let brs = [ (pat (label k) [],listLit [ lcl (args !! i) |  i <- ixs ])
-                  | (k,(_tc,ixs)) <- indexes
+          lambda <- binTupleCase (lcl xs) names =<<
+             do Case (lcl lbl) Nothing <$> sequence
+                  [ do xys <- sequence [ (,) (names !! i) <$> newTmp "y" | i <- ixs ]
+                       return
+                         ( ConPat (label c) unpty [] []
+                         , Do [ BindExpr y (gbl (api "get") `App` lcl x) | (x,y) <- xys ]
+                              (ret (gbl c `apply` map (lcl . snd) xys))
+                         )
+                  | (c,(_,ixs)) <- indexes
                   ]
 
-        makeLambda ([lbl,tuple] `zip` repeat unty) .
-            unaryCase (lcl tuple) tupleStruct [list] <$>
-                listCase (lcl list) args (Case (lcl lbl) Nothing brs)
-                -}
+          return
+            (gbl (api "getData")
+              `apply`
+                [ makeLambda [(lbl,unty),(xs,unty)] lambda
+                , errorf ("get: " ++ ppId tc)
+                , lcl t
+                ])
 
 {-
 mkNew :: Datatype Id -> Fresh (Function Id)

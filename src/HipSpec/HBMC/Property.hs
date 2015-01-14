@@ -39,47 +39,57 @@ newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_depth:map newValue args)
 newValue _                = gbl (api "newNat") `App` gbl_depth
 -}
 
-hbmcLiteral :: DataInfo -> Literal -> Mon (Expr Id)
-hbmcLiteral indexes (e1 :=: e2) = literal indexes e1 e2 True
-hbmcLiteral indexes (e1 :/: e2) = literal indexes e1 e2 False
+hbmcLiteral :: DataInfo -> Literal -> Bool -> Mon [Stmt Id]
+hbmcLiteral indexes (e1 :=: e2) pos = literal indexes e1 e2 pos
+hbmcLiteral indexes (e1 :/: e2) pos = literal indexes e1 e2 (not pos)
 
-literal :: DataInfo -> S.Expr Id -> S.Expr Id -> Bool -> Mon (Expr Id)
+literal :: DataInfo -> S.Expr Id -> S.Expr Id -> Bool -> Mon [Stmt Id]
 literal indexes e1 e2 positive = do
 
     l <- lift (newTmp "l")
     r <- lift (newTmp "r")
 
-    m1 <- {- lift . addSwitches indexes =<< -} monExpr (lcl l) (S.injectExpr e1)
-    m2 <- {- lift . addSwitches indexes =<< -} monExpr (lcl r) (S.injectExpr e2)
+    m1 <- monExpr (lcl l) (S.injectExpr e1)
+    m2 <- monExpr (lcl r) (S.injectExpr e2)
 
     return
-      (inSequence [m1,m2]
-        (gbl
-          (api
-              (if positive then "equalHere" else "notEqualHere"))
+        [ BindExpr l (gbl new)
+        , BindExpr r (gbl new)
+        , StmtExpr m1
+        , StmtExpr m2
+        , StmtExpr $
+           gbl (api (if positive then "notEqualHere" else "equalHere"))
             `apply`
-              map lcl [l,r]))
+              [lcl l,lcl r]
+        ]
 
 hbmcProp :: DataInfo -> Property -> Mon (Function Id)
 hbmcProp indexes Property{..} = Function prop_id unpty <$> do
 
-    let lits = (prop_goal `zip` repeat nt) ++ (prop_assums `zip` repeat id)
+    let lits = (prop_goal `zip` repeat True) ++ (prop_assums `zip` repeat False)
 
-    literals <- sequence
-            [ hbmcLiteral indexes lit
-            | (lit,litf) <- lits
-            ]
+    literals <-
+      sequence
+        [ hbmcLiteral indexes lit pos
+        | (lit,pos) <- lits
+        ]
 
-    let values e =
-          do e' <- lift $ foldM (\ acc (x,t) -> bind x (newValue t) acc) e prop_vars
-             return (psl "Generating symbolic values..." >>> e')
+    let values =
+          [ BindExpr x (newValue t)
+          | (x,t) <- prop_vars
+          ]
 
-    values $ inSequence
-        ( [ psl "Generating problem..." ]
-          ++ literals ++
-          [ psl "Solving..."
-          , gbl (api "solve")
-          , psl "Done!"
-          ])
-        (gbl genericGet `App` (tuple (map (lcl . fst) prop_vars)))
+    res <- lift (newTmp "res")
+
+    return $
+      Do ([ StmtExpr $ psl "Generating symbolic values..." ]
+          ++ values ++
+          [ StmtExpr $ psl "Generating problem..." ]
+          ++ concat literals ++
+          [ StmtExpr $ psl "Solving..."
+          , BindExpr res (gbl (api "solve"))
+          , StmtExpr $ gbl (api "io") `App` (gbl (prelude "print") `App` lcl res)
+          ]
+         )
+         (gbl genericGet `App` (binTupleLit (map (lcl . fst) prop_vars)))
 

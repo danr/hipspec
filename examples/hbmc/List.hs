@@ -5,16 +5,15 @@ import Prelude hiding (reverse,(++),length,map,filter,(.),(+),const)
 import QuickSpec hiding (S,Prop)
 import qualified Prelude
 import HipSpec
-import Nat
-
-length :: [a] -> Nat
-length []     = Z
-length (_:xs) = S (length xs)
 
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
 []     ++ ys = ys
 
+assoc :: [Bool] -> [Bool] -> [Bool] -> Prop
+assoc xs ys zs = (xs ++ ys) ++ zs =:= xs ++ (ys ++ zs)
+
+{-
 map :: (a -> b) -> [a] -> [b]
 map f (x:xs) = f x:map f xs
 map f []     = []
@@ -25,6 +24,7 @@ filter p (x:xs) | p x       = x:filter p xs
 filter p [] = []
 
 f . g = \ x -> f (g x)
+-}
 
 {-
 sig = [ vars ["m","n","o"]    (undefined :: Nat)

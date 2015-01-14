@@ -150,6 +150,7 @@ main = do
             "\nProperties in Simple Definitions:\n" ++ unlines (map showRich props_as_rich) ++
             "\nProperties:\n" ++ unlines (map show props)
 
+        {-
         let is_pure = \ f i -> case f of
                 HBMCId (Select _ _)  -> i == 1
                 HBMCId (TupleCon ii) -> i == ii
@@ -162,37 +163,51 @@ main = do
                     | R.Datatype _tc _ cons _ <- data_types_d
                     , R.Constructor dc args <- cons
                     ]
+        -}
+
+        let id_type f
+               | f `elem`
+                  [ dc
+                  | R.Datatype _tc _ cons _ <- data_types_d
+                  , R.Constructor dc args <- cons
+                  ] = IsCon
+               | f `elem`
+                  [ g
+                  | fn@(R.Function g _ _) <- hbmc_fns
+                  , isRecursive fn
+                  ] = IsRec
+               | otherwise = IsOk
 
         let (fns,insts,dt_progs) = (`evalState` 0) $ do
 
                 (ixss,dt_progs) <- mapAndUnzipM mergeDatatype data_types
                 let data_info = concat ixss
 
+                eql_insts <- mapM mkEqual data_types
+                let con_insts = map mkConstructive data_types
                 get_insts <- mapM mkGet data_types
-                -- arg_insts <- mapM mkArgument data_types
                 -- new_fns <- mapM mkNew data_types
                 fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
-                    trace (showRich lfn) (return ())
+                    -- trace (showRich lfn) (return ())
                     pfn <- simpleLetOpt <$> untuple lfn
-                    trace (showRich pfn) (return ())
+                    -- trace (showRich pfn) (return ())
                     ulfn <- uniquify pfn
-                    mf <- monadic ulfn `runMon` is_pure
-                    -- sf <- addSwitches data_info mf
-                    trace (showRich mf) (return ())
+                    mf <- monadic ulfn `runMon` id_type
+                    -- trace (showRich mf) (return ())
                     return mf
-                prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
+                prop_fns <- mapM (hbmcProp data_info) props `runMon` id_type
                 let add_check i = any (`isInfixOf` originalId i) (concatMap (splitOn ".") check)
                 return
-                    ( {- new_fns++-} checkFunctions add_check fns++prop_fns
-                    , get_insts {-++arg_insts-}
+                    ( {- new_fns ++ -} {- checkFunctions add_check -} fns++prop_fns
+                    , con_insts ++ eql_insts ++ get_insts
                     , dt_progs
                     )
 
         liftIO $ do
 
-            putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction #-}"
-            putStrLn "import qualified Symbolic"
+            putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction,FlexibleInstances,MultiParamTypeClasses #-}"
+            putStrLn "import qualified Prolog"
             putStrLn "import qualified Prelude"
             putStrLn "import Prelude (Bool(..),Maybe(..))"
             putStrLn $ "import " ++ takeBaseName file
@@ -203,11 +218,11 @@ main = do
 
             mapM_ (putStrLn . showRich) fns
 
-            putStrLn $ gbl_depth_name ++ " = " ++ show symbolic_depth ++ " :: Prelude.Int"
+            -- putStrLn $ gbl_depth_name ++ " = " ++ show symbolic_depth ++ " :: Prelude.Int"
 
             putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
                 [ "Prelude.putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++
-                  "; Prelude.print Prelude.=<< Symbolic.runH " ++ name
+                  "; Prelude.print Prelude.=<< Prolog.run " ++ name
                 | prop <- props, let name = ppId (prop_id prop)
                 ]
 

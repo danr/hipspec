@@ -28,10 +28,12 @@ import HipSpec.GHC.Utils
 import Debug.Trace
 
 prelude :: String -> Id
-prelude s = raw s -- ("Prelude." ++ s)
+-- prelude s = raw s
+prelude s = raw ("Prelude." ++ s)
 
 api :: String -> Id
-api s = raw s -- ("Prolog." ++ s)
+-- api s = raw s
+api s = raw ("Prolog." ++ s)
 
 gbl_depth_name :: String
 gbl_depth_name = "gbl_depth"
@@ -166,9 +168,10 @@ isCon = rawFor "is"
 getForTyCon = rawFor "get"
 argumentForTyCon = rawFor "argument"
 
-new,choice :: Id
+new,choice,postpone :: Id
 new = api "new"
 choice = api "choice"
+postpone = api "postpone"
 
 equalHere,notEqualHere :: Id
 equalHere = api "equalHere"
@@ -203,11 +206,11 @@ thunkTy t = TyCon thunk [t]
 errorf :: String -> Expr Id
 errorf s = gbl (prelude "error") `App` String s
 
-unrId :: Id
-unrId = api "UNR"
+noopId :: Id
+noopId = api "noop"
 
-unr :: Type Id -> Expr Id
-unr t = Gbl unrId (Forall [] t) []
+noop :: Type Id -> Expr Id
+noop t = Gbl noopId (Forall [] t) []
 
 -- binTupleType [t1,t2,t3,t4] = (t1,(t2,(t3,t4)))
 binTupleType :: [Type Id] -> Type Id
@@ -217,15 +220,15 @@ binTupleType (x:xs) = TyCon (hid (TupleTyCon 2)) [x,binTupleType xs]
 
 binTupleLit :: [Expr Id] -> Expr Id
 binTupleLit []     = tuple []
-binTupleLit [x]    = tuple [x]
+binTupleLit [x]    = x
 binTupleLit (x:xs) = tuple [x,binTupleLit xs]
 
 -- When you know exactly how long list you want to case on
 binTupleCase :: Expr Id -> [Id] -> Expr Id -> Fresh (Expr Id)
 binTupleCase e []      rhs = return rhs
-binTupleCase e [x]     rhs = return rhs
+binTupleCase e [x]     rhs = return ((e // x) rhs)
 binTupleCase e (hd:xs) rhs = do
-    tl <- newTmp "tl"
+    tl <- newTmp "r"
     rhs' <- binTupleCase (lcl tl) xs rhs
     return $ Case e Nothing [ (pat (hid (TupleTyCon 2)) [hd,tl],rhs') ]
 
@@ -311,14 +314,19 @@ rawBind x u         v         = Do [BindExpr x u] v
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
 
+isRecursive :: Function Id -> Bool
+isRecursive (Function f _ a) = or [ g == f | Gbl g _ _ <- universeBi a ]
+
+{-
 checkFunctions :: (Id -> Bool) -> [Function Id] -> [Function Id]
 checkFunctions p fns =
     [ Function f t $ check `underLambda'` a
     | Function f t a <- fns
-    , let check | p f {- or [ g == f | Gbl g _ _ <- universeBi a ] -}
+    , let check | p f
                 = (gbl (api "postpone") `App`)
                 | otherwise    = id
     ]
+-}
 
 (==>) :: Expr Id -> Expr Id -> Expr Id
 e1 ==> e2 = gbl (api "==>") `apply` [e1,listLit [e2]]
@@ -425,7 +433,7 @@ untuple = transformBiM $
 --     case c of
 --     ... -> T2 e1 e2
 --
---  (all branches return a tuple ... or UNR)
+--  (all branches return a tuple ... or noop)
 --
 --  =>
 --
@@ -441,8 +449,8 @@ untuple = transformBiM $
 tupleCase :: Expr Id -> Maybe [Expr Id]
 
 tupleCase e0@(Gbl hid (Forall [] (TyCon (HBMCId (TupleTyCon _)) ts)) _)
-  | hid == unrId
-  = Just (map unr ts)
+  | hid == noopId
+  = Just (map noop ts)
 
 tupleCase (collectArgs -> (Gbl (HBMCId (TupleCon n)) _ tys,es))
   | n == length tys

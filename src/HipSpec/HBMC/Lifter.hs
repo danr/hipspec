@@ -92,7 +92,7 @@ lifter var tmpl def combine = go
         return (combine ess x before after)
 
 commonAll :: Integer -> Id -> [Type Id] -> Expr Id -> Fresh (Expr Id)
-commonAll s0 f arg_tys = lifter newArg tmpl (unr t) (\ _ -> mkLet)
+commonAll s0 f arg_tys = lifter newArg tmpl (noop t) (\ _ -> mkLet)
   where
     n = length arg_tys
 
@@ -127,7 +127,7 @@ expensive p = lifter
     (\ ess x tf e -> case ess of
         a:as | any (/= a) as -> error "different expensive"
         [] -> error "empty expensive"
-        a:_ -> mkLet x (ite tf a (unr (exprType' "expensive" a))) e)
+        a:_ -> mkLet x (ite tf a (noop (exprType' "expensive" a))) e)
 
 replaceTop :: (a ~ Id) => (Expr a -> Maybe (Expr a)) -> (Expr a -> Maybe (Expr a) -> Expr a) -> Expr a -> (Expr a,[Expr a])
 replaceTop tmpl handle_arm = go

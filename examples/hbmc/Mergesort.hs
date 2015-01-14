@@ -4,10 +4,13 @@ module Mergesort(module Mergesort,module Nat) where
 import Prelude (Bool(..),undefined,Ordering(..), (&&), (||), otherwise, not, fmap, Eq(..), Ord, fst, snd)
 import HipSpec hiding ((===))
 import Nat (Nat(..),(+),(*))
-import List (length)
 import Test.QuickCheck hiding ((==>),(===))
 import GHC.Types
 import Data.Typeable
+
+length :: [a] -> Nat
+length []     = Z
+length (_:xs) = S (length xs)
 
 min Z     y     = Z
 min (S x) Z     = Z
@@ -50,36 +53,29 @@ ord :: [Nat] -> Bool
 ord (x:y:xs) = if x <= y then ord (y:xs) else False
 ord _        = True
 
-prop_atotal     a b = a <= b =:= True \/ b <= a =:= True
-prop_atotal_not a b = a <= b =:= True /\ b <= a =:= True ==> True =:= False
+-- prop_atotal     a b = a <= b =:= True \/ b <= a =:= True
+-- prop_atotal_not a b = a <= b =:= True /\ b <= a =:= True ==> True =:= False
+--
+-- -- prop_merge_ord      xs ys = ord xs =:= True  ==> ord ys =:= True  ==> ord (merge xs ys) =:= True
+-- prop_merge_ord_not1 xs ys = ord xs =:= True  ==> ord ys =:= True  ==> ord (merge xs ys) =:= False
+-- prop_merge_ord_not2 xs ys = ord xs =:= False ==> ord ys =:= True  ==> ord (merge xs ys) =:= True
+-- prop_merge_ord_not3 xs ys = ord xs =:= True  ==> ord ys =:= False ==> ord (merge xs ys) =:= True
 
--- prop_merge_ord      xs ys = ord xs =:= True  ==> ord ys =:= True  ==> ord (merge xs ys) =:= True
-prop_merge_ord_not1 xs ys = ord xs =:= True  ==> ord ys =:= True  ==> ord (merge xs ys) =:= False
-prop_merge_ord_not2 xs ys = ord xs =:= False ==> ord ys =:= True  ==> ord (merge xs ys) =:= True
-prop_merge_ord_not3 xs ys = ord xs =:= True  ==> ord ys =:= False ==> ord (merge xs ys) =:= True
+five = S (S (S (S Z)))
 
-prop_cancel xs ys = msort xs =:= msort ys ==> xs =:= ys
+prop_cancel xs ys = msort xs =:= msort ys /\ length xs <= five =:= False ==> xs =:= ys
 
-n2  () = S (S Z)
-n3  () = S (n2 ())
-n4  () = S (n3 ())
-n5  () = S (n4 ())
-n6  () = S (n5 ())
-n7  () = S (n6 ())
-n8  () = S (n7 ())
-n9  () = S (n8 ())
-n10 () = S (n9 ())
 
-prop_cancel2 xs ys zs =
-        msort xs =:= zs
-     /\ msort ys =:= zs
-     /\ False =:= length xs <= n10 ()
-    ==> msort xs =:= xs
-     \/ msort ys =:= ys
-     \/ xs =:= ys
+-- prop_cancel2 xs ys zs =
+--         msort xs =:= zs
+--      /\ msort ys =:= zs
+--      /\ False =:= length xs <= five
+--     ==> msort xs =:= xs
+--      \/ msort ys =:= ys
+--      \/ xs =:= ys
 
-prop_msort_ord_not xs = ord (msort xs) =:= False
-
-prop_msort_permutation_wrong1 xs x = count x xs <= n10 () =:= False ==> count x xs =:= count (S x) (msort xs)
-prop_msort_permutation_wrong2 xs x = count x xs <= n10 () =:= False ==> count (S x) xs =:= count x (msort xs)
-
+-- prop_msort_ord_not xs = ord (msort xs) =:= False
+--
+-- prop_msort_permutation_wrong1 xs x = count x xs <= five =:= False ==> count x xs =:= count (S x) (msort xs)
+-- prop_msort_permutation_wrong2 xs x = count x xs <= five =:= False ==> count (S x) xs =:= count x (msort xs)
+--

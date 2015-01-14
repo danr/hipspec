@@ -74,6 +74,7 @@ ppExpr i t pk e0 = case e0 of
     Let fns e -> parensIf (i > 0) $
         ("let" <+> "{" $\ vcat (map (ppFun t pk) fns) <+> "}" <+> "in") $$
         ppExpr 0 t pk e
+    ListLit [] -> text "[]"
     ListLit es -> inside "[ " ", " "]" (map (ppExpr 0 t pk) es)
 
     Do [] e -> ppExpr i t pk e
