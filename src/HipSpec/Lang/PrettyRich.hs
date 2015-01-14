@@ -74,10 +74,18 @@ ppExpr i t pk e0 = case e0 of
     Let fns e -> parensIf (i > 0) $
         ("let" <+> "{" $\ vcat (map (ppFun t pk) fns) <+> "}" <+> "in") $$
         ppExpr 0 t pk e
+    ListLit es -> inside "[ " ", " "]" (map (ppExpr 0 t pk) es)
+
+    Do [] e -> ppExpr i t pk e
+    Do ss e -> parensIf (i > 0) $ "do" <+> inside "{ " "; " "}" (map (ppStmt t pk) (ss ++ [StmtExpr e]))
   where
     PK{..} = pk
     ppId     x ty = ppTyped t (p x) (ppType 0 pk ty)
     ppPolyId x ty = ppTyped t (p x) (ppPolyType pk ty)
+
+ppStmt :: Types -> P a -> Stmt a -> Doc
+ppStmt t pk (BindExpr x e) = p pk x <+> "<-" $\ ppExpr 0 t pk e
+ppStmt t pk (StmtExpr e)   = ppExpr 0 t pk e
 
 ppAlt :: Types -> P a -> Alt a -> Doc
 ppAlt t pk (pat,rhs) = ppPat t pk pat <+> "->" $\ ppExpr 0 t pk rhs

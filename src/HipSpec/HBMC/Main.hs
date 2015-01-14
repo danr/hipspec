@@ -163,11 +163,11 @@ main = do
                     , R.Constructor dc args <- cons
                     ]
 
-        let (ixss,dt_progs) = unzip (map mergeDatatype data_types)
+        let (fns,insts,dt_progs) = (`evalState` 0) $ do
 
-        let data_info = concat ixss
+                (ixss,dt_progs) <- mapAndUnzipM mergeDatatype data_types
+                let data_info = concat ixss
 
-        let (fns,insts) = (`evalState` 0) $ do
                 get_insts <- mapM mkGet data_types
                 -- arg_insts <- mapM mkArgument data_types
                 -- new_fns <- mapM mkNew data_types
@@ -183,7 +183,11 @@ main = do
                     return mf
                 prop_fns <- mapM (hbmcProp data_info) props `runMon` is_pure
                 let add_check i = any (`isInfixOf` originalId i) (concatMap (splitOn ".") check)
-                return ({- new_fns++-}checkFunctions add_check fns++prop_fns,get_insts{-++arg_insts-})
+                return
+                    ( {- new_fns++-} checkFunctions add_check fns++prop_fns
+                    , get_insts {-++arg_insts-}
+                    , dt_progs
+                    )
 
         liftIO $ do
 

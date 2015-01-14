@@ -71,7 +71,7 @@ hbmcProp indexes Property{..} = Function prop_id unpty <$> do
             ]
 
     let values e =
-          do e' <- lift $ foldM (\ acc (x,t) -> newValue t `bind` Lam x unty acc) e prop_vars
+          do e' <- lift $ foldM (\ acc (x,t) -> bind x (newValue t) acc) e prop_vars
              return (psl "Generating symbolic values..." >>> e')
 
     values $ inSequence

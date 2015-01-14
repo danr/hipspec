@@ -22,77 +22,51 @@ import Data.Maybe
 import Control.Monad.State
 
 {-
-   data Ty = Ty :-> Ty | A
+   data Expr = Var Nat | App Expr Expr | Lam Expr
 
 Makes new data types:
 
-   data Lbl_Ty = Lbl_Arrow | Lbl_A
+   data Lbl_Expr = Lbl_Var | Lbl_App | Lbl_Lam
 
-   data D_Ty = D_Ty (Data Lbl_Ty (T2 (Thunk D_Ty) (Thunk D_Ty)))
+   newtype D_Expr = D_Expr (Thunk (Data (Lbl_Expr (D_Nat,(D_Expr,D_Expr)))))
 
 Makes new constructor functions:
 
-   conArrow = \ a b -> this (D_Ty (Con (val Lbl_Arrow) (T2 a b)))
-   conA     = D_Ty (Con (val Lbl_A) (T2 (err "conA") (err "conA")))
+   conVar = \ a   -> D_Expr (con Lbl_Var (x,(unr,unr)))
+   conApp = \ a b -> D_Expr (con Lbl_Var (unr,(a,b)))
+   ...
 
-Makes new instances for getting the values and arguments:
+   predApp = \ a b -> equalHere (conApp a b)
+   ...
 
-   instance Value D_Ty where
-     type Type D_Ty = Ty
+   isApp (D_Expr t) h = isCon Lbl_App t (\ (_,(p,q)) -> h p q)
+   ...
 
-     get (D_Ty (Con cn args)) =
-       do l <- get cn
-          case (l, args) of
-            (Lbl_Arrow, T2 (a) (b)) ->
-                get a >>= \ x ->
-                get b >>= \ y ->
-                return (x :-> y)
-            (Lbl_A, _) -> return A
+   -- -- replaced with Enum+Bounded:
+   -- instance ConstructiveData D_Expr where
+   --  constrs = [Lbl_Var,Lbl_App,Lbl_Lam]
 
-     get = \ s -> case s of
-        D_Ty d -> case d of
-            Con cn args ->
-                get cn >>= \ l ->
-                case args of
-                    T2 u v -> case l of
-                        Lbl_Arrow ->
-                            peek u >>= \ a ->
-                            peek v >>= \ b ->
-                            return (a :-> b)
-                        Lbl_A -> return A
+   instance EqualData D_Expr (D_Nat,(D_Expr,D_Expr)) where
+     equalData h =
+       [ ([Lbl_Var],        \ (x1,(_,_)) (x2,(_,_)) -> h x1 x2)
+       , ([Lbl_Lam,Lbl_App], \(_,(p1,_)) (_,(p2,_)) -> h p1 p2)
+       ...
+       ]
 
-{-
-   instance Argument Ty where
-     argument Lbl_Arrow (Tuple [a,b]) = [a,b]
-     argument Lbl_A     (Tuple [_,_]) = []
-     argument _         _             = error "Argument T"
-     -}
+    instance Value D_Expr where
+      type Type D_Expr = Expr
 
-Makes a creation function for values up to a size:
+      dflt _ = Var (dflt undefined)
 
-    newDTyp :: Int -> H DTyp
-    newDTyp k =
-      do cn <- newVal ([Lbl_A] ++ [ Lbl_Arrow | k > 0 ])
-         choose cn $ \c ->
-           case c of
-             TArrow -> do a <- newDTyp (k-1)
-                          b <- newDTyp (k-1)
-                          return (conArrow a b)
-             _ -> return (conA c)
-
-    newList :: Int -> H a -> H (DList a)
-    newList s e =
-        newVal ((++) (Lbl_Nil:[]) (if (==) s 0 then [] else (Lbl_Cons:[]))
-        >>= \ cn  ->
-        choose  cn $ \ c ->
-            case c of
-                Lbl_Cons -> do
-                    x <- e
-                    xs <- newList (pred s)
-                    return (conCons x xs)
-                Lbl_Nil -> return (conNil)
-
-    (parameterised on creation functions of polymorphic components)
+      get (D_Expr t) =
+         getData
+           (\ lbl args -> case args of
+              (x,(p,q)) -> case lbl of
+                Lbl_Var -> do n <- get x; return (Var x)
+                ...
+                Lbl_App -> do a <- get p; b <- get q; return (App a b))
+           (Var (dflt undefined))
+           t
 
 -}
 
@@ -115,67 +89,94 @@ allocateDatatype (Datatype tc _tvs cons _) = (indexes,types)
       where
         (l,(_,i):r) = break ((a ==) . fst) ts
 
--- Changes type constructors to Thunk (D_ ..)
+-- Changes type constructors to (D_ ..)
 typeReplace :: Type Id -> Type Id
-typeReplace (TyCon tc ts) = thunkTy (TyCon (d tc) (map typeReplace ts))
+typeReplace (TyCon tc ts) = TyCon (d tc) (map typeReplace ts)
 typeReplace (ArrTy t1 t2) = typeReplace t1 `ArrTy` typeReplace t2
 typeReplace (TyVar a)     = TyVar a
 typeReplace Integer       = Integer
 
-derive :: [String] -> [Type Id]
-derive xs = [ TyCon (raw x) [] | x <- xs ]
+derive :: [Id] -> [Type Id]
+derive xs = [ TyCon x [] | x <- xs ]
 
-mergeDatatype :: Datatype Id -> (DataInfo,([Datatype Id],[Function Id]))
-mergeDatatype dc@(Datatype tc tvs cons _) = (indexes,([labels,ndata],constructors))
+mergeDatatype :: Datatype Id -> Fresh (DataInfo,([Datatype Id],[Function Id]))
+mergeDatatype dc@(Datatype tc tvs cons _) =
+    do ctors <- constructors
+       return $ (indexes,([labels,ndata],concat ctors))
   where
     (indexes,args) = allocateDatatype dc
 
+    -- data Lbl_Expr = Lbl_Var | Lbl_App | Lbl_Lam
     labels = Datatype (label tc) []
         [ Constructor (label c) []
         | Constructor c _args <- cons
         ]
-        (derive (map ("Prelude." ++) ["Ord","Eq","Show"]))
+        (derive (map prelude ["Ord","Eq","Show","Enum","Bounded"]))
 
+    -- newtype D_Expr = D_Expr (Thunk (Data Lbl_Expr (D_Nat,(D_Expr,D_Expr)))))
     ndata = Datatype (d tc) tvs
         [ Constructor (d tc)
-            [ TyCon hdata
-                [ TyCon (label tc) []
-                , TyCon (hid (TupleTyCon n)) (map (liftTy . typeReplace) args)
-                ]
+            [ thunkTy
+                (TyCon hdata
+                    [ TyCon (label tc) []
+                    , binTupleType (map typeReplace args)
+                    ])
             ]
         ]
-        [] -- (derive ["Prelude.Show","Symbolic.Choice","Symbolic.Equal"])
+        (derive (map api ["Constructive","Equal"]))
 
     n = length args
 
-    constructors = concat
-        [ [ Function (constructor c) unpty $ makeLambda [ (n,unty) | Just n <- names ] $
-              gbl this `App`
-              gbl (d tc) `App`
-              (gbl con `apply`
-                  [ gbl val `App` gbl (label c)
-                  , tuple [ maybe (errorf (show c)) lcl a | a <- names ]
-                  ])
-          , Function (isA c) unpty $ makeLambda [(xs,unty),(h,unty)] $
-              (gbl force `App` lcl xs) `rawBind`
-              (makeLambda [(i,unty)] $
-                unaryCase (lcl i) (d tc) [lbl,args] $
-                   (gbl must `App` (lcl lbl =? c)) `App`
-                   (lcl h `apply` [ gbl (HBMCId $ Select j n) `App` lcl args | j <- ixs {-??-} ]))
-          ]
-        | Constructor c _cargs <- cons
-        , let Just ixs = fmap snd (lookup c indexes)
-        , let xs = refresh c (-1)
-        , let h   = raw "h"
-        , let i   = raw "i"
-        , let lbl = raw "l"
-        , let args = raw "args"
-        , let names =
+    constructors = sequence
+        [ do names <- sequence
                 [ if i `elem` ixs
-                    then Just (refresh c (fromIntegral i))
-                    else Nothing
+                    then Just <$> newTmp "x"
+                    else return Nothing
                 | i <- [0..n-1]
                 ]
+             sequence
+               -- conApp = \ a b -> D_Expr (con Lbl_Var (unr,(a,b)))
+               [ return $ Function (mkCon c) unpty $ makeLambda [ (n,unty) | Just n <- names ] $
+                   gbl (d tc) `App`
+                   (gbl con `apply`
+                       [ gbl (label c)
+                       , binTupleLit [ maybe (errorf (ppId c)) lcl a | a <- names ]
+                       ])
+
+               -- predApp = \ a b -> equalHere (conApp a b)
+               , return $ Function (predCon c) unpty $ makeLambda [ (n,unty) | Just n <- names ] $
+                  gbl equalHere `App` (gbl (mkCon c) `apply` [ lcl n | Just n <- names ])
+
+               -- isApp (D_Expr t) h = isCon Lbl_App t (\ (_,(p,q)) -> h p q)
+               --
+               -- isApp =
+               --    \ et h ->
+               --      case et of
+               --        D_Expr t ->
+               --          isCon Lbl_App t
+               --            (\ arg ->
+               --               case arg of
+               --                 (unused,rest) ->
+               --                   case rest of
+               --                     (p,q) -> h p q)
+               --
+               , do h <- newTmp "h"
+                    t <- newTmp "t"
+                    et <- newTmp "et"
+                    arg <- newTmp "arg"
+                    names' <- sequence
+                      [ case mn of
+                         Just mn -> return mn
+                         Nothing -> newTmp "unused"
+                      | mn <- names
+                      ]
+                    lambda <- binTupleCase (lcl arg) names' (lcl h `apply` [ lcl n | Just n <- names ])
+                    return $ Function (isCon c) unpty $ makeLambda [(et,unty),(h,unty)] $
+                      unaryCase (lcl et) (d tc) [t] $
+                        gbl (api "isCon") `apply` [ gbl (label c) , lcl t , Lam arg unty lambda ]
+               ]
+        | Constructor c _cargs <- cons
+        , let Just ixs = fmap snd (lookup c indexes)
         ]
 
 valueClass x = TyCon (api "Value") [x]
@@ -210,7 +211,7 @@ mkGet dc@(Datatype tc tvs _cons _) = do
                          let locs = take n (indexed (vars `zip` ixs))
                          get_names <- sequence [ (,) i <$> newTmp "z" | i <- catMaybes locs ]
                          rhs <- foldM
-                            (\ inner (i,z) -> (gbl (genericGet) `App` lcl i) `bind` Lam z unty inner)
+                            (\ inner (i,z) -> bind z (gbl (genericGet) `App` lcl i) inner)
                             (ret (gbl c `apply` map (lcl . snd) get_names))
                             get_names
                          return (c,locs,rhs)
@@ -220,7 +221,7 @@ mkGet dc@(Datatype tc tvs _cons _) = do
                     , let Just ixs = fmap snd (lookup c indexes)
                     ]
                 unaryCase e' con [cn,args] <$>
-                    (gbl genericGet `App` lcl cn) `bind` Lam label unty lambda_body
+                    bind label (gbl genericGet `App` lcl cn) lambda_body
 
 {-
 mkArgument :: Datatype Id -> Fresh (Instance Id)
@@ -322,7 +323,7 @@ dataCase arg_tuple lbl_var brs@((_,specimen,_):_) = do
     brs' <- sequence
         [ do rhs' <- foldM
                 (\ acc (b,maybe_real) -> case maybe_real of
-                    Just real -> lcl b `bind` Lam real unty acc
+                    Just real -> bind real (lcl b) acc
                     Nothing   -> return acc
                 )
                 rhs

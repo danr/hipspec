@@ -68,8 +68,11 @@ unaryCase e k bound rhs = Case e Nothing [(pat k bound,rhs)]
     -- when bound = [x], we could just inline (must be the singleton data type)
 
 listLit :: [Expr Id] -> Expr Id
+listLit = ListLit
+{-
 listLit []     = gbl realNil
 listLit (e:es) = gbl realCons `apply` [e,listLit es]
+-}
 
 -- When you know exactly how long list you want to case on
 listCase :: Expr Id -> [Id] -> Expr Id -> Fresh (Expr Id)
@@ -154,11 +157,12 @@ __ = raw "_"
 tupleStruct :: Id
 tupleStruct = api "Tuple"
 
-label,d,constructor,getForTyCon,argumentForTyCon :: Id -> Id
+label,d,mkCon,predCon,getForTyCon,argumentForTyCon :: Id -> Id
 label = rawFor "Label"
 d = rawFor "D"
-constructor = rawFor "con"
-isA = rawFor "is"
+predCon = rawFor "pred"
+mkCon = rawFor "mk"
+isCon = rawFor "is"
 getForTyCon = rawFor "get"
 argumentForTyCon = rawFor "argument"
 
@@ -176,7 +180,7 @@ u =/= v = gbl notEqualHere `apply` [u,v]
 
 hdata,con,val,switch,genericGet,genericArgument :: Id
 hdata = api "Data"
-con = api "Con"
+con = api "con"
 val = api "val"
 switch = api "switch"
 genericGet = api "get"
@@ -204,6 +208,26 @@ unrId = api "UNR"
 
 unr :: Type Id -> Expr Id
 unr t = Gbl unrId (Forall [] t) []
+
+-- binTupleType [t1,t2,t3,t4] = (t1,(t2,(t3,t4)))
+binTupleType :: [Type Id] -> Type Id
+binTupleType []     = TyCon (hid (TupleTyCon 0)) []
+binTupleType [x]    = x
+binTupleType (x:xs) = TyCon (hid (TupleTyCon 2)) [x,binTupleType xs]
+
+binTupleLit :: [Expr Id] -> Expr Id
+binTupleLit []     = tuple []
+binTupleLit [x]    = tuple [x]
+binTupleLit (x:xs) = tuple [x,binTupleLit xs]
+
+-- When you know exactly how long list you want to case on
+binTupleCase :: Expr Id -> [Id] -> Expr Id -> Fresh (Expr Id)
+binTupleCase e []      rhs = return rhs
+binTupleCase e [x]     rhs = return rhs
+binTupleCase e (hd:xs) rhs = do
+    tl <- newTmp "tl"
+    rhs' <- binTupleCase (lcl tl) xs rhs
+    return $ Case e Nothing [ (pat (hid (TupleTyCon 2)) [hd,tl],rhs') ]
 
 {-
 the :: Expr Id -> Expr Id
@@ -264,21 +288,25 @@ unty = error "Type destroyed by HBMC pass"
 ret ::  Expr Id -> Expr Id
 ret e = Gbl (prelude "return") unpty [unty] `app` e
 
-bind :: Expr Id -> Expr Id -> Fresh (Expr Id)
-((Gbl i _ _ `App` m) `App` f) `bind` g
-    | i == prelude ">>=" = do
-    x <- tmp
-    r <- (f `app` Lcl x unty) `bind` g
-    m `bind` Lam x unty r
+infixr >>>
 
-(Gbl i _ _ `App` a) `bind` (Lam x _ b)
-    | i == prelude "return"
-    , occurrences x b <= 1
-    = return ((a // x) b)
-m `bind` f = return (m `rawBind` f)
+(>>>) :: Expr Id -> Expr Id -> Expr Id
+Do s1 u >>> Do s2 v = Do (s1 ++ [StmtExpr u] ++ s2) v
+u       >>> Do s2 v = Do ([StmtExpr u] ++ s2) v
+Do s1 u >>> v       = Do (s1 ++ [StmtExpr u]) v
+u       >>> v       = Do [StmtExpr u] v
 
-rawBind :: Expr Id -> Expr Id -> Expr Id
-m `rawBind` f = Gbl (prelude ">>=") unpty [unty,unty] `apply` [m,f]
+inSequence :: [Expr Id] -> Expr Id -> Expr Id
+inSequence as a = foldr (>>>) a as
+
+bind :: Id -> Expr Id -> Expr Id -> Fresh (Expr Id)
+bind x m e2 = return (rawBind x m e2)
+
+rawBind :: Id -> Expr Id -> Expr Id -> Expr Id
+rawBind x (Do s1 u) (Do s2 v) = Do (s1 ++ [BindExpr x u] ++ s2) v
+rawBind x u         (Do s2 v) = Do ([BindExpr x u] ++ s2) v
+rawBind x (Do s1 u) v         = Do (s1 ++ [BindExpr x u]) v
+rawBind x u         v         = Do [BindExpr x u] v
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
@@ -292,16 +320,7 @@ checkFunctions p fns =
                 | otherwise    = id
     ]
 
-infixr >>>
-
-inSequence :: [Expr Id] -> Expr Id -> Expr Id
-inSequence as a = foldr (>>>) a as
-
-thenId :: Id
-thenId = prelude ">>"
-
-(>>>),(==>) :: Expr Id -> Expr Id -> Expr Id
-e1 >>> e2 = gbl thenId `apply` [e1,e2]
+(==>) :: Expr Id -> Expr Id -> Expr Id
 e1 ==> e2 = gbl (api "==>") `apply` [e1,listLit [e2]]
 
 nt :: Expr Id -> Expr Id
@@ -440,7 +459,6 @@ tupleCase (Case es mx alts) =
 
 tupleCase _ = Nothing
 
--- unproj t [u1,u2] (fst t) = u1
 unproj :: Id -> [Expr Id] -> Expr Id -> Expr Id
 unproj t us = transform $
   \ e0 ->

@@ -86,6 +86,16 @@ data Expr a
     --   the type it gets here is too expressible. It does simplify,
     --   and if it is ever needed it could be added without too much of
     --   a hassle.
+
+    -- HBMC:
+    | ListLit [Expr a]
+    | Do [Stmt a] (Expr a)
+  deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+-- HBMC
+data Stmt a
+    = BindExpr a (Expr a)
+    | StmtExpr (Expr a)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
 
 -- | Patterns in branches
@@ -103,6 +113,7 @@ data Pattern a
 instanceUniverseBi  [t| forall a . (Expr a,Expr a) |]
 instanceUniverseBi  [t| forall a . (Expr a,Type a) |]
 
+instanceTransformBi [t| forall a . ([Stmt a],Expr a) |]
 instanceTransformBi [t| forall a . (Expr a,Expr a) |]
 instanceTransformBi [t| forall a . (Expr a,[Function a]) |]
 instanceTransformBi [t| forall a . (Expr a,Function a) |]

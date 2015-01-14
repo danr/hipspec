@@ -77,7 +77,7 @@ monExpr res e0 =
 monAlt :: Expr Id -> Expr Id -> Alt Id -> Mon (Expr Id)
 monAlt ms res (ConPat k _ _ ys,e) =
   do body <- monExpr res e
-     return (gbl (isA k) `apply` [ms,makeLambda ys body])
+     return (gbl (isCon k) `apply` [ms,makeLambda ys body])
 
 makeNew :: Bool -> (Expr Id -> Mon (Expr Id)) -> Mon (Expr Id)
 makeNew inline k =
@@ -85,7 +85,7 @@ makeNew inline k =
      e <- k (lcl x)
      case isEqual x e of
        Just e' | inline -> return (rmRefl $ (e' // x) e)
-       _ -> lift (gbl new `bind` Lam x unty e)
+       _ -> lift (bind x (gbl new) e)
 
 isEqual :: Id -> Expr Id -> Maybe (Expr Id)
 isEqual x e0 = listToMaybe $
@@ -102,17 +102,14 @@ isEqual x e0 = listToMaybe $
 
 -- equalHere x x >> m = m
 rmRefl :: Expr Id -> Expr Id
-rmRefl = transform $
-  \ e0 ->
-    case e0 of
-      Gbl (>>)  _ _
-        `App` (Gbl f _ _ `App` Lcl x _ `App` Lcl y _)
-        `App` m
-          | (>>) == thenId
-          , f == equalHere
-          , x == y
-          -> m
-      _ -> e0
+rmRefl = transformBi $
+  \ stmts ->
+    case stmts of
+      StmtExpr (Gbl f _ _ `App` Lcl x _ `App` Lcl y _):m
+        | f == equalHere
+        , x == y
+        -> m
+      _ -> stmts
 
 makeNews :: Int -> ([Expr Id] -> Mon (Expr Id)) -> Mon (Expr Id)
 makeNews 0 k = k []
