@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables,ViewPatterns #-}
 module HipSpec.Lang.CollapseSimp (collapseSimp) where
 
 import Data.Traversable
@@ -52,3 +52,29 @@ collapseSimp fs0 = map (fmap rename) survivors
         Just y  -> y
         Nothing -> x
 
+{-
+   NB: This cannot really be done since QuickSpec might still want to talk
+   about these removed functions.
+   We should return the rename map and run it over all functions that come from QuickSpec
+
+-- If we have
+--    g x y = f x y
+-- then we remove g and replace it with f everywhere
+removeDuplicates :: forall a . Eq a => [Function a] -> [Function a]
+removeDuplicates fs0 = map (fmap rename) $ filter ((`notElem` remove) . fn_name) fs0
+  where
+    remove = map fst renamings
+
+    renamings =
+      [ (g,f)
+      | Function g _ xs (Just (Body (collectArgs -> (Gbl f _ _,ys)))) <- fs0
+      , length xs == length ys
+      , xs == [ y | Lcl y _ <- ys ]
+      ]
+
+    rename :: a -> a
+    rename x = case lookup x renamings of
+        Just y  -> y
+        Nothing -> x
+
+-}

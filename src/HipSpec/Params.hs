@@ -33,6 +33,7 @@ data DebugFlag
     | PrintCore
     | PrintRich
     | PrintOptRich
+    | PrintTIF
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
@@ -63,6 +64,7 @@ debugDesc flg = case flg of
     PrintCore        -> "Print GHC Core"
     PrintRich        -> "Print Rich IR"
     PrintOptRich     -> "Print Optimised Rich IR"
+    PrintTIF         -> "Print TIF: Typed Induction Format"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"
@@ -258,13 +260,13 @@ defParams = Params
                                  &= name "N" &= help "Prover processes          (default 2)"
     , timeout             = 1    &= name "t" &= help "Prover timeout in seconds (default 1.0)"
     , expand_boolprops    = False            &= help "Expand boolean properties to implication form"
+    , fpi_functions = [] &= name "f" &= help "Functions to apply fixed point induction on"
 
     , techniques = enumerate
          [ (t,show t ++ defStr t defaultTechs)
          | t <- [minBound..maxBound]
          ]
 
-    , fpi_functions = [] &= name "f" &= help "Functions to apply fixed point induction on"
 
     , provers = enumerate
         [ (pn,prover_desc p ++ defStr pn defaultProverNames)

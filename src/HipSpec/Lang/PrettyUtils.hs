@@ -4,9 +4,13 @@ module HipSpec.Lang.PrettyUtils where
 import Text.PrettyPrint
 
 infixr 1 $\
+infixr 1 $$\
 
 ($\) :: Doc -> Doc -> Doc
 d1 $\ d2 = hang d1 2 d2
+
+($$\) :: Doc -> Doc -> Doc
+d1 $$\ d2 = cat [d1,nest 2 d2]
 
 data Types = Show | Don'tShow
 
@@ -36,7 +40,7 @@ starsep = inside "(" "*" ")"
 
 inside :: Doc -> Doc -> Doc -> [Doc] -> Doc
 inside _ _ _ []     = empty
-inside l p r (x:xs) = cat (go (l <> x) xs)
+inside l p r (x:xs) = fcat (go (l <> x) xs)
   where
     go y []     = [y,r]
     go y (z:zs) = y : go (p <> z) zs

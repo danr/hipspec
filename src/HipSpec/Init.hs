@@ -4,6 +4,7 @@ module HipSpec.Init (processFile,SigInfo(..)) where
 import Control.Monad
 
 import Data.List (partition,union)
+import Data.Char
 
 import HipSpec.GHC.Calls
 import HipSpec.Monad
@@ -32,6 +33,7 @@ import HipSpec.Heuristics.CallGraph
 
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
+import qualified HipSpec.Lang.Rich as R
 
 import TyCon (isAlgTyCon)
 import TysWiredIn (boolTyCon)
@@ -49,6 +51,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
+
+import HipSpec.Lang.PrettyTIF
+import Text.PrettyPrint (render,text)
 
 processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
 processFile cont = do
@@ -144,6 +149,16 @@ processFile cont = do
         debugWhen PrintRich $ "\nRich Definitions\n" ++ unlines (map showRich rich_fns)
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
+
+        let mapHead f (x:xs) = f x:xs
+            mapHead f []     = []
+
+        let tif_kit = TK
+                { pp_symb = text . mapHead toLower . ppId
+                , pp_var  = text . mapHead toUpper . ppId
+                }
+
+        debugWhen PrintTIF $ render (ppProg tif_kit (R.Program data_types rich_fns_opt))
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
