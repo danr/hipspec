@@ -199,7 +199,7 @@ main = do
                 prop_fns <- mapM (hbmcProp data_info) props `runMon` id_type
                 let add_check i = any (`isInfixOf` originalId i) (concatMap (splitOn ".") check)
                 return
-                    ( {- new_fns ++ -} {- checkFunctions add_check -} fns++prop_fns
+                    ( caseToChoice $ blast $ fns++prop_fns
                     , con_insts ++ eql_insts ++ get_insts
                     , dt_progs
                     )

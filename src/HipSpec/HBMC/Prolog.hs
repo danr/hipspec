@@ -39,22 +39,41 @@ monadic (Function f _t (collectBinders -> (args,body))) =
      body' <- monExpr (lcl res) body
      return (Function f unpty (makeLambda (args ++ [(res,unty)]) body'))
 
+trivial :: Expr Id -> Bool
+trivial Lcl{} = True
+trivial _     = False
+
 monExpr :: Expr Id -> Expr Id -> Mon (Expr Id)
 monExpr res e0 =
   case collectArgs e0 of
     -- function call
     (Gbl x _ _,args) ->
-      makeNews (length args) $
-        \ xs ->
-          do id_type <- asks ($ x)
-             let f args = case id_type of
-                   _ | x == noopId -> gbl x `apply` args
-                   IsCon -> gbl (predCon x) `apply` args
-                   IsRec -> gbl postpone `App` (gbl x `apply` args)
-                   IsOk  -> gbl x `apply` args
-             es <- zipWithM monExpr xs args
-             return (inSequence es (f (xs ++ [res])))
-         -- pure?
+      do id_type <- asks ($ x)
+         case id_type of
+           IsCon | any (not . trivial) args ->
+             do xs <- mapM (\ _ -> lift (newTmp "x")) args
+                es <- zipWithM (monExpr . lcl) xs args
+                return $
+                  gbl (isCon x)
+                    `apply`
+                       [ res
+                       , makeLambda
+                           [ (x,unty) | x <- xs ]
+                           (case es of
+                             [] -> noop (error "noop type") `App` res
+                             _  -> inSequence (init es) (last es)
+                           )
+                       ]
+           _ ->
+             do let f args = case id_type of
+                       _ | x == noopId -> gbl x `apply` args
+                       IsCon -> gbl (predCon x) `apply` args
+                       IsRec -> gbl postpone `App` (gbl x `apply` args)
+                       IsOk  -> gbl x `apply` args
+                makeNews (length args) $
+                  \ xs ->
+                    do es <- zipWithM monExpr xs args
+                       return (inSequence es (f (xs ++ [res])))
 
     -- base cases
     (Lcl x _, []) -> return (e0 === res)
@@ -75,17 +94,18 @@ monExpr res e0 =
       makeNew True $
         \ z ->
           do tr1 <- monExpr z s
-             choices <- mapM (monAlt z res) alts
-             return (tr1 >>> (gbl choice `App` listLit choices))
+             alts' <- mapM (monAlt res) alts
+             return (tr1 >>> Case z Nothing alts')
 
     -- Lam x _ e  -> Lam x unty <$> monExpr e
 
     x -> error $ "monExpr: " ++ show x ++ " not implemented yet"
 
-monAlt :: Expr Id -> Expr Id -> Alt Id -> Mon (Expr Id)
-monAlt ms res (ConPat k _ _ ys,e) =
+monAlt :: Expr Id -> Alt Id -> Mon (Alt Id)
+monAlt res (ConPat k pty ts ys,e) =
   do body <- monExpr res e
-     return (gbl (isCon k) `apply` [ms,makeLambda ys body])
+     return (ConPat k pty ts ys,body)
+
 
 makeNew :: Bool -> (Expr Id -> Mon (Expr Id)) -> Mon (Expr Id)
 makeNew inline k =

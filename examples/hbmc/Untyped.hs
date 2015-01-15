@@ -80,11 +80,9 @@ thm_id n f x y = kstep n (f :$ Var x) =:= Var x ==>
                  x =:= y
 -}
 
-{-
 thm_omg n f = astep (Suc n) f =:= Just f ==> True =:= False
--}
 
-thm_why n y = astep n (y :$ TheVar) =:= Just (TheVar :$ (y :$ TheVar)) ==> cheating y =:= True
+-- thm_why n y = astep n (y :$ TheVar) =:= Just (TheVar :$ (y :$ TheVar)) ==> cheating y =:= True
 
 -- save:
 -- (Suc (Suc (Suc (Suc (Suc Z)))),(((S (K (S I))) ((S (I I)) ((S K) (I I)))) ((S (K (S I))) (((S S) (S K)) (I I)))))

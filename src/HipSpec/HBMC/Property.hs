@@ -82,7 +82,8 @@ hbmcProp indexes Property{..} = Function prop_id unpty <$> do
     res <- lift (newTmp "res")
 
     return $
-      Do ([ StmtExpr $ psl "Generating symbolic values..." ]
+      mkDo
+         ([ StmtExpr $ psl "Generating symbolic values..." ]
           ++ values ++
           [ StmtExpr $ psl "Generating problem..." ]
           ++ concat literals ++

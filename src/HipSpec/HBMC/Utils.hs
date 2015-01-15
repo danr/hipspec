@@ -12,6 +12,7 @@ import HipSpec.Id hiding (Derived(Case))
 import Data.Generics.Geniplate
 
 import Data.List
+import Data.Either
 
 import HipSpec.Utils
 
@@ -293,11 +294,23 @@ ret e = Gbl (prelude "return") unpty [unty] `app` e
 
 infixr >>>
 
+-- Filter away noops, and collapse
+mkDo :: [Stmt Id] -> Expr Id -> Expr Id
+mkDo ss = Do $ concat
+  [ case s of
+      StmtExpr (Do ss' e) -> ss'++[StmtExpr e]
+      _                   -> [s]
+  | s <- ss
+  , case s of
+     StmtExpr (Gbl hid _ _ `App` _) | hid == noopId -> False
+     _ -> True
+  ]
+
 (>>>) :: Expr Id -> Expr Id -> Expr Id
-Do s1 u >>> Do s2 v = Do (s1 ++ [StmtExpr u] ++ s2) v
-u       >>> Do s2 v = Do ([StmtExpr u] ++ s2) v
-Do s1 u >>> v       = Do (s1 ++ [StmtExpr u]) v
-u       >>> v       = Do [StmtExpr u] v
+Do s1 u >>> Do s2 v = mkDo (s1 ++ [StmtExpr u] ++ s2) v
+u       >>> Do s2 v = mkDo ([StmtExpr u] ++ s2) v
+Do s1 u >>> v       = mkDo (s1 ++ [StmtExpr u]) v
+u       >>> v       = mkDo [StmtExpr u] v
 
 inSequence :: [Expr Id] -> Expr Id -> Expr Id
 inSequence as a = foldr (>>>) a as
@@ -306,10 +319,10 @@ bind :: Id -> Expr Id -> Expr Id -> Fresh (Expr Id)
 bind x m e2 = return (rawBind x m e2)
 
 rawBind :: Id -> Expr Id -> Expr Id -> Expr Id
-rawBind x (Do s1 u) (Do s2 v) = Do (s1 ++ [BindExpr x u] ++ s2) v
-rawBind x u         (Do s2 v) = Do ([BindExpr x u] ++ s2) v
-rawBind x (Do s1 u) v         = Do (s1 ++ [BindExpr x u]) v
-rawBind x u         v         = Do [BindExpr x u] v
+rawBind x (Do s1 u) (Do s2 v) = mkDo (s1 ++ [BindExpr x u] ++ s2) v
+rawBind x u         (Do s2 v) = mkDo ([BindExpr x u] ++ s2) v
+rawBind x (Do s1 u) v         = mkDo (s1 ++ [BindExpr x u]) v
+rawBind x u         v         = mkDo [BindExpr x u] v
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
@@ -472,5 +485,64 @@ unproj t us = transform $
   \ e0 ->
     case e0 of
       Gbl (HBMCId (Select _ i)) _ _ `App` Lcl t' _ | t == t' -> us !! i
+      _ -> e0
+
+--------------------------
+
+-- Merges cases on the same thing in the same do block
+-- Moves all news to the top
+blast :: TransformBi (Expr Id) t => t -> t
+blast = transformBi $
+  \ e0 ->
+    case e0 of
+      Do ss e ->
+        let (bs,os) = partitionEithers
+                [ case s of
+                    BindExpr x (Gbl n _ _)
+                      | n == new -> Left s
+                    _            -> Right s
+                | s <- ss
+                ]
+            os' = map blast (mergeCases (os ++ [StmtExpr e]))
+            StmtExpr e' = last os'
+        in  Do (bs ++ init os') e'
+      _ -> e0
+
+mergeCases :: [Stmt Id] -> [Stmt Id]
+mergeCases []     = []
+mergeCases (e:es) =
+  let (rs,r) = mergeCase e es
+  in  r:mergeCases rs
+
+mergeCase :: Stmt Id -> [Stmt Id] -> ([Stmt Id],Stmt Id)
+mergeCase a [] = ([],a)
+mergeCase a (b:bs)
+  | Just m <- mergeTwo a b = mergeCase m bs
+  | otherwise              = first (b:) (mergeCase a bs)
+
+mergeTwo :: Stmt Id -> Stmt Id -> Maybe (Stmt Id)
+mergeTwo
+  (StmtExpr (Case (Lcl x1 t) _ alts1))
+  (StmtExpr (Case (Lcl x2 _) _ alts2))
+    | x1 == x2
+    = Just $ StmtExpr $
+        Case (Lcl x1 t) Nothing
+          [ (p1,e1 >>> e2)
+          | ((p1,e1),(_p2,e2)) <- zip alts1 alts2
+          ]
+mergeTwo _ _ = Nothing
+
+---------------
+
+caseToChoice :: TransformBi (Expr Id) t => t -> t
+caseToChoice = transformBi $
+  \ e0 ->
+    case e0 of
+      Case s _ alts ->
+        gbl choice `App`
+          listLit
+            [ gbl (isCon k) `apply` [s,makeLambda ys body]
+            | (ConPat k _ _ ys,body) <- alts
+            ]
       _ -> e0
 
