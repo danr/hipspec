@@ -22,9 +22,9 @@ tc _   _            _ = False
 --
 -- prop_K e  = tc [] e (A :-> B :-> A) =:= False
 --
-prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =/= True
---
--- prop_W e  = tc [] e ((A :-> A :-> B) :-> (A :-> B)) =:= False
+-- prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =:= False
+
+prop_W e  = tc [] e ((A :-> A :-> B) :-> (A :-> B)) =:= False
 
 -- nats --
 
