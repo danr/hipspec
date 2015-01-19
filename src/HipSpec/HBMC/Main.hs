@@ -180,19 +180,13 @@ main = do
 
         let (fns,insts,dt_progs) = (`evalState` 0) $ do
 
-                let without_bool =
-                       [ dt
-                       | dt@(R.Datatype tc _ _ _) <- data_types
-                       , tc /= ghcBool
-                       ]
-
-                (ixss,dt_progs) <- mapAndUnzipM mergeDatatype without_bool
+                (ixss,dt_progs) <- mapAndUnzipM mergeDatatype data_types
                 let data_info = concat ixss
 
-                eql_insts <- mapM mkEqual without_bool
-                let con_insts = map mkConstructive without_bool
-                get_insts <- mapM mkGet without_bool
-                -- new_fns <- mapM mkNew without_bool
+                eql_insts <- mapM mkEqual data_types
+                let con_insts = map mkConstructive data_types
+                get_insts <- mapM mkGet data_types
+                -- new_fns <- mapM mkNew data_types
                 fns <- forM hbmc_fns $ \ fn -> do
                     lfn <- liftFunction fn
                     -- trace (showRich lfn) (return ())
@@ -217,14 +211,6 @@ main = do
             putStrLn "import qualified Prelude"
             putStrLn "import Prelude (Bool(..),Maybe(..))"
             putStrLn $ "import " ++ takeBaseName file
-            putStrLn $ unlines
-              [ "mk_False     = Prolog.ff"
-              , "mk_True      = Prolog.tt"
-              , "pred_False x = Prolog.addClauseHere [Prolog.nt x]"
-              , "pred_True x = Prolog.addClauseHere [x]"
-              , "is_False x h = do Prolog.addClauseHere [Prolog.nt x]; h"
-              , "is_True x h = do Prolog.addClauseHere [x]; h"
-              ]
 
             mapM_ (putStrLn . render' . ppProg Don'tShow pkId . uncurry R.Program) dt_progs
 
