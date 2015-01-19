@@ -76,10 +76,10 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
         sig' = sig { variables = mapValues (mapVariable delBackquote) (variables sig) }
 
     occuring_vars :: [Symbol]
-    occuring_vars = map delBackquote $ map disambig raw_occuring_vars
+    occuring_vars = map disambig raw_occuring_vars
 
     precond_vars :: [Symbol]
-    precond_vars = map delBackquote $ map disambig (filter isBackquoted raw_occuring_vars)
+    precond_vars = map disambig (filter isBackquoted raw_occuring_vars)
 
     term_to_expr = termToExpr symbol_map
 
