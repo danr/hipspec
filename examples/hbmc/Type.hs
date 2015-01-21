@@ -16,15 +16,32 @@ tc env (App f x tx) t          = tc env f (tx :-> t)
 tc env (Lam e)      (tx :-> t) = tc (tx:env) e t
 tc _   _            _ = False
 
--- prop_B e  = tc [] e ((B :-> C) :-> (A :-> B) :-> (A :-> C)) =:= False
---
--- prop_I e  = tc [] e (A :-> A) =:= False
---
--- prop_K e  = tc [] e (A :-> B :-> A) =:= False
---
--- prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =:= False
+prop_A0 e = tc [] e ((A :-> A :-> B) :-> (B :-> C) :-> (A :-> C)) =:= False
+
+prop_A1 e = tc [] e ((A :-> B) :-> (B :-> B :-> C) :-> (A :-> C)) =:= False
+
+prop_A2 e = tc [] e ((A :-> A :-> B) :-> (B :-> B :-> C) :-> (A :-> C)) =:= False
+
+prop_B e  = tc [] e ((B :-> C) :-> (A :-> B) :-> (A :-> C)) =:= False
+
+prop_I e  = tc [] e (A :-> A) =:= False
+
+prop_K e  = tc [] e (A :-> B :-> A) =:= False
+
+prop_S e  = tc [] e ((A :-> B :-> C) :-> (A :-> B) :-> A :-> C) =:= False
 
 prop_W e  = tc [] e ((A :-> A :-> B) :-> (A :-> B)) =:= False
+
+prop_C e  = tc [] e ((A :-> B :-> C) :-> (B :-> A :-> C)) =:= False
+
+prop_M e  = tc [] e ((A :-> B) :-> (A :-> A :-> B)) =:= False
+
+prop_N e  = tc [] e (A :-> (A :-> A) :-> A) =:= False
+
+prop_D e  = tc [] e ((A :-> B) :-> (A :-> B)) =:= False
+
+prop_K1 e = tc [] e (A :-> B :-> B) =:= False
+
 
 -- nats --
 
@@ -47,13 +64,4 @@ showExpr env (Lam e)     = "(\\" ++ v ++ " -> " ++ showExpr (v:env) e ++ ")"
  where
   v = head [ x | x <- vars, x `notElem` env ]
   vars = [ "x", "y", "z", "v", "w" ] ++ [ "x" ++ show i | i <- [1..] ]
-
-
--- prop_M e  = tc [] e ((A :-> B) :-> (A :-> A :-> B)) =:= False
-
--- prop_N e  = tc [] e (A :-> (A :-> A) :-> A) =:= False
-
--- prop_D e  = tc [] e ((A :-> B) :-> (A :-> B)) =:= False
-
--- prop_K1 e = tc [] e (A :-> B :-> B) =:= False
 

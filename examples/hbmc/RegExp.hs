@@ -71,5 +71,42 @@ rec :: R C -> [C] -> Bool
 rec p []     = eps p
 rec p (x:xs) = rec (step p x) xs
 
-prop_koen p q s = rec (p :>: q) s =:= rec (q :>: p) s
+-- prop_koen p q s = rec (p :>: q) s =:= rec (q :>: p) s
 
+prop_star_plus p q a b = rec (Star (p :+: q)) [a,b] =:= rec (Star p :+: Star q) [a,b]
+
+-- prop_star_seq p q s = rec (Star (p :>: q)) s =:= rec (Star p :>: Star q) s
+--
+-- prop_switcheroo p q s = rec (p :+: q) s =:= rec (p :>: q) s
+--
+-- prop_bad_assoc p q r s = rec (p :+: (q :>: r)) s =:= rec ((p :+: q) :>: r) s
+
+{-
+reck :: R C -> [C] -> Bool
+reck Eps       []  = True
+reck (Atom a)  [b] = a == b
+reck (p :+: q) s   = reck p s || reck q s
+reck (p :>: q) s   = reck_seq p q (splits s)
+reck (Star p)  []  = True
+reck (Star p)  s   | not (eps p) = rec (p :>: Star p) s
+reck _ _  = False
+
+okay :: R C -> Bool
+okay (p :+: q) = okay p && okay q
+okay (p :>: q) = okay p && okay q
+okay (Star p)  = okay p && not (eps p)
+okay _         = True
+
+reck_seq :: R C -> R C -> [([C],[C])] -> Bool
+reck_seq p q []          = False
+reck_seq p q ((l,r):lrs) = if reck p l && reck q r then True else reck_seq p q lrs
+
+splits :: [a] -> [([a],[a])]
+splits []     = [([],[])]
+splits (x:xs) = ([],x:xs) : splits2 x (splits xs)
+
+splits2 :: a -> [([a],[a])] -> [([a],[a])]
+splits2 x xs = [ (x:as,bs) | (as,bs) <- xs ]
+
+prop_same p s = rec p s =:= reck p s
+-}
