@@ -193,13 +193,8 @@ genericArgument = api "argument"
 (=?) :: Expr Id -> Id -> Expr Id
 label =? con = gbl (api "=?") `apply` [label,gbl (d con)]
 
-thunk,force,peek,delay,this :: Id
+thunk :: Id
 thunk = api "Thunk"
-delay = api "delay"
-this  = api "this"
-peek  = api "peek"
-force = api "force"
-must  = api "must"
 
 thunkTy :: Type Id -> Type Id
 thunkTy t = TyCon thunk [t]
@@ -319,10 +314,10 @@ bind :: Id -> Expr Id -> Expr Id -> Fresh (Expr Id)
 bind x m e2 = return (rawBind x m e2)
 
 rawBind :: Id -> Expr Id -> Expr Id -> Expr Id
-rawBind x (Do s1 u) (Do s2 v) = mkDo (s1 ++ [BindExpr x u] ++ s2) v
-rawBind x u         (Do s2 v) = mkDo ([BindExpr x u] ++ s2) v
-rawBind x (Do s1 u) v         = mkDo (s1 ++ [BindExpr x u]) v
-rawBind x u         v         = mkDo [BindExpr x u] v
+rawBind x (Do s1 u) (Do s2 v) = mkDo (s1 ++ [bindExpr x u] ++ s2) v
+rawBind x u         (Do s2 v) = mkDo ([bindExpr x u] ++ s2) v
+rawBind x (Do s1 u) v         = mkDo (s1 ++ [bindExpr x u]) v
+rawBind x u         v         = mkDo [bindExpr x u] v
 
 renameFunctions :: [Function Id] -> [Function Id]
 renameFunctions fns = map (rename [ (f,HBMCId (HBMC f)) | Function f _ _ <- fns ]) fns
@@ -377,6 +372,11 @@ uniquify = uniquifyWrt pp_id (\ x -> refresh x <$> fresh)
         | isJust (tryGetGHCTyCon i) = Nothing
         | HBMCId _ <- i = Nothing
         | otherwise = Just (ppId i)
+
+replaceError :: TransformBi (Expr Id) t => t -> t
+replaceError = transformBi $ \ e0 -> case collectArgs e0 of
+    (Gbl x _ _,[_]) | ppId x == "error" -> Gbl (api "badContextPred") (Forall [] (exprType' "replaceError" e0)) []
+    _                                   -> e0
 
 replaceEquality :: TransformBi (Expr Id) t => t -> t
 replaceEquality = transformBi $ \ e0 -> case e0 of
@@ -498,7 +498,7 @@ blast = transformBi $
       Do ss e ->
         let (bs,os) = partitionEithers
                 [ case s of
-                    BindExpr x (Gbl n _ _)
+                    BindExpr x _ (Gbl n _ _)
                       | n == new -> Left s
                     _            -> Right s
                 | s <- ss

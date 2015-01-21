@@ -27,16 +27,17 @@ import Control.Monad.Reader
 
 import Data.Maybe (listToMaybe)
 
-runMon = runReaderT
+runMon :: Mon a -> (Maybe Id -> Id -> IdType) -> Fresh a
+runMon m f = runReaderT m (Nothing,f)
 
 data IdType = IsCon | IsRec | IsOk
 
-type Mon = ReaderT (Id -> IdType) Fresh
+type Mon = ReaderT (Maybe Id, Maybe Id -> Id -> IdType) Fresh
 
 monadic :: Function Id -> Mon (Function Id)
 monadic (Function f _t (collectBinders -> (args,body))) =
   do res <- lift newRes
-     body' <- monExpr (lcl res) body
+     body' <- local (first (const (Just f))) (monExpr (lcl res) body)
      return (Function f unpty (makeLambda (args ++ [(res,unty)]) body'))
 
 trivial :: Expr Id -> Bool
@@ -48,7 +49,8 @@ monExpr res e0 =
   case collectArgs e0 of
     -- function call
     (Gbl x _ _,args) ->
-      do id_type <- asks ($ x)
+      do (cur_fn,id_type_fn) <- ask
+         let id_type = id_type_fn cur_fn x
          case id_type of
            IsCon | any (not . trivial) args ->
              do xs <- mapM (\ _ -> lift (newTmp "x")) args
@@ -99,7 +101,7 @@ monExpr res e0 =
 
     -- Lam x _ e  -> Lam x unty <$> monExpr e
 
-    x -> error $ "monExpr: " ++ show x ++ " not implemented yet"
+    x -> error $ "monExpr: not implemented yet:\n" ++ ppShow x
 
 monAlt :: Expr Id -> Alt Id -> Mon (Alt Id)
 monAlt res (ConPat k pty ts ys,e) =

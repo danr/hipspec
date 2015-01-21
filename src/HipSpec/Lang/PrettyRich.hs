@@ -85,8 +85,14 @@ ppExpr i t pk e0 = case e0 of
     ppPolyId x ty = ppTyped t (p x) (ppPolyType pk ty)
 
 ppStmt :: Types -> P a -> Stmt a -> Doc
-ppStmt t pk (BindExpr x e) = p pk x <+> "<-" $\ ppExpr 0 t pk e
-ppStmt t pk (StmtExpr e)   = ppExpr 0 t pk e
+ppStmt t pk (StmtExpr e)      = ppExpr 0 t pk e
+ppStmt t pk (BindExpr x mt e) =
+  maybe
+    id
+    (\ t r -> r <+> "::" $\ ppType 0 pk t)
+    mt
+    (p pk x)
+      <+> "<-" $\ ppExpr 0 t pk e
 
 ppAlt :: Types -> P a -> Alt a -> Doc
 ppAlt t pk (pat,rhs) = ppPat t pk pat <+> "->" $\ ppExpr 0 t pk rhs

@@ -310,8 +310,8 @@ ppId ii = case ii of
 ppDerived :: Integer -> Derived -> String
 ppDerived i d = case d of
     f `LetFrom` g -> (case ppId g of { [] -> ""; s -> s ++ "_" }) ++ ppId f
-    Lambda f      -> "lam_" ++ ppId f
-    Case f        -> "case_" ++ ppId f
+    Lambda f      -> "lam_" ++ escape (ppId f)
+    Case f        -> "case_" ++ escape (ppId f)
     Eta           -> "eta"
     Skolem x      -> ppId x
     TvSkolem x    -> map toUpper (ppId x)
@@ -321,7 +321,9 @@ ppDerived i d = case d of
     Refresh x     -> ppId x ++ show i
 
 ppName :: Name -> String
-ppName nm = getOccString nm
+ppName nm = case getOccString nm of
+    '$':'c':xs -> xs ++ '_': showOutputable (getUnique nm)
+    s          -> s
 {-
 ppName nm = case getOccString nm of
      ":" -> "(:)"
@@ -371,16 +373,16 @@ escape = leading . concatMap (\ c -> fromMaybe [c] (M.lookup c escapes))
     escapes = M.fromList
         [ (from,'_':to++"_")
         | (from,to) <-
-            [ ('(',"rpar")
-            , (')',"lpar")
+            [ ('(',"lpar")
+            , (')',"rpar")
             , (':',"cons")
-            , ('[',"rbrack")
-            , (']',"lbrack")
+            , ('[',"lbrack")
+            , (']',"rbrack")
             , (',',"comma")
             , ('`',"tick")
 
-            , ('}',"rbrace")
             , ('{',"lbrace")
+            , ('}',"rbrace")
 
             , ('\'',"prime")
             , ('@',"at")

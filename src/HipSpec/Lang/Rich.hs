@@ -12,6 +12,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
 import HipSpec.Lang.Type
+import HipSpec.Utils
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -94,9 +95,12 @@ data Expr a
 
 -- HBMC
 data Stmt a
-    = BindExpr a (Expr a)
+    = BindExpr a (Maybe (Type a)) (Expr a)
     | StmtExpr (Expr a)
   deriving (Eq,Ord,Show,Functor,Foldable,Traversable)
+
+bindExpr :: a -> Expr a -> Stmt a
+bindExpr x = BindExpr x Nothing
 
 -- | Patterns in branches
 data Pattern a
@@ -148,7 +152,11 @@ exprTyVars :: Eq a => Expr a -> [a]
 exprTyVars e = nub [ a | TyVar a <- typeUnivExpr e ]
 
 exprType' :: Eq a => String -> Expr a -> Type a
-exprType' s = fromMaybe (error $ "exprType: " ++ show s) . exprType
+exprType' s e0
+  = fromMaybe
+      (error $ "exprType: " ++ show s ++ "\n" ++ ppShow (fmap (const ()) e0))
+  . exprType
+  $ e0
 
 exprType :: Eq a => Expr a -> Maybe (Type a)
 exprType e0 = case e0 of

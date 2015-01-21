@@ -31,13 +31,10 @@ import Control.Monad.State
 
 psl s = gbl (api "io") `App` (gbl (prelude "putStrLn") `App` String s)
 
-newValue :: Type Id -> Expr Id
-newValue _ = gbl new
-{-
-newValue t@(_ `ArrTy` _)  = error $ "Cannot handle exponential data types" ++ show t
-newValue (TyCon tc' args) = gbl (new tc') `apply` (gbl_depth:map newValue args)
-newValue _                = gbl (api "newNat") `App` gbl_depth
--}
+trType :: Type Id -> Type Id
+trType t@(_ `ArrTy` _) = error $ "Cannot handle exponential data types" ++ show t
+trType (TyCon tc args) = TyCon (d tc) (map trType args)
+trType TyVar{}         = thunkTy (TyCon (api "Bit") [])
 
 hbmcLiteral :: DataInfo -> Literal -> Bool -> Mon [Stmt Id]
 hbmcLiteral indexes (e1 :=: e2) pos = literal indexes e1 e2 pos
@@ -53,8 +50,8 @@ literal indexes e1 e2 positive = do
     m2 <- monExpr (lcl r) (S.injectExpr e2)
 
     return
-        [ BindExpr l (gbl new)
-        , BindExpr r (gbl new)
+        [ BindExpr l Nothing (gbl new)
+        , BindExpr r Nothing (gbl new)
         , StmtExpr m1
         , StmtExpr m2
         , StmtExpr $
@@ -75,11 +72,12 @@ hbmcProp indexes Property{..} = Function prop_id unpty <$> do
         ]
 
     let values =
-          [ BindExpr x (newValue t)
+          [ BindExpr x (Just (trType t)) (gbl new)
           | (x,t) <- prop_vars
           ]
 
     res <- lift (newTmp "res")
+    tpl <- lift (newTmp "tpl")
 
     return $
       mkDo
@@ -88,9 +86,13 @@ hbmcProp indexes Property{..} = Function prop_id unpty <$> do
           [ StmtExpr $ psl "Generating problem..." ]
           ++ concat literals ++
           [ StmtExpr $ psl "Solving..."
-          , BindExpr res (gbl (api "solve"))
+          , bindExpr res (gbl (api "solve"))
           , StmtExpr $ gbl (api "io") `App` (gbl (prelude "print") `App` lcl res)
           ]
          )
-         (gbl genericGet `App` (binTupleLit (map (lcl . fst) prop_vars)))
+         (gbl (api "ifTrue") `apply`
+           [ lcl res
+           , mkDo [bindExpr tpl (gbl genericGet `App` binTupleLit (map (lcl . fst) prop_vars))]
+                  (gbl (api "io") `App` (gbl (prelude "print") `App` lcl tpl))
+           ])
 

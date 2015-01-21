@@ -12,7 +12,7 @@ import HipSpec.Property
 import HipSpec.Read
 import HipSpec.Translate
 import HipSpec.Params
--- import HipSpec.Lint
+import HipSpec.Lang.LintRich
 import HipSpec.Utils
 import HipSpec.Id
 import HipSpec.Pretty
@@ -98,7 +98,7 @@ main = do
 
 
     -- Remove dictionaries tycons
-    let data_types =
+    let data_types0 =
             [ dt
             | dt <- data_types_d
             , case tryGetGHCTyCon (R.data_ty_con dt) of
@@ -115,6 +115,12 @@ main = do
 
     let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types_d rich_fns
 
+    let data_types =
+            [ dt
+            | dt@(R.Datatype _tc _ cons _) <- data_types0
+            , and [ c `M.notMember` dead_constructors | R.Constructor c _ <- cons ]
+            ]
+
     let renamed_fns = renameFunctions (filter (isn't_dict_fun . R.fn_name) rich_fns_opt)
 
         -- Now, split these into properties and non-properties
@@ -122,7 +128,7 @@ main = do
 
         (props_as_rich,hbmc_fns0) = partition is_prop renamed_fns
 
-        hbmc_fns = {- replaceEquality -} hbmc_fns0
+        hbmc_fns = {- replaceEquality -} replaceError hbmc_fns0
 
         env = error "hbmc undefined env"
 
@@ -165,18 +171,22 @@ main = do
                     ]
         -}
 
-        let id_type f
+        let id_type mc f
                | f `elem`
                   [ dc
                   | R.Datatype _tc _ cons _ <- data_types_d
                   , R.Constructor dc args <- cons
                   ] = IsCon
-               | f `elem`
-                  [ g
-                  | fn@(R.Function g _ _) <- hbmc_fns
-                  , isRecursive fn
-                  ] = IsRec
+               | f `elem` rec && mc == Just f
+                   = IsRec
+--               | Just g <- mc, and [ ppId h `elem` ["reck","reck_seq"] | h <- [f,g] ] = IsRec
                | otherwise = IsOk
+               where
+                 rec =
+                   [ g
+                   | fn@(R.Function g _ _) <- hbmc_fns
+                   , isRecursive fn
+                   ]
 
         let (fns,insts,dt_progs) = (`evalState` 0) $ do
 
@@ -188,6 +198,9 @@ main = do
                 get_insts <- mapM mkGet data_types
                 -- new_fns <- mapM mkNew data_types
                 fns <- forM hbmc_fns $ \ fn -> do
+                    case lint pkId (lintFns [fn]) of
+                        [] -> return ()
+                        xs -> error $ showRich fn ++ "\n*** lint error: ***\n" ++ unlines (map render' xs)
                     lfn <- liftFunction fn
                     -- trace (showRich lfn) (return ())
                     pfn <- simpleLetOpt <$> untuple lfn
@@ -206,7 +219,7 @@ main = do
 
         liftIO $ do
 
-            putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction,FlexibleInstances,MultiParamTypeClasses #-}"
+            putStrLn "{-# LANGUAGE TypeFamilies,GeneralizedNewtypeDeriving,NoMonomorphismRestriction,FlexibleInstances,MultiParamTypeClasses,ScopedTypeVariables #-}"
             putStrLn "import qualified Prolog"
             putStrLn "import qualified Prelude"
             putStrLn "import Prelude (Bool(..),Maybe(..))"
@@ -220,9 +233,9 @@ main = do
 
             -- putStrLn $ gbl_depth_name ++ " = " ++ show symbolic_depth ++ " :: Prelude.Int"
 
-            putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "; "
+            putStrLn $ ("main = do {" ++) . (++ "}") $ intercalate "\n\t; "
                 [ "Prelude.putStrLn " ++ show ("\n====== " ++ name ++ " ======") ++
-                  "; Prelude.print Prelude.=<< Prolog.run " ++ name
+                  "; Prolog.run " ++ name
                 | prop <- props, let name = ppId (prop_id prop)
                 ]
 

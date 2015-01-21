@@ -143,9 +143,28 @@ mergeDatatype dc@(Datatype tc tvs cons _) =
                        , binTupleLit [ maybe (errorf (ppId c)) lcl a | a <- names ]
                        ])
 
+{-
                -- predApp = \ a b -> equalHere (conApp a b)
                , return $ Function (predCon c) unpty $ makeLambda [ (n,unty) | Just n <- names ] $
                   gbl equalHere `App` (gbl (mkCon c) `apply` [ lcl n | Just n <- names ])
+                  -}
+
+               -- predApp = \ a b r -> isApp r $ \ a' b' -> do equalHere a a' >> equalHere b b'
+               , do r <- newTmp "r"
+                    let nms = catMaybes names
+                    nms' <- mapM (\ n -> refresh n `fmap` fresh) nms
+                    return $
+                      Function (predCon c) unpty $
+                        makeLambda ([ (n,unty) | n <- nms ] ++ [ (r,unty) ]) $
+                          gbl (isCon c) `apply`
+                            [ lcl r
+                            , makeLambda [ (n',unty) | n' <- nms' ] $
+                                inSequence
+                                  [ gbl equalHere `apply` [ lcl n, lcl n' ]
+                                  | (n,n') <- zip nms nms'
+                                  ]
+                                  (gbl noopId `App` lcl r)
+                            ]
 
                -- isApp (D_Expr t) h = isCon Lbl_App t (\ (_,(p,q)) -> h p q)
                --
@@ -232,7 +251,11 @@ mkEqual dc@(Datatype tc tvs _cons _) = do
               = makeLambda [(l,unty),(r,unty)]
                   <$> do binTupleCase (lcl l) ls
                            =<< binTupleCase (lcl r) rs
-                                 (lcl h `apply` [lcl (ls !! i), lcl (rs !! i)])
+                                 (add_postpone $ lcl h `apply` [lcl (ls !! i), lcl (rs !! i)])
+             where
+              add_postpone e
+                | TyCon tc' _ <- args !! i, tc == tc' = gbl postpone `App` e
+                | otherwise = e
 
         let row i =
               do c <- call i
@@ -241,8 +264,8 @@ mkEqual dc@(Datatype tc tvs _cons _) = do
         Lam h unty . listLit <$> do sequence [ row i | i <- [0..n-1] ]
 
 mkGet :: Datatype Id -> Fresh (Instance Id)
-mkGet dc@(Datatype tc tvs _cons _) = do
-    fn <- mk_fn
+mkGet dc@(Datatype tc tvs cons _) = do
+    fns <- sequence [mk_get]
     let tvs' = map TyVar tvs
     -- instance Value a => Value (D_List a) where
     --   type Type (D_List a) = [] (Type a)
@@ -251,13 +274,29 @@ mkGet dc@(Datatype tc tvs _cons _) = do
         (map valueClass tvs')
         (valueClass (TyCon (d tc) tvs'))
         [(raw "Type",TyCon (d tc) tvs',TyCon tc (map (\ tv -> TyCon (api "Type") [tv]) tvs'))]
-        [fn]
+        fns
   where
     (indexes,args) = allocateDatatype dc
 
     n = maximumIndex indexes
 
-    mk_fn = Function (raw "get") unpty <$> do
+    mk_dflt = Function (raw "dflt") unpty <$> do
+        tmp <- newTmp "tmp"
+        return $
+          makeLambda [(tmp,unty)]
+            (gbl con `apply`
+              [ gbl (api "dflt") `App` errorf ("dflt: " ++ ppId tc ++ " arg " ++ show (i :: Int))
+              | (_carg,i) <- zip con_args [0..]
+              ])
+      where
+        (con,con_args)
+          = case [ (c,cargs) | Constructor c cargs <- cons
+                 , and [ tc `F.notElem` carg | carg <- cargs ] ] of
+              []  -> error $ "Don't know how to make a default value of " ++ ppId tc
+              c:_ -> c
+
+
+    mk_get = Function (raw "get") unpty <$> do
 
         {-
           get = \ et -> case et of
@@ -286,7 +325,7 @@ mkGet dc@(Datatype tc tvs _cons _) = do
                   [ do xys <- sequence [ (,) (names !! i) <$> newTmp "y" | i <- ixs ]
                        return
                          ( ConPat (label c) unpty [] []
-                         , Do [ BindExpr y (gbl (api "get") `App` lcl x) | (x,y) <- xys ]
+                         , Do [ bindExpr y (gbl (api "get") `App` lcl x) | (x,y) <- xys ]
                               (ret (gbl c `apply` map (lcl . snd) xys))
                          )
                   | (c,(_,ixs)) <- indexes
@@ -296,7 +335,8 @@ mkGet dc@(Datatype tc tvs _cons _) = do
             (gbl (api "getData")
               `apply`
                 [ makeLambda [(lbl,unty),(xs,unty)] lambda
-                , errorf ("get: " ++ ppId tc)
+                -- , gbl (api "dflt") `App` errorf ("dflt: " ++ ppId tc)
+                , errorf ("dflt: " ++ ppId tc)
                 , lcl t
                 ])
 
