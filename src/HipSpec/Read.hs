@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards, NamedFieldPuns, CPP #-}
 module HipSpec.Read (execute,EntryResult(..),SigInfo(..)) where
 
-import QuickSpec.Signature (Signature)
+import QuickSpec.Signature (Signature, renumber)
 
 import HipSpec.ParseDSL
 
@@ -174,7 +174,8 @@ execute params@Params{..} = do
         --
         -- The extra_ids comes from --extra and --extra-trans fields from
         -- the auto signature generation
-        (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ sig -> do
+        (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ sig0 -> do
+            let sig = renumber sig0
             resolve_map@(ResolveMap m n) <- makeResolveMap params sig
             let (ids,tcs) = (map fst (M.elems m),M.elems n)
             return (SigInfo{..},ids,tcs)
