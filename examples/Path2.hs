@@ -100,10 +100,21 @@ p     =<|>= []    = True
 [] ++ xs = xs
 (x:xs) ++ ys = x:(xs++ys)
 
+-- prop_lemma1 :: Path -> Path -> Path -> Prop Integer
+-- prop_lemma1 p0 p1 p2 =
+--   ns (p0 ++ p1) =:= ns (p0 ++ p2) ==> ns p1 =:= ns p2
+
+-- prop_lemma2 :: Path -> Path -> Path -> Prop [Bit]
+-- prop_lemma2 p0 p1 p2 =
+--   naive_fst p1 =:= naive_fst p2 ==> naive_fst (p0 ++ p1) =:= naive_fst (p0 ++ p2)
+
+prop_lemma :: Path -> Prop Bool
+prop_lemma p = (ns p >= 0) =:= True
+
 prop_1, prop_2 :: Path -> Path -> Prop Bool
 prop_3, prop_4 :: Path -> Path -> Path -> Prop Bool
 
-#define soundNaive(p0, p1) let { (q1, n1) = naive (p0); (q2, n2) = naive (p1); {-# INLINE naive #-}; naive p = (naive_fst p, ns p) } in n1 =:= n2 ==> (q1 =<|>= q2) =:= True
+#define soundNaive(p0, p1) let { (q1, n1) = naive (p0); (q2, n2) = naive (p1); {-# INLINE naive #-}; naive p = (naive_fst p, ns p) } in n1 =:= n2 ==> (q1 =<|>= q2) =:= False
 
 prop_1 p0 p1 = soundNaive(p0, p0 ++ [N] ++ p1)
 prop_2 p0 p1 = soundNaive(p0 ++ [N] ++ p1, p0)
