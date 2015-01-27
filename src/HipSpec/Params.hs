@@ -34,6 +34,7 @@ data DebugFlag
     | PrintRich
     | PrintOptRich
     | PrintTIF
+    | PrintWhy3
     | PrintSimple
 --    | PrintFunFO
     | PrintPolyFOL
@@ -65,6 +66,7 @@ debugDesc flg = case flg of
     PrintRich        -> "Print Rich IR"
     PrintOptRich     -> "Print Optimised Rich IR"
     PrintTIF         -> "Print TIF: Typed Induction Format"
+    PrintWhy3        -> "Print why3 representation of program"
     PrintSimple      -> "Print Simple IR"
 --    PrintFunFO       -> "Print First-Order Functional IR"
     PrintPolyFOL     -> "Print Polymorphic FOL"

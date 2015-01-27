@@ -34,6 +34,7 @@ import HipSpec.Heuristics.CallGraph
 import qualified HipSpec.Lang.SimplifyRich as S
 import qualified HipSpec.Lang.Simple as S
 import qualified HipSpec.Lang.Rich as R
+import qualified HipSpec.Lang.Renamer as Renamer
 
 import TyCon (isAlgTyCon)
 import TysWiredIn (boolTyCon)
@@ -52,7 +53,8 @@ import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
 
-import HipSpec.Lang.PrettyTIF
+import HipSpec.Lang.PrettyTIF as TIF
+import HipSpec.Lang.PrettyWhy3 as Why3
 import Text.PrettyPrint (render,text)
 
 processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
@@ -85,7 +87,7 @@ processFile cont = do
 
         (am_tcs,data_thy,ty_env',data_types) = trTyCons tcs
 
-        rich_fns = toRich binds ++ [S.fromProverBoolDefn]
+        rich_fns = toRich binds -- ++ [S.fromProverBoolDefn]
 
     let (rich_fns_opt,(type_repl_map,dead_constructors)) = S.optimise data_types rich_fns
 
@@ -150,15 +152,38 @@ processFile cont = do
 
         debugWhen PrintOptRich $ "\nOptimised Rich Definitions\n" ++ unlines (map showRich rich_fns_opt)
 
-        let mapHead f (x:xs) = f x:xs
-            mapHead f []     = []
+        let rich_nonprop = [ f | f@(R.Function _ (S.Forall _ t) _) <- rich_fns_opt, not (isPropType t) ]
+
+        let data_types_nodead =
+                [ dt | dt@(R.Datatype tc _ cons) <- data_types
+                     , tc /= ghcBool
+                     , and [ c `M.notMember` dead_constructors
+                           | R.Constructor c _ <- cons
+                           ]
+                ]
+
+        let constructors =
+                [ c
+                | R.Datatype _ _ cons <- data_types
+                , R.Constructor c _ <- cons
+                ]
+
+
+        let prog = R.Program data_types_nodead rich_nonprop
 
         let tif_kit = TK
-                { pp_symb = text . mapHead toLower . ppId
-                , pp_var  = text . mapHead toUpper . ppId
+                { TIF.pp_symb = text . mapHead toLower . ppId
+                , pp_var      = text . mapHead toUpper . ppId
                 }
 
-        debugWhen PrintTIF $ render (ppProg tif_kit (R.Program data_types rich_fns_opt))
+        debugWhen PrintTIF $ render (TIF.ppProg tif_kit prog)
+
+        debugWhen PrintWhy3 $
+          render $
+            Why3.ppProg
+              (Why3.PK text)
+              (Renamer.renameWith (Renamer.disambig (why3Name constructors))
+                (Why3.Why3Theory prog tr_props))
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
@@ -182,4 +207,17 @@ processFile cont = do
         when (TranslateOnly `elem` debug_flags) (liftIO exitSuccess)
 
         cont callg (map adjust_sig_info sig_infos) tr_props
+
+mapHead :: (a -> a) -> [a] -> [a]
+mapHead f (x:xs) = f x:xs
+mapHead f []     = []
+
+why3Name :: [Id] -> Id -> String
+why3Name cons = pick
+  where
+    pick i
+      | i == ghcBool  = "bool"
+      | i == ghcTrue  = "True"
+      | i == ghcFalse = "False"
+      | otherwise = (if i `elem` cons then toUpper else toLower) `mapHead` ppId i
 

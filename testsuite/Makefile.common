@@ -1,3 +1,15 @@
+ifndef RESULT_PREFIX
+RESULT_PREFIX=results/
+endif
+
+ifndef RESULT_SUFFIX
+RESULT_SUFFIX=.json
+endif
+
+ifndef OUTPUT
+OUTPUT=--json=
+endif
+
 ifndef HIPSPEC_BASE_FLAGS
 HIPSPEC_BASE_FLAGS = --verbosity=85
 endif
@@ -6,24 +18,26 @@ ifndef HIPSPEC_FLAGS
 HIPSPEC_FLAGS = --isolate --only-user-stated --expand-boolprops
 endif
 
-results:
-	mkdir -p results
-
 define make_target
-results/$(1).json:
-	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$$@
-targets += results/$(1).json
+$(RESULT_PREFIX)$(1)$(RESULT_SUFFIX):
+	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) $(OUTPUT)$$@
+targets += $(RESULT_PREFIX)$(1)$(RESULT_SUFFIX)
 endef
 
 $(foreach prop,$(props),$(eval $(call make_target,$(prop))))
 
 define make_expensive_target
-results/$(1).json:
-	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_EXPENSIVE_FLAGS) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) --json=$$@
-targets += results/$(1).json
+$(RESULT_PREFIX)$(1)$(RESULT_SUFFIX):
+	hipspec Properties --auto --only=$(prop_prefix)$(1) $(HIPSPEC_EXPENSIVE_FLAGS) $(HIPSPEC_BASE_FLAGS) $(HIPSPEC_FLAGS) $(OUTPUT)$$@
+targets += $(RESULT_PREFIX)$(1)$(RESULT_SUFFIX)
 endef
 
 $(foreach prop,$(expensive_props),$(eval $(call make_expensive_target,$(prop))))
+
+targets: $(targets)
+
+results:
+	mkdir -p results
 
 result.json: results $(targets)
 	echo "{" >> $@
@@ -38,5 +52,5 @@ clean:
 	rm -rf *.hi *.o
 	rmdir results
 
-.PHONY: all clean
+.PHONY: all clean targets
 

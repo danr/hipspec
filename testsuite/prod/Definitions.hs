@@ -24,7 +24,7 @@ not False = True
 
 -- Nats
 
-data Nat = S Nat | Z deriving (Eq,Show,Typeable,Ord)
+data Nat = Z | S Nat deriving (Eq,Show,Typeable,Ord)
 
 instance Arbitrary Nat where
     arbitrary =

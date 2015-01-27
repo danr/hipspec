@@ -2,7 +2,7 @@
 module Rotate where
 
 import Prelude hiding ((++),length)
-import HipSpec.Prelude
+import HipSpec
 
 data List = Cons A List | Nil
   deriving (Eq,Typeable,Ord)
@@ -29,9 +29,6 @@ prop_T32 xs = rotate (length xs) xs =:= xs
 instance Arbitrary List where
     arbitrary = toList `fmap` arbitrary
 
-instance Partial List where
-    unlifted xs = toList `fmap` unlifted (fromList xs)
-
 fromList :: List -> [A]
 fromList (Cons x xs) = x : fromList xs
 fromList Nil         = []
@@ -48,10 +45,6 @@ instance Enum Nat where
 
 instance Arbitrary Nat where
   arbitrary = sized arbSized
-
-instance Partial Nat where
-  unlifted Z = return Z
-  unlifted (S x) = fmap S (lifted x)
 
 arbSized s = do
   x <- choose (0,round (sqrt (toEnum s)))

@@ -1,0 +1,2 @@
+#!/bin/bash
+OUTPUT='>' RESULT_PREFIX=why3/ RESULT_SUFFIX=.mlw HIPSPEC_FLAGS='--print-why3 --translate-only' make targets

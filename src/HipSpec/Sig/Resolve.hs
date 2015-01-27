@@ -74,7 +74,8 @@ makeResolveMap p@Params{..} sig = do
     whenFlag p DebugStrConv $ liftIO $ do
         putStrLn "Constant translation"
         mapM_ putStrLn
-            [ " " ++ show s ++ " -> " ++ show i ++ "," ++ show pt
+            [ " " ++ show s ++ "\n  -> " ++ show i
+                            ++ "\n   , " ++ show pt
             | (s,(i,pt)) <- syms
             ]
         putStrLn "Type constructor translation"

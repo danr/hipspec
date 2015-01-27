@@ -1,12 +1,16 @@
 -- | Properties, represented with the simple language
 --
 --   TODO: Make nicer pretty printers representations
-{-# LANGUAGE RecordWildCards, PatternGuards, DeriveFunctor, CPP #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE RecordWildCards, PatternGuards,  CPP #-}
 module HipSpec.Property
-    ( Literal(..)
+    ( Literal
+    , Literal'(..)
     , Origin(..)
     , mapLiteral
-    , Property(..)
+    , Property
+    , Property'(..)
 --    , propEquation
     , isUserStated
     , isFromQS
@@ -22,6 +26,9 @@ module HipSpec.Property
     , equalsTrue
     , boolifyProperty
     ) where
+
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 
 import qualified QuickSpec.Prop as QS
 
@@ -65,12 +72,15 @@ literalFreeTyVars (a :=: b) = exprFreeTyVars a `union` exprFreeTyVars b
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
 -- | Literals in propreties
-data Literal = S.Expr Id :=: S.Expr Id
+data Literal' a = S.Expr a :=: S.Expr a
+  deriving (Functor,Foldable,Traversable)
 
-mapLiteral :: (S.Expr Id -> S.Expr Id) -> Literal -> Literal
+type Literal = Literal' Id
+
+mapLiteral :: (S.Expr a -> S.Expr b) -> Literal' a -> Literal' b
 mapLiteral f (a :=: b) = f a :=: f b
 
-literalGbls :: Literal -> [Id]
+literalGbls :: Eq a => Literal' a -> [a]
 literalGbls (a :=: b) = exprGbls a `union` exprGbls b
 
 instance Show Literal where
@@ -85,26 +95,29 @@ data Origin
   deriving (Eq,Ord)
 
 -- | Properties
-data Property = Property
+data Property' a = Property
     { prop_name     :: String
     -- ^ Name (e.g. prop_rotate)
-    , prop_id       :: Id
+    , prop_id       :: a
     -- ^ Its property id...
     , prop_origin   :: Origin
     -- ^ Origin of the property
-    , prop_tvs      :: [Id]
+    , prop_tvs      :: [a]
     -- ^ Type variables
-    , prop_vars     :: [(Id,Type Id)]
+    , prop_vars     :: [(a,Type a)]
     -- ^ Quantified variables (typed)
-    , prop_goal     :: Literal
+    , prop_goal     :: Literal' a
     -- ^ Goal
-    , prop_assums   :: [Literal]
+    , prop_assums   :: [Literal' a]
     -- ^ Assumptions
     , prop_repr     :: String
     -- ^ Representation (e.g. rotate (len xs) xs == xs)
     , prop_var_repr :: [String]
     -- ^ Representation of variables (e.g ["xs"])
     }
+  deriving (Functor,Foldable,Traversable)
+
+type Property = Property' Id
 
 isUserStated :: Property -> Bool
 isUserStated p = case prop_origin p of
@@ -121,7 +134,7 @@ instance Show Origin where
         QSProp{}   -> "QSProp"
         UserStated -> "UserStated"
 
-instance Show (Property) where
+instance Show Property where
     show Property{..} = concatMap (++ "\n    ")
         [ "Property"
         , "{ prop_name = " ++ show prop_name

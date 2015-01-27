@@ -81,3 +81,8 @@ arrowResult :: Type a -> Maybe (Type a)
 arrowResult (ArrTy _ t) = Just t
 arrowResult _           = Nothing
 
+peelArrows :: Type a -> Int -> Maybe (Type a)
+peelArrows t           i | i <= 0  = Just t
+peelArrows (ArrTy _ t) i           = peelArrows t (i-1)
+peelArrows _           _           = Nothing
+
