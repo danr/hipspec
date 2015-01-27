@@ -90,7 +90,9 @@ makeResolveMap p@Params{..} sig = do
         }
 
 maybeLookupCon :: ResolveMap -> Constant -> Maybe (HS.Id,PolyType HS.Id)
-maybeLookupCon sm s = M.lookup s (con_map sm)
+maybeLookupCon sm s = M.lookup s' (con_map sm)
+  where
+    s' = s { conArity = 0, conValue = unPoly (conGeneralValue s) }
 
 maybeLookupTyCon :: ResolveMap -> Typeable.TyCon -> Maybe (R.Type HS.Id)
 maybeLookupTyCon sm t = M.lookup t (tycon_map sm)
