@@ -216,3 +216,10 @@ findDefault alts = case alts  of
     _:xs              -> findDefault xs
     []                -> Nothing
 
+-- | The tycons referred to by this constructor
+dataTyCons :: Ord a => Datatype a -> [a]
+dataTyCons dt = [ a | TyCon a _ <- universeBi dt ]
+
+-- | Does not return constructors only used in patterns
+funcGlobals :: Ord a => Function a -> [a]
+funcGlobals (Function _ _ b) = nub [ x | Gbl x _ _ <- universeBi b ] 

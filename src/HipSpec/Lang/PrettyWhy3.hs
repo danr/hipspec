@@ -19,23 +19,27 @@ import HipSpec.Property
 -- Aphostrophes are added automatically to type variables.
 data PK a = PK { pp_symb :: a -> Doc }
 
-data Why3Theory a = Why3Theory (Program a) [Property' a]
+data Why3Theory a = Why3Theory [[Datatype a]] [[Function a]] [Property' a]
   deriving (Functor,Foldable,Traversable)
 
 end :: Doc -> Doc
 end d = d $$ "end"
 
 ppProg :: PK a -> Why3Theory a -> Doc
-ppProg pk (Why3Theory (Program ds fs) ps) =
+ppProg pk (Why3Theory dss fss ps) =
   end $
     "module" <+> "A" $\
-    vcat (map (ppData pk) ds ++ map (ppFun pk) fs ++ map (ppProp pk) ps)
+    vcat (
+        "use HighOrd" : 
+        map (ppData pk) (concat dss) ++ 
+        map (ppFun pk) (concat fss) ++ 
+        map (ppProp pk) ps)
 
 ppProp :: PK a -> Property' a -> Doc
 ppProp pk Property{..} =
   ("goal" <+> text prop_name <+> ":")
   $\ ppQuant pk prop_vars
-      (fsep (punctuate "=>" (map (ppLit pk) (prop_assums ++ [prop_goal]))))
+      (fsep (punctuate " ->" (map (ppLit pk) (prop_assums ++ [prop_goal]))))
 
 ppLit :: PK a -> Literal' a -> Doc
 ppLit pk (a :=: b) = ppExpr pk 0 (injectExpr a) <+> "=" $\ ppExpr pk 0 (injectExpr b)
@@ -95,7 +99,7 @@ ppExpr pk i e0 =
       parensIf (i > 0) $
         ppExpr pk 0 f $\ fsep (map (ppExpr pk 1) xs)
     Lcl x _   -> pp_symb x
-    Gbl x _ _ -> pp_symb x -- oops... what if constructor? TODO
+    Gbl x _ _ -> pp_symb x 
     Lit x     -> integer x
     String s  -> text (show s)
     Case e Nothing alts ->
@@ -105,7 +109,7 @@ ppExpr pk i e0 =
           (separating vcat (repeat "|") (map (ppAlt pk) alts))
     Lam x t e ->
       parensIf (i > 0) $
-        ("fun" $\ (parens (pp_symb x <+> ":" $\ ppType pk 0 t))) <+> "->" $\ ppExpr pk 0 e
+        ("\\" $\ (parens (pp_symb x <+> ":" $\ ppType pk 0 t))) <+> "." $\ ppExpr pk 0 e
     Let (fn:fns) e ->
       parensIf (i > 0) $
         ("let" $\ ppFun pk fn) $\ ("in" $\ ppExpr pk 0 (Let fns e))

@@ -49,13 +49,15 @@ import qualified Id as GHC
 import qualified CoreSubst as GHC
 import Var (Var)
 import Data.Map (Map)
+import Data.Graph
 import qualified Data.Map as M
 
 import Data.Maybe (isNothing)
 
-import HipSpec.Lang.PrettyTIF as TIF
 import HipSpec.Lang.PrettyWhy3 as Why3
 import Text.PrettyPrint (render,text)
+
+import Debug.Trace
 
 processFile :: (Map Var [Var] -> [SigInfo] -> [Property] -> HS a) -> IO a
 processFile cont = do
@@ -168,22 +170,15 @@ processFile cont = do
                 , R.Constructor c _ <- cons
                 ]
 
-
-        let prog = R.Program data_types_nodead rich_nonprop
-
-        let tif_kit = TK
-                { TIF.pp_symb = text . mapHead toLower . ppId
-                , pp_var      = text . mapHead toUpper . ppId
-                }
-
-        debugWhen PrintTIF $ render (TIF.ppProg tif_kit prog)
-
         debugWhen PrintWhy3 $
           render $
             Why3.ppProg
               (Why3.PK text)
-              (Renamer.renameWith (Renamer.disambig (why3Name constructors))
-                (Why3.Why3Theory prog tr_props))
+              (Renamer.renameWithBlocked why3keywords 
+                (Renamer.disambig (why3Name constructors))
+                (Why3.Why3Theory (sortDatatypes data_types_nodead)
+                                 (sortFunctions rich_nonprop) 
+                                 tr_props))
 
         debugWhen PrintSimple $ "\nSimple Definitions\n" ++ unlines (map showSimp fns)
 
@@ -208,6 +203,8 @@ processFile cont = do
 
         cont callg (map adjust_sig_info sig_infos) tr_props
 
+-- why3 printing stuff
+
 mapHead :: (a -> a) -> [a] -> [a]
 mapHead f (x:xs) = f x:xs
 mapHead f []     = []
@@ -221,3 +218,58 @@ why3Name cons = pick
       | i == ghcFalse = "False"
       | otherwise = (if i `elem` cons then toUpper else toLower) `mapHead` ppId i
 
+sortThings :: (Show name, Ord name) => (thing -> name) -> (thing -> [name]) -> [thing] -> [[thing]]
+sortThings name refers things = 
+    map flattenSCC $ stronglyConnComp 
+        [ (thing,name thing,filter (`elem` names) (refers thing))
+        | thing <- things
+        ]  
+  where
+    names = map name things
+    log x = trace (show x) x
+
+sortFunctions :: (Show a,Ord a) => [R.Function a] -> [[R.Function a]]
+sortFunctions = sortThings R.fn_name R.funcGlobals 
+
+sortDatatypes :: (Show a,Ord a) => [R.Datatype a] -> [[R.Datatype a]]
+sortDatatypes = sortThings R.data_ty_con R.dataTyCons
+
+why3keywords :: [String]
+why3keywords = words $ unlines
+    [ "equal not function use import goal int"
+    , "and or"
+    , "forall exists"
+    , "module theory"
+    , "ac"
+    , "and"
+    , "axiom"
+    , "inversion"
+    , "bitv"
+    , "check"
+    , "cut"
+    , "distinct"
+    , "else"
+    , "exists"
+    , "false"
+    , "forall"
+    , "function"
+    , "goal"
+    , "if"
+    , "in"
+    , "include"
+    , "int"
+    , "let"
+    , "logic"
+    , "not"
+    , "or"
+    , "predicate"
+    , "prop"
+    , "real"
+    , "rewriting"
+    , "then"
+    , "true"
+    , "type"
+    , "unit"
+    , "void"
+    , "with"
+    ]
