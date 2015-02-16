@@ -4,6 +4,7 @@ module HipSpec.Lang.PrettyWhy3 where
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.Generics.Geniplate (universeBi)
 
 import Text.PrettyPrint
 
@@ -96,7 +97,8 @@ ppExpr :: Eq a => PK a -> Expr a -> Doc
 ppExpr pk e00 =
   case e00 of
     Gbl x (Forall tvs t) ts 
-      | not (null ts) -> parens (pp_symb x <+> ":" $\ ppType pk 0 (substManyTys (zip tvs ts) t))
+      | or [ const True (x `asTypeOf` head tvs) | t <- ts, TyVar x <- universeBi t ]
+      -> parens (pp_symb x <+> ":" $\ ppType pk 0 (substManyTys (zip tvs ts) t))
 
     _ -> go 0 e00
  where
