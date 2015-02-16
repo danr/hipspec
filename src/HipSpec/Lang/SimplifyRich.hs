@@ -175,7 +175,7 @@ simpFuns = map (simpFun Global)
 data Where = Global | Local deriving Eq
 
 simpFun :: Eq a => Where -> Function a -> Function a
-simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
+simpFun loc (Function f ty b) = Function f ty $ backSubstCase $ simpExpr $ case b of
     -- Sometimes functions look like this
     -- f = \ xs -> let g = K[g] in g,
     -- then we simply replace it to f = \ xs -> K[f xs]
@@ -194,6 +194,33 @@ simpFun loc (Function f ty b) = Function f ty $ simpExpr $ case b of
                    ((var f ty (map TyVar tvs) `apply` map (uncurry Lcl) xs // g) e)
 
     _ -> b
+
+backSubstCase :: Eq a => Expr a -> Expr a
+backSubstCase = transformExpr $ \ e0 -> case e0 of
+    Case lcl@Lcl{} Nothing alts -> Case lcl Nothing 
+                                    [ (pat,backSubstPat lcl pat rhs) 
+                                    | (pat,rhs) <- alts 
+                                    ]
+    _ -> e0
+
+backSubstPat :: Eq a => Expr a -> Pattern a -> Expr a -> Expr a
+backSubstPat scrut pat rhs = case pat of
+    ConPat k ty ts bs 
+      | not (null bs) -> 
+        transformChildren rhs $ \ e0 -> 
+          case collectArgs e0 of
+            (Gbl k' _ ts', es) | k == k', ts == ts', map (uncurry Lcl) bs == es -> scrut
+            _ -> e0
+    _ -> rhs
+
+transformChildren :: Eq a => Expr a -> (Expr a -> Expr a) -> Expr a
+transformChildren e0 k = 
+  case e0 of
+    App e1 e2 -> App (transformExpr k e1) (transformExpr k e2)
+    Case{}    -> transformExpr k e0
+    Let{}     -> transformExpr k e0
+    Lam{}     -> transformExpr k e0
+    _         -> e0
 
 simpExpr :: Eq a => Expr a -> Expr a
 simpExpr = transformExpr $ \ e0 -> case e0 of
