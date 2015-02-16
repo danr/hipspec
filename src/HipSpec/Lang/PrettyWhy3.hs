@@ -17,7 +17,7 @@ import HipSpec.Property
 -- The user has to make sure that only data constructors have an initial
 -- uppercase letter.
 -- Aphostrophes are added automatically to type variables.
-data PK a = PK { pp_symb :: a -> Doc }
+data Eq a => PK a = PK { pp_symb :: a -> Doc }
 
 data Why3Theory a = Why3Theory [[Datatype a]] [[Function a]] [Property' a]
   deriving (Functor,Foldable,Traversable)
@@ -25,7 +25,7 @@ data Why3Theory a = Why3Theory [[Datatype a]] [[Function a]] [Property' a]
 end :: Doc -> Doc
 end d = d $$ "end"
 
-ppProg :: PK a -> Why3Theory a -> Doc
+ppProg :: Eq a => PK a -> Why3Theory a -> Doc
 ppProg pk (Why3Theory dss fss ps) =
   end $
     "module" <+> "A" $\
@@ -35,27 +35,27 @@ ppProg pk (Why3Theory dss fss ps) =
         map (ppFun pk) (concat fss) ++ 
         map (ppProp pk) ps)
 
-ppProp :: PK a -> Property' a -> Doc
+ppProp :: Eq a => PK a -> Property' a -> Doc
 ppProp pk Property{..} =
   ("goal" <+> text prop_name <+> ":")
   $\ ppQuant pk prop_vars
       (fsep (punctuate " ->" (map (ppLit pk) (prop_assums ++ [prop_goal]))))
 
-ppLit :: PK a -> Literal' a -> Doc
-ppLit pk (a :=: b) = ppExpr pk 0 (injectExpr a) <+> "=" $\ ppExpr pk 0 (injectExpr b)
+ppLit :: Eq a => PK a -> Literal' a -> Doc
+ppLit pk (a :=: b) = ppExpr pk (injectExpr a) <+> "=" $\ ppExpr pk (injectExpr b)
 
-ppQuant :: PK a -> [(a,Type a)] -> Doc -> Doc
+ppQuant :: Eq a => PK a -> [(a,Type a)] -> Doc -> Doc
 ppQuant _pk []  d = d
 ppQuant pk  xts d =
   ("forall" $\ fsep (punctuate "," (map (uncurry (ppBinder pk)) xts)) <+> ".") $\ d
 
-ppData :: PK a -> Datatype a -> Doc
+ppData :: Eq a => PK a -> Datatype a -> Doc
 ppData pk (Datatype tc tvs cons) =
   "type" $\ (pp_symb tc $\ sep (map (ppTyVar pk) tvs) $\
     separating fsep ("=":repeat "|") (map (ppCon pk) cons))
   where PK{..} = pk
 
-ppCon :: PK a -> Constructor a -> Doc
+ppCon :: Eq a => PK a -> Constructor a -> Doc
 ppCon pk (Constructor c as) =
     pp_symb c <+> fsep (map (ppType pk 1) as)
   where PK{..} = pk
@@ -68,7 +68,7 @@ separating comb seps docs = comb (go seps docs)
     go []     _      = error "separating: ran out of separators!"
 
 {-
-ppQuant :: PK a -> Doc -> [(a,Doc)] -> Doc -> Doc
+ppQuant :: Eq a => PK a -> Doc -> [(a,Doc)] -> Doc -> Doc
 ppQuant pk q xs d = case xs of
     [] -> d
     _  -> (q <> bsv [ pp_var x `typeSig` t | (x,t) <- xs] <> ":") $\ d
@@ -78,26 +78,34 @@ ppQuant pk q xs d = case xs of
     PK{..} = pk
     -}
 
-ppBinder :: PK a -> a -> Type a -> Doc
+ppBinder :: Eq a => PK a -> a -> Type a -> Doc
 ppBinder pk x t = pp_symb x <+> ":" $\ ppType pk 0 t
   where PK{..} = pk
 
-ppFun :: PK a -> Function a -> Doc
+ppFun :: Eq a => PK a -> Function a -> Doc
 ppFun pk (Function f (Forall _tvs ft) (collectBinders -> (xts,e))) =
     (("function" $\ pp_symb f) $\
         fsep [ parens (ppBinder pk x xt) | (x,xt) <- xts ]
        $\ (":" <+> ppType pk 0 t <+> "="))
-     $\ (ppExpr pk 0 e)
+     $\ (ppExpr pk e)
   where
     PK{..} = pk
     Just t = peelArrows ft (length xts)
 
-ppExpr :: PK a -> Int -> Expr a -> Doc
-ppExpr pk i e0 =
-  case e0 of
+ppExpr :: Eq a => PK a -> Expr a -> Doc
+ppExpr pk e00 =
+  case e00 of
+    Gbl x (Forall tvs t) ts 
+      | not (null ts) -> parens (pp_symb x <+> ":" $\ ppType pk 0 (substManyTys (zip tvs ts) t))
+
+    _ -> go 0 e00
+ where
+  PK{..} = pk
+
+  go i e0 = case e0 of 
     App{} | (f,xs) <- collectArgs e0 ->
       parensIf (i > 0) $
-        ppExpr pk 0 f $\ fsep (map (ppExpr pk 1) xs)
+        go 0 f $\ fsep (map (go 1) xs)
     Lcl x _   -> pp_symb x
     Gbl x _ _ -> pp_symb x 
     Lit x     -> integer x
@@ -105,16 +113,15 @@ ppExpr pk i e0 =
     Case e Nothing alts ->
       parensIf (i > 0) $
         end $
-          (("match" $\ ppExpr pk 0 e) $\ "with") $$
+          (("match" $\ ppExpr pk e) $\ "with") $$
           (separating vcat (repeat "|") (map (ppAlt pk) alts))
     Lam x t e ->
       parensIf (i > 0) $
-        ("\\" $\ (parens (pp_symb x <+> ":" $\ ppType pk 0 t))) <+> "." $\ ppExpr pk 0 e
+        ("\\" $\ (parens (pp_symb x <+> ":" $\ ppType pk 0 t))) <+> "." $\ ppExpr pk e
     Let (fn:fns) e ->
       parensIf (i > 0) $
-        ("let" $\ ppFun pk fn) $\ ("in" $\ ppExpr pk 0 (Let fns e))
-    Let []       e -> ppExpr pk i e
-  where PK{..} = pk
+        ("let" $\ ppFun pk fn) $\ ("in" $\ ppExpr pk (Let fns e))
+    Let []       e -> ppExpr pk e
 
 csv' :: [Doc] -> Doc
 csv' [] = empty
@@ -124,10 +131,10 @@ csv'' :: [Doc] -> Doc
 csv'' [] = empty
 csv'' xs = sep (punctuate "," xs)
 
-ppAlt :: PK a -> Alt a -> Doc
-ppAlt pk (pat,rhs) = ppPat pk pat <+> "->" $\ ppExpr pk 0 rhs
+ppAlt :: Eq a => PK a -> Alt a -> Doc
+ppAlt pk (pat,rhs) = ppPat pk pat <+> "->" $\ ppExpr pk rhs
 
-ppPat :: PK a -> Pattern a -> Doc
+ppPat :: Eq a => PK a -> Pattern a -> Doc
 ppPat pk pat = case pat of
     Default            -> "_"
     ConPat c _ty ts bs -> pp_symb c $\ fsep (map (pp_symb . fst) bs)
@@ -136,16 +143,16 @@ ppPat pk pat = case pat of
 
 {-
 -- collect arrows arguments , and print them as a tuple with *
-ppTopType :: PK a -> Type a -> Doc
+ppTopType :: Eq a => PK a -> Type a -> Doc
 ppTopType pk t = case collectArrTy t of
     ([],r) -> ppType pk r
     (as,r) -> tuple (map (ppType pk) as) <+> ">" $\ ppType pk r
 -}
 
-ppTyVar :: PK a -> a -> Doc
+ppTyVar :: Eq a => PK a -> a -> Doc
 ppTyVar PK{..} x = "'" <> pp_symb x
 
-ppType :: PK a -> Int -> Type a -> Doc
+ppType :: Eq a => PK a -> Int -> Type a -> Doc
 ppType pk i t0 = case t0 of
     TyVar x     -> ppTyVar pk x
     ArrTy t1 t2 -> parens (ppType pk 0 t1 <+> "->" $\ ppType pk 0 t2)
