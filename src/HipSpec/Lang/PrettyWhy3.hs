@@ -31,9 +31,9 @@ ppProg pk (Why3Theory dss fss ps) =
   end $
     "module" <+> "A" $\
     vcat (
-        "use HighOrd" : 
-        map (ppData pk) (concat dss) ++ 
-        map (ppFun pk) (concat fss) ++ 
+        "use HighOrd" :
+        map (ppData pk) (concat dss) ++
+        map (ppFuns pk) fss ++
         map (ppProp pk) ps)
 
 ppProp :: Eq a => PK a -> Property' a -> Doc
@@ -83,9 +83,12 @@ ppBinder :: Eq a => PK a -> a -> Type a -> Doc
 ppBinder pk x t = pp_symb x <+> ":" $\ ppType pk 0 t
   where PK{..} = pk
 
-ppFun :: Eq a => PK a -> Function a -> Doc
-ppFun pk (Function f (Forall _tvs ft) (collectBinders -> (xts,e))) =
-    (("function" $\ pp_symb f) $\
+ppFuns :: Eq a => PK a -> [Function a] -> Doc
+ppFuns pk (fn:fns) = vcat (ppFun pk "function" fn:[ppFun pk "with" f|f<-fns])
+
+ppFun :: Eq a => PK a -> Doc -> Function a -> Doc
+ppFun pk name (Function f (Forall _tvs ft) (collectBinders -> (xts,e))) =
+    ((name $\ pp_symb f) $\
         fsep [ parens (ppBinder pk x xt) | (x,xt) <- xts ]
        $\ (":" <+> ppType pk 0 t <+> "="))
      $\ (ppExpr pk e)
@@ -96,7 +99,7 @@ ppFun pk (Function f (Forall _tvs ft) (collectBinders -> (xts,e))) =
 ppExpr :: Eq a => PK a -> Expr a -> Doc
 ppExpr pk e00 =
   case e00 of
-    Gbl x (Forall tvs t) ts 
+    Gbl x (Forall tvs t) ts
       | or [ const True (x `asTypeOf` head tvs) | t <- ts, TyVar x <- universeBi t ]
       -> parens (pp_symb x <+> ":" $\ ppType pk 0 (substManyTys (zip tvs ts) t))
 
@@ -104,12 +107,12 @@ ppExpr pk e00 =
  where
   PK{..} = pk
 
-  go i e0 = case e0 of 
+  go i e0 = case e0 of
     App{} | (f,xs) <- collectArgs e0 ->
       parensIf (i > 0) $
         go 0 f $\ fsep (map (go 1) xs)
     Lcl x _   -> pp_symb x
-    Gbl x _ _ -> pp_symb x 
+    Gbl x _ _ -> pp_symb x
     Lit x     -> integer x
     String s  -> text (show s)
     Case e Nothing alts ->
@@ -122,7 +125,7 @@ ppExpr pk e00 =
         ("\\" $\ (parens (pp_symb x <+> ":" $\ ppType pk 0 t))) <+> "." $\ ppExpr pk e
     Let (fn:fns) e ->
       parensIf (i > 0) $
-        ("let" $\ ppFun pk fn) $\ ("in" $\ ppExpr pk (Let fns e))
+        ("let" $\ ppFuns pk [fn]) $\ ("in" $\ ppExpr pk (Let fns e))
     Let []       e -> ppExpr pk e
 
 csv' :: [Doc] -> Doc
