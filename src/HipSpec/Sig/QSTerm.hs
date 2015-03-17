@@ -103,7 +103,7 @@ delBackquote a = case name a of
 
 isabelleFunctionNames :: [(String, String)]
 isabelleFunctionNames =
-  [("&&", "HOL.conj"),
+  [("&&", "\\<and>"),
    (":", "#"),
    ("++", "@"),
    ("reverse", "rev"),
