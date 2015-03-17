@@ -7,7 +7,8 @@ module HipSpec.Sig.QSTerm (eqToProp) where
 
 import Test.QuickSpec.Term as T
 import Test.QuickSpec.Equation as E
-import Test.QuickSpec.Signature (disambiguate)
+import Test.QuickSpec.Signature (disambiguate, variables)
+import Test.QuickSpec.Utils.TypeRel hiding (lookup)
 
 import HipSpec.Read (SigInfo(..))
 import HipSpec.Sig.Symbols
@@ -53,7 +54,7 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
 
     repr = show_eq e1 ++ eqls ++ show_eq e2
       where
-        show_eq = show . mapVars (delBackquote . disambig) . mapConsts (on_name g)
+        show_eq = show . mapVars disambig . mapConsts (on_name g)
 
         on_name h s = s { name = h (name s) }
 
@@ -70,13 +71,15 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
     raw_occuring_vars = nubSorted (vars e1 ++ vars e2)
 
     disambig :: Symbol -> Symbol
-    disambig = disambiguate sig (vars e1 ++ vars e2)
+    disambig = disambiguate sig' (vars e1 ++ vars e2)
+      where
+        sig' = sig { variables = mapValues (mapVariable delBackquote) (variables sig) }
 
     occuring_vars :: [Symbol]
-    occuring_vars = map delBackquote $ map disambig raw_occuring_vars
+    occuring_vars = map disambig raw_occuring_vars
 
     precond_vars :: [Symbol]
-    precond_vars = map delBackquote $ map disambig (filter isBackquoted raw_occuring_vars)
+    precond_vars = map disambig (filter isBackquoted raw_occuring_vars)
 
     term_to_expr = termToExpr symbol_map
 
