@@ -12,14 +12,8 @@ import HipSpec
 data E = E :+: E | EX | EY
   deriving (Typeable,Eq,Ord,Show)
 
-instance Names E where
-  names _ = ["u","v","w"]
-
 data Tok = C | D | X | Y | Plus
   deriving (Typeable,Eq,Ord,Show)
-
-instance Names Tok where
-  names _ = ["a","b","c"]
 
 lin :: E -> [Tok]
 lin (a :+: b) = [C] ++ lin a ++ [D,Plus,C] ++ lin b ++ [D]
@@ -28,11 +22,10 @@ lin EY        = [Y]
 
 unambig u v = lin u =:= lin v ==> u =:= v
 
-injR u v w = v ++ u =:= w ++ u ==> v =:= w
-inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
-injL u v w = u ++ v =:= u ++ w ==> v =:= w
+-- injR u v w = v ++ u =:= w ++ u ==> v =:= w
+-- inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
+-- injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
-rhs v w s t = v
 
 lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
 

@@ -30,9 +30,9 @@ unambig u v = lin u =:= lin v ==> u =:= v
 
 unambigTerm u v = linTerm u =:= linTerm v ==> u =:= v
 
-injR u v w = v ++ u =:= w ++ u ==> v =:= w
-inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
-injL u v w = u ++ v =:= u ++ w ==> v =:= w
+-- injR u v w = v ++ u =:= w ++ u ==> v =:= w
+-- inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
+-- injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
 lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
 lemmaTerm v w s t = linTerm v ++ s =:= linTerm w ++ t ==> (v,s) =:= (w,t)
@@ -50,13 +50,4 @@ instance Arbitrary T where
 
 instance Arbitrary Tok where
   arbitrary = elements [C,D,X,Y,Plus]
-
-instance Names E where
-  names _ = ["u","v","w"]
-
-instance Names T where
-  names _ = ["t","t2","t3"]
-
-instance Names Tok where
-  names _ = ["a","b","c"]
 

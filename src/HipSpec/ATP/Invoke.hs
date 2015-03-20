@@ -112,7 +112,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
 
     cached False cache_dir cache_file theory_str = do
 
-       let writeCache r = do
+       let writeCache r = return () {- do
             ex <- doesFileExist cache_file
             createDirectoryIfMissing True cache_dir
             content <- if ex then liftIO (readFile cache_file) else return ""
@@ -121,6 +121,7 @@ promiseProof env@InvokeEnv{store} ob@Obligation{..} timelimit prover@Prover{..} 
                 -- putStrLn $ cache_file ++ ": Writing cache: " ++ v
                 writeFile cache_file v
                     `E.catch` \ (_ :: SomeException) -> return ()
+                    -}
 
        filepath <- liftIO $ case store of
            Nothing  -> return Nothing

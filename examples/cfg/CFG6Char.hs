@@ -64,8 +64,8 @@ injR u v w = v ++ u =:= w ++ u ==> v =:= w
 inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
 injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
-lemmaA_L v w s t = linA v ++ s =:= linA w ++ t ==> (v,s) =:= (w,t)
-lemmaB_L v w s t = linB v ++ s =:= linB w ++ t ==> (v,s) =:= (w,t)
+-- lemmaA_L v w s t = linA v ++ s =:= linA w ++ t ==> (v,s) =:= (w,t)
+-- lemmaB_L v w s t = linB v ++ s =:= linB w ++ t ==> (v,s) =:= (w,t)
 
 xx = 'x'
 yy = 'y'

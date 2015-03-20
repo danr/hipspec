@@ -8,6 +8,7 @@ import HipSpec.Utils
 import Control.Monad.State
 import Data.Either
 
+-- BROKEN: Need to check if we alread renamed this
 renameVars :: Traversable f => (a -> Bool) -> f a -> f (Either a Int)
 renameVars is_var t = traverse rename t `evalState` 0
   where
@@ -33,7 +34,7 @@ renameFn fn = renameVars (isLocal fn) fn
 --   g y = E[y]
 -- then we remove g (!) and replace it with f everywhere
 collapseSimp :: forall a . Eq a => [Function a] -> [Function a]
-collapseSimp fs0 = map (fmap rename) survivors
+collapseSimp fs0 = fs0 -- map (fmap rename) survivors
   where
     rfs :: [(Function a,Function (Either a Int))]
     rfs = [ (f,renameFn f) | f <- fs0 ]

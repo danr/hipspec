@@ -18,8 +18,10 @@ varWithPropType x = case CTR.trPolyType (varType x) of
     Right (Forall _ t) -> isPropType t
     _                  -> False
 
+mods = ["HipSpec","Tip.DSL"]
+
 varFromPrelude :: Var -> Bool
-varFromPrelude = isInfixOf "HipSpec" . showOutputable . varName
+varFromPrelude v = or [ isInfixOf x . showOutputable . varName $ v | x <- mods ]
 
 isPropTyCon :: TyCon -> Bool
 isPropTyCon = isPropId . idFromTyCon
@@ -29,7 +31,7 @@ ghcName k (tryGetGHCName -> Just n) = k (showOutputable n)
 ghcName _ _               = False
 
 isPropId :: Id -> Bool
-isPropId = ghcName (isInfixOf "HipSpec.Prop")
+isPropId i = or [ghcName (isInfixOf (x ++ ".Prop")) i | x <- mods ]
 
 isPropType  :: Type Id -> Bool
 isPropType t =
@@ -40,7 +42,7 @@ isPropType t =
     (_args,res) = collectArrTy t
 
 fromPrelude :: Id -> Bool
-fromPrelude = ghcName (isInfixOf "HipSpec")
+fromPrelude i = or [ghcName (isInfixOf x) i | x <- mods ]
 
 isMain      :: Id -> Bool
 isMain      = ghcName (isInfixOf "main")

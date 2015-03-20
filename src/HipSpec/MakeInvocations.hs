@@ -198,7 +198,15 @@ resultsForProp lemma_lkup results prop = case proofs of
         insts (Obligation _ i (_,Success{..})) = case successInsts of
           Nothing   -> Nothing -- Just "<no info>"
           Just inst -> Just $ intercalate ", " (map (exprRepr . renameWith (disambig originalId)) (ind_terms i))
-                              ++ ":\n" ++ prettyInsts inst
+                              ++ ":\n" ++ prettyInsts inst'
+            where
+              inst' = sort
+                      [ i
+                      | i <- inst
+                      , case i of
+                          InstString ('k':'!':_) _ -> False
+                          _ -> True
+                      ]
         insts _ = error "internal error: Not a success!"
   where
     resType ObInduction{..}         = Left  ind_coords

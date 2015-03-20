@@ -33,6 +33,8 @@ import Text.ParserCombinators.Parsec hiding (spaces,(<|>))
 
 import Control.Monad
 
+import Debug.Trace
+
 data Expr' a
   = Atom a
   | List [Expr' a]
@@ -87,10 +89,10 @@ getQuantInst i e =
 -- | Gets the quantifier id.
 --     Strings: property names
 --     Expression: lambdas of the induction hypothesis
-getQID :: Expr -> Either String Expr
+getQID :: Expr -> Maybe (Either String Expr)
 getQID e = case e of
-  List [Atom "forall",_bvars,List (Atom "!":_term:kvs)] | Just qid <- find_qid kvs -> qid
-  _ -> error $ "Failed to get qid from " ++ show e
+  List [Atom "forall",_bvars,List (Atom "!":_term:kvs)] -> find_qid kvs
+  _ -> trace ("Failed to get qid from " ++ show e) Nothing -- error $ "Failed to get qid from " ++ show e
  where
   find_qid (Atom ":qid":Atom qid:_) = Just (Left qid)
   find_qid (Atom ":qid":l@List{}:_) = Just (Right l)
@@ -117,7 +119,10 @@ rawZ3proofParser s =
           quants = getQuantInst (inline True lets) p
       in  [ (InstString l []) | l <- lbls ] ++
           [ InstExpr e | e <- elbls ] ++
-          [ either InstString (\ e es -> InstExpr (appExpr e es)) (getQID q) args | (q,args) <- quants ]
+          [ either InstString (\ e es -> InstExpr (appExpr e es)) qi args
+          | (q,args) <- quants
+          , Just qi <- [getQID q]
+          ]
 
 symbol :: Parser Char
 symbol = oneOf "!$%&*+-/:<=>?@^_~#"

@@ -3,7 +3,9 @@ module CFG4 where
 
 import Prelude hiding ((++))
 import Control.Monad
-import HipSpec
+import Test.QuickCheck hiding ((==>))
+import Data.Typeable
+import HBMC
 
 (++) :: [a] -> [a] -> [a]
 (x:xs) ++ ys = x:(xs ++ ys)
@@ -12,14 +14,8 @@ import HipSpec
 data E = E :+: E | EX | EY
   deriving (Typeable,Eq,Ord,Show)
 
-instance Names E where
-  names _ = ["u","v","w"]
-
 data Tok = C | D | X | Y | Plus
   deriving (Typeable,Eq,Ord,Show)
-
-instance Names Tok where
-  names _ = ["a","b","c"]
 
 lin :: E -> [Tok]
 lin (a :+: b) = linTerm a ++ [Plus] ++ linTerm b
@@ -35,9 +31,9 @@ unambig u v = lin u =:= lin v ==> u =:= v
 
 unambigTerm u v = linTerm u =:= linTerm v ==> u =:= v
 
-injR u v w = v ++ u =:= w ++ u ==> v =:= w
-inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
-injL u v w = u ++ v =:= u ++ w ==> v =:= w
+-- injR u v w = v ++ u =:= w ++ u ==> v =:= w
+-- inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
+-- injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
 lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
 lemmaTerm v w s t = linTerm v ++ s =:= linTerm w ++ t ==> (v,s) =:= (w,t)

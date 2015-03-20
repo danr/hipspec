@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module CFG where
 
-import Prelude hiding ((+++))
+import Prelude hiding ((++))
 import Control.Monad
 import HipSpec
 
-(+++) :: [a] -> [a] -> [a]
-(x:xs) +++ ys = x:(xs +++ ys)
-[]     +++ ys = ys
+(++) :: [a] -> [a] -> [a]
+(x:xs) ++ ys = x:(xs ++ ys)
+[]     ++ ys = ys
 
 data E = E :+: E | EX | EY
   deriving (Typeable,Eq,Ord,Show)
@@ -16,18 +16,17 @@ data Tok = C | D | X | Y | Plus
   deriving (Typeable,Eq,Ord,Show)
 
 lin :: E -> [Tok]
--- lin (a :+: b) = [C] +++ lin a +++ [Plus] +++ lin b +++ [D]
-lin (a :+: b) = lin a +++ [Plus] +++ lin b
+lin (a :+: b) = [C] ++ lin a ++ [Plus] ++ lin b ++ [D]
 lin EX        = [X]
 lin EY        = [Y]
 
 unambig u v = lin u =:= lin v ==> u =:= v
 
-injR u v w = v +++ u =:= w +++ u ==> v =:= w
-inj1 x v w = v +++ [x] =:= w +++ [x] ==> v =:= w
-injL u v w = u +++ v =:= u +++ w ==> v =:= w
+-- inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
 
-lemma v w s t = lin v +++ s =:= lin w +++ t ==> (v,s) =:= (w,t)
+-- injL u v w = u ++ v =:= u ++ w ==> v =:= w
+
+lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
 
 instance Arbitrary E where
   arbitrary = sized arb
