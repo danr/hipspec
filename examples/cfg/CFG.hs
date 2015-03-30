@@ -1,32 +1,78 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module CFG where
 
-import Prelude hiding ((++))
+import Prelude hiding ((++),show)
 import Control.Monad
-import HipSpec
-
-(++) :: [a] -> [a] -> [a]
-(x:xs) ++ ys = x:(xs ++ ys)
-[]     ++ ys = ys
+import Test.QuickCheck hiding ((==>))
+import Data.Typeable
+import Tip.DSL
 
 data E = E :+: E | EX | EY
   deriving (Typeable,Eq,Ord,Show)
 
-data Tok = C | D | X | Y | Plus
+data Tok = C | D | X | Y | P
   deriving (Typeable,Eq,Ord,Show)
 
-lin :: E -> [Tok]
-lin (a :+: b) = [C] ++ lin a ++ [Plus] ++ lin b ++ [D]
-lin EX        = [X]
-lin EY        = [Y]
+show :: E -> [Tok]
+show (a :+: b) = [C] ++ show a ++ [P] ++ show b ++ [D]
+show EX        = [X]
+show EY        = [Y]
 
-unambig u v = lin u =:= lin v ==> u =:= v
+unambig u v = show u =:= show v ==> u =:= v
 
--- inj1 x v w = v ++ [x] =:= w ++ [x] ==> v =:= w
+lemma :: E -> E -> [Tok] -> [Tok] -> Prop (E,[Tok])
+lemma v w s t = show v ++ s =:= show w ++ t ==> (v,s) =:= (w,t)
 
--- injL u v w = u ++ v =:= u ++ w ==> v =:= w
 
-lemma v w s t = lin v ++ s =:= lin w ++ t ==> (v,s) =:= (w,t)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-
+lemma v w s t = show v ++ s =:= show w ++ t ==> (v,s) =:= (w,t)
+-}
 
 instance Arbitrary E where
   arbitrary = sized arb
@@ -40,5 +86,9 @@ instance Arbitrary E where
       s2 = s `div` 2
 
 instance Arbitrary Tok where
-  arbitrary = elements [C,D,X,Y,Plus]
+  arbitrary = elements [C,D,X,Y,P]
+
+(++) :: [a] -> [a] -> [a]
+(x:xs) ++ ys = x:(xs ++ ys)
+[]     ++ ys = ys
 

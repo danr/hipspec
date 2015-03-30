@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module CFG4 where
+module CFG42 where
 
 import Prelude hiding ((++),show)
 import Control.Monad
@@ -7,7 +7,10 @@ import Test.QuickCheck hiding ((==>))
 import Data.Typeable
 import Tip.DSL
 
-data E = E :+: E | EX | EY
+data E = T :+: T | T T
+  deriving (Typeable,Eq,Ord,Show)
+
+data T = Par E | TX | TY
   deriving (Typeable,Eq,Ord,Show)
 
 data Tok = C | D | X | Y | P
@@ -15,47 +18,35 @@ data Tok = C | D | X | Y | P
 
 show :: E -> [Tok]
 show (a :+: b) = showTerm a ++ [P] ++ showTerm b
-show EX        = [X]
-show EY        = [Y]
+show (T a)     = showTerm a
 
-showTerm :: E -> [Tok]
-showTerm e@(_ :+: _) = [C] ++ show e ++ [D]
-showTerm EX          = [X]
-showTerm EY          = [Y]
+showTerm :: T -> [Tok]
+showTerm (Par e) = [C] ++ show e ++ [D]
+showTerm TX      = [X]
+showTerm TY      = [Y]
 
 unambig u v = show u =:= show v ==> u =:= v
 
--- lemma v w s t =
---  show v ++ s =:= show w ++ t ==> (v,s) =:= (w,t)
-
 lemmaTerm v w s t = showTerm v ++ s =:= showTerm w ++ t ==> (v,s) =:= (w,t)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 instance Arbitrary E where
-  arbitrary = sized arb
+  arbitrary = sized arbE
+
+instance Arbitrary T where
+  arbitrary = sized arbT
+
+arbE s = frequency
+    [ (1,liftM  T     (arbT (s-1)))
+    , (s,liftM2 (:+:) (arbT s2) (arbT s2))
+    ]
    where
-    arb s = frequency
-      [ (1,return EX)
-      , (1,return EY)
-      , (s,liftM2 (:+:) (arb s2) (arb s2))
-      ]
-     where
-      s2 = s `div` 2
+    s2 = s `div` 2
+
+arbT s = frequency
+    [ (1,return TX)
+    , (1,return TY)
+    , (s,liftM Par (arbE (s-1)))
+    ]
 
 instance Arbitrary Tok where
   arbitrary = elements [C,D,X,Y,P]
