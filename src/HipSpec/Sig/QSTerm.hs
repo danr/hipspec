@@ -23,6 +23,7 @@ import HipSpec.Params
 import HipSpec.Lang.CoreToRich as CTR
 
 import Data.List (intercalate)
+import Data.Char
 
 import HipSpec.Id
 
@@ -92,10 +93,15 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
     goal = term_to_expr e1 P.:=: term_to_expr e2
 
     show_precond [] u = u
-    show_precond xss u = intercalate conj [ "(" ++ cond_name ++ ")" ++ concat [" " ++ show x | x <- xs ] | xs <- xss ] ++ " ==> " ++ u
+    show_precond xss u = intercalate conj (map show_one xss) ++ " ==> " ++ u
       where
         conj | isabelle_mode = " & "
              | otherwise     = " && "
+        show_one [x, y]
+          | all (not . (\c -> isAlphaNum c || c `elem` "'_.")) cond_name =
+            show x ++ " " ++ cond_name ++ " " ++ show y
+        show_one xs =
+          cond_name ++ concat [" " ++ show x | x <- xs ]
 
 isabelleFunctionNames :: [(String, String)]
 isabelleFunctionNames =
