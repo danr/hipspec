@@ -14,11 +14,15 @@ module HipSpec
     , oops
     , Names
     , names
+    , evalVar
     ) where
 
 import Test.QuickCheck hiding ((==>))
 import Test.QuickSpec.Approximate
 import Test.QuickSpec
+import Test.QuickSpec.Term
+import Test.QuickSpec.Signature hiding (total)
+import qualified Test.QuickSpec.Utils.TypeRel as TypeRel
 import Data.Typeable
 
 infix 1 =:=
@@ -93,3 +97,8 @@ instance (Names a,Names b) => Names (Either a b) where
 instance Names a => Names (Maybe a) where
     names ~(Just x) = map ("m_" ++) (names x)
 
+-- Evaluate a variable in the current signature.
+evalVar :: Typeable a => Sig -> Int -> Valuation -> a
+evalVar sig n val = eval (var x) val
+  where
+    x = TypeRel.lookup undefined (variables sig) !! n

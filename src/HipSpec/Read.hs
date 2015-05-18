@@ -58,6 +58,7 @@ data SigInfo = SigInfo
     , symbol_map   :: SymbolMap
     , cond_id      :: Maybe Id
     , cond_mono_ty :: Maybe Type
+    , cond_vars    :: [[(Int, Type)]]
     }
 
 execute :: Params  -> IO EntryResult
@@ -151,14 +152,14 @@ execute params@Params{..} = do
 
         (sigs,cond_mono_ty) <- if auto
             then (makeSignature params cond_id props)
-            else fmap (flip (,) Nothing . maybeToList) getSignature
+            else fmap (flip (,) Nothing . map (flip (,) []) . maybeToList) getSignature
 
 
         -- Make signature map
         --
         -- The extra_ids comes from --extra and --extra-trans fields from
         -- the auto signature generation
-        (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ sig -> do
+        (sig_infos,extra_ids,extra_tcs) <- fmap unzip3 . forM sigs $ \ (sig, cond_vars) -> do
             resolve_map <- makeResolveMap params sig
             let symbol_map = makeSymbolMap resolve_map sig
                 (ids,tcs) = case resolve_map of

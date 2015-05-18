@@ -8,6 +8,7 @@ import Data.List (nub,elemIndex,(\\))
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Function (on)
+import Data.Ord
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
 
@@ -32,6 +33,13 @@ eqPolyType (Forall xs t1) (Forall ys t2) = deBruijn xs t1 == deBruijn ys t2
 
 eqType :: Eq a => Type a -> Type a -> Bool
 eqType = (==) `on` deBruijn []
+
+newtype DB a = DB (Type a)
+
+instance Eq a => Eq (DB a) where
+  DB x == DB y = eqType x y
+instance Ord a => Ord (DB a) where
+  compare = comparing (\(DB x) -> deBruijn [] x)
 
 deBruijn :: Eq a => [a] -> Type a -> Type (Either Int a)
 deBruijn = go

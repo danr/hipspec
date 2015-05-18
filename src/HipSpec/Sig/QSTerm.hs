@@ -9,6 +9,8 @@ import Test.QuickSpec.Term as T
 import Test.QuickSpec.Equation as E
 import Test.QuickSpec.Signature (disambiguate, variables)
 import Test.QuickSpec.Utils.TypeRel hiding (lookup)
+import Test.QuickSpec.Utils.Typed
+import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
 
 import HipSpec.Read (SigInfo(..))
 import HipSpec.Sig.Symbols
@@ -40,13 +42,13 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
     , prop_tvs       = []
     , prop_vars      = map (lookupVar symbol_map) occuring_vars
     , prop_goal      = goal
-    , prop_assums    = [ mk_assum x | x <- precond_vars ]
+    , prop_assums    = [ mk_assum xs | xs <- raw_found_cond_vars ]
     , prop_repr      = final_repr
     , prop_var_repr  = map show occuring_vars
     }
   where
-    mk_assum x = P.equalsTrue
-        (S.Gbl v t ts `S.App` uncurry S.Lcl (lookupVar symbol_map x))
+    mk_assum xs = P.equalsTrue
+        (foldl S.App (S.Gbl v t ts) (map (uncurry S.Lcl . lookupVar symbol_map) xs))
       where
         Just mono_ty = cond_mono_ty
         Just cd_id   = cond_id
@@ -65,41 +67,35 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
         eqls | isabelle_mode = " = "
              | otherwise     = " == "
 
-    final_repr = show_precond precond_vars repr
+    final_repr = show_precond found_cond_vars repr
 
-    raw_occuring_vars :: [Symbol]
-    raw_occuring_vars = nubSorted (vars e1 ++ vars e2)
+    raw_found_cond_vars :: [[Symbol]]
+    raw_found_cond_vars = map (map find) cond_vars
+      where
+        find (n, ty) =
+          [some (map (sym . unVariable) . unO) vs | vs <- TypeMap.toList (variables sig), either error id (trType ty) == typeRepToType resolve_map (someType vs) ] !! 0 !! n
+
+    found_cond_vars :: [[Symbol]]
+    found_cond_vars = map (map disambig) raw_found_cond_vars
 
     disambig :: Symbol -> Symbol
-    disambig = disambiguate sig' (vars e1 ++ vars e2)
-      where
-        sig' = sig { variables = mapValues (mapVariable delBackquote) (variables sig) }
+    disambig = disambiguate sig (vars e1 ++ vars e2 ++ concat raw_found_cond_vars)
 
     occuring_vars :: [Symbol]
     occuring_vars = map disambig raw_occuring_vars
 
-    precond_vars :: [Symbol]
-    precond_vars = map disambig (filter isBackquoted raw_occuring_vars)
+    raw_occuring_vars :: [Symbol]
+    raw_occuring_vars = nubSorted (vars e1 ++ vars e2 ++ concat raw_found_cond_vars)
 
     term_to_expr = termToExpr symbol_map
 
     goal = term_to_expr e1 P.:=: term_to_expr e2
 
     show_precond [] u = u
-    show_precond xs u = intercalate conj [ cond_name ++ " " ++ show x | x <- xs ] ++ " ==> " ++ u
+    show_precond xss u = intercalate conj [ "(" ++ cond_name ++ ")" ++ concat [" " ++ show x | x <- xs ] | xs <- xss ] ++ " ==> " ++ u
       where
         conj | isabelle_mode = " & "
              | otherwise     = " && "
-
-isBackquoted :: Symbol -> Bool
-isBackquoted a = case name a of
-    '`':_ -> True
-    _     -> False
-
-delBackquote :: Symbol -> Symbol
-delBackquote a = case name a of
-    '`':xs -> a { name = xs }
-    _      -> a
 
 isabelleFunctionNames :: [(String, String)]
 isabelleFunctionNames =

@@ -18,11 +18,20 @@ import HipSpec.ParseDSL
 import HipSpec.GHC.Calls
 import HipSpec.Params
 import HipSpec.Utils
+import HipSpec.Sig.Resolve
+import HipSpec.Sig.Symbols
+import HipSpec.Lang.CoreToRich
+import HipSpec.Lang.Type(DB(..))
 
 import Test.QuickSpec.Signature
+import qualified Test.QuickSpec.Utils.TypeMap as TypeMap
+import Test.QuickSpec.Utils.Typed
+import Test.QuickSpec.Utils
 
 import Control.Monad
 import Outputable
+import qualified Data.Map as Map
+import Data.Ord
 
 {-
 
@@ -35,7 +44,7 @@ import Outputable
 
 -}
 
-makeSignature :: Params -> Maybe Var -> [Var] -> Ghc ([Sig],Maybe Type)
+makeSignature :: Params -> Maybe Var -> [Var] -> Ghc ([(Sig, [[(Int, Type)]])],Maybe Type)
 makeSignature p@Params{..} cond_id prop_ids = do
 
     let extra' = concatMap (splitOn ",") extra
@@ -86,19 +95,66 @@ makeSignature p@Params{..} cond_id prop_ids = do
     try <- case cond_id of
         Nothing -> return Nothing
         Just i | isabelle_mode -> case splitFunTy_maybe (mono (varType i)) of
-            Just (_def,rest) | Just (ty,_bln) <- splitFunTy_maybe rest -> return (Just ty)
+            Just (_def,rest) -> return (Just rest)
             _ -> error $ "Predicate " ++ cond_name ++ " is of wrong type, " ++ showOutputable (varType i) ++ ", (not Default -> X -> Bool)"
-        Just i -> case splitFunTy_maybe (mono (varType i)) of
-            Just (ty,_bln) -> return (Just ty)
-            _ -> error $ "Predicate " ++ cond_name ++ " is of wrong type, " ++ showOutputable (varType i) ++ ", (not X -> Bool)"
+        Just i -> return (Just (mono (varType i)))
+
+    Just sig <- makeSigFrom p ids_in_scope mono []
+    rm <- makeResolveMap p sig
 
     let tries = case try of
-            Nothing -> [Nothing]
-            Just ty -> [Nothing] ++ [ Just (ty,i) | i <- [1..cond_count] ]
+            Nothing -> [[]]
+            Just ty -> make_tries sig rm cond_count cond_name ty
 
     sigs <- catMaybes <$> mapM (makeSigFrom p ids_in_scope mono) tries
 
-    return (sigs,try)
+    return (zip sigs (map (map snd) tries), try)
+
+make_tries :: Sig -> ResolveMap -> Int -> String -> Type -> [[(String, [(Int, Type)])]]
+make_tries sig rm cond_count cond_name ty =
+  [ [(cond_name, vs) | vs <- vss]
+  | vss <- sortBy (comparing length) (nubBy eq (clauses cond_count (make_try_vars sig rm ty)))]
+  where
+    eq xs ys = null (xs' \\ ys') && null (ys' \\ xs')
+      where
+        xs' = map tr xs
+        ys' = map tr ys
+        tr xs = [ (x, fmap DB (trType y)) | (x, y) <- xs ]
+
+clauses :: Int -> [[(Int, Type)]] -> [[[(Int, Type)]]]
+clauses = aux Map.empty
+  where
+    aux _ 0 _ = [[]]
+    aux seen n xs = [[]] `mplus` do
+      (i, x) <- zip [0..] xs
+      let ys = [ (ty, [ v | (v, ty') <- x, DB ty == DB (either error id (trType ty')) ])
+               | DB ty <- usort (map (DB . either error id . trType . snd) x) ]
+      guard (all (ok seen) ys)
+      fmap (x:) (aux (foldr update seen ys) (n-1) (take i xs ++ drop (i+1) xs))
+
+    ok seen (ty, vs) =
+      ascending (nub (filter (> n) vs))
+      where
+        n = Map.findWithDefault (-1) ty seen
+        ascending xs = xs == [n+1..n+length xs]
+
+    update (ty, vs) seen =
+      Map.insertWith max ty (maximum vs) seen
+
+make_try_vars :: Sig -> ResolveMap -> Type -> [[(Int, Type)]]
+make_try_vars sig rm ty =
+  case splitFunTy_maybe ty of
+    Nothing -> [[]]
+    Just (arg, rest) -> do
+      vars' <- make_try_vars sig rm rest
+      n <- [0..varCount sig rm arg-1]
+      return ((n, arg):vars')
+
+varCount :: Sig -> ResolveMap -> Type -> Int
+varCount sig rm ty =
+  case [some (length . unO) vs | vs <- TypeMap.toList (variables sig), either error id (trType ty) == typeRepToType rm (someType vs) ] of
+    n:_ -> n
+    _ -> 0
 
 getA :: Ghc (Maybe Type)
 getA = do
@@ -147,49 +203,21 @@ nameType p@Params{..} mono (mono -> t) = handleSourceError handle $ do
             putStrLn $ "Warning: " ++ e_str ++ ", defaulting to " ++ show backupNames
         return (t,backupNames)
 
-data VarDesc = VarDesc [V] Type {-^ should be monomorphic already -}
-
-data V = V { v_name :: String, v_cond :: Maybe String }
+data VarDesc = VarDesc [String] Type {-^ should be monomorphic already -}
 
 stringVarDesc :: Params -> VarDesc -> String
-stringVarDesc Params{..} (VarDesc xs t)
-    | all (isNothing . v_cond) xs = unwords
-        [ if pvars then "pvars" else "vars"
-        , show (map v_name xs)
-        , "("
-        , "(let _x = _x in _x)"
-        , "::"
-        , showOutputable t
-        , ")"
-        ]
-    | otherwise = unwords $
-        [ "Test.QuickSpec.Signature.gvars'", "[" ] ++
-        [ intercalate ","
-            [ unwords $
-                ["(", show ([ '`' | isJust m_cond ] ++ nm), ","] ++
-                (case m_cond of
-                    Just cond_nm ->
-                        [ "(Test.QuickCheck.arbitrary `Test.QuickCheck.suchThat` "
-                        , "((", cond_nm, ")"
-                        ,   if isabelle_mode then "Prelude.undefined)" else ")"
-                            -- undefined to get rid of isabelle Default
-                        , "::"
-                        , "Test.QuickCheck.Gen"
-                        , "(" , showOutputable t , "))"
-                        ]
-                    Nothing ->
-                        [ "(Test.QuickCheck.arbitrary "
-                        , "::"
-                        , "Test.QuickCheck.Gen"
-                        , "(" , showOutputable t , "))"
-                        ]) ++
-                [")"]
-            | V nm m_cond <- xs
-            ]
-        ] ++ ["]"]
+stringVarDesc Params{..} (VarDesc xs t) =
+    unwords
+      [ if pvars then "pvars" else "vars"
+      , show xs
+      , "("
+      , "(let _x = _x in _x)"
+      , "::"
+      , showOutputable t
+      , ")"
+      ]
 
-
-makeSigFrom :: Params -> [Var] -> (Type -> Type) -> Maybe (Type,Int) -> Ghc (Maybe Sig)
+makeSigFrom :: Params -> [Var] -> (Type -> Type) -> [(String, [(Int, Type)])] -> Ghc (Maybe Sig)
 makeSigFrom p@Params{..} ids mono cond_info = do
 
     let types = nubBy eqType $ concat
@@ -201,15 +229,7 @@ makeSigFrom p@Params{..} ids mono cond_info = do
     named_mono_types <- mapM (nameType p mono) types
 
     let var_desc =
-            [ case cond_info of
-                Just (cond_ty,cond_cnt) | cond_ty `eqType` t ->
-                    VarDesc (map (uncurry V) . reverse $
-                            reverse names `zip`
-                            (replicate cond_cnt (Just cond_name) ++ repeat Nothing))
-                         t
-                _ -> VarDesc (map (uncurry V) $ names `zip` repeat Nothing) t
-            | (t,names) <- named_mono_types
-            ]
+            [ VarDesc names t | (t,names) <- named_mono_types]
 
     let fun | isabelle_mode = "obs"
             | otherwise = "Test.QuickSpec.Signature.fun"
@@ -225,8 +245,12 @@ makeSigFrom p@Params{..} ids mono cond_info = do
                 ]
             | i <- ids
             , not isabelle_mode || varToString i /= "Default" -- Don't add the default constructor
-            ]
-            ++ map (stringVarDesc p) var_desc ++
+            ] ++
+            [ "Test.QuickSpec.Signature.withCondition (\\sig val -> (" ++ cond ++ ")" ++
+              concat [ " (error \"Predicate can't be partial\")" | isabelle_mode ] ++
+              concat [ " (evalVar sig " ++ show x ++ " val)" | x <- map fst xs ] ++ ")"
+            | (cond, xs) <- cond_info ] ++
+            map (stringVarDesc p) var_desc ++
             [ "Test.QuickSpec.Signature.withTests " ++ show tests
             , "Test.QuickSpec.Signature.withQuickCheckSize " ++ show quick_check_size
             , "Test.QuickSpec.Signature.withSize " ++ show size

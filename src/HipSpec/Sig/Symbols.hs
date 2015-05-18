@@ -10,6 +10,7 @@ module HipSpec.Sig.Symbols
     , lookupCon
     , lookupVar
     , translateId
+    , typeRepToType
     ) where
 
 import Test.QuickSpec.Signature

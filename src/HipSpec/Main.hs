@@ -42,6 +42,7 @@ import Data.List.Split
 import Data.Maybe
 import Data.Ord
 import Data.Function
+import qualified Data.Set as Set
 
 import Control.Monad
 
@@ -68,16 +69,27 @@ main = processFile $ \ callg m_sig_info user_props -> do
 
             extra_conjs <- concatMapM (fmap (\ (q,_,_) -> q) . runQuickSpec) sig_infos
 
-            let drop_precond s = case splitOn " ==> " s of
-                    [_,post] -> post
-                    _        -> s
+            let split s =
+                  case splitOn " ==> " s of
+                    [pre, post] ->
+                      (sort (splitOn (if isabelle_mode then " & " else " && ") pre), post)
+                    _ -> ([], s)
 
                 qsconjs = callg_sort
-                    $ nubBy ((==) `on` drop_precond . prop_repr)
+                    $ pruneABit
                     $ init_qsconjs ++
                       [ p { prop_origin = UserStated }
                       | p <- extra_conjs, not (null (prop_assums p))
                       ]
+
+                pruneABit = go Set.empty
+                  where
+                    go s (p:ps)
+                      | or [ (qs', q) `Set.member` s
+                           | let (qs, q) = split (prop_repr p),
+                             qs' <- filterM (\_ -> [False, True]) qs ] = go s ps
+                      | otherwise = p:go (Set.insert (split (prop_repr p)) s) ps
+                    go _ [] = []
 
                 callg_sort = if call_graph then cgSortProps callg else id
 
