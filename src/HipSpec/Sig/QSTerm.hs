@@ -111,4 +111,6 @@ isabelleFunctionNames =
    ("reverse", "rev"),
    ("plus_nat", "Groups.plus_class.plus"),
    ("Zero_nat", "Groups.zero_class.zero"),
-   ("one_nat", "Groups.one_class.one")]
+   ("one_nat", "Groups.one_class.one"),
+   ("less_eq_nat", "Orderings.ord_class.less_eq"),
+   ("less_nat", "Orderings.ord_class.less")]
