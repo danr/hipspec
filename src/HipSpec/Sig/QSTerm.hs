@@ -55,7 +55,7 @@ eqToProp Params{cond_name,isabelle_mode} SigInfo{..} i eq@(e1 E.:=: e2) = Proper
         Just cd_id   = cond_id
         (v,t,ts) = translateId (either error id (CTR.trType mono_ty)) cd_id
 
-    repr = show_eq e1 ++ eqls ++ show_eq e2
+    repr = "(" ++ show_eq e1 ++ ")" ++ eqls ++ "(" ++ show_eq e2 ++ ")"
       where
         show_eq = show . mapVars disambig . mapConsts (on_name g)
 
@@ -110,7 +110,7 @@ isabelleFunctionNames =
    ("++", "@"),
    ("reverse", "rev"),
    ("plus_nat", "Groups.plus_class.plus"),
-   ("Zero_nat", "Groups.zero_class.zero"),
+   ("Zero_nat", "Groups.zero_class.zero :: nat"),
    ("one_nat", "Groups.one_class.one"),
-   ("less_eq_nat", "Orderings.ord_class.less_eq"),
-   ("less_nat", "Orderings.ord_class.less")]
+   ("less_eq_nat", "<="),
+   ("less_nat", "<")]
