@@ -37,7 +37,7 @@ import Control.Applicative ((<$>),(<*>),Applicative)
 
 import Control.Monad (liftM)
 
-import Data.List
+import Data.List     hiding (sortOn)
 import Data.Function (on)
 import Data.Ord      (comparing)
 

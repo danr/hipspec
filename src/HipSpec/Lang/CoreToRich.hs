@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE PatternGuards, TypeSynonymInstances, FlexibleInstances, CPP #-}
 

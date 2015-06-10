@@ -8,6 +8,7 @@ import Data.Traversable (Traversable)
 
 import Control.Applicative
 
+import Control.Unification.Types
 import Control.Unification
 import Control.Unification.IntVar
 
@@ -53,7 +54,7 @@ toType t0 = go =<< lift (lift (fullprune t0))
         UTyCon tc -> return (TyCon (U tc) [])
         UInt      -> return Integer
 
-type Failure a = UnificationFailure (UTy a) IntVar
+type Failure a = UFailure (UTy a) IntVar
 
 type UnifyM a =
     StateT [(a,IntVar)]
