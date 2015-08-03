@@ -68,7 +68,7 @@ executable hipspec
         mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.3,
         pretty               >= 1.1,
         pretty-show          >= 1.5 && < 2,
-        geniplate            >= 0.6,
+        geniplate-mirror     >= 0.6,
         genifunctors         >= 0.2 && <= 0.3,
         bifunctors,
         -- void                 >= 0.6 && <= 1,
@@ -91,7 +91,7 @@ executable hipspec
         cmdargs              >= 0.9,
 
         -- Structural induction
-        structural-induction == 0.1,
+        structural-induction == 0.3,
 
         -- Parsing z3 proof
         parsec               >= 3.1,

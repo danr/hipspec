@@ -6,7 +6,7 @@ import HipSpec.Lang.Type
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Writer
+import Control.Monad.Writer hiding (Alt)
 import Control.Monad.Reader
 
 import Data.Map (Map)

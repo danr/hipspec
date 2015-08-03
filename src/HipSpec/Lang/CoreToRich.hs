@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE PatternGuards, TypeSynonymInstances, FlexibleInstances, CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Translation from GHC Core to the Rich HipSpec.Language, a subset
 module HipSpec.Lang.CoreToRich where

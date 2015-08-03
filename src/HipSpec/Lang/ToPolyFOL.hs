@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, RecordWildCards, ViewPatterns #-}
 -- | Translation from the Functional FO to PolyFOL,
 -- the only thing that needs to be done is getting rid of case,
