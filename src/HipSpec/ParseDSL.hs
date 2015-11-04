@@ -12,13 +12,28 @@ import HipSpec.Lang.Type
 import qualified HipSpec.Lang.CoreToRich as CTR
 import TyCon (TyCon)
 
+import qualified Data.Foldable as F
+import Module
+
+import Name hiding (varName)
+import Data.List
+
+import Var hiding (Id,isId)
+import TyCon (TyCon)
+
 varWithPropType :: Var -> Bool
 varWithPropType x = case CTR.trPolyType (varType x) of
     Right (Forall _ t) -> isPropType t
     _                  -> False
 
 varFromPrelude :: Var -> Bool
-varFromPrelude = isInfixOf "HipSpec" . showOutputable . varName
+varFromPrelude = varInTip
+
+nameInTip :: Name -> Bool
+nameInTip = F.any (\ n -> moduleNameString (moduleName n) == "HipSpec") . nameModule_maybe
+
+varInTip :: Var -> Bool
+varInTip = nameInTip . varName
 
 isPropTyCon :: TyCon -> Bool
 isPropTyCon = isPropId . idFromTyCon
@@ -28,7 +43,8 @@ ghcName k (GHCOrigin n) = k (showOutputable n)
 ghcName _ _             = False
 
 isPropId :: Id -> Bool
-isPropId = ghcName (isInfixOf "HipSpec.Prop")
+isPropId (GHCOrigin n) = nameInTip n && ghcName (isInfixOf "Prop") (GHCOrigin n)
+isPropId _ = False
 
 isPropType  :: Type Id -> Bool
 isPropType t =
@@ -39,7 +55,7 @@ isPropType t =
     (_args,res) = collectArrTy t
 
 fromPrelude :: Id -> Bool
-fromPrelude = ghcName (isInfixOf "HipSpec")
+fromPrelude = maybe False nameInTip . tryGetGHCName -- or [ghcName (isInfixOf x) i | x <- mods ]
 
 isMain      :: Id -> Bool
 isMain      = ghcName (isInfixOf "main")
