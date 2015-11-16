@@ -49,7 +49,7 @@ library
         QuickCheck           >= 2.5,
         quickspec1           == 0.9.6
 
-executable hipspec
+executable hipster-hipspec
     hs-source-dirs: src
 
     main-is:         HipSpec/Main.hs
