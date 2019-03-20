@@ -1,0 +1,14 @@
+resolver: lts-2.22
+
+packages:
+- .
+extra-deps:
+- geniplate-0.6.0.5
+- genifunctors-0.2.2.0
+- jukebox-0.1
+- quickspec-0.9.6
+- stm-promise-0.0.3.1
+- structural-induction-0.1
+- unification-fd-0.9.0
+- minisat-0.1.2
+- base-orphans-0
