@@ -1,3 +1,0 @@
-
-Challenges for HipSpec.
-

@@ -1,25 +1,41 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Reverse where
 
 import Prelude hiding ((++))
-import HipSpec
-import List ((++))
+import HipSpec.Prelude
 
-rev :: [a] -> [a]
-rev (x:xs) = rev xs ++ [x]
-rev []     = []
+data List = Cons A List | Nil
+  deriving (Eq,Typeable,Ord)
 
-qrev :: [a] -> [a] -> [a]
-qrev []     ys = ys
-qrev (x:xs) ys = qrev xs (x:ys)
+(++) :: List -> List -> List
+Cons x xs ++ ys = Cons x (xs ++ ys)
+Nil       ++ ys = ys
 
-prop_equal xs = qrev xs [] =:= rev xs
+rev :: List -> List
+rev (Cons x xs) = rev xs ++ Cons x Nil
+rev Nil         = Nil
 
-{-
-prop_rev xs ys = rev xs ++ rev ys =:= rev (ys ++ xs)
+revacc :: List -> List -> List
+revacc Nil         acc = acc
+revacc (Cons x xs) acc = revacc xs (Cons x acc)
 
-prop_inv xs = rev (rev xs) =:= xs
+qrev :: List -> List
+qrev xs = revacc xs Nil
 
-prop_assoc xs ys zs = (xs ++ ys) ++ zs =:= xs ++ (ys ++ zs)
+prop_equal    :: List -> Prop List
+prop_equal xs = rev xs =:= qrev xs
 
-prop_rid xs = xs ++ [] =:= xs
--}
+instance Arbitrary List where
+    arbitrary = toList `fmap` arbitrary
+
+instance Partial List where
+    unlifted xs = toList `fmap` unlifted (fromList xs)
+
+fromList :: List -> [A]
+fromList (Cons x xs) = x : fromList xs
+fromList Nil         = []
+
+toList :: [A] -> List
+toList (x:xs) = Cons x (toList xs)
+toList []     = Nil
+

@@ -1,17 +1,59 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Rotate where
 
-import Prelude hiding ((++),length,(+))
+import Prelude hiding ((++),length)
+import HipSpec.Prelude
 
-import HipSpec
+data List = Cons A List | Nil
+  deriving (Eq,Typeable,Ord)
 
-import Nat (Nat(..),(+))
-import List ((++),length)
+data Nat = Z | S Nat deriving (Eq,Ord,Show,Typeable)
 
-rotate :: Nat -> [a] -> [a]
-rotate Z     xs     = xs
-rotate _     []     = []
-rotate (S n) (x:xs) = rotate n (xs ++ [x])
+length :: List -> Nat
+length Nil         = Z
+length (Cons _ xs) = S (length xs)
 
-prop_rotate :: [a] -> Prop [a]
-prop_rotate xs = rotate (length xs) xs =:= xs
+(++) :: List -> List -> List
+Cons x xs ++ ys = Cons x (xs ++ ys)
+Nil       ++ ys = ys
+
+rotate :: Nat -> List -> List
+rotate Z     xs          = xs
+rotate (S _) Nil         = Nil
+rotate (S n) (Cons x xs) = rotate n (xs ++ Cons x Nil)
+
+-- T32 from productive use of failure
+prop_T32 :: List -> Prop List
+prop_T32 xs = rotate (length xs) xs =:= xs
+
+instance Arbitrary List where
+    arbitrary = toList `fmap` arbitrary
+
+instance Partial List where
+    unlifted xs = toList `fmap` unlifted (fromList xs)
+
+fromList :: List -> [A]
+fromList (Cons x xs) = x : fromList xs
+fromList Nil         = []
+
+toList :: [A] -> List
+toList (x:xs) = Cons x (toList xs)
+toList []     = Nil
+
+instance Enum Nat where
+  toEnum 0 = Z
+  toEnum n = S (toEnum (pred n))
+  fromEnum Z = 0
+  fromEnum (S n) = succ (fromEnum n)
+
+instance Arbitrary Nat where
+  arbitrary = sized arbSized
+
+instance Partial Nat where
+  unlifted Z = return Z
+  unlifted (S x) = fmap S (lifted x)
+
+arbSized s = do
+  x <- choose (0,round (sqrt (toEnum s)))
+  return (toEnum x)
 
